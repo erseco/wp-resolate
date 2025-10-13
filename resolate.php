@@ -31,6 +31,10 @@ if ( ! defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ) {
     define( 'RESOLATE_ZETAJS_CDN_BASE', 'https://cdn.zetaoffice.net/zetaoffice_latest/' );
 }
 
+if ( ! defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
+    define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.collaboraonline.com' );
+}
+
 /**
  * The code that runs during plugin activation.
  */

@@ -141,6 +141,12 @@ class Resolate_Zetajs_Converter {
      * @return string
      */
     public static function get_cdn_base_url() {
+        $options = get_option( 'resolate_settings', array() );
+        $engine  = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'collabora';
+        if ( 'wasm' !== $engine ) {
+            return '';
+        }
+
         $base = defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ? (string) RESOLATE_ZETAJS_CDN_BASE : '';
         /**
          * Filter the CDN base URL for ZetaJS assets.

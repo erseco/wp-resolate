@@ -158,6 +158,10 @@ class Resolate_Collabora_Converter {
     private static function get_base_url() {
         $options = get_option( 'resolate_settings', array() );
         $value   = isset( $options['collabora_base_url'] ) ? trim( (string) $options['collabora_base_url'] ) : '';
+        if ( '' === $value && defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
+            $value = trim( (string) RESOLATE_COLLABORA_DEFAULT_URL );
+        }
+
         if ( '' === $value ) {
             return '';
         }

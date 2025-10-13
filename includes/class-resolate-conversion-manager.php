@@ -26,9 +26,9 @@ class Resolate_Conversion_Manager {
      */
     public static function get_engine() {
         $options = get_option( 'resolate_settings', array() );
-        $engine  = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : self::ENGINE_WASM;
+        $engine  = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : self::ENGINE_COLLABORA;
         if ( ! in_array( $engine, array( self::ENGINE_WASM, self::ENGINE_COLLABORA ), true ) ) {
-            $engine = self::ENGINE_WASM;
+            $engine = self::ENGINE_COLLABORA;
         }
 
         return $engine;
@@ -46,11 +46,11 @@ class Resolate_Conversion_Manager {
         }
 
         $labels = array(
-            self::ENGINE_WASM      => __( 'LibreOffice WASM (ZetaJS)', 'resolate' ),
+            self::ENGINE_WASM      => __( 'LibreOffice WASM en el navegador (experimental)', 'resolate' ),
             self::ENGINE_COLLABORA => __( 'Collabora Online', 'resolate' ),
         );
 
-        return isset( $labels[ $engine ] ) ? $labels[ $engine ] : $labels[ self::ENGINE_WASM ];
+        return isset( $labels[ $engine ] ) ? $labels[ $engine ] : $labels[ self::ENGINE_COLLABORA ];
     }
 
     /**
