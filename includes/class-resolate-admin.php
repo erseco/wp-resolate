@@ -6,6 +6,13 @@
 class Resolate_Admin2 {
 
     /**
+     * Track whether the document generator class has been loaded.
+     *
+     * @var bool
+     */
+    private $document_generator_loaded = false;
+
+    /**
      * Boot hooks.
      */
     public function __construct() {
@@ -23,6 +30,23 @@ class Resolate_Admin2 {
 
         // Enhance title field UX for documents CPT.
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_title_textarea_assets' ) );
+    }
+
+    /**
+     * Ensure the document generator class is available before use.
+     *
+     * @return void
+     */
+    private function ensure_document_generator() {
+        if ( $this->document_generator_loaded ) {
+            return;
+        }
+
+        if ( ! class_exists( 'Resolate_Document_Generator' ) ) {
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-document-generator.php';
+        }
+
+        $this->document_generator_loaded = true;
     }
 
     /**
@@ -103,6 +127,8 @@ class Resolate_Admin2 {
             wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
         }
 
+        $this->ensure_document_generator();
+
         $result = Resolate_Document_Generator::generate_docx( $post_id );
         if ( is_wp_error( $result ) ) {
             $msg = $result->get_error_message();
@@ -132,6 +158,8 @@ class Resolate_Admin2 {
         if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'resolate_export_' . $post_id ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
             wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
         }
+
+        $this->ensure_document_generator();
 
         $result = Resolate_Document_Generator::generate_odt( $post_id );
         if ( is_wp_error( $result ) ) {
@@ -163,6 +191,8 @@ class Resolate_Admin2 {
             wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
         }
 
+        $this->ensure_document_generator();
+
         $result = Resolate_Document_Generator::generate_pdf( $post_id );
         if ( is_wp_error( $result ) ) {
             $msg = $result->get_error_message();
@@ -192,6 +222,8 @@ class Resolate_Admin2 {
         if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'resolate_preview_' . $post_id ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
             wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
         }
+
+        $this->ensure_document_generator();
 
         $result = Resolate_Document_Generator::generate_pdf( $post_id );
         if ( is_wp_error( $result ) ) {
@@ -300,6 +332,8 @@ class Resolate_Admin2 {
             ),
             $base
         );
+
+        $this->ensure_document_generator();
 
         $docx_template = Resolate_Document_Generator::get_template_path( $post_id, 'docx' );
         $odt_template  = Resolate_Document_Generator::get_template_path( $post_id, 'odt' );
@@ -689,6 +723,8 @@ class Resolate_Admin2 {
         $docx    = add_query_arg( array( 'action' => 'resolate_export_docx', 'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
         $pdf     = add_query_arg( array( 'action' => 'resolate_export_pdf',  'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
         $odt     = add_query_arg( array( 'action' => 'resolate_export_odt',  'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
+
+        $this->ensure_document_generator();
 
         $docx_template = Resolate_Document_Generator::get_template_path( $post->ID, 'docx' );
         $odt_template  = Resolate_Document_Generator::get_template_path( $post->ID, 'odt' );
