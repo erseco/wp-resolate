@@ -25,6 +25,13 @@ These are natural-language guidelines for agents to follow when developing the R
 - Ensure all PHPUnit test suites pass locally before requesting review.
 - Use `make check-untranslated` to detect any untranslated Spanish strings.
 
+## Tooling quick start
+
+- Run `composer install` in the project root to install PHP_CodeSniffer, WordPress Coding Standards, and other developer tools (requires outbound network access).
+- Use `./vendor/bin/phpcbf --standard=.phpcs.xml.dist` first to apply automatic fixes, then `./vendor/bin/phpcs --standard=.phpcs.xml.dist` to ensure the codebase is clean.
+- Composer scripts mirror these commands: `composer phpcbf` and `composer phpcs` respect the repository ignore list defined in `.phpcs.xml.dist`.
+- The `.phpcs.xml.dist` ruleset bundles the WordPress standard, limits scanning to PHP files, enables colorized output, suppresses warnings, and excludes vendor, assets, node_modules, tests/js, wp, tests, and `.composer` directories.
+
 ## Environment and tools
 
 - Develop plugin within `@wordpress/env` environment.
