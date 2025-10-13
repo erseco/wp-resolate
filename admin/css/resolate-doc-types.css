@@ -1,0 +1,3 @@
+/* Minimal layout helpers for document types admin */
+#resolate_type_fields .resolate-field-row input[type=text]{max-width:280px}
+#resolate_type_fields .resolate-field-row .fld-type{min-width:140px}

@@ -1,0 +1,47 @@
+# Exclude common development files and folders
+/node_modules/
+/vendor/
+/composer.lock
+/package-lock.json
+*.log
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+wp-resolate*/
+resolate*/
+*.swp
+*.swo
+*.bak
+*.bkp
+*.back
+*.tmp
+*~
+.DS_Store
+Thumbs.db
+sftp-config.json
+
+# Exclude specific editor/IDE files
+/.idea/
+.vscode/
+.project
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Exclude test-related files and directories
+# /tests/
+# /phpunit.xml
+# /phpunit.xml.dist
+.phpunit.result.cache
+/behat.yml
+.php-cs-fixer.cache
+
+resolate/
+.aider*
+.env
+
+wp/
+wp-content/
+wordpress-develop/
+artifacts/

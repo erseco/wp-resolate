@@ -1,0 +1,19 @@
+.is-style-justified {
+    text-align: justify;
+}
+
+.has-text-align-justify {
+    text-align: justify;
+}
+
+/* Hide default Align text dropdown and rely on our extended one */
+.edit-post-visual-editor .components-button[aria-label="Align text"],
+.edit-post-visual-editor .components-button[aria-label="Alinear texto"] {
+    display: none !important;
+}
+
+/* Hide Drop cap toggle and Orientation controls inside Typography panel (editor UI labels in EN/ES) */
+.edit-post-sidebar .components-panel .components-base-control:has([aria-label="Drop cap"]) { display: none !important; }
+.edit-post-sidebar .components-panel .components-base-control:has([aria-label="Capitular"]) { display: none !important; }
+.edit-post-sidebar .components-panel .components-base-control:has([aria-label="Orientation"]) { display: none !important; }
+.edit-post-sidebar .components-panel .components-base-control:has([aria-label="Orientación"]) { display: none !important; }

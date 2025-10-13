@@ -1,0 +1,39 @@
+---
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the code
+      - uses: actions/checkout@v5
+
+      - name: Set environment variables
+        run: |
+          RAW_TAG="${GITHUB_REF##*/}"
+          VERSION_TAG="${RAW_TAG#v}"  # Delete the initial 'v' if exists
+          echo "RELEASE_TAG=${VERSION_TAG}" >> $GITHUB_ENV
+
+      - name: Create package using the Makefile
+        run: make package VERSION=${RELEASE_TAG}
+
+      - name: Upload ZIP to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: resolate-${{ env.RELEASE_TAG }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Deploy to WordPress
+      #   uses: 10up/action-wordpress-plugin-deploy@v2.2.2
+      #   with:
+      #     plugin_slug: resolate
+      #     svn_username: ${{ secrets.WP_SVN_USERNAME }}
+      #     svn_password: ${{ secrets.WP_SVN_PASSWORD }}

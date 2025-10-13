@@ -1,0 +1,13 @@
+#resolate_title_textarea {
+  font-size: 16px;
+  line-height: 1.4;
+  min-height: 96px;
+  resize: vertical;
+}
+
+#titlewrap {
+  padding-bottom: 0;
+}
+
+/* Hide the default placeholder label in the title area */
+#title-prompt-text { display: none !important; }
