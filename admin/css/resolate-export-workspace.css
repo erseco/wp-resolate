@@ -1,0 +1,176 @@
+:root {
+    color-scheme: light;
+}
+
+body.resolate-export-workspace {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f4f4f5;
+    color: #1f2933;
+}
+
+.resolate-export-workspace__layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.resolate-export-workspace__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: #1d2327;
+    color: #fff;
+    gap: 16px;
+}
+
+.resolate-export-workspace__headline h1 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.resolate-export-workspace__headline p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.86;
+}
+
+.resolate-export-workspace__header-actions .button {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
+}
+
+.resolate-export-workspace__header-actions .button:hover,
+.resolate-export-workspace__header-actions .button:focus {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.resolate-export-workspace__content {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.resolate-export-workspace__preview {
+    flex: 3;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 20px 32px rgba(15, 23, 42, 0.16);
+    overflow: hidden;
+}
+
+.resolate-export-workspace__preview iframe {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+    border: 0;
+}
+
+.resolate-export-workspace__panel {
+    flex: 2;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 20px 32px rgba(15, 23, 42, 0.12);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.resolate-export-workspace__status {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.resolate-export-workspace__intro,
+.resolate-export-workspace__note {
+    margin: 0;
+    font-size: 14px;
+    color: #4b5563;
+}
+
+.resolate-export-workspace__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.resolate-export-workspace__step {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    font-size: 14px;
+}
+
+.resolate-export-workspace__step.is-active {
+    border-color: #2563eb;
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.resolate-export-workspace__step.is-ready {
+    border-color: #16a34a;
+    background: rgba(22, 163, 74, 0.08);
+}
+
+.resolate-export-workspace__step.is-done {
+    border-color: #047857;
+    background: rgba(4, 120, 87, 0.08);
+}
+
+.resolate-export-workspace__step.is-error {
+    border-color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.resolate-export-workspace__step.is-disabled {
+    opacity: 0.6;
+}
+
+.resolate-export-workspace__step-title {
+    font-weight: 600;
+}
+
+.resolate-export-workspace__step-status {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.resolate-export-workspace__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.resolate-export-workspace__buttons .button {
+    flex: 1 1 150px;
+    text-align: center;
+}
+
+.resolate-export-workspace__frame {
+    display: none;
+}
+
+@media (max-width: 1200px) {
+    .resolate-export-workspace__content {
+        flex-direction: column;
+    }
+
+    .resolate-export-workspace__preview iframe {
+        min-height: 480px;
+    }
+}
