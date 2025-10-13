@@ -247,6 +247,10 @@ class Resolate_Admin_Settings {
             'alert_color'           => __( 'Alert Color', 'resolate' ),
             'alert_message'         => __( 'Alert Message', 'resolate' ),
             'minimum_user_profile'  => __( 'Minimum User Profile', 'resolate' ),
+            'conversion_engine'     => __( 'Motor de conversión', 'resolate' ),
+            'collabora_base_url'    => __( 'URL de Collabora Online', 'resolate' ),
+            'collabora_lang'        => __( 'Idioma para Collabora', 'resolate' ),
+            'collabora_disable_ssl' => __( 'Omitir verificación SSL (Collabora)', 'resolate' ),
 
             // Document appearance settings.
             'doc_font_family'       => __( 'Fuente del documento', 'resolate' ),
@@ -310,6 +314,64 @@ class Resolate_Admin_Settings {
         wp_nonce_field( 'resolate_clear_all_data_action', 'resolate_clear_all_data_nonce', true, true );
         echo '<input type="submit" name="resolate_clear_all_data" class="button button-secondary" style="background-color: red; color: white;" value="' . esc_attr__( 'Clear All Data', 'resolate' ) . '" onclick="return confirm(\'' . esc_js( __( 'Are you sure you want to delete all Resolate records? This action cannot be undone.', 'resolate' ) ) . '\');">';
         echo '<p class="description">' . esc_html__( 'Click the button to delete all Resolate labels, tasks, and boards.', 'resolate' ) . '</p>';
+    }
+
+    /**
+     * Render Conversion Engine selector.
+     */
+    public function conversion_engine_render() {
+        $options = get_option( 'resolate_settings', array() );
+        $current = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'wasm';
+
+        $engines = array(
+            'wasm'      => __( 'LibreOffice WASM (ZetaJS en el servidor)', 'resolate' ),
+            'collabora' => __( 'Servicio web Collabora Online', 'resolate' ),
+        );
+
+        echo '<fieldset>';
+        foreach ( $engines as $value => $label ) {
+            echo '<label style="display:block;margin-bottom:6px;">';
+            echo '<input type="radio" name="resolate_settings[conversion_engine]" value="' . esc_attr( $value ) . '" ' . checked( $current, $value, false ) . '> ';
+            echo esc_html( $label );
+            echo '</label>';
+        }
+        echo '<p class="description">' . esc_html__( 'Define si las conversiones se realizan con el ejecutable de LibreOffice WASM (ZetaJS) o a través de un servidor Collabora.', 'resolate' ) . '</p>';
+        echo '</fieldset>';
+    }
+
+    /**
+     * Render Collabora base URL field.
+     */
+    public function collabora_base_url_render() {
+        $options = get_option( 'resolate_settings', array() );
+        $value   = isset( $options['collabora_base_url'] ) ? esc_url( $options['collabora_base_url'] ) : '';
+
+        echo '<input type="url" class="regular-text" name="resolate_settings[collabora_base_url]" value="' . esc_attr( $value ) . '" placeholder="https://example.com">';
+        echo '<p class="description">' . esc_html__( 'Ejemplo: https://demo.us.collaboraonline.com', 'resolate' ) . '</p>';
+    }
+
+    /**
+     * Render Collabora language field.
+     */
+    public function collabora_lang_render() {
+        $options = get_option( 'resolate_settings', array() );
+        $value   = isset( $options['collabora_lang'] ) ? sanitize_text_field( $options['collabora_lang'] ) : 'es-ES';
+
+        echo '<input type="text" class="regular-text" name="resolate_settings[collabora_lang]" value="' . esc_attr( $value ) . '" placeholder="es-ES">';
+        echo '<p class="description">' . esc_html__( 'Código de idioma que se enviará a Collabora Online (por defecto es-ES).', 'resolate' ) . '</p>';
+    }
+
+    /**
+     * Render Collabora SSL verification toggle.
+     */
+    public function collabora_disable_ssl_render() {
+        $options = get_option( 'resolate_settings', array() );
+        $checked = isset( $options['collabora_disable_ssl'] ) && '1' === $options['collabora_disable_ssl'];
+
+        echo '<label>';
+        echo '<input type="checkbox" name="resolate_settings[collabora_disable_ssl]" value="1" ' . checked( $checked, true, false ) . '> ';
+        echo esc_html__( 'Desactivar la comprobación de certificados SSL (usar solo en entornos de pruebas).', 'resolate' );
+        echo '</label>';
     }
 
     /**
@@ -540,17 +602,37 @@ class Resolate_Admin_Settings {
 		// Validate allow email notifications.
 		$input['allow_email_notifications'] = isset( $input['allow_email_notifications'] ) && '1' === $input['allow_email_notifications'] ? '1' : '0';
 
-		// Validate alert color.
-		$valid_colors = array( 'success', 'danger', 'warning', 'info' );
-		if ( isset( $input['alert_color'] ) && ! in_array( $input['alert_color'], $valid_colors ) ) {
-			$input['alert_color'] = 'info'; // Default to info if invalid.
-		} else {
-			$input['alert_color'] = isset( $input['alert_color'] ) ? $input['alert_color'] : 'info';
-		}
+                // Validate alert color.
+                $valid_colors = array( 'success', 'danger', 'warning', 'info' );
+                if ( isset( $input['alert_color'] ) && ! in_array( $input['alert_color'], $valid_colors ) ) {
+                        $input['alert_color'] = 'info'; // Default to info if invalid.
+                } else {
+                        $input['alert_color'] = isset( $input['alert_color'] ) ? $input['alert_color'] : 'info';
+                }
 
-		// Validate user profile.
-		$roles = wp_roles()->get_names();
-		if ( isset( $input['minimum_user_profile'] ) && ! array_key_exists( $input['minimum_user_profile'], $roles ) ) {
+        // Validate conversion engine.
+        $valid_engines = array( 'wasm', 'collabora' );
+        $engine        = isset( $input['conversion_engine'] ) ? sanitize_key( $input['conversion_engine'] ) : 'wasm';
+        if ( ! in_array( $engine, $valid_engines, true ) ) {
+            $engine = 'wasm';
+        }
+        $input['conversion_engine'] = $engine;
+
+        // Validate Collabora settings.
+        $base_url = isset( $input['collabora_base_url'] ) ? trim( (string) $input['collabora_base_url'] ) : '';
+        $input['collabora_base_url'] = '' === $base_url ? '' : untrailingslashit( esc_url_raw( $base_url ) );
+
+        $lang = isset( $input['collabora_lang'] ) ? sanitize_text_field( $input['collabora_lang'] ) : 'es-ES';
+        if ( '' === $lang ) {
+            $lang = 'es-ES';
+        }
+        $input['collabora_lang'] = $lang;
+
+        $input['collabora_disable_ssl'] = isset( $input['collabora_disable_ssl'] ) && '1' === $input['collabora_disable_ssl'] ? '1' : '0';
+
+                // Validate user profile.
+                $roles = wp_roles()->get_names();
+                if ( isset( $input['minimum_user_profile'] ) && ! array_key_exists( $input['minimum_user_profile'], $roles ) ) {
 			$input['minimum_user_profile'] = 'editor'; // Default to editor if invalid.
 		} else {
 			$input['minimum_user_profile'] = isset( $input['minimum_user_profile'] ) ? $input['minimum_user_profile'] : 'editor';
