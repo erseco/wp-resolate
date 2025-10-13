@@ -83,6 +83,11 @@ class Resolate_Admin2 {
 
         $config = array(
             'baseUrl' => $base,
+            'loadingText' => __( 'Cargando ZetaJS…', 'resolate' ),
+            'errorText'   => __( 'No se pudo cargar ZetaJS.', 'resolate' ),
+            'pendingSelector' => '[data-zetajs-disabled]',
+            'readyEvent'      => 'resolateZeta:ready',
+            'errorEvent'      => 'resolateZeta:error',
             'assets'  => array(
                 array(
                     'href' => 'soffice.wasm',
@@ -510,16 +515,44 @@ class Resolate_Admin2 {
             require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
         }
 
-        $zetajs_ready = class_exists( 'Resolate_Zetajs_Converter' ) && ! Resolate_Zetajs_Converter::is_cdn_mode() && Resolate_Zetajs_Converter::is_available();
+        $zetajs_ready = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_available();
+        $browser_mode = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode();
 
         $docx_available = ( '' !== $docx_template ) || ( '' !== $odt_template && $zetajs_ready );
         $odt_available  = ( '' !== $odt_template ) || ( '' !== $docx_template && $zetajs_ready );
         $pdf_available  = $zetajs_ready && ( '' !== $docx_template || '' !== $odt_template );
 
-        echo '<p><a class="button button-secondary" href="' . esc_url( $preview ) . '" target="_blank" rel="noopener">' . esc_html__( 'Ver documento', 'resolate' ) . '</a></p>';
+        $preview_attrs = array(
+            'class' => 'button button-secondary',
+            'href'  => $preview,
+            'target' => '_blank',
+            'rel'    => 'noopener',
+        );
+        if ( $browser_mode ) {
+            $preview_attrs['data-zetajs-href']     = $preview;
+            $preview_attrs['data-zetajs-disabled'] = '1';
+            $preview_attrs['data-zetajs-type']     = 'preview';
+            $preview_attrs['href']                 = '#';
+            $preview_attrs['aria-disabled']        = 'true';
+            $preview_attrs['class']               .= ' disabled';
+        }
+
+        echo '<p><a ' . $this->build_action_attributes( $preview_attrs ) . '>' . esc_html__( 'Ver documento', 'resolate' ) . '</a></p>';
         echo '<p>';
         if ( $docx_available ) {
-            echo '<a class="button button-primary" href="' . esc_url( $docx ) . '">DOCX</a> ';
+            $docx_attrs = array(
+                'class' => 'button button-primary',
+                'href'  => $docx,
+            );
+            if ( $browser_mode ) {
+                $docx_attrs['data-zetajs-href']     = $docx;
+                $docx_attrs['data-zetajs-disabled'] = '1';
+                $docx_attrs['data-zetajs-type']     = 'docx';
+                $docx_attrs['href']                 = '#';
+                $docx_attrs['aria-disabled']        = 'true';
+                $docx_attrs['class']               .= ' disabled';
+            }
+            echo '<a ' . $this->build_action_attributes( $docx_attrs ) . '>DOCX</a> ';
         } else {
             $docx_message = '' === $docx_template && '' !== $odt_template
                 ? __( 'Configura ZetaJS para convertir tu plantilla ODT a DOCX.', 'resolate' )
@@ -527,7 +560,19 @@ class Resolate_Admin2 {
             echo '<button type="button" class="button button-primary" disabled title="' . esc_attr( $docx_message ) . '">DOCX</button> ';
         }
         if ( $pdf_available ) {
-            echo '<a class="button" href="' . esc_url( $pdf ) . '">PDF</a> ';
+            $pdf_attrs = array(
+                'class' => 'button',
+                'href'  => $pdf,
+            );
+            if ( $browser_mode ) {
+                $pdf_attrs['data-zetajs-href']     = $pdf;
+                $pdf_attrs['data-zetajs-disabled'] = '1';
+                $pdf_attrs['data-zetajs-type']     = 'pdf';
+                $pdf_attrs['href']                 = '#';
+                $pdf_attrs['aria-disabled']        = 'true';
+                $pdf_attrs['class']               .= ' disabled';
+            }
+            echo '<a ' . $this->build_action_attributes( $pdf_attrs ) . '>PDF</a> ';
         } else {
             $pdf_message = $zetajs_ready
                 ? __( 'Configura una plantilla DOCX u ODT para generar el PDF.', 'resolate' )
@@ -535,7 +580,19 @@ class Resolate_Admin2 {
             echo '<button type="button" class="button" disabled title="' . esc_attr( $pdf_message ) . '">PDF</button> ';
         }
         if ( $odt_available ) {
-            echo '<a class="button" href="' . esc_url( $odt ) . '">ODT</a>';
+            $odt_attrs = array(
+                'class' => 'button',
+                'href'  => $odt,
+            );
+            if ( $browser_mode ) {
+                $odt_attrs['data-zetajs-href']     = $odt;
+                $odt_attrs['data-zetajs-disabled'] = '1';
+                $odt_attrs['data-zetajs-type']     = 'odt';
+                $odt_attrs['href']                 = '#';
+                $odt_attrs['aria-disabled']        = 'true';
+                $odt_attrs['class']               .= ' disabled';
+            }
+            echo '<a ' . $this->build_action_attributes( $odt_attrs ) . '>ODT</a>';
         } else {
             $odt_message = '' === $odt_template && '' !== $docx_template
                 ? __( 'Configura ZetaJS para convertir tu plantilla DOCX a ODT.', 'resolate' )
@@ -544,6 +601,28 @@ class Resolate_Admin2 {
         }
         echo '</p>';
         echo '<p class="description">' . esc_html__( 'Descarga el documento generado con LibreOffice (ZetaJS).', 'resolate' ) . '</p>';
+    }
+
+    /**
+     * Build a HTML attribute string for action buttons.
+     *
+     * @param array $attributes Attributes to render.
+     * @return string
+     */
+    private function build_action_attributes( array $attributes ) {
+        $pairs = array();
+        foreach ( $attributes as $name => $value ) {
+            if ( '' === $value && 'href' !== $name ) {
+                continue;
+            }
+            $attr_name = esc_attr( $name );
+            if ( 'href' === $name ) {
+                $pairs[] = sprintf( '%s="%s"', $attr_name, esc_url( $value ) );
+            } else {
+                $pairs[] = sprintf( '%s="%s"', $attr_name, esc_attr( $value ) );
+            }
+        }
+        return implode( ' ', $pairs );
     }
 
     /**
