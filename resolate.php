@@ -237,6 +237,175 @@ function resolate_ensure_default_media() {
     update_option( 'resolate_settings', $options );
 }
 
+/**
+ * Ensure demo document types exist with bundled templates.
+ *
+ * @return void
+ */
+function resolate_maybe_seed_default_doc_types() {
+    if ( ! taxonomy_exists( 'resolate_doc_type' ) ) {
+        return;
+    }
+
+    resolate_ensure_default_media();
+
+    $options = get_option( 'resolate_settings', array() );
+
+    $definitions = array();
+
+    $odt_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
+    if ( $odt_id > 0 ) {
+        $definitions[] = array(
+            'slug'        => 'resolate-demo-odt',
+            'name'        => __( 'Tipo de documento de prueba (ODT)', 'resolate' ),
+            'description' => __( 'Ejemplo creado automáticamente con la plantilla ODT incluida.', 'resolate' ),
+            'color'       => '#37517e',
+            'template_id' => $odt_id,
+            'fixture_key' => 'resolate-demo-odt',
+        );
+    }
+
+    $docx_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
+    if ( $docx_id > 0 ) {
+        $definitions[] = array(
+            'slug'        => 'resolate-demo-docx',
+            'name'        => __( 'Tipo de documento de prueba (DOCX)', 'resolate' ),
+            'description' => __( 'Ejemplo creado automáticamente con la plantilla DOCX incluida.', 'resolate' ),
+            'color'       => '#2a7fb8',
+            'template_id' => $docx_id,
+            'fixture_key' => 'resolate-demo-docx',
+        );
+    }
+
+    if ( empty( $definitions ) ) {
+        return;
+    }
+
+    if ( ! class_exists( 'Resolate_Template_Parser' ) ) {
+        require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
+    }
+
+    foreach ( $definitions as $definition ) {
+        $slug        = $definition['slug'];
+        $template_id = intval( $definition['template_id'] );
+        if ( $template_id <= 0 ) {
+            continue;
+        }
+
+        $term    = get_term_by( 'slug', $slug, 'resolate_doc_type' );
+        $term_id = $term instanceof WP_Term ? intval( $term->term_id ) : 0;
+
+        if ( $term_id <= 0 ) {
+            $created = wp_insert_term(
+                $definition['name'],
+                'resolate_doc_type',
+                array(
+                    'slug'        => $slug,
+                    'description' => $definition['description'],
+                )
+            );
+
+            if ( is_wp_error( $created ) ) {
+                continue;
+            }
+
+            $term_id = intval( $created['term_id'] );
+        }
+
+        if ( $term_id <= 0 ) {
+            continue;
+        }
+
+        $fixture_key = get_term_meta( $term_id, '_resolate_fixture', true );
+        if ( ! empty( $fixture_key ) && $fixture_key !== $definition['fixture_key'] ) {
+            continue;
+        }
+
+        update_term_meta( $term_id, '_resolate_fixture', $definition['fixture_key'] );
+        update_term_meta( $term_id, 'resolate_type_color', $definition['color'] );
+        update_term_meta( $term_id, 'resolate_type_template_id', $template_id );
+
+        $path = get_attached_file( $template_id );
+        if ( ! $path ) {
+            continue;
+        }
+
+        $template_type = resolate_detect_template_type( $path );
+        $schema        = resolate_build_schema_from_template( $path );
+
+        update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+        update_term_meta( $term_id, 'schema', $schema );
+        update_term_meta( $term_id, 'resolate_type_fields', $schema );
+    }
+}
+
+/**
+ * Detect template type (odt/docx) from file path.
+ *
+ * @param string $path File path.
+ * @return string
+ */
+function resolate_detect_template_type( $path ) {
+    $ext = strtolower( pathinfo( (string) $path, PATHINFO_EXTENSION ) );
+    if ( in_array( $ext, array( 'docx', 'odt' ), true ) ) {
+        return $ext;
+    }
+    return '';
+}
+
+/**
+ * Build schema array from template placeholders.
+ *
+ * @param string $path Template path.
+ * @return array[]
+ */
+function resolate_build_schema_from_template( $path ) {
+    $fields = Resolate_Template_Parser::extract_fields( $path );
+    if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
+        return array();
+    }
+
+    $schema = array();
+    foreach ( $fields as $field ) {
+        $slug = sanitize_key( $field );
+        if ( '' === $slug ) {
+            continue;
+        }
+
+        $schema[] = array(
+            'slug'  => $slug,
+            'label' => resolate_humanize_slug( $slug ),
+            'type'  => 'textarea',
+        );
+    }
+
+    return $schema;
+}
+
+/**
+ * Convert slug into a human readable label.
+ *
+ * @param string $slug Slug.
+ * @return string
+ */
+function resolate_humanize_slug( $slug ) {
+    $slug = str_replace( array( '-', '_' ), ' ', $slug );
+    $slug = preg_replace( '/\s+/', ' ', $slug );
+    $slug = trim( (string) $slug );
+
+    if ( '' === $slug ) {
+        return '';
+    }
+
+    if ( function_exists( 'mb_convert_case' ) ) {
+        return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
+    }
+
+    return ucwords( strtolower( $slug ) );
+}
+
+add_action( 'init', 'resolate_maybe_seed_default_doc_types', 40 );
+
 
 /**
  * The core plugin class that is used to define internationalization,
