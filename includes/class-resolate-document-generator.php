@@ -21,89 +21,33 @@ class Resolate_Document_Generator {
      */
     public static function generate_docx( $post_id ) {
         try {
-            $opts   = get_option( 'resolate_settings', array() );
-            // Prefer template from selected document type.
-            $tpl_id = 0;
-            $types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-            if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $type_id       = intval( $types[0] );
-                $type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
-                $template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
-                if ( $type_template > 0 ) {
-                    if ( 'docx' === $template_kind ) {
-                        $tpl_id = $type_template;
-                    } elseif ( '' === $template_kind ) {
-                        $path = get_attached_file( $type_template );
-                        if ( $path && 'docx' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
-                            $tpl_id = $type_template;
-                        }
-                    }
-                }
-                if ( $tpl_id <= 0 ) {
-                    $tpl_id = intval( get_term_meta( $type_id, 'resolate_type_docx_template', true ) );
-                }
-            }
-            if ( $tpl_id <= 0 ) {
-                $tpl_id = isset( $opts['docx_template_id'] ) ? intval( $opts['docx_template_id'] ) : 0;
-            }
-            if ( $tpl_id <= 0 ) {
-                return new WP_Error( 'resolate_template_missing', __( 'No hay plantilla DOCX configurada.', 'resolate' ) );
+            $docx_template = self::get_template_path( $post_id, 'docx' );
+            if ( '' !== $docx_template ) {
+                return self::render_with_template( $post_id, $docx_template, 'docx' );
             }
 
-            $template_path = get_attached_file( $tpl_id );
-            if ( ! $template_path || ! file_exists( $template_path ) ) {
-                return new WP_Error( 'resolate_template_missing', __( 'Plantilla DOCX no encontrada.', 'resolate' ) );
+            $odt_template = self::get_template_path( $post_id, 'odt' );
+            if ( '' === $odt_template ) {
+                return new WP_Error( 'resolate_template_missing', __( 'No hay plantilla disponible para generar DOCX.', 'resolate' ) );
             }
 
-            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';
-
-            $fields = array(
-                'title'        => get_the_title( $post_id ),
-                'objeto'       => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_objeto', true ) ),
-                'antecedentes' => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_antecedentes', true ) ),
-                'fundamentos'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_fundamentos', true ) ),
-                'dispositivo'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_dispositivo', true ) ),
-                'firma'        => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_firma', true ) ),
-                'margen'       => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
-            );
-            // Merge dynamic fields as [slug] => value.
-            if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $schema = self::get_type_schema( intval( $types[0] ) );
-                foreach ( $schema as $def ) {
-                    if ( empty( $def['slug'] ) ) { continue; }
-                    $slug = sanitize_key( $def['slug'] );
-                    $val  = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
-                    $fields[ $slug ] = wp_strip_all_tags( (string) $val );
-                }
-                // Expose logos if defined at type level.
-                $logos = get_term_meta( intval( $types[0] ), 'resolate_type_logos', true );
-                if ( is_array( $logos ) && ! empty( $logos ) ) {
-                    $i = 1;
-                    foreach ( $logos as $att_id ) {
-                        $att_id = intval( $att_id );
-                        if ( $att_id > 0 ) {
-                            $fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
-                            $fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
-                            $i++;
-                        }
-                    }
-                }
+            $base_odt = self::render_with_template( $post_id, $odt_template, 'odt' );
+            if ( is_wp_error( $base_odt ) ) {
+                return $base_odt;
             }
 
-            $upload_dir = wp_upload_dir();
-            $dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
-            if ( ! is_dir( $dir ) ) {
-                wp_mkdir_p( $dir );
-            }
-            $filename = sanitize_title( $fields['title'] ) . '-' . $post_id . '.docx';
-            $path     = trailingslashit( $dir ) . $filename;
-
-            $res = Resolate_OpenTBS::render_docx( $template_path, $fields, $path );
-            if ( is_wp_error( $res ) ) {
-                return $res;
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+            if ( Resolate_Zetajs_Converter::is_cdn_mode() || ! Resolate_Zetajs_Converter::is_available() ) {
+                return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura ZetaJS para convertir la plantilla ODT a DOCX.', 'resolate' ) );
             }
 
-            return $path;
+            $target = self::build_output_path( $post_id, 'docx' );
+            $result = Resolate_Zetajs_Converter::convert( $base_odt, $target, 'docx', 'odt' );
+            if ( is_wp_error( $result ) ) {
+                return $result;
+            }
+
+            return $target;
         } catch ( \Throwable $e ) {
             return new WP_Error( 'resolate_docx_error', $e->getMessage() );
         }
@@ -117,88 +61,33 @@ class Resolate_Document_Generator {
      */
     public static function generate_odt( $post_id ) {
         try {
-            $opts   = get_option( 'resolate_settings', array() );
-            // Prefer template from selected document type.
-            $tpl_id = 0;
-            $types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-            if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $type_id       = intval( $types[0] );
-                $type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
-                $template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
-                if ( $type_template > 0 ) {
-                    if ( 'odt' === $template_kind ) {
-                        $tpl_id = $type_template;
-                    } elseif ( '' === $template_kind ) {
-                        $path = get_attached_file( $type_template );
-                        if ( $path && 'odt' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
-                            $tpl_id = $type_template;
-                        }
-                    }
-                }
-                if ( $tpl_id <= 0 ) {
-                    $tpl_id = intval( get_term_meta( $type_id, 'resolate_type_odt_template', true ) );
-                }
-            }
-            if ( $tpl_id <= 0 ) {
-                $tpl_id = isset( $opts['odt_template_id'] ) ? intval( $opts['odt_template_id'] ) : 0;
-            }
-            if ( $tpl_id <= 0 ) {
-                return new WP_Error( 'resolate_template_missing', __( 'No hay plantilla ODT configurada.', 'resolate' ) );
+            $odt_template = self::get_template_path( $post_id, 'odt' );
+            if ( '' !== $odt_template ) {
+                return self::render_with_template( $post_id, $odt_template, 'odt' );
             }
 
-            $template_path = get_attached_file( $tpl_id );
-            if ( ! $template_path || ! file_exists( $template_path ) ) {
-                return new WP_Error( 'resolate_template_missing', __( 'Plantilla ODT no encontrada.', 'resolate' ) );
+            $docx_template = self::get_template_path( $post_id, 'docx' );
+            if ( '' === $docx_template ) {
+                return new WP_Error( 'resolate_template_missing', __( 'No hay plantilla disponible para generar ODT.', 'resolate' ) );
             }
 
-            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';
-
-            $fields = array(
-                'title'        => get_the_title( $post_id ),
-                'objeto'       => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_objeto', true ) ),
-                'antecedentes' => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_antecedentes', true ) ),
-                'fundamentos'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_fundamentos', true ) ),
-                'dispositivo'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_dispositivo', true ) ),
-                'firma'        => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_firma', true ) ),
-                'margen'       => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
-            );
-            if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $schema = self::get_type_schema( intval( $types[0] ) );
-                foreach ( $schema as $def ) {
-                    if ( empty( $def['slug'] ) ) { continue; }
-                    $slug = sanitize_key( $def['slug'] );
-                    $val  = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
-                    $fields[ $slug ] = wp_strip_all_tags( (string) $val );
-                }
-                $logos = get_term_meta( intval( $types[0] ), 'resolate_type_logos', true );
-                if ( is_array( $logos ) && ! empty( $logos ) ) {
-                    $i = 1;
-                    foreach ( $logos as $att_id ) {
-                        $att_id = intval( $att_id );
-                        if ( $att_id > 0 ) {
-                            $fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
-                            $fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
-                            $i++;
-                        }
-                    }
-                }
+            $base_docx = self::render_with_template( $post_id, $docx_template, 'docx' );
+            if ( is_wp_error( $base_docx ) ) {
+                return $base_docx;
             }
 
-            $upload_dir = wp_upload_dir();
-            $dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
-            if ( ! is_dir( $dir ) ) {
-                wp_mkdir_p( $dir );
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+            if ( Resolate_Zetajs_Converter::is_cdn_mode() || ! Resolate_Zetajs_Converter::is_available() ) {
+                return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura ZetaJS para convertir la plantilla DOCX a ODT.', 'resolate' ) );
             }
 
-            $filename = sanitize_title( $fields['title'] ) . '-' . $post_id . '.odt';
-            $path     = trailingslashit( $dir ) . $filename;
-
-            $res = Resolate_OpenTBS::render_odt( $template_path, $fields, $path );
-            if ( is_wp_error( $res ) ) {
-                return $res;
+            $target = self::build_output_path( $post_id, 'odt' );
+            $result = Resolate_Zetajs_Converter::convert( $base_docx, $target, 'odt', 'docx' );
+            if ( is_wp_error( $result ) ) {
+                return $result;
             }
 
-            return $path;
+            return $target;
         } catch ( \Throwable $e ) {
             return new WP_Error( 'resolate_odt_error', $e->getMessage() );
         }
@@ -294,14 +183,7 @@ class Resolate_Document_Generator {
                 return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura el ejecutable de ZetaJS para generar PDF.', 'resolate' ) );
             }
 
-            $upload_dir = wp_upload_dir();
-            $dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
-            if ( ! is_dir( $dir ) ) {
-                wp_mkdir_p( $dir );
-            }
-
-            $filename = sanitize_title( get_the_title( $post_id ) ) . '-' . $post_id . '.pdf';
-            $target   = trailingslashit( $dir ) . $filename;
+            $target = self::build_output_path( $post_id, 'pdf' );
 
             $result = Resolate_Zetajs_Converter::convert( $source_path, $target, 'pdf', $source_format );
             if ( is_wp_error( $result ) ) {
@@ -312,6 +194,171 @@ class Resolate_Document_Generator {
         } catch ( \Throwable $e ) {
             return new WP_Error( 'resolate_pdf_error', $e->getMessage() );
         }
+    }
+
+    /**
+     * Retrieve the template path associated with a document post for a format.
+     *
+     * @param int    $post_id Document post ID.
+     * @param string $format  Desired template format (docx|odt).
+     * @return string Template path or empty string when not available.
+     */
+    public static function get_template_path( $post_id, $format ) {
+        $format = sanitize_key( $format );
+        if ( ! in_array( $format, array( 'docx', 'odt' ), true ) ) {
+            return '';
+        }
+
+        $tpl_id = 0;
+        $opts   = get_option( 'resolate_settings', array() );
+        $types  = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+        if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
+            $type_id       = intval( $types[0] );
+            $type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
+            $template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
+            if ( $type_template > 0 ) {
+                if ( $format === $template_kind ) {
+                    $tpl_id = $type_template;
+                } elseif ( '' === $template_kind ) {
+                    $path = get_attached_file( $type_template );
+                    if ( $path && $format === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
+                        $tpl_id = $type_template;
+                    }
+                }
+            }
+            if ( $tpl_id <= 0 ) {
+                $meta_key = 'resolate_type_' . $format . '_template';
+                $tpl_id   = intval( get_term_meta( $type_id, $meta_key, true ) );
+            }
+        }
+
+        if ( $tpl_id <= 0 ) {
+            $opt_key = $format . '_template_id';
+            $tpl_id  = isset( $opts[ $opt_key ] ) ? intval( $opts[ $opt_key ] ) : 0;
+        }
+
+        if ( $tpl_id <= 0 ) {
+            return '';
+        }
+
+        $template_path = get_attached_file( $tpl_id );
+        if ( ! $template_path || ! file_exists( $template_path ) ) {
+            return '';
+        }
+
+        $ext = strtolower( pathinfo( $template_path, PATHINFO_EXTENSION ) );
+        if ( $format !== $ext ) {
+            return '';
+        }
+
+        return $template_path;
+    }
+
+    /**
+     * Render a template using OpenTBS and return the generated document path.
+     *
+     * @param int    $post_id         Document post ID.
+     * @param string $template_path   Absolute template path.
+     * @param string $template_format Template format (docx|odt).
+     * @return string|WP_Error
+     */
+    private static function render_with_template( $post_id, $template_path, $template_format ) {
+        require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';
+
+        $fields = self::build_merge_fields( $post_id );
+        $path   = self::build_output_path( $post_id, $template_format );
+
+        if ( 'docx' === $template_format ) {
+            $res = Resolate_OpenTBS::render_docx( $template_path, $fields, $path );
+        } else {
+            $res = Resolate_OpenTBS::render_odt( $template_path, $fields, $path );
+        }
+
+        if ( is_wp_error( $res ) ) {
+            return $res;
+        }
+
+        return $path;
+    }
+
+    /**
+     * Build the array of merge fields used by OpenTBS templates.
+     *
+     * @param int $post_id Document post ID.
+     * @return array
+     */
+    private static function build_merge_fields( $post_id ) {
+        $opts = get_option( 'resolate_settings', array() );
+
+        $fields = array(
+            'title'        => get_the_title( $post_id ),
+            'objeto'       => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_objeto', true ) ),
+            'antecedentes' => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_antecedentes', true ) ),
+            'fundamentos'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_fundamentos', true ) ),
+            'dispositivo'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_dispositivo', true ) ),
+            'firma'        => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_firma', true ) ),
+            'margen'       => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
+        );
+
+        $types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+        if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
+            $type_id = intval( $types[0] );
+            $schema  = self::get_type_schema( $type_id );
+            foreach ( $schema as $def ) {
+                if ( empty( $def['slug'] ) ) {
+                    continue;
+                }
+                $slug            = sanitize_key( $def['slug'] );
+                $val             = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
+                $fields[ $slug ] = wp_strip_all_tags( (string) $val );
+            }
+
+            $logos = get_term_meta( $type_id, 'resolate_type_logos', true );
+            if ( is_array( $logos ) && ! empty( $logos ) ) {
+                $i = 1;
+                foreach ( $logos as $att_id ) {
+                    $att_id = intval( $att_id );
+                    if ( $att_id <= 0 ) {
+                        continue;
+                    }
+                    $fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
+                    $fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
+                    $i++;
+                }
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Build (and ensure) the target path for a generated document.
+     *
+     * @param int    $post_id   Document post ID.
+     * @param string $extension File extension (docx|odt|pdf).
+     * @return string
+     */
+    private static function build_output_path( $post_id, $extension ) {
+        $extension = sanitize_key( $extension );
+        $dir       = self::ensure_output_dir();
+        $filename  = sanitize_title( get_the_title( $post_id ) ) . '-' . $post_id . '.' . $extension;
+
+        return trailingslashit( $dir ) . $filename;
+    }
+
+    /**
+     * Ensure the plugin output directory exists within uploads.
+     *
+     * @return string Absolute directory path.
+     */
+    private static function ensure_output_dir() {
+        $upload_dir = wp_upload_dir();
+        $dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
+        if ( ! is_dir( $dir ) ) {
+            wp_mkdir_p( $dir );
+        }
+
+        return $dir;
     }
 
     /**

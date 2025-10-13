@@ -503,40 +503,44 @@ class Resolate_Admin2 {
         $pdf     = add_query_arg( array( 'action' => 'resolate_export_pdf',  'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
         $odt     = add_query_arg( array( 'action' => 'resolate_export_odt',  'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
 
-        $opts = get_option( 'resolate_settings', array() );
-        $has_docx_tpl = ! empty( $opts['docx_template_id'] );
-        $has_odt_tpl  = ! empty( $opts['odt_template_id'] );
-        $types = wp_get_post_terms( $post->ID, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-        if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-            $tid = intval( $types[0] );
-            if ( intval( get_term_meta( $tid, 'resolate_type_docx_template', true ) ) > 0 ) { $has_docx_tpl = true; }
-            if ( intval( get_term_meta( $tid, 'resolate_type_odt_template', true ) ) > 0 ) { $has_odt_tpl = true; }
-        }
+        $docx_template = Resolate_Document_Generator::get_template_path( $post->ID, 'docx' );
+        $odt_template  = Resolate_Document_Generator::get_template_path( $post->ID, 'odt' );
+
         if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
             require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
         }
-        $cdn_mode = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode();
-        $has_pdf = ! $cdn_mode && Resolate_Zetajs_Converter::is_available() && ( $has_odt_tpl || $has_docx_tpl );
+
+        $zetajs_ready = class_exists( 'Resolate_Zetajs_Converter' ) && ! Resolate_Zetajs_Converter::is_cdn_mode() && Resolate_Zetajs_Converter::is_available();
+
+        $docx_available = ( '' !== $docx_template ) || ( '' !== $odt_template && $zetajs_ready );
+        $odt_available  = ( '' !== $odt_template ) || ( '' !== $docx_template && $zetajs_ready );
+        $pdf_available  = $zetajs_ready && ( '' !== $docx_template || '' !== $odt_template );
 
         echo '<p><a class="button button-secondary" href="' . esc_url( $preview ) . '" target="_blank" rel="noopener">' . esc_html__( 'Ver documento', 'resolate' ) . '</a></p>';
         echo '<p>';
-        if ( $has_docx_tpl ) {
+        if ( $docx_available ) {
             echo '<a class="button button-primary" href="' . esc_url( $docx ) . '">DOCX</a> ';
         } else {
-            echo '<button type="button" class="button button-primary" disabled title="' . esc_attr__( 'Configura una plantilla DOCX en los ajustes.', 'resolate' ) . '">DOCX</button> ';
+            $docx_message = '' === $docx_template && '' !== $odt_template
+                ? __( 'Configura ZetaJS para convertir tu plantilla ODT a DOCX.', 'resolate' )
+                : __( 'Configura una plantilla DOCX en los ajustes.', 'resolate' );
+            echo '<button type="button" class="button button-primary" disabled title="' . esc_attr( $docx_message ) . '">DOCX</button> ';
         }
-        if ( $has_pdf ) {
+        if ( $pdf_available ) {
             echo '<a class="button" href="' . esc_url( $pdf ) . '">PDF</a> ';
         } else {
-            $pdf_message = $cdn_mode
-                ? Resolate_Zetajs_Converter::get_browser_conversion_message()
+            $pdf_message = $zetajs_ready
+                ? __( 'Configura una plantilla DOCX u ODT para generar el PDF.', 'resolate' )
                 : __( 'Instala ZetaJS y configura RESOLATE_ZETAJS_BIN para habilitar la conversión a PDF.', 'resolate' );
             echo '<button type="button" class="button" disabled title="' . esc_attr( $pdf_message ) . '">PDF</button> ';
         }
-        if ( $has_odt_tpl ) {
+        if ( $odt_available ) {
             echo '<a class="button" href="' . esc_url( $odt ) . '">ODT</a>';
         } else {
-            echo '<button type="button" class="button" disabled title="' . esc_attr__( 'Configura una plantilla ODT en los ajustes.', 'resolate' ) . '">ODT</button>';
+            $odt_message = '' === $odt_template && '' !== $docx_template
+                ? __( 'Configura ZetaJS para convertir tu plantilla DOCX a ODT.', 'resolate' )
+                : __( 'Configura una plantilla ODT en los ajustes.', 'resolate' );
+            echo '<button type="button" class="button" disabled title="' . esc_attr( $odt_message ) . '">ODT</button>';
         }
         echo '</p>';
         echo '<p class="description">' . esc_html__( 'Descarga el documento generado con LibreOffice (ZetaJS).', 'resolate' ) . '</p>';
