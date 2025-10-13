@@ -110,10 +110,7 @@ class Resolate {
 
 		// Removed email-to-post, mailer/notification, and calendar modules.
 
-		// Resolate document generator service (no hooks, used on demand).
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-document-generator.php';
-
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-disable-comment-notifications.php';
+                require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-disable-comment-notifications.php';
 
 		/**
 		 * The class responsible for protecting comments on custom post types via the REST API.
