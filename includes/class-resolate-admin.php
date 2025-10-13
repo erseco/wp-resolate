@@ -23,6 +23,7 @@ class Resolate_Admin2 {
 
         // Enhance title field UX for documents CPT.
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_title_textarea_assets' ) );
+        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_zetajs_loader' ) );
     }
 
     /**
@@ -48,6 +49,57 @@ class Resolate_Admin2 {
 
         // Annexes repeater UI.
         wp_enqueue_script( 'resolate-annexes', plugins_url( 'admin/js/resolate-annexes.js', RESOLATE_PLUGIN_FILE ), array( 'jquery' ), RESOLATE_VERSION, true );
+    }
+
+    /**
+     * Preload and expose ZetaJS assets when editing a document.
+     *
+     * @param string $hook Current admin page hook.
+     * @return void
+     */
+    public function enqueue_zetajs_loader( $hook ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+        if ( ! function_exists( 'get_current_screen' ) ) {
+            return;
+        }
+        $screen = get_current_screen();
+        if ( ! $screen || ! in_array( $screen->base, array( 'post', 'post-new' ), true ) ) {
+            return;
+        }
+        if ( 'resolate_document' !== $screen->post_type ) {
+            return;
+        }
+
+        if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+        }
+        if ( ! class_exists( 'Resolate_Zetajs_Converter' ) || ! Resolate_Zetajs_Converter::is_cdn_mode() ) {
+            return;
+        }
+
+        $base = Resolate_Zetajs_Converter::get_cdn_base_url();
+
+        wp_enqueue_script( 'resolate-zetajs-loader', plugins_url( 'admin/js/resolate-zetajs-loader.js', RESOLATE_PLUGIN_FILE ), array(), RESOLATE_VERSION, true );
+        wp_script_add_data( 'resolate-zetajs-loader', 'type', 'module' );
+
+        $config = array(
+            'baseUrl' => $base,
+            'assets'  => array(
+                array(
+                    'href' => 'soffice.wasm',
+                    'as'   => 'fetch',
+                ),
+                array(
+                    'href' => 'soffice.data',
+                    'as'   => 'fetch',
+                ),
+            ),
+        );
+
+        wp_add_inline_script(
+            'resolate-zetajs-loader',
+            'window.resolateZetaLoaderConfig = ' . wp_json_encode( $config ) . ';',
+            'before'
+        );
     }
 
     /**
@@ -463,7 +515,8 @@ class Resolate_Admin2 {
         if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
             require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
         }
-        $has_pdf = Resolate_Zetajs_Converter::is_available() && ( $has_odt_tpl || $has_docx_tpl );
+        $cdn_mode = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode();
+        $has_pdf = ! $cdn_mode && Resolate_Zetajs_Converter::is_available() && ( $has_odt_tpl || $has_docx_tpl );
 
         echo '<p><a class="button button-secondary" href="' . esc_url( $preview ) . '" target="_blank" rel="noopener">' . esc_html__( 'Ver documento', 'resolate' ) . '</a></p>';
         echo '<p>';
@@ -475,7 +528,10 @@ class Resolate_Admin2 {
         if ( $has_pdf ) {
             echo '<a class="button" href="' . esc_url( $pdf ) . '">PDF</a> ';
         } else {
-            echo '<button type="button" class="button" disabled title="' . esc_attr__( 'Instala ZetaJS y configura RESOLATE_ZETAJS_BIN para habilitar la conversión a PDF.', 'resolate' ) . '">PDF</button> ';
+            $pdf_message = $cdn_mode
+                ? Resolate_Zetajs_Converter::get_browser_conversion_message()
+                : __( 'Instala ZetaJS y configura RESOLATE_ZETAJS_BIN para habilitar la conversión a PDF.', 'resolate' );
+            echo '<button type="button" class="button" disabled title="' . esc_attr( $pdf_message ) . '">PDF</button> ';
         }
         if ( $has_odt_tpl ) {
             echo '<a class="button" href="' . esc_url( $odt ) . '">ODT</a>';

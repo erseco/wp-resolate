@@ -23,6 +23,10 @@ class Resolate_Zetajs_Converter {
      * @return bool
      */
     public static function is_available() {
+        if ( self::is_cdn_mode() ) {
+            return true;
+        }
+
         $cli = self::get_cli_path();
         if ( '' === $cli ) {
             return false;
@@ -46,6 +50,17 @@ class Resolate_Zetajs_Converter {
      * @return string|WP_Error       Output path on success or WP_Error on failure.
      */
     public static function convert( $input_path, $output_path, $output_format = '', $input_format = '' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+        if ( self::is_cdn_mode() ) {
+            return new WP_Error(
+                'resolate_zetajs_browser_only',
+                self::get_browser_conversion_message(),
+                array(
+                    'mode'     => 'cdn',
+                    'cdn_base' => self::get_cdn_base_url(),
+                )
+            );
+        }
+
         if ( ! file_exists( $input_path ) ) {
             return new WP_Error( 'resolate_zetajs_input_missing', __( 'El fichero origen para la conversión no existe.', 'resolate' ) );
         }
@@ -118,5 +133,43 @@ class Resolate_Zetajs_Converter {
          */
         $cli = apply_filters( 'resolate_zetajs_cli', $cli );
         return (string) $cli;
+    }
+
+    /**
+     * Retrieve the configured CDN base URL for ZetaJS assets.
+     *
+     * @return string
+     */
+    public static function get_cdn_base_url() {
+        $base = defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ? (string) RESOLATE_ZETAJS_CDN_BASE : '';
+        /**
+         * Filter the CDN base URL for ZetaJS assets.
+         *
+         * @param string $base Current CDN base URL.
+         */
+        $base = apply_filters( 'resolate_zetajs_cdn_base', $base );
+        $base = trim( (string) $base );
+        if ( '' === $base ) {
+            return '';
+        }
+        return trailingslashit( $base );
+    }
+
+    /**
+     * Whether the plugin should rely on CDN-delivered assets for ZetaJS.
+     *
+     * @return bool
+     */
+    public static function is_cdn_mode() {
+        return '' !== self::get_cdn_base_url();
+    }
+
+    /**
+     * Default user-facing message for browser-based conversion flow.
+     *
+     * @return string
+     */
+    public static function get_browser_conversion_message() {
+        return __( 'La conversión a PDF se realiza en el navegador usando ZetaJS cargado desde la CDN oficial.', 'resolate' );
     }
 }

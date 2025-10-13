@@ -27,6 +27,10 @@ if ( ! defined( 'WPINC' ) ) {
 define( 'RESOLATE_VERSION', '0.0.0' );
 define( 'RESOLATE_PLUGIN_FILE', __FILE__ );
 
+if ( ! defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ) {
+    define( 'RESOLATE_ZETAJS_CDN_BASE', 'https://cdn.zetaoffice.net/zetaoffice_latest/' );
+}
+
 /**
  * The code that runs during plugin activation.
  */
