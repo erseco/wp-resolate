@@ -36,13 +36,16 @@ class Resolate_Document_Generator {
                 return $base_odt;
             }
 
-            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
-            if ( Resolate_Zetajs_Converter::is_cdn_mode() || ! Resolate_Zetajs_Converter::is_available() ) {
-                return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura ZetaJS para convertir la plantilla ODT a DOCX.', 'resolate' ) );
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-conversion-manager.php';
+            if ( ! Resolate_Conversion_Manager::is_available() ) {
+                return new WP_Error(
+                    'resolate_conversion_not_available',
+                    Resolate_Conversion_Manager::get_unavailable_message( 'odt', 'docx' )
+                );
             }
 
             $target = self::build_output_path( $post_id, 'docx' );
-            $result = Resolate_Zetajs_Converter::convert( $base_odt, $target, 'docx', 'odt' );
+            $result = Resolate_Conversion_Manager::convert( $base_odt, $target, 'docx', 'odt' );
             if ( is_wp_error( $result ) ) {
                 return $result;
             }
@@ -76,13 +79,16 @@ class Resolate_Document_Generator {
                 return $base_docx;
             }
 
-            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
-            if ( Resolate_Zetajs_Converter::is_cdn_mode() || ! Resolate_Zetajs_Converter::is_available() ) {
-                return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura ZetaJS para convertir la plantilla DOCX a ODT.', 'resolate' ) );
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-conversion-manager.php';
+            if ( ! Resolate_Conversion_Manager::is_available() ) {
+                return new WP_Error(
+                    'resolate_conversion_not_available',
+                    Resolate_Conversion_Manager::get_unavailable_message( 'docx', 'odt' )
+                );
             }
 
             $target = self::build_output_path( $post_id, 'odt' );
-            $result = Resolate_Zetajs_Converter::convert( $base_docx, $target, 'odt', 'docx' );
+            $result = Resolate_Conversion_Manager::convert( $base_docx, $target, 'odt', 'docx' );
             if ( is_wp_error( $result ) ) {
                 return $result;
             }
@@ -131,10 +137,10 @@ class Resolate_Document_Generator {
     }
 
     /**
-     * PDF generation is not implemented (use print preview in admin UI).
+     * Generate a PDF file using the configured conversion engine.
      *
      * @param int $post_id Document post ID.
-     * @return WP_Error
+     * @return string|WP_Error Absolute path to generated file or WP_Error on failure.
      */
     public static function generate_pdf( $post_id ) {
         try {
@@ -161,31 +167,17 @@ class Resolate_Document_Generator {
                 $source_format = 'odt';
             }
 
-            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
-            if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
-                return new WP_Error( 'resolate_zetajs_not_available', __( 'No se pudo cargar el conversor de ZetaJS.', 'resolate' ) );
-            }
-
-            if ( Resolate_Zetajs_Converter::is_cdn_mode() ) {
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-conversion-manager.php';
+            if ( ! Resolate_Conversion_Manager::is_available() ) {
                 return new WP_Error(
-                    'resolate_zetajs_browser_only',
-                    Resolate_Zetajs_Converter::get_browser_conversion_message(),
-                    array(
-                        'mode'       => 'cdn',
-                        'cdn_base'   => Resolate_Zetajs_Converter::get_cdn_base_url(),
-                        'source'     => $source_path,
-                        'source_ext' => $source_format,
-                    )
+                    'resolate_conversion_not_available',
+                    Resolate_Conversion_Manager::get_unavailable_message( $source_format, 'pdf' )
                 );
-            }
-
-            if ( ! Resolate_Zetajs_Converter::is_available() ) {
-                return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura el ejecutable de ZetaJS para generar PDF.', 'resolate' ) );
             }
 
             $target = self::build_output_path( $post_id, 'pdf' );
 
-            $result = Resolate_Zetajs_Converter::convert( $source_path, $target, 'pdf', $source_format );
+            $result = Resolate_Conversion_Manager::convert( $source_path, $target, 'pdf', $source_format );
             if ( is_wp_error( $result ) ) {
                 return $result;
             }

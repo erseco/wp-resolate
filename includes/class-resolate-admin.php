@@ -193,17 +193,6 @@ class Resolate_Admin2 {
             wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
         }
 
-        $workspace = isset( $_GET['workspace'] ) ? sanitize_text_field( wp_unslash( $_GET['workspace'] ) ) : '';// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        if ( '1' === $workspace ) {
-            if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
-                require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
-            }
-            if ( class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode() ) {
-                $this->render_browser_workspace( $post_id );
-                return;
-            }
-        }
-
         $result = Resolate_Document_Generator::generate_pdf( $post_id );
         if ( is_wp_error( $result ) ) {
             $this->render_legacy_preview( $post_id, $result );
@@ -648,7 +637,7 @@ class Resolate_Admin2 {
     }
 
     /**
-     * Render action buttons: Preview, DOCX, PDF, ODT.
+     * Render action buttons: Preview, DOCX, ODT, PDF.
      *
      * @param WP_Post $post Post object.
      * @return void
@@ -664,12 +653,11 @@ class Resolate_Admin2 {
 
         $base = admin_url( 'admin-post.php' );
 
-        $workspace = add_query_arg(
+        $preview = add_query_arg(
             array(
-                'action'    => 'resolate_preview',
-                'post_id'   => $post->ID,
-                '_wpnonce'  => $nonce_prev,
-                'workspace' => '1',
+                'action'  => 'resolate_preview',
+                'post_id' => $post->ID,
+                '_wpnonce' => $nonce_prev,
             ),
             $base
         );
@@ -680,117 +668,111 @@ class Resolate_Admin2 {
         $docx_template = Resolate_Document_Generator::get_template_path( $post->ID, 'docx' );
         $odt_template  = Resolate_Document_Generator::get_template_path( $post->ID, 'odt' );
 
-        if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
-            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+        require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-conversion-manager.php';
+
+        $conversion_ready         = Resolate_Conversion_Manager::is_available();
+        $engine_label             = Resolate_Conversion_Manager::get_engine_label();
+        $docx_requires_conversion = ( '' === $docx_template && '' !== $odt_template );
+        $odt_requires_conversion  = ( '' === $odt_template && '' !== $docx_template );
+
+        $docx_available = ( '' !== $docx_template ) || ( $docx_requires_conversion && $conversion_ready );
+        $odt_available  = ( '' !== $odt_template ) || ( $odt_requires_conversion && $conversion_ready );
+        $pdf_available  = $conversion_ready && ( '' !== $docx_template || '' !== $odt_template );
+
+        $docx_message = __( 'Configura una plantilla DOCX en los ajustes.', 'resolate' );
+        if ( $docx_requires_conversion && ! $conversion_ready ) {
+            $docx_message = Resolate_Conversion_Manager::get_unavailable_message( 'odt', 'docx' );
         }
 
-        $zetajs_ready = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_available();
-        $browser_mode = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode();
+        $odt_message = __( 'Configura una plantilla ODT en los ajustes.', 'resolate' );
+        if ( $odt_requires_conversion && ! $conversion_ready ) {
+            $odt_message = Resolate_Conversion_Manager::get_unavailable_message( 'docx', 'odt' );
+        }
 
-        $docx_available = ( '' !== $docx_template ) || ( '' !== $odt_template && $zetajs_ready );
-        $odt_available  = ( '' !== $odt_template ) || ( '' !== $docx_template && $zetajs_ready );
-        $pdf_available  = $zetajs_ready && ( '' !== $docx_template || '' !== $odt_template );
+        if ( '' === $docx_template && '' === $odt_template ) {
+            $pdf_message = __( 'Configura una plantilla DOCX u ODT para generar el PDF.', 'resolate' );
+        } else {
+            $source_for_pdf = '' !== $docx_template ? 'docx' : 'odt';
+            $pdf_message    = Resolate_Conversion_Manager::get_unavailable_message( $source_for_pdf, 'pdf' );
+        }
 
-        $docx_message = '' === $docx_template && '' !== $odt_template
-            ? __( 'Configura ZetaJS para convertir tu plantilla ODT a DOCX.', 'resolate' )
-            : __( 'Configura una plantilla DOCX en los ajustes.', 'resolate' );
-        $odt_message = '' === $odt_template && '' !== $docx_template
-            ? __( 'Configura ZetaJS para convertir tu plantilla DOCX a ODT.', 'resolate' )
-            : __( 'Configura una plantilla ODT en los ajustes.', 'resolate' );
-        $pdf_message = $zetajs_ready
-            ? __( 'Configura una plantilla DOCX u ODT para generar el PDF.', 'resolate' )
-            : __( 'Instala ZetaJS y configura RESOLATE_ZETAJS_BIN para habilitar la conversión a PDF.', 'resolate' );
+        $preview_available = $pdf_available;
+        $preview_message   = $pdf_message;
 
-        $workspace_attrs = array(
-            'class'  => 'button button-primary',
-            'href'   => $workspace,
-            'target' => '_blank',
-            'rel'    => 'noopener',
-        );
-
-        echo '<p><a ' . $this->build_action_attributes( $workspace_attrs ) . '>' . esc_html__( 'Previsualizar y exportar', 'resolate' ) . '</a></p>';
-
-        if ( $browser_mode ) {
-            $preferred_format = '';
-            $types            = wp_get_post_terms( $post->ID, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-            if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $type_id         = intval( $types[0] );
-                $template_format = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
-                if ( in_array( $template_format, array( 'docx', 'odt' ), true ) ) {
-                    $preferred_format = $template_format;
-                }
+        $preferred_format = '';
+        $types            = wp_get_post_terms( $post->ID, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+        if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
+            $type_id         = intval( $types[0] );
+            $template_format = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
+            if ( in_array( $template_format, array( 'docx', 'odt' ), true ) ) {
+                $preferred_format = $template_format;
             }
-
-            $base_buttons = array();
+        }
+        if ( '' === $preferred_format ) {
             if ( '' !== $docx_template ) {
-                $base_buttons['docx'] = array(
-                    'href'  => $docx,
-                    'label' => __( 'Descargar DOCX', 'resolate' ),
-                );
+                $preferred_format = 'docx';
+            } elseif ( '' !== $odt_template ) {
+                $preferred_format = 'odt';
             }
-            if ( '' !== $odt_template ) {
-                $base_buttons['odt'] = array(
-                    'href'  => $odt,
-                    'label' => __( 'Descargar ODT', 'resolate' ),
-                );
-            }
-
-            $primary_base = null;
-            if ( '' !== $preferred_format && isset( $base_buttons[ $preferred_format ] ) ) {
-                $primary_base = $base_buttons[ $preferred_format ];
-            } elseif ( ! empty( $base_buttons ) ) {
-                $primary_base = reset( $base_buttons );
-            }
-
-            echo '<p>';
-            if ( $primary_base ) {
-                $primary_attrs = array(
-                    'class'  => 'button button-primary',
-                    'href'   => $primary_base['href'],
-                    'target' => '_blank',
-                    'rel'    => 'noopener',
-                );
-                echo '<a ' . $this->build_action_attributes( $primary_attrs ) . '>' . esc_html( $primary_base['label'] ) . '</a>';
-            } else {
-                echo '<button type="button" class="button button-primary" disabled>' . esc_html__( 'No hay plantilla base disponible.', 'resolate' ) . '</button>';
-            }
-            echo '</p>';
-
-            echo '<p class="description">' . esc_html__( 'Las conversiones a otros formatos se realizan en la nueva ventana de previsualización.', 'resolate' ) . '</p>';
-
-            return;
         }
 
         echo '<p>';
-        if ( $docx_available ) {
-            $docx_attrs = array(
-                'class' => 'button button-primary',
-                'href'  => $docx,
+        if ( $preview_available ) {
+            $preview_attrs = array(
+                'class'  => 'button button-secondary',
+                'href'   => $preview,
+                'target' => '_blank',
+                'rel'    => 'noopener',
             );
-            echo '<a ' . $this->build_action_attributes( $docx_attrs ) . '>DOCX</a> ';
+            echo '<a ' . $this->build_action_attributes( $preview_attrs ) . '>' . esc_html__( 'Previsualizar', 'resolate' ) . '</a>';
         } else {
-            echo '<button type="button" class="button button-primary" disabled title="' . esc_attr( $docx_message ) . '">DOCX</button> ';
-        }
-        if ( $pdf_available ) {
-            $pdf_attrs = array(
-                'class' => 'button',
-                'href'  => $pdf,
-            );
-            echo '<a ' . $this->build_action_attributes( $pdf_attrs ) . '>PDF</a> ';
-        } else {
-            echo '<button type="button" class="button" disabled title="' . esc_attr( $pdf_message ) . '">PDF</button> ';
-        }
-        if ( $odt_available ) {
-            $odt_attrs = array(
-                'class' => 'button',
-                'href'  => $odt,
-            );
-            echo '<a ' . $this->build_action_attributes( $odt_attrs ) . '>ODT</a>';
-        } else {
-            echo '<button type="button" class="button" disabled title="' . esc_attr( $odt_message ) . '">ODT</button>';
+            echo '<button type="button" class="button button-secondary" disabled title="' . esc_attr( $preview_message ) . '">' . esc_html__( 'Previsualizar', 'resolate' ) . '</button>';
         }
         echo '</p>';
-        echo '<p class="description">' . esc_html__( 'Descarga el documento generado con LibreOffice (ZetaJS).', 'resolate' ) . '</p>';
+
+        $buttons = array(
+            'docx' => array(
+                'href'      => $docx,
+                'available' => $docx_available,
+                'message'   => $docx_message,
+                'primary'   => ( 'docx' === $preferred_format ),
+                'label'     => 'DOCX',
+            ),
+            'odt'  => array(
+                'href'      => $odt,
+                'available' => $odt_available,
+                'message'   => $odt_message,
+                'primary'   => ( 'odt' === $preferred_format ),
+                'label'     => 'ODT',
+            ),
+            'pdf'  => array(
+                'href'      => $pdf,
+                'available' => $pdf_available,
+                'message'   => $pdf_message,
+                'primary'   => false,
+                'label'     => 'PDF',
+            ),
+        );
+
+        echo '<p>';
+        foreach ( array( 'docx', 'odt', 'pdf' ) as $format ) {
+            $data  = $buttons[ $format ];
+            $class = $data['primary'] ? 'button button-primary' : 'button';
+            if ( $data['available'] ) {
+                $attrs = array(
+                    'class' => $class,
+                    'href'  => $data['href'],
+                );
+                echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $data['label'] ) . '</a> ';
+            } else {
+                $title = isset( $data['message'] ) ? $data['message'] : '';
+                $title = '' !== $title ? ' title="' . esc_attr( $title ) . '"' : '';
+                echo '<button type="button" class="' . esc_attr( $class ) . '" disabled' . $title . '>' . esc_html( $data['label'] ) . '</button> ';
+            }
+        }
+        echo '</p>';
+
+        echo '<p class="description">' . sprintf( esc_html__( 'Las conversiones adicionales se realizan con %s.', 'resolate' ), esc_html( $engine_label ) ) . '</p>';
     }
 
     /**
