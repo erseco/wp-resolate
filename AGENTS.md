@@ -9,14 +9,18 @@ These are natural-language guidelines for agents to follow when developing the R
 - Follow **WordPress Coding Standards**:
   - PHP code: 4 spaces indentation, PSR‑12 style where compatible, proper escaping, sanitization, use WP APIs.
   - Use English for source code (identifiers, comments, docblocks).
+  - Write all implementation notes, inline comments, and documentation in English.
   - Use Spanish for user‑facing translations/strings and test assertions to check no untranslated strings remain.
+  - Ensure all code passes `phpcs --standard=WordPress` and is auto-fixable with `phpcbf --standard=WordPress` where applicable.
 
 ## Testing and development workflow
 
 - Use **TDD** (Test‑Driven Development) with factories to create test fixtures.
 - Tests live under `/tests/` and use factory classes.
+- Run `phpcs --standard=WordPress` and `phpcbf --standard=WordPress` (or equivalent tooling) before submitting changes; the codebase must stay clean.
 - Use `make lint` (PHP lint) and `make fix` (beautifier) to enforce standards.
 - Use `make test` to run all unit tests.
+- Ensure all PHPUnit test suites pass locally before requesting review.
 - Use `make check-untranslated` to detect any untranslated Spanish strings.
 
 ## Environment and tools
