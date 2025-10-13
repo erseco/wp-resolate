@@ -195,6 +195,22 @@ class Resolate_Admin2 {
 
         $result = Resolate_Document_Generator::generate_pdf( $post_id );
         if ( is_wp_error( $result ) ) {
+            if ( 'resolate_conversion_not_available' === $result->get_error_code() ) {
+                require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-conversion-manager.php';
+
+                $engine = Resolate_Conversion_Manager::get_engine();
+                if ( Resolate_Conversion_Manager::ENGINE_WASM === $engine ) {
+                    if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
+                        require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+                    }
+
+                    if ( class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode() ) {
+                        $this->render_browser_workspace( $post_id );
+                        return;
+                    }
+                }
+            }
+
             $this->render_legacy_preview( $post_id, $result );
             return;
         }
@@ -238,6 +254,15 @@ class Resolate_Admin2 {
      * @return void
      */
     private function render_browser_workspace( $post_id ) {
+        if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+        }
+
+        if ( ! class_exists( 'Resolate_Zetajs_Converter' ) || ! Resolate_Zetajs_Converter::is_cdn_mode() ) {
+            $this->render_legacy_preview( $post_id );
+            return;
+        }
+
         $title          = get_the_title( $post_id );
         $base           = admin_url( 'admin-post.php' );
         $export_nonce   = wp_create_nonce( 'resolate_export_' . $post_id );
