@@ -2,8 +2,7 @@
 /**
  * Admin UI for "Tipos de documento" taxonomy term meta.
  *
- * Allows defining per-type templates (ODT/DOCX), logos, font family/size,
- * and a dynamic fields schema that is later rendered in document edit screens.
+ * Configures a flat taxonomy with template, color and detected schema metadata.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,30 +19,82 @@ class Resolate_Doc_Types_Admin {
         add_action( 'edited_resolate_doc_type', array( $this, 'save_term' ) );
 
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+        add_action( 'wp_ajax_resolate_doc_type_template_fields', array( $this, 'ajax_template_fields' ) );
     }
 
     /**
-     * Enqueue media and small JS for the taxonomy screens.
+     * Enqueue media, color picker and JS for the taxonomy screens.
      */
     public function enqueue_assets( $hook ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
         $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
         if ( ! $screen || 'edit-resolate_doc_type' !== $screen->id ) {
             return;
         }
+
         wp_enqueue_media();
         wp_enqueue_script( 'jquery' );
-        wp_enqueue_script( 'resolate-doc-types', plugins_url( 'admin/js/resolate-doc-types.js', RESOLATE_PLUGIN_FILE ), array( 'jquery', 'underscore' ), RESOLATE_VERSION, true );
-        wp_localize_script( 'resolate-doc-types', 'resolateDocTypes', array(
-            'i18n' => array(
-                'single'  => __( 'Línea', 'resolate' ),
-                'textarea'=> __( 'Párrafo', 'resolate' ),
-                'rich'    => __( 'Enriquecido', 'resolate' ),
-                'remove'  => __( 'Eliminar', 'resolate' ),
-                'select'  => __( 'Seleccionar archivo', 'resolate' ),
-                'logo'    => __( 'Seleccionar logo', 'resolate' ),
-            ),
-        ) );
-        wp_enqueue_style( 'resolate-doc-types', plugins_url( 'admin/css/resolate-doc-types.css', RESOLATE_PLUGIN_FILE ), array(), RESOLATE_VERSION );
+        wp_enqueue_style( 'wp-color-picker' );
+        wp_enqueue_script(
+            'resolate-doc-types',
+            plugins_url( 'admin/js/resolate-doc-types.js', RESOLATE_PLUGIN_FILE ),
+            array( 'jquery', 'underscore', 'wp-color-picker' ),
+            RESOLATE_VERSION,
+            true
+        );
+        wp_enqueue_style(
+            'resolate-doc-types',
+            plugins_url( 'admin/css/resolate-doc-types.css', RESOLATE_PLUGIN_FILE ),
+            array(),
+            RESOLATE_VERSION
+        );
+
+        $term_id      = isset( $_GET['tag_ID'] ) ? intval( $_GET['tag_ID'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $schema       = array();
+        $template_id  = 0;
+        $template_ext = '';
+        if ( $term_id > 0 ) {
+            $schema = get_term_meta( $term_id, 'schema', true );
+            if ( ! is_array( $schema ) ) {
+                $schema = get_term_meta( $term_id, 'resolate_type_fields', true );
+                if ( ! is_array( $schema ) ) {
+                    $schema = array();
+                }
+            }
+            $template_id  = intval( get_term_meta( $term_id, 'resolate_type_template_id', true ) );
+            $template_ext = sanitize_key( (string) get_term_meta( $term_id, 'resolate_type_template_type', true ) );
+        }
+
+        $schema_slugs = array();
+        foreach ( $schema as $item ) {
+            if ( is_array( $item ) && ! empty( $item['slug'] ) ) {
+                $schema_slugs[] = sanitize_key( $item['slug'] );
+            }
+        }
+
+        wp_localize_script(
+            'resolate-doc-types',
+            'resolateDocTypes',
+            array(
+                'ajax'       => array(
+                    'url'   => admin_url( 'admin-ajax.php' ),
+                    'nonce' => wp_create_nonce( 'resolate_doc_type_template' ),
+                ),
+                'i18n'       => array(
+                    'select'         => __( 'Seleccionar archivo', 'resolate' ),
+                    'remove'         => __( 'Eliminar', 'resolate' ),
+                    'fieldsDetected' => __( 'Campos detectados', 'resolate' ),
+                    'noFields'       => __( 'No se encontraron campos en la plantilla.', 'resolate' ),
+                    'typeDocx'       => __( 'Plantilla DOCX', 'resolate' ),
+                    'typeOdt'        => __( 'Plantilla ODT', 'resolate' ),
+                    'typeUnknown'    => __( 'Formato desconocido', 'resolate' ),
+                    'diffAdded'      => __( 'Campos nuevos', 'resolate' ),
+                    'diffRemoved'    => __( 'Campos eliminados', 'resolate' ),
+                ),
+                'schema'     => $schema_slugs,
+                'templateId' => $template_id,
+                'templateExt'=> $template_ext,
+            )
+        );
     }
 
     /**
@@ -52,44 +103,20 @@ class Resolate_Doc_Types_Admin {
     public function add_fields() {
         ?>
         <div class="form-field">
-            <label for="resolate_type_docx_template"><?php esc_html_e( 'Plantilla DOCX', 'resolate' ); ?></label>
-            <input type="hidden" id="resolate_type_docx_template" name="resolate_type_docx_template" value="" />
-            <div id="resolate_type_docx_template_preview"></div>
-            <button type="button" class="button resolate-media-select" data-target="resolate_type_docx_template" data-type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"><?php esc_html_e( 'Seleccionar plantilla DOCX', 'resolate' ); ?></button>
+            <label for="resolate_type_color"><?php esc_html_e( 'Color', 'resolate' ); ?></label>
+            <input type="text" id="resolate_type_color" name="resolate_type_color" class="resolate-color-field" value="#37517e" />
         </div>
         <div class="form-field">
-            <label for="resolate_type_odt_template"><?php esc_html_e( 'Plantilla ODT', 'resolate' ); ?></label>
-            <input type="hidden" id="resolate_type_odt_template" name="resolate_type_odt_template" value="" />
-            <div id="resolate_type_odt_template_preview"></div>
-            <button type="button" class="button resolate-media-select" data-target="resolate_type_odt_template" data-type="application/vnd.oasis.opendocument.text"><?php esc_html_e( 'Seleccionar plantilla ODT', 'resolate' ); ?></button>
+            <label for="resolate_type_template_id"><?php esc_html_e( 'Plantilla', 'resolate' ); ?></label>
+            <input type="hidden" id="resolate_type_template_id" name="resolate_type_template_id" value="" />
+            <div id="resolate_type_template_preview" class="resolate-template-preview"></div>
+            <p class="description"><?php esc_html_e( 'Selecciona un archivo .odt o .docx con marcadores OpenTBS.', 'resolate' ); ?></p>
+            <button type="button" class="button resolate-template-select" data-allowed="application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><?php esc_html_e( 'Seleccionar plantilla', 'resolate' ); ?></button>
+            <p class="resolate-template-type" data-default="<?php echo esc_attr__( 'Sin plantilla seleccionada', 'resolate' ); ?>"></p>
         </div>
         <div class="form-field">
-            <label><?php esc_html_e( 'Logos', 'resolate' ); ?></label>
-            <div id="resolate_type_logos_list"></div>
-            <input type="hidden" id="resolate_type_logos" name="resolate_type_logos" value="" />
-            <button type="button" class="button resolate-add-logo"><?php esc_html_e( 'Añadir logo', 'resolate' ); ?></button>
-        </div>
-        <div class="form-field">
-            <label for="resolate_type_font_name"><?php esc_html_e( 'Fuente', 'resolate' ); ?></label>
-            <select id="resolate_type_font_name" name="resolate_type_font_name">
-                <?php
-                $fonts = array( 'Times New Roman', 'Arial', 'Calibri', 'Georgia', 'Garamond' );
-                foreach ( $fonts as $f ) {
-                    echo '<option value="' . esc_attr( $f ) . '">' . esc_html( $f ) . '</option>';
-                }
-                ?>
-            </select>
-        </div>
-        <div class="form-field">
-            <label for="resolate_type_font_size"><?php esc_html_e( 'Tamaño de fuente (pt)', 'resolate' ); ?></label>
-            <input type="number" id="resolate_type_font_size" name="resolate_type_font_size" min="8" max="48" step="1" value="12" />
-        </div>
-        <div class="form-field">
-            <label><?php esc_html_e( 'Campos del documento', 'resolate' ); ?></label>
-            <p class="description"><?php esc_html_e( 'Define campos de texto que se mostrarán al editar el documento. Tipos: línea, párrafo, enriquecido.', 'resolate' ); ?></p>
-            <div id="resolate_type_fields"></div>
-            <button type="button" class="button resolate-add-field"><?php esc_html_e( 'Añadir campo', 'resolate' ); ?></button>
-            <input type="hidden" id="resolate_type_fields_json" name="resolate_type_fields_json" value="[]" />
+            <label><?php esc_html_e( 'Campos detectados', 'resolate' ); ?></label>
+            <div id="resolate_type_schema_preview" class="resolate-schema-preview" data-schema="[]"></div>
         </div>
         <?php
     }
@@ -100,63 +127,42 @@ class Resolate_Doc_Types_Admin {
      * @param WP_Term $term Term.
      */
     public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-        $docx = intval( get_term_meta( $term->term_id, 'resolate_type_docx_template', true ) );
-        $odt  = intval( get_term_meta( $term->term_id, 'resolate_type_odt_template', true ) );
-        $logos = get_term_meta( $term->term_id, 'resolate_type_logos', true );
-        $logos = is_array( $logos ) ? array_map( 'intval', $logos ) : array();
-        $font  = sanitize_text_field( (string) get_term_meta( $term->term_id, 'resolate_type_font_name', true ) );
-        $size  = intval( get_term_meta( $term->term_id, 'resolate_type_font_size', true ) );
-        $schema = get_term_meta( $term->term_id, 'resolate_type_fields', true );
-        if ( ! is_array( $schema ) ) { $schema = array(); }
+        $color        = sanitize_hex_color( (string) get_term_meta( $term->term_id, 'resolate_type_color', true ) );
+        if ( empty( $color ) ) {
+            $color = '#37517e';
+        }
+        $template_id  = intval( get_term_meta( $term->term_id, 'resolate_type_template_id', true ) );
+        $template_ext = sanitize_key( (string) get_term_meta( $term->term_id, 'resolate_type_template_type', true ) );
+        $schema       = get_term_meta( $term->term_id, 'schema', true );
+        if ( ! is_array( $schema ) ) {
+            $schema = get_term_meta( $term->term_id, 'resolate_type_fields', true );
+            if ( ! is_array( $schema ) ) {
+                $schema = array();
+            }
+        }
+        $schema_json = wp_json_encode( $schema );
+        $template_name = $template_id ? basename( (string) get_attached_file( $template_id ) ) : '';
         ?>
         <tr class="form-field">
-            <th scope="row"><label for="resolate_type_docx_template"><?php esc_html_e( 'Plantilla DOCX', 'resolate' ); ?></label></th>
+            <th scope="row"><label for="resolate_type_color"><?php esc_html_e( 'Color', 'resolate' ); ?></label></th>
             <td>
-                <input type="hidden" id="resolate_type_docx_template" name="resolate_type_docx_template" value="<?php echo esc_attr( (string) $docx ); ?>" />
-                <div id="resolate_type_docx_template_preview"><?php echo $docx ? esc_html( basename( get_attached_file( $docx ) ) ) : ''; ?></div>
-                <button type="button" class="button resolate-media-select" data-target="resolate_type_docx_template" data-type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"><?php esc_html_e( 'Seleccionar plantilla DOCX', 'resolate' ); ?></button>
+                <input type="text" id="resolate_type_color" name="resolate_type_color" class="resolate-color-field" value="<?php echo esc_attr( $color ); ?>" />
             </td>
         </tr>
         <tr class="form-field">
-            <th scope="row"><label for="resolate_type_odt_template"><?php esc_html_e( 'Plantilla ODT', 'resolate' ); ?></label></th>
+            <th scope="row"><label for="resolate_type_template_id"><?php esc_html_e( 'Plantilla', 'resolate' ); ?></label></th>
             <td>
-                <input type="hidden" id="resolate_type_odt_template" name="resolate_type_odt_template" value="<?php echo esc_attr( (string) $odt ); ?>" />
-                <div id="resolate_type_odt_template_preview"><?php echo $odt ? esc_html( basename( get_attached_file( $odt ) ) ) : ''; ?></div>
-                <button type="button" class="button resolate-media-select" data-target="resolate_type_odt_template" data-type="application/vnd.oasis.opendocument.text"><?php esc_html_e( 'Seleccionar plantilla ODT', 'resolate' ); ?></button>
+                <input type="hidden" id="resolate_type_template_id" name="resolate_type_template_id" value="<?php echo esc_attr( (string) $template_id ); ?>" />
+                <div id="resolate_type_template_preview" class="resolate-template-preview"><?php echo $template_name ? esc_html( $template_name ) : ''; ?></div>
+                <p class="description"><?php esc_html_e( 'Selecciona un archivo .odt o .docx con marcadores OpenTBS.', 'resolate' ); ?></p>
+                <button type="button" class="button resolate-template-select" data-allowed="application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><?php esc_html_e( 'Seleccionar plantilla', 'resolate' ); ?></button>
+                <p class="resolate-template-type" data-default="<?php echo esc_attr__( 'Sin plantilla seleccionada', 'resolate' ); ?>" data-current="<?php echo esc_attr( $template_ext ); ?>"></p>
             </td>
         </tr>
         <tr class="form-field">
-            <th scope="row"><label><?php esc_html_e( 'Logos', 'resolate' ); ?></label></th>
+            <th scope="row"><label><?php esc_html_e( 'Campos detectados', 'resolate' ); ?></label></th>
             <td>
-                <div id="resolate_type_logos_list" data-initial="<?php echo esc_attr( wp_json_encode( $logos ) ); ?>"></div>
-                <input type="hidden" id="resolate_type_logos" name="resolate_type_logos" value="<?php echo esc_attr( implode( ',', $logos ) ); ?>" />
-                <button type="button" class="button resolate-add-logo"><?php esc_html_e( 'Añadir logo', 'resolate' ); ?></button>
-            </td>
-        </tr>
-        <tr class="form-field">
-            <th scope="row"><label for="resolate_type_font_name"><?php esc_html_e( 'Fuente', 'resolate' ); ?></label></th>
-            <td>
-                <select id="resolate_type_font_name" name="resolate_type_font_name">
-                    <?php
-                    $fonts = array( 'Times New Roman', 'Arial', 'Calibri', 'Georgia', 'Garamond' );
-                    foreach ( $fonts as $f ) {
-                        echo '<option value="' . esc_attr( $f ) . '" ' . selected( $font, $f, false ) . '>' . esc_html( $f ) . '</option>';
-                    }
-                    ?>
-                </select>
-            </td>
-        </tr>
-        <tr class="form-field">
-            <th scope="row"><label for="resolate_type_font_size"><?php esc_html_e( 'Tamaño de fuente (pt)', 'resolate' ); ?></label></th>
-            <td><input type="number" id="resolate_type_font_size" name="resolate_type_font_size" min="8" max="48" step="1" value="<?php echo esc_attr( (string) max( 8, $size ) ); ?>" /></td>
-        </tr>
-        <tr class="form-field">
-            <th scope="row"><label><?php esc_html_e( 'Campos del documento', 'resolate' ); ?></label></th>
-            <td>
-                <p class="description"><?php esc_html_e( 'Define campos de texto que se mostrarán al editar. Tipos: línea (single), párrafo (textarea), enriquecido (rich).', 'resolate' ); ?></p>
-                <div id="resolate_type_fields" data-initial="<?php echo esc_attr( wp_json_encode( $schema ) ); ?>"></div>
-                <button type="button" class="button resolate-add-field"><?php esc_html_e( 'Añadir campo', 'resolate' ); ?></button>
-                <input type="hidden" id="resolate_type_fields_json" name="resolate_type_fields_json" value="<?php echo esc_attr( wp_json_encode( $schema ) ); ?>" />
+                <div id="resolate_type_schema_preview" class="resolate-schema-preview" data-schema="<?php echo esc_attr( $schema_json ); ?>"></div>
             </td>
         </tr>
         <?php
@@ -168,43 +174,123 @@ class Resolate_Doc_Types_Admin {
      * @param int $term_id Term ID.
      */
     public function save_term( $term_id ) {
-        // DOCX / ODT templates.
-        $docx = isset( $_POST['resolate_type_docx_template'] ) ? intval( $_POST['resolate_type_docx_template'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $odt  = isset( $_POST['resolate_type_odt_template'] ) ? intval( $_POST['resolate_type_odt_template'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        update_term_meta( $term_id, 'resolate_type_docx_template', $docx > 0 ? $docx : '' );
-        update_term_meta( $term_id, 'resolate_type_odt_template', $odt > 0 ? $odt : '' );
+        require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-template-parser.php';
 
-        // Logos: CSV of IDs.
-        $logos_csv = isset( $_POST['resolate_type_logos'] ) ? sanitize_text_field( wp_unslash( $_POST['resolate_type_logos'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $logos = array_filter( array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $logos_csv ) ) ) ) );
-        update_term_meta( $term_id, 'resolate_type_logos', $logos );
+        $color = isset( $_POST['resolate_type_color'] ) ? sanitize_hex_color( wp_unslash( $_POST['resolate_type_color'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        if ( empty( $color ) ) {
+            $color = '#37517e';
+        }
+        update_term_meta( $term_id, 'resolate_type_color', $color );
 
-        // Font name/size.
-        $font = isset( $_POST['resolate_type_font_name'] ) ? sanitize_text_field( wp_unslash( $_POST['resolate_type_font_name'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $size = isset( $_POST['resolate_type_font_size'] ) ? intval( $_POST['resolate_type_font_size'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( '' !== $font ) { update_term_meta( $term_id, 'resolate_type_font_name', $font ); }
-        if ( $size > 0 ) { update_term_meta( $term_id, 'resolate_type_font_size', $size ); }
+        $template_id = isset( $_POST['resolate_type_template_id'] ) ? intval( $_POST['resolate_type_template_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $template_id = max( 0, $template_id );
+        update_term_meta( $term_id, 'resolate_type_template_id', $template_id > 0 ? $template_id : '' );
 
-        // Fields schema JSON.
-        $json = isset( $_POST['resolate_type_fields_json'] ) ? wp_unslash( $_POST['resolate_type_fields_json'] ) : '[]'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $data = json_decode( $json, true );
-        $schema = array();
-        if ( is_array( $data ) ) {
-            foreach ( $data as $row ) {
-                if ( ! is_array( $row ) ) { continue; }
-                $slug  = isset( $row['slug'] ) ? sanitize_key( $row['slug'] ) : '';
-                $label = isset( $row['label'] ) ? sanitize_text_field( $row['label'] ) : '';
-                $type  = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
-                if ( '' === $slug || '' === $label ) { continue; }
-                if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) { $type = 'textarea'; }
-                $schema[] = array(
-                    'slug'  => $slug,
-                    'label' => $label,
-                    'type'  => $type,
-                );
+        $template_type = '';
+        $schema        = get_term_meta( $term_id, 'schema', true );
+        if ( ! is_array( $schema ) ) {
+            $schema = array();
+        }
+
+        if ( $template_id > 0 ) {
+            $path = get_attached_file( $template_id );
+            $fields = Resolate_Template_Parser::extract_fields( $path );
+            if ( ! is_wp_error( $fields ) ) {
+                $template_type = $this->detect_template_type( $path );
+                $schema        = $this->build_schema_from_fields( $fields );
             }
         }
+
+        update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+        update_term_meta( $term_id, 'schema', $schema );
         update_term_meta( $term_id, 'resolate_type_fields', $schema );
+    }
+
+    /**
+     * AJAX handler to preview template fields.
+     */
+    public function ajax_template_fields() {
+        check_ajax_referer( 'resolate_doc_type_template', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permisos insuficientes.', 'resolate' ) ) );
+        }
+
+        $attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
+        if ( $attachment_id <= 0 ) {
+            wp_send_json_error( array( 'message' => __( 'Identificador de plantilla inválido.', 'resolate' ) ) );
+        }
+
+        require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-template-parser.php';
+
+        $path = get_attached_file( $attachment_id );
+        $fields = Resolate_Template_Parser::extract_fields( $path );
+        if ( is_wp_error( $fields ) ) {
+            wp_send_json_error( array( 'message' => $fields->get_error_message() ) );
+        }
+
+        $type = $this->detect_template_type( $path );
+        wp_send_json_success(
+            array(
+                'type'   => $type,
+                'fields' => $fields,
+            )
+        );
+    }
+
+    /**
+     * Detect template type (odt/docx) from file path.
+     *
+     * @param string $path File path.
+     * @return string
+     */
+    private function detect_template_type( $path ) {
+        $ext = strtolower( pathinfo( (string) $path, PATHINFO_EXTENSION ) );
+        if ( in_array( $ext, array( 'docx', 'odt' ), true ) ) {
+            return $ext;
+        }
+        return '';
+    }
+
+    /**
+     * Build schema array from placeholder slugs.
+     *
+     * @param array $fields Placeholder slugs.
+     * @return array[]
+     */
+    private function build_schema_from_fields( $fields ) {
+        $schema = array();
+        foreach ( $fields as $field ) {
+            $slug = sanitize_key( $field );
+            if ( '' === $slug ) {
+                continue;
+            }
+            $schema[] = array(
+                'slug'  => $slug,
+                'label' => $this->humanize_slug( $slug ),
+                'type'  => 'textarea',
+            );
+        }
+        return $schema;
+    }
+
+    /**
+     * Convert slug into a human readable label.
+     *
+     * @param string $slug Slug.
+     * @return string
+     */
+    private function humanize_slug( $slug ) {
+        $slug = str_replace( array( '-', '_' ), ' ', $slug );
+        $slug = preg_replace( '/\s+/', ' ', $slug );
+        $slug = trim( $slug );
+        if ( '' === $slug ) {
+            return '';
+        }
+        if ( function_exists( 'mb_convert_case' ) ) {
+            return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
+        }
+        return ucwords( strtolower( $slug ) );
     }
 }
 

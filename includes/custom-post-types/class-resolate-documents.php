@@ -858,10 +858,7 @@ private function normalize_html_for_diff( $html ) {
         }
         $schema = array();
         if ( $term_id > 0 ) {
-            $maybe = get_term_meta( $term_id, 'resolate_type_fields', true );
-            if ( is_array( $maybe ) ) {
-                $schema = $maybe;
-            }
+            $schema = $this->get_schema_for_term( $term_id );
         }
         if ( empty( $schema ) ) {
             $schema = array(
@@ -949,18 +946,37 @@ private function normalize_html_for_diff( $html ) {
         if ( $term_id <= 0 ) {
             return array();
         }
-        $schema = get_term_meta( $term_id, 'resolate_type_fields', true );
-        if ( ! is_array( $schema ) ) {
+        return $this->get_schema_for_term( $term_id );
+    }
+
+    /**
+     * Get sanitized schema array for a document type term.
+     *
+     * @param int $term_id Term ID.
+     * @return array[]
+     */
+    private function get_schema_for_term( $term_id ) {
+        $raw = get_term_meta( $term_id, 'schema', true );
+        if ( ! is_array( $raw ) ) {
+            $raw = get_term_meta( $term_id, 'resolate_type_fields', true );
+        }
+        if ( ! is_array( $raw ) ) {
             return array();
         }
         $out = array();
-        foreach ( $schema as $item ) {
-            if ( ! is_array( $item ) ) { continue; }
+        foreach ( $raw as $item ) {
+            if ( ! is_array( $item ) ) {
+                continue;
+            }
             $slug  = isset( $item['slug'] ) ? sanitize_key( $item['slug'] ) : '';
             $label = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : '';
             $type  = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
-            if ( '' === $slug || '' === $label ) { continue; }
-            if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) { $type = 'textarea'; }
+            if ( '' === $slug || '' === $label ) {
+                continue;
+            }
+            if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+                $type = 'textarea';
+            }
             $out[] = array(
                 'slug'  => $slug,
                 'label' => $label,

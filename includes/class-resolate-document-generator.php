@@ -26,7 +26,22 @@ class Resolate_Document_Generator {
             $tpl_id = 0;
             $types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
             if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $tpl_id = intval( get_term_meta( intval( $types[0] ), 'resolate_type_docx_template', true ) );
+                $type_id       = intval( $types[0] );
+                $type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
+                $template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
+                if ( $type_template > 0 ) {
+                    if ( 'docx' === $template_kind ) {
+                        $tpl_id = $type_template;
+                    } elseif ( '' === $template_kind ) {
+                        $path = get_attached_file( $type_template );
+                        if ( $path && 'docx' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
+                            $tpl_id = $type_template;
+                        }
+                    }
+                }
+                if ( $tpl_id <= 0 ) {
+                    $tpl_id = intval( get_term_meta( $type_id, 'resolate_type_docx_template', true ) );
+                }
             }
             if ( $tpl_id <= 0 ) {
                 $tpl_id = isset( $opts['docx_template_id'] ) ? intval( $opts['docx_template_id'] ) : 0;
@@ -53,14 +68,12 @@ class Resolate_Document_Generator {
             );
             // Merge dynamic fields as [slug] => value.
             if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $schema = get_term_meta( intval( $types[0] ), 'resolate_type_fields', true );
-                if ( is_array( $schema ) ) {
-                    foreach ( $schema as $def ) {
-                        if ( empty( $def['slug'] ) ) { continue; }
-                        $slug = sanitize_key( $def['slug'] );
-                        $val  = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
-                        $fields[ $slug ] = wp_strip_all_tags( (string) $val );
-                    }
+                $schema = self::get_type_schema( intval( $types[0] ) );
+                foreach ( $schema as $def ) {
+                    if ( empty( $def['slug'] ) ) { continue; }
+                    $slug = sanitize_key( $def['slug'] );
+                    $val  = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
+                    $fields[ $slug ] = wp_strip_all_tags( (string) $val );
                 }
                 // Expose logos if defined at type level.
                 $logos = get_term_meta( intval( $types[0] ), 'resolate_type_logos', true );
@@ -109,7 +122,22 @@ class Resolate_Document_Generator {
             $tpl_id = 0;
             $types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
             if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $tpl_id = intval( get_term_meta( intval( $types[0] ), 'resolate_type_odt_template', true ) );
+                $type_id       = intval( $types[0] );
+                $type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
+                $template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
+                if ( $type_template > 0 ) {
+                    if ( 'odt' === $template_kind ) {
+                        $tpl_id = $type_template;
+                    } elseif ( '' === $template_kind ) {
+                        $path = get_attached_file( $type_template );
+                        if ( $path && 'odt' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
+                            $tpl_id = $type_template;
+                        }
+                    }
+                }
+                if ( $tpl_id <= 0 ) {
+                    $tpl_id = intval( get_term_meta( $type_id, 'resolate_type_odt_template', true ) );
+                }
             }
             if ( $tpl_id <= 0 ) {
                 $tpl_id = isset( $opts['odt_template_id'] ) ? intval( $opts['odt_template_id'] ) : 0;
@@ -135,14 +163,12 @@ class Resolate_Document_Generator {
                 'margen'       => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
             );
             if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-                $schema = get_term_meta( intval( $types[0] ), 'resolate_type_fields', true );
-                if ( is_array( $schema ) ) {
-                    foreach ( $schema as $def ) {
-                        if ( empty( $def['slug'] ) ) { continue; }
-                        $slug = sanitize_key( $def['slug'] );
-                        $val  = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
-                        $fields[ $slug ] = wp_strip_all_tags( (string) $val );
-                    }
+                $schema = self::get_type_schema( intval( $types[0] ) );
+                foreach ( $schema as $def ) {
+                    if ( empty( $def['slug'] ) ) { continue; }
+                    $slug = sanitize_key( $def['slug'] );
+                    $val  = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
+                    $fields[ $slug ] = wp_strip_all_tags( (string) $val );
                 }
                 $logos = get_term_meta( intval( $types[0] ), 'resolate_type_logos', true );
                 if ( is_array( $logos ) && ! empty( $logos ) ) {
@@ -176,6 +202,43 @@ class Resolate_Document_Generator {
         } catch ( \Throwable $e ) {
             return new WP_Error( 'resolate_odt_error', $e->getMessage() );
         }
+    }
+
+    /**
+     * Retrieve sanitized schema definition for a document type.
+     *
+     * @param int $term_id Term ID.
+     * @return array[]
+     */
+    private static function get_type_schema( $term_id ) {
+        $raw = get_term_meta( $term_id, 'schema', true );
+        if ( ! is_array( $raw ) ) {
+            $raw = get_term_meta( $term_id, 'resolate_type_fields', true );
+        }
+        if ( ! is_array( $raw ) ) {
+            return array();
+        }
+        $out = array();
+        foreach ( $raw as $item ) {
+            if ( ! is_array( $item ) ) {
+                continue;
+            }
+            $slug  = isset( $item['slug'] ) ? sanitize_key( $item['slug'] ) : '';
+            $label = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : '';
+            $type  = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
+            if ( '' === $slug || '' === $label ) {
+                continue;
+            }
+            if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+                $type = 'textarea';
+            }
+            $out[] = array(
+                'slug'  => $slug,
+                'label' => $label,
+                'type'  => $type,
+            );
+        }
+        return $out;
     }
 
     /**
