@@ -321,11 +321,11 @@ class Resolate_Admin_Settings {
      */
     public function conversion_engine_render() {
         $options = get_option( 'resolate_settings', array() );
-        $current = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'wasm';
+        $current = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'collabora';
 
         $engines = array(
-            'wasm'      => __( 'LibreOffice WASM (ZetaJS en el servidor)', 'resolate' ),
             'collabora' => __( 'Servicio web Collabora Online', 'resolate' ),
+            'wasm'      => __( 'LibreOffice WASM en el navegador (experimental)', 'resolate' ),
         );
 
         echo '<fieldset>';
@@ -335,7 +335,7 @@ class Resolate_Admin_Settings {
             echo esc_html( $label );
             echo '</label>';
         }
-        echo '<p class="description">' . esc_html__( 'Define si las conversiones se realizan con el ejecutable de LibreOffice WASM (ZetaJS) o a través de un servidor Collabora.', 'resolate' ) . '</p>';
+        echo '<p class="description">' . esc_html__( 'Define si las conversiones se realizan a través de Collabora Online (predeterminado) o con LibreOffice WASM en el navegador (experimental).', 'resolate' ) . '</p>';
         echo '</fieldset>';
     }
 
@@ -345,9 +345,12 @@ class Resolate_Admin_Settings {
     public function collabora_base_url_render() {
         $options = get_option( 'resolate_settings', array() );
         $value   = isset( $options['collabora_base_url'] ) ? esc_url( $options['collabora_base_url'] ) : '';
+        if ( '' === $value && defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
+            $value = esc_url( RESOLATE_COLLABORA_DEFAULT_URL );
+        }
 
         echo '<input type="url" class="regular-text" name="resolate_settings[collabora_base_url]" value="' . esc_attr( $value ) . '" placeholder="https://example.com">';
-        echo '<p class="description">' . esc_html__( 'Ejemplo: https://demo.us.collaboraonline.com', 'resolate' ) . '</p>';
+        echo '<p class="description">' . esc_html__( 'Ejemplo: https://demo.collaboraonline.com', 'resolate' ) . '</p>';
     }
 
     /**
@@ -612,9 +615,9 @@ class Resolate_Admin_Settings {
 
         // Validate conversion engine.
         $valid_engines = array( 'wasm', 'collabora' );
-        $engine        = isset( $input['conversion_engine'] ) ? sanitize_key( $input['conversion_engine'] ) : 'wasm';
+        $engine        = isset( $input['conversion_engine'] ) ? sanitize_key( $input['conversion_engine'] ) : 'collabora';
         if ( ! in_array( $engine, $valid_engines, true ) ) {
-            $engine = 'wasm';
+            $engine = 'collabora';
         }
         $input['conversion_engine'] = $engine;
 
