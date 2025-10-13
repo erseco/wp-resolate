@@ -247,8 +247,54 @@ class Resolate_Document_Generator {
      * @param int $post_id Document post ID.
      * @return WP_Error
      */
-    public static function generate_pdf( $post_id ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-        return new WP_Error( 'resolate_pdf_pending', __( 'Generación de PDF pendiente de configuración.', 'resolate' ) );
+    public static function generate_pdf( $post_id ) {
+        try {
+            $source_path   = '';
+            $source_format = '';
+
+            $odt_result = self::generate_odt( $post_id );
+            if ( is_wp_error( $odt_result ) ) {
+                $docx_result = self::generate_docx( $post_id );
+                if ( is_wp_error( $docx_result ) ) {
+                    return new WP_Error(
+                        'resolate_pdf_source_missing',
+                        __( 'No se pudo generar el documento base en ODT ni en DOCX antes de convertir a PDF.', 'resolate' ),
+                        array(
+                            'odt'  => $odt_result,
+                            'docx' => $docx_result,
+                        )
+                    );
+                }
+                $source_path   = $docx_result;
+                $source_format = 'docx';
+            } else {
+                $source_path   = $odt_result;
+                $source_format = 'odt';
+            }
+
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+            if ( ! class_exists( 'Resolate_Zetajs_Converter' ) || ! Resolate_Zetajs_Converter::is_available() ) {
+                return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura el ejecutable de ZetaJS para generar PDF.', 'resolate' ) );
+            }
+
+            $upload_dir = wp_upload_dir();
+            $dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
+            if ( ! is_dir( $dir ) ) {
+                wp_mkdir_p( $dir );
+            }
+
+            $filename = sanitize_title( get_the_title( $post_id ) ) . '-' . $post_id . '.pdf';
+            $target   = trailingslashit( $dir ) . $filename;
+
+            $result = Resolate_Zetajs_Converter::convert( $source_path, $target, 'pdf', $source_format );
+            if ( is_wp_error( $result ) ) {
+                return $result;
+            }
+
+            return $target;
+        } catch ( \Throwable $e ) {
+            return new WP_Error( 'resolate_pdf_error', $e->getMessage() );
+        }
     }
 
     /**

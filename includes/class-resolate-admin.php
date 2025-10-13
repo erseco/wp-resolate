@@ -193,13 +193,58 @@ class Resolate_Admin2 {
             wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
         }
 
+        $result = Resolate_Document_Generator::generate_pdf( $post_id );
+        if ( is_wp_error( $result ) ) {
+            $this->render_legacy_preview( $post_id, $result );
+            return;
+        }
+
+        $title      = get_the_title( $post_id );
+        $upload_dir = wp_upload_dir();
+        $baseurl    = trailingslashit( $upload_dir['baseurl'] ) . 'resolate/';
+        $pdf_url    = $baseurl . basename( $result );
+        $print      = isset( $_GET['print'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['print'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+        echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+        echo '<title>' . esc_html( sprintf( __( 'Vista previa PDF · %s', 'resolate' ), $title ) ) . '</title>';
+        echo '<style>
+            body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f4f4f4;color:#111;min-height:100vh;display:flex;flex-direction:column}
+            header{background:#1d2327;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+            header h1{margin:0;font-size:18px;font-weight:600}
+            header a{color:#fff;text-decoration:none;font-weight:500;border:1px solid rgba(255,255,255,.4);padding:6px 12px;border-radius:4px}
+            header a:hover{background:rgba(255,255,255,.1)}
+            main{flex:1;display:flex;padding:12px}
+            .viewer{flex:1;box-shadow:0 0 0 1px #d0d0d0,0 16px 32px rgba(0,0,0,.12);background:#000;border-radius:6px;overflow:hidden}
+            iframe{border:0;width:100%;height:100%}
+            body.loading .viewer::after{content:"' . esc_js( __( 'Cargando PDF…', 'resolate' ) ) . '";color:#fff;font-size:16px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
+        </style>';
+        echo '</head><body class="loading">';
+        echo '<header><h1>' . esc_html( $title ) . '</h1><div class="actions">';
+        echo '<a href="' . esc_url( $pdf_url ) . '" download>' . esc_html__( 'Descargar PDF', 'resolate' ) . '</a>';
+        echo '</div></header>';
+        echo '<main><div class="viewer"><iframe id="resolate-pdf-frame" src="' . esc_url( $pdf_url ) . '" title="' . esc_attr__( 'Documento en PDF', 'resolate' ) . '"></iframe></div></main>';
+        echo '<script>document.getElementById("resolate-pdf-frame").addEventListener("load",function(){document.body.classList.remove("loading");});</script>';
+        if ( $print ) {
+            echo '<script>(function(){const frame=document.getElementById("resolate-pdf-frame");frame.addEventListener("load",function(){try{frame.contentWindow.focus();frame.contentWindow.print();}catch(e){console.error(e);}});})();</script>';
+        }
+        echo '</body></html>';
+        exit;
+    }
+
+    /**
+     * Legacy HTML preview used when PDF generation is not available.
+     *
+     * @param int           $post_id Post ID.
+     * @param WP_Error|null $error   Optional error to show to the user.
+     * @return void
+     */
+    private function render_legacy_preview( $post_id, $error = null ) {
         $title = get_the_title( $post_id );
         $opts  = get_option( 'resolate_settings', array() );
         $font  = isset( $opts['doc_font_family'] ) ? sanitize_text_field( $opts['doc_font_family'] ) : 'Times New Roman';
         $size  = isset( $opts['doc_font_size'] ) ? intval( $opts['doc_font_size'] ) : 12;
         $logo       = isset( $opts['doc_logo_id'] ) ? intval( $opts['doc_logo_id'] ) : 0;
         $logo_r     = isset( $opts['doc_logo_right_id'] ) ? intval( $opts['doc_logo_right_id'] ) : 0;
-        // Override with type-specific appearance if present.
         $types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
         if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
             $tid = intval( $types[0] );
@@ -226,7 +271,6 @@ class Resolate_Admin2 {
             'resolate_firma'        => __( 'Firma / Pie', 'resolate' ),
         );
 
-        // Basic printable HTML preview.
         echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc_html( $title ) . '</title>';
         echo '<style>
           :root{--page-w:794px;--page-h:1123px;--page-pad:56px;--page-pad-top:40px;--footer-h:32px}
@@ -253,6 +297,9 @@ class Resolate_Admin2 {
           }
         </style>';
         echo '</head><body>';
+        if ( $error instanceof WP_Error ) {
+            echo '<div style="max-width:760px;margin:16px auto;padding:12px 16px;background:#fff3cd;border:1px solid #ffeeba;color:#856404;font-size:14px;border-radius:4px;">' . esc_html( $error->get_error_message() ) . '</div>';
+        }
         echo '<div id="content-flow">';
         if ( $logo_r_url ) {
             echo '<img class="logo-right" src="' . esc_url( $logo_r_url ) . '" alt="Logo derecho" />';
@@ -267,7 +314,6 @@ class Resolate_Admin2 {
         echo '<h1 data-avoid-break="1">' . esc_html( $title ) . '</h1><hr />';
         foreach ( $fields as $meta_key => $label ) {
             $val = get_post_meta( $post_id, $meta_key, true );
-            // Strip font family/size from inline styles and <font> tags to enforce configured font.
             $val = preg_replace( '/<\\/?font[^>]*>/i', '', (string) $val );
             $val = preg_replace( '/font-family\\s*:\\s*[^;"\']+;?/i', '', (string) $val );
             $val = preg_replace( '/font-size\\s*:\\s*[^;"\']+;?/i', '', (string) $val );
@@ -278,7 +324,6 @@ class Resolate_Admin2 {
             }
         }
 
-        // Append annexes, each starting on a new page.
         $annexes = get_post_meta( $post_id, 'resolate_annexes', true );
         if ( is_array( $annexes ) && ! empty( $annexes ) ) {
             $roman = function( $num ) {
@@ -307,7 +352,6 @@ class Resolate_Admin2 {
             foreach ( $annexes as $i => $anx ) {
                 $t = isset( $anx['title'] ) ? (string) $anx['title'] : '';
                 $c = isset( $anx['text'] ) ? (string) $anx['text'] : '';
-                // Clean text similar to sections.
                 $c = preg_replace( '/<\\/?font[^>]*>/i', '', (string) $c );
                 $c = preg_replace( '/font-family\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
                 $c = preg_replace( '/font-size\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
@@ -324,7 +368,7 @@ class Resolate_Admin2 {
                 echo '</section>';
             }
         }
-        echo '</div>'; // content-flow
+        echo '</div>';
         echo '<div class="pages" id="pages"></div>';
         echo '<script>(function(){
           const pageW = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--page-w"));
@@ -347,15 +391,13 @@ class Resolate_Admin2 {
           const blocks = Array.from(flow.children);
           for (const el of blocks){
             if (el.hasAttribute("data-new-page") && (cur.inner.childElementCount > 0)) {
-              // Start each annex on a fresh page
               num++;
               cur = newPage();
               setFooter();
             }
             cur.inner.appendChild(el.cloneNode(true));
-            const maxH = cur.inner.clientHeight; // inner height incl. padding
+            const maxH = cur.inner.clientHeight;
             if (cur.inner.scrollHeight > maxH){
-              // move to next page
               cur.inner.removeChild(cur.inner.lastChild);
               num++;
               cur = newPage();
@@ -363,9 +405,7 @@ class Resolate_Admin2 {
               cur.inner.appendChild(el.cloneNode(true));
             }
           }
-          // remove flow
           flow.remove();
-          // Auto print if requested
           const params = new URLSearchParams(window.location.search);
           if (params.get("print") === "1") {
             setTimeout(function(){ window.print(); }, 300);
@@ -408,8 +448,7 @@ class Resolate_Admin2 {
 
         $preview = add_query_arg( array( 'action' => 'resolate_preview', 'post_id' => $post->ID, '_wpnonce' => $nonce_prev ), $base );
         $docx    = add_query_arg( array( 'action' => 'resolate_export_docx', 'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
-        // PDF: usa la vista de previsualización y abre el diálogo de impresión.
-        $pdf     = add_query_arg( array( 'action' => 'resolate_preview',  'post_id' => $post->ID, '_wpnonce' => $nonce_prev, 'print' => '1' ), $base );
+        $pdf     = add_query_arg( array( 'action' => 'resolate_export_pdf',  'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
         $odt     = add_query_arg( array( 'action' => 'resolate_export_odt',  'post_id' => $post->ID, '_wpnonce' => $nonce_export ), $base );
 
         $opts = get_option( 'resolate_settings', array() );
@@ -421,6 +460,10 @@ class Resolate_Admin2 {
             if ( intval( get_term_meta( $tid, 'resolate_type_docx_template', true ) ) > 0 ) { $has_docx_tpl = true; }
             if ( intval( get_term_meta( $tid, 'resolate_type_odt_template', true ) ) > 0 ) { $has_odt_tpl = true; }
         }
+        if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
+            require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+        }
+        $has_pdf = Resolate_Zetajs_Converter::is_available() && ( $has_odt_tpl || $has_docx_tpl );
 
         echo '<p><a class="button button-secondary" href="' . esc_url( $preview ) . '" target="_blank" rel="noopener">' . esc_html__( 'Ver documento', 'resolate' ) . '</a></p>';
         echo '<p>';
@@ -429,14 +472,18 @@ class Resolate_Admin2 {
         } else {
             echo '<button type="button" class="button button-primary" disabled title="' . esc_attr__( 'Configura una plantilla DOCX en los ajustes.', 'resolate' ) . '">DOCX</button> ';
         }
-        echo '<a class="button" href="' . esc_url( $pdf ) . '">PDF</a> ';
+        if ( $has_pdf ) {
+            echo '<a class="button" href="' . esc_url( $pdf ) . '">PDF</a> ';
+        } else {
+            echo '<button type="button" class="button" disabled title="' . esc_attr__( 'Instala ZetaJS y configura RESOLATE_ZETAJS_BIN para habilitar la conversión a PDF.', 'resolate' ) . '">PDF</button> ';
+        }
         if ( $has_odt_tpl ) {
             echo '<a class="button" href="' . esc_url( $odt ) . '">ODT</a>';
         } else {
             echo '<button type="button" class="button" disabled title="' . esc_attr__( 'Configura una plantilla ODT en los ajustes.', 'resolate' ) . '">ODT</button>';
         }
         echo '</p>';
-        echo '<p class="description">' . esc_html__( 'Descarga el documento generado.', 'resolate' ) . '</p>';
+        echo '<p class="description">' . esc_html__( 'Descarga el documento generado con LibreOffice (ZetaJS).', 'resolate' ) . '</p>';
     }
 
     /**

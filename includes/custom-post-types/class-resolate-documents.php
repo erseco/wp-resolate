@@ -82,14 +82,31 @@ private function define_hooks() {
         );
 
         $dynamic = $this->get_dynamic_fields_schema_for_post( $post_id );
+        $known   = array();
         if ( ! empty( $dynamic ) ) {
             foreach ( $dynamic as $def ) {
                 if ( empty( $def['slug'] ) ) {
                     continue;
                 }
-                $fields[] = 'resolate_field_' . sanitize_key( $def['slug'] );
+                $key        = 'resolate_field_' . sanitize_key( $def['slug'] );
+                $fields[]   = $key;
+                $known[ $key ] = true;
             }
         }
+
+        if ( $post_id > 0 ) {
+            $all_meta = get_post_meta( $post_id );
+            foreach ( $all_meta as $meta_key => $values ) {
+                if ( 0 !== strpos( $meta_key, 'resolate_field_' ) ) {
+                    continue;
+                }
+                if ( isset( $known[ $meta_key ] ) ) {
+                    continue;
+                }
+                $fields[] = $meta_key;
+            }
+        }
+
         return $fields;
     }
 
@@ -579,6 +596,7 @@ private function normalize_html_for_diff( $html ) {
         wp_nonce_field( 'resolate_sections_nonce', 'resolate_sections_nonce' );
 
         $schema = $this->get_dynamic_fields_schema_for_post( $post->ID );
+        $known_meta_keys = array();
         if ( ! empty( $schema ) ) {
             echo '<div class="resolate-sections">';
             foreach ( $schema as $def ) {
@@ -589,6 +607,7 @@ private function normalize_html_for_diff( $html ) {
                     continue;
                 }
                 $meta_key = 'resolate_field_' . $slug;
+                $known_meta_keys[] = $meta_key;
                 $value    = get_post_meta( $post->ID, $meta_key, true );
 
                 echo '<div class="resolate-field" style="margin-bottom:16px;">';
@@ -618,6 +637,8 @@ private function normalize_html_for_diff( $html ) {
                 }
                 echo '</div>';
             }
+            $unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
+            $this->render_unknown_dynamic_fields_ui( $unknown );
             echo '</div>';
             return;
         }
@@ -654,6 +675,8 @@ private function normalize_html_for_diff( $html ) {
             );
             echo '</div>';
         }
+        $unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
+        $this->render_unknown_dynamic_fields_ui( $unknown );
         echo '</div>';
     }
 
@@ -687,12 +710,14 @@ private function normalize_html_for_diff( $html ) {
 
         // Save dynamic fields if the selected type defines them; otherwise fallback to legacy.
         $schema = $this->get_dynamic_fields_schema_for_post( $post_id );
+        $known_meta_keys = array();
         if ( ! empty( $schema ) ) {
             foreach ( $schema as $def ) {
                 if ( empty( $def['slug'] ) ) { continue; }
                 $slug = sanitize_key( $def['slug'] );
                 $type = isset( $def['type'] ) ? (string) $def['type'] : 'textarea';
                 $key  = 'resolate_field_' . $slug;
+                $known_meta_keys[] = $key;
                 if ( isset( $_POST[ $key ] ) ) {
                     if ( 'rich' === $type ) {
                         $value = wp_kses_post( wp_unslash( $_POST[ $key ] ) );
@@ -718,6 +743,22 @@ private function normalize_html_for_diff( $html ) {
                 if ( isset( $_POST[ $key ] ) ) {
                     $value = wp_kses_post( wp_unslash( $_POST[ $key ] ) );
                     update_post_meta( $post_id, $key, $value );
+                }
+            }
+        }
+
+        $unknown_fields = $this->collect_unknown_dynamic_fields( $post_id, $known_meta_keys );
+        if ( ! empty( $unknown_fields ) ) {
+            foreach ( $unknown_fields as $meta_key => $field ) {
+                if ( 'post' !== $field['source'] ) {
+                    continue;
+                }
+                $raw = is_string( $field['value'] ) ? $field['value'] : '';
+                $value = wp_kses_post( $raw );
+                if ( '' !== trim( (string) $value ) ) {
+                    update_post_meta( $post_id, $meta_key, $value );
+                } else {
+                    delete_post_meta( $post_id, $meta_key );
                 }
             }
         }
@@ -856,9 +897,11 @@ private function normalize_html_for_diff( $html ) {
                 $term_id = intval( $assigned[0] );
             }
         }
-        $schema = array();
+        $schema         = array();
+        $dynamic_schema = array();
         if ( $term_id > 0 ) {
-            $schema = $this->get_schema_for_term( $term_id );
+            $dynamic_schema = $this->get_schema_for_term( $term_id );
+            $schema         = $dynamic_schema;
         }
         if ( empty( $schema ) ) {
             $schema = array(
@@ -869,8 +912,10 @@ private function normalize_html_for_diff( $html ) {
                 array( 'slug' => 'firma',        'label' => __( 'Firma / Pie', 'resolate' ),              'type' => 'rich' ),
             );
         }
+        $using_dynamic_schema = ! empty( $dynamic_schema );
 
         $blocks = array();
+        $known_meta_keys = array();
         foreach ( $schema as $row ) {
             if ( empty( $row['slug'] ) || empty( $row['label'] ) ) { continue; }
             $slug  = sanitize_key( $row['slug'] );
@@ -880,6 +925,9 @@ private function normalize_html_for_diff( $html ) {
             // Prefer posted value (most up-to-date); fallback to stored meta.
             $meta_key = empty( $term_id ) ? 'resolate_' . $slug : 'resolate_field_' . $slug;
             $posted_key = empty( $term_id ) ? $meta_key : $meta_key; // same variable name.
+            if ( $using_dynamic_schema ) {
+                $known_meta_keys[] = $meta_key;
+            }
             $val = '';
             if ( isset( $_POST[ $posted_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
                 if ( 'single' === $type ) {
@@ -896,6 +944,21 @@ private function normalize_html_for_diff( $html ) {
                 $blocks[] = '<!-- wp:paragraph -->' . "\n" . '<p>' . esc_html( (string) $val ) . '</p>' . "\n" . '<!-- /wp:paragraph -->';
             } else {
                 $blocks[] = '<!-- wp:html -->' . "\n" . (string) $val . "\n" . '<!-- /wp:html -->';
+            }
+        }
+
+        $unknown_fields = $this->collect_unknown_dynamic_fields( $post_id, $known_meta_keys );
+        if ( ! empty( $unknown_fields ) ) {
+            foreach ( $unknown_fields as $meta_key => $field ) {
+                $slug       = $this->humanize_unknown_field_label( $meta_key );
+                $warn_label = sprintf( __( 'Campo adicional: %s', 'resolate' ), $slug );
+                $warning    = __( 'Este campo no está definido en la taxonomía seleccionada.', 'resolate' );
+                $value      = wp_kses_post( is_string( $field['value'] ) ? $field['value'] : '' );
+                $blocks[]   = '<!-- wp:heading {"level":2,"className":"resolate-unknown-field"} -->' . "\n" . '<h2>' . esc_html( $warn_label ) . '</h2>' . "\n" . '<!-- /wp:heading -->';
+                if ( '' !== trim( (string) $value ) ) {
+                    $blocks[] = '<!-- wp:html -->' . "\n" . $value . "\n" . '<!-- /wp:html -->';
+                }
+                $blocks[] = '<!-- wp:paragraph {"className":"resolate-unknown-field-warning"} -->' . "\n" . '<p>' . esc_html( $warning ) . '</p>' . "\n" . '<!-- /wp:paragraph -->';
             }
         }
 
@@ -984,6 +1047,126 @@ private function normalize_html_for_diff( $html ) {
             );
         }
         return $out;
+    }
+
+    /**
+     * Collect meta values whose keys start with resolate_field_ but are not part of the schema.
+     *
+     * @param int   $post_id         Post ID.
+     * @param array $known_meta_keys Dynamic meta keys defined by the current schema.
+     * @return array[] Array keyed by meta key with value/source data.
+     */
+    private function collect_unknown_dynamic_fields( $post_id, $known_meta_keys ) {
+        $known_lookup = array();
+        if ( ! empty( $known_meta_keys ) ) {
+            foreach ( $known_meta_keys as $meta_key ) {
+                $known_lookup[ $meta_key ] = true;
+            }
+        }
+
+        $unknown = array();
+        $prefix  = 'resolate_field_';
+
+        foreach ( $_POST as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if ( ! is_string( $key ) || 0 !== strpos( $key, $prefix ) ) {
+                continue;
+            }
+            if ( isset( $known_lookup[ $key ] ) ) {
+                continue;
+            }
+            if ( is_array( $value ) ) {
+                continue;
+            }
+            $unknown[ $key ] = array(
+                'value'  => wp_unslash( $value ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                'source' => 'post',
+            );
+        }
+
+        if ( $post_id > 0 ) {
+            $all_meta = get_post_meta( $post_id );
+            foreach ( $all_meta as $meta_key => $values ) {
+                if ( 0 !== strpos( $meta_key, $prefix ) ) {
+                    continue;
+                }
+                if ( isset( $known_lookup[ $meta_key ] ) ) {
+                    continue;
+                }
+                if ( isset( $unknown[ $meta_key ] ) ) {
+                    continue;
+                }
+                $unknown[ $meta_key ] = array(
+                    'value'  => get_post_meta( $post_id, $meta_key, true ),
+                    'source' => 'meta',
+                );
+            }
+        }
+
+        return $unknown;
+    }
+
+    /**
+     * Render UI controls for dynamic fields not defined in the selected taxonomy schema.
+     *
+     * @param array $unknown_fields Unknown field definitions.
+     * @return void
+     */
+    private function render_unknown_dynamic_fields_ui( $unknown_fields ) {
+        if ( empty( $unknown_fields ) ) {
+            return;
+        }
+
+        echo '<div class="resolate-unknown-dynamic" style="margin-top:24px;">';
+        echo '<div class="notice notice-warning inline" style="margin:0 0 12px;">' . esc_html__( 'El documento contiene campos adicionales que no pertenecen al tipo seleccionado. Revisa su contenido antes de guardar.', 'resolate' ) . '</div>';
+
+        foreach ( $unknown_fields as $meta_key => $data ) {
+            $label = $this->humanize_unknown_field_label( $meta_key );
+            $value = '';
+            if ( isset( $data['value'] ) && is_string( $data['value'] ) ) {
+                $value = wp_kses_post( $data['value'] );
+            }
+            echo '<div class="resolate-field resolate-field-warning" style="margin-bottom:16px;border:1px solid #dba617;padding:12px;background:#fffbea;">';
+            echo '<label for="' . esc_attr( $meta_key ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( sprintf( __( 'Campo adicional: %s', 'resolate' ), $label ) ) . '</label>';
+            echo '<p class="description" style="margin-top:0;margin-bottom:8px;">' . esc_html__( 'Este campo no está definido en la taxonomía de tipo de documento actual.', 'resolate' ) . '</p>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles escaping.
+            wp_editor(
+                $value,
+                $meta_key,
+                array(
+                    'textarea_name' => $meta_key,
+                    'textarea_rows' => 6,
+                    'media_buttons' => false,
+                    'teeny'         => false,
+                    'tinymce'       => array(
+                        'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+                    ),
+                    'quicktags'     => true,
+                    'editor_height' => 200,
+                )
+            );
+            echo '</div>';
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Create a human readable label for an unknown dynamic field meta key.
+     *
+     * @param string $meta_key Meta key.
+     * @return string
+     */
+    private function humanize_unknown_field_label( $meta_key ) {
+        $slug = str_replace( 'resolate_field_', '', (string) $meta_key );
+        $slug = str_replace( array( '-', '_' ), ' ', $slug );
+        $slug = trim( preg_replace( '/\s+/', ' ', $slug ) );
+        if ( '' === $slug ) {
+            return (string) $meta_key;
+        }
+        if ( function_exists( 'mb_convert_case' ) ) {
+            return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
+        }
+        return ucwords( $slug );
     }
 }
 
