@@ -3,12 +3,12 @@
  *
  * Resolate – Generador de resoluciones.
  *
- * @link              https://github.com/ateeducacion/wp-resolate
+ * @link              https://github.com/erseco/wp-resolate
  * @package           Resolate
  *
  * @wordpress-plugin
  * Plugin Name:       Resolate – Generador de resoluciones
- * Plugin URI:        https://github.com/ateeducacion/wp-resolate
+ * Plugin URI:        https://github.com/erseco/wp-resolate
  * Description:       Generador de resoluciones digitales de la Consejería de Educación del Gobierno de Canarias. Define un tipo de contenido de "Resolución" con secciones estructuradas y permite exportar a Word (DOCX) y, próximamente, PDF.
  * Version:           0.0.0
  * Author:            Área de Tecnología Educativa

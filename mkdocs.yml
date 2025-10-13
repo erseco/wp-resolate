@@ -2,13 +2,13 @@ site_name: Resolate
 site_description: A WordPress plugin that provides a Kanban board interface with a unique priority system for managing tasks
 
 site_author: ATE
-repo_url: https://github.com/ateeducacion/wp-resolate
+repo_url: https://github.com/erseco/wp-resolate
 edit_uri: edit/main/docs/
 
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/ateeducacion/wp-resolate
+      link: https://github.com/erseco/wp-resolate
 
 theme:
   name: material

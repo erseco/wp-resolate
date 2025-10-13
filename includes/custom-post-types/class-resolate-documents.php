@@ -5,7 +5,7 @@
  * This CPT is the base for generating official documents with structured
  * sections stored as post meta, and two taxonomies: ámbitos and leyes.
  *
- * @link       https://github.com/ateeducacion/wp-resolate
+ * @link       https://github.com/erseco/wp-resolate
  * @since      0.1.0
  *
  * @package    resolate
