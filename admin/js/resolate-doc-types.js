@@ -1,94 +1,135 @@
-/* global jQuery, wp */
+/* global jQuery, wp, resolateDocTypes */
 (function($){
-  function ensureArray(val){ if (!val) return []; if (Array.isArray(val)) return val; try{ var a = JSON.parse(val); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
-
-  function updateFieldsJSON($container){
-    var rows = [];
-    $container.find('.resolate-field-row').each(function(){
-      var $r = $(this);
-      var slug = ($r.find('.fld-slug').val()||'').trim();
-      var label = ($r.find('.fld-label').val()||'').trim();
-      var type = ($r.find('.fld-type').val()||'textarea').trim();
-      if (slug && label){ rows.push({slug: slug.replace(/[^a-z0-9_\-]/gi,'').toLowerCase(), label: label, type: type}); }
-    });
-    $('#resolate_type_fields_json').val(JSON.stringify(rows));
+  function parseSchemaData(val){
+    if (!val){ return []; }
+    if (Array.isArray(val)){ return val; }
+    if (typeof val === 'string'){
+      try {
+        var parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e){ return []; }
+    }
+    return [];
   }
 
-  function renderFieldRow(data){
-    data = data || {slug:'', label:'', type:'textarea'};
-    var html = '<div class="resolate-field-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'
-      + '<input type="text" class="regular-text fld-slug" placeholder="slug" value="'+ _.escape(data.slug||'') +'" style="width:140px;" />'
-      + '<input type="text" class="regular-text fld-label" placeholder="Etiqueta" value="'+ _.escape(data.label||'') +'" />'
-      + '<select class="fld-type"><option value="single">'+resolateDocTypes.i18n.single+'</option><option value="textarea">'+resolateDocTypes.i18n.textarea+'</option><option value="rich">'+resolateDocTypes.i18n.rich+'</option></select>'
-      + '<button type="button" class="button link-delete fld-remove">'+resolateDocTypes.i18n.remove+'</button>'
-      + '</div>';
-    var $row = $(html);
-    $row.find('.fld-type').val(data.type||'textarea');
-    return $row;
+  function schemaToSlugList(schema){
+    return (schema || []).map(function(row){
+      if (!row){ return ''; }
+      if (typeof row === 'string'){ return row; }
+      return (row.slug || '').toString();
+    }).filter(function(slug){ return !!slug; });
   }
 
-  function refreshLogosCSV(){
-    var ids = [];
-    $('#resolate_type_logos_list .logo-item').each(function(){ ids.push($(this).data('id')); });
-    $('#resolate_type_logos').val(ids.join(','));
+  function renderSchema($container, fields, diff){
+    $container.empty();
+    if (!fields || !fields.length){
+      $container.append('<div class="resolate-schema-empty">'+ _.escape(resolateDocTypes.i18n.noFields) +'</div>');
+      return;
+    }
+    var $list = $('<ul />');
+    fields.forEach(function(field){
+      $list.append('<li>'+ _.escape(field) +'</li>');
+    });
+    $container.append($list);
+    if (diff){
+      if (diff.added && diff.added.length){
+        var $added = $('<p style="margin-top:8px;color:#008a20;" />');
+        $added.text(resolateDocTypes.i18n.diffAdded + ': ' + diff.added.join(', '));
+        $container.append($added);
+      }
+      if (diff.removed && diff.removed.length){
+        var $removed = $('<p style="margin-top:4px;color:#cc1818;" />');
+        $removed.text(resolateDocTypes.i18n.diffRemoved + ': ' + diff.removed.join(', '));
+        $container.append($removed);
+      }
+    }
   }
 
-  $(document).on('click','.resolate-media-select', function(e){
-    e.preventDefault();
-    var target = $(this).data('target');
-    var type = $(this).data('type') || '';
-    var frame = wp.media({ title: resolateDocTypes.i18n.select, multiple:false, library: { type: type ? [type] : undefined } });
-    frame.on('select', function(){
-      var att = frame.state().get('selection').first().toJSON();
-      $('#'+target).val(att.id);
-      var name = att.filename || att.title || att.url;
-      $('#'+target+'_preview').text(name);
-    });
-    frame.open();
-  });
+  function computeDiff(newFields){
+    var previous = Array.isArray(resolateDocTypes.schema) ? resolateDocTypes.schema : [];
+    var added = [];
+    var removed = [];
+    var newSet = {};
+    newFields.forEach(function(f){ newSet[f] = true; });
+    newFields.forEach(function(f){ if (previous.indexOf(f) === -1){ added.push(f); } });
+    previous.forEach(function(f){ if (!newSet[f]){ removed.push(f); } });
+    return { added: added, removed: removed };
+  }
 
-  $(document).on('click','.resolate-add-logo', function(e){
-    e.preventDefault();
-    var frame = wp.media({ title: resolateDocTypes.i18n.logo, multiple:false, library: { type: ['image'] } });
-    frame.on('select', function(){
-      var att = frame.state().get('selection').first().toJSON();
-      var $it = $('<div class="logo-item" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;" />');
-      $it.attr('data-id', att.id);
-      $it.append('<img src="'+ (att.sizes && att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url) +'" style="width:48px;height:48px;object-fit:contain;" />');
-      $it.append('<span>'+ _.escape(att.filename || att.title) +'</span>');
-      $it.append('<button type="button" class="button link-delete rm-logo">'+resolateDocTypes.i18n.remove+'</button>');
-      $('#resolate_type_logos_list').append($it);
-      refreshLogosCSV();
-    });
-    frame.open();
-  });
+  function updateTemplateTypeLabel($scope, type){
+    var $label = $scope.find('.resolate-template-type');
+    if (!$label.length){ return; }
+    if (!type){
+      var fallback = $label.data('default') || '';
+      $label.text(fallback);
+      return;
+    }
+    if (type === 'docx'){
+      $label.text(resolateDocTypes.i18n.typeDocx);
+    } else if (type === 'odt'){
+      $label.text(resolateDocTypes.i18n.typeOdt);
+    } else {
+      $label.text(resolateDocTypes.i18n.typeUnknown);
+    }
+  }
 
-  $(document).on('click','.rm-logo', function(){ $(this).closest('.logo-item').remove(); refreshLogosCSV(); });
+  function fetchTemplateFields(attachmentId, $scope){
+    var $schemaBox = $('#resolate_type_schema_preview');
+    $schemaBox.addClass('is-loading');
+    $.post(resolateDocTypes.ajax.url, {
+      action: 'resolate_doc_type_template_fields',
+      nonce: resolateDocTypes.ajax.nonce,
+      attachment_id: attachmentId
+    }).done(function(resp){
+      $schemaBox.removeClass('is-loading');
+      if (!resp || !resp.success){
+        window.alert(resp && resp.data && resp.data.message ? resp.data.message : 'Error');
+        return;
+      }
+      var fields = Array.isArray(resp.data.fields) ? resp.data.fields : [];
+      var diff = computeDiff(fields);
+      renderSchema($schemaBox, fields, diff);
+      updateTemplateTypeLabel($scope, resp.data.type || '');
+    }).fail(function(){
+      $schemaBox.removeClass('is-loading');
+      window.alert('Error al analizar la plantilla seleccionada.');
+    });
+  }
 
   $(function(){
-    // Populate logos from data-initial (edit screen)
-    var $logos = $('#resolate_type_logos_list');
-    var initialLogos = ensureArray($logos.data('initial'));
-    if (initialLogos.length){
-      // We can't resolve URLs server-side here; keep placeholders with ID.
-      initialLogos.forEach(function(id){
-        var $it = $('<div class="logo-item" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;" />');
-        $it.attr('data-id', id);
-        $it.append('<span>#'+ id +'</span>');
-        $it.append('<button type="button" class="button link-delete rm-logo">'+resolateDocTypes.i18n.remove+'</button>');
-        $logos.append($it);
-      });
+    $('.resolate-color-field').each(function(){
+      if (typeof $(this).wpColorPicker === 'function'){
+        $(this).wpColorPicker();
+      }
+    });
+
+    var $schemaBox = $('#resolate_type_schema_preview');
+    var initialSchema = schemaToSlugList(parseSchemaData($schemaBox.data('schema')));
+    if (initialSchema.length){
+      renderSchema($schemaBox, initialSchema);
+    } else {
+      renderSchema($schemaBox, []);
     }
 
-    // Fields builder
-    var $fields = $('#resolate_type_fields');
-    var initial = ensureArray($fields.data('initial'));
-    initial.forEach(function(row){ $fields.append(renderFieldRow(row)); });
-    $(document).on('click','.resolate-add-field', function(e){ e.preventDefault(); $fields.append(renderFieldRow()); updateFieldsJSON($fields); });
-    $(document).on('change keyup','.fld-slug,.fld-label,.fld-type', function(){ updateFieldsJSON($fields); });
-    $(document).on('click','.fld-remove', function(){ $(this).closest('.resolate-field-row').remove(); updateFieldsJSON($fields); });
+    var initialType = $('.resolate-template-type').data('current') || resolateDocTypes.templateExt || '';
+    updateTemplateTypeLabel($(document), initialType);
 
-    // Prepare i18n object if missing
+    $(document).on('click', '.resolate-template-select', function(e){
+      e.preventDefault();
+      var $btn = $(this);
+      var allowed = ($btn.data('allowed') || '').split(',').filter(function(v){ return !!v; });
+      var frame = wp.media({
+        title: resolateDocTypes.i18n.select,
+        multiple: false,
+        library: allowed.length ? { type: allowed } : undefined
+      });
+      frame.on('select', function(){
+        var att = frame.state().get('selection').first().toJSON();
+        $('#resolate_type_template_id').val(att.id);
+        $('#resolate_type_template_preview').text(att.filename || att.title || att.url || (''+att.id));
+        fetchTemplateFields(att.id, $btn.closest('form, table'));
+      });
+      frame.open();
+    });
   });
 })(jQuery);
-

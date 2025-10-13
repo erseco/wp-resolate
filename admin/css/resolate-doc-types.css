@@ -1,3 +1,8 @@
-/* Minimal layout helpers for document types admin */
-#resolate_type_fields .resolate-field-row input[type=text]{max-width:280px}
-#resolate_type_fields .resolate-field-row .fld-type{min-width:140px}
+/* Styles for document type taxonomy management */
+.resolate-template-preview{margin:4px 0;padding:6px 8px;background:#f6f7f7;border:1px solid #dcdcde;min-height:30px;display:flex;align-items:center}
+.resolate-template-type{margin-top:4px;font-style:italic;color:#50575e}
+.resolate-schema-preview{border:1px solid #dcdcde;background:#fff;padding:8px;max-width:480px;min-height:60px}
+.resolate-schema-preview ul{margin:0;padding-left:18px}
+.resolate-schema-preview .resolate-schema-empty{color:#a7aaad;font-style:italic}
+.resolate-schema-preview.is-loading{opacity:.6}
+.column-parent, #parent{display:none!important}

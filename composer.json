@@ -24,7 +24,7 @@
         "phpunit": "vendor/bin/phpunit",
         "test": "phpunit",
         "phpcs": "phpcs --standard=WordPress . --ignore=vendor/,assets/,node_modules/,tests/js/,wp/,wp-content/,tests/ --colors --warning-severity=0 --extensions=php",
-        "phpcbf": "phpcbf --standard=WordPress . --ignore=vendor/,assets/,node_modules/,tests/js/,wp/,wp-content/ --colors --warning-severity=0 --extensions=php",
+        "phpcbf": "phpcbf --standard=WordPress . --ignore=vendor/,assets/,node_modules/,tests/js/,wp/,wp-content/ --colors --warning-severity=0 --extensions=php"
     },
     "config": {
         "allow-plugins": {

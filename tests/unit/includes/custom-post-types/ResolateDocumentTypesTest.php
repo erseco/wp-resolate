@@ -21,30 +21,55 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         $this->assertIsArray( $term );
         $tid = intval( $term['term_id'] );
 
-        $_POST['resolate_type_docx_template'] = '123';
-        $_POST['resolate_type_odt_template']  = '456';
-        $_POST['resolate_type_logos']         = '10, 20 , 30';
-        $_POST['resolate_type_font_name']     = 'Georgia';
-        $_POST['resolate_type_font_size']     = '14';
-        $_POST['resolate_type_fields_json']   = wp_json_encode( array(
-            array( 'slug' => 'campo1', 'label' => 'Campo 1', 'type' => 'single' ),
-            array( 'slug' => 'campo2', 'label' => 'Campo 2', 'type' => 'rich' ),
-        ) );
+        $upload = wp_upload_dir();
+        wp_mkdir_p( $upload['basedir'] );
+        $file   = trailingslashit( $upload['basedir'] ) . 'resolate-test-template.docx';
+
+        if ( file_exists( $file ) ) {
+            unlink( $file );
+        }
+
+        $zip = new ZipArchive();
+        $created = $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+        $this->assertTrue( $created );
+        $xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            . '<w:body><w:p><w:r><w:t>[Campo_1]</w:t></w:r></w:p><w:p><w:r><w:t>[campo2]</w:t></w:r></w:p></w:body></w:document>';
+        $zip->addFromString( 'word/document.xml', $xml );
+        $zip->close();
+
+        $filetype = wp_check_filetype( basename( $file ), null );
+        $attachment = array(
+            'post_mime_type' => $filetype['type'],
+            'post_title'     => 'Plantilla DOCX',
+            'post_content'   => '',
+            'post_status'    => 'inherit',
+        );
+        $attach_id = wp_insert_attachment( $attachment, $file );
+        $this->assertGreaterThan( 0, $attach_id );
+
+        $_POST['resolate_type_template_id'] = (string) $attach_id;
+        $_POST['resolate_type_color']       = '#123abc';
 
         $admin = new Resolate_Doc_Types_Admin();
         $admin->save_term( $tid );
 
-        $this->assertEquals( 123, intval( get_term_meta( $tid, 'resolate_type_docx_template', true ) ) );
-        $this->assertEquals( 456, intval( get_term_meta( $tid, 'resolate_type_odt_template', true ) ) );
-        $this->assertEquals( array( 10, 20, 30 ), get_term_meta( $tid, 'resolate_type_logos', true ) );
-        $this->assertEquals( 'Georgia', get_term_meta( $tid, 'resolate_type_font_name', true ) );
-        $this->assertEquals( 14, intval( get_term_meta( $tid, 'resolate_type_font_size', true ) ) );
-        $schema = get_term_meta( $tid, 'resolate_type_fields', true );
+        $this->assertEquals( $attach_id, intval( get_term_meta( $tid, 'resolate_type_template_id', true ) ) );
+        $this->assertEquals( 'docx', get_term_meta( $tid, 'resolate_type_template_type', true ) );
+        $this->assertEquals( '#123abc', get_term_meta( $tid, 'resolate_type_color', true ) );
+
+        $schema = get_term_meta( $tid, 'schema', true );
         $this->assertIsArray( $schema );
         $this->assertCount( 2, $schema );
-        $this->assertEquals( 'campo1', $schema[0]['slug'] );
+        $this->assertEquals( 'campo_1', $schema[0]['slug'] );
         $this->assertEquals( 'Campo 1', $schema[0]['label'] );
-        $this->assertEquals( 'single', $schema[0]['type'] );
+        $this->assertEquals( 'textarea', $schema[0]['type'] );
+        $this->assertEquals( 'campo2', $schema[1]['slug'] );
+        $this->assertEquals( 'Campo2', $schema[1]['label'] );
+
+        $legacy = get_term_meta( $tid, 'resolate_type_fields', true );
+        $this->assertEquals( $schema, $legacy );
+
+        $_POST = array();
     }
 
     public function test_document_type_locked_after_first_save() {
@@ -76,7 +101,9 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         // Create a type with one field.
         $term = wp_insert_term( 'Tipo X', 'resolate_doc_type' );
         $tid  = intval( $term['term_id'] );
-        update_term_meta( $tid, 'resolate_type_fields', array( array( 'slug' => 'campo1', 'label' => 'Campo 1', 'type' => 'textarea' ) ) );
+        $schema = array( array( 'slug' => 'campo1', 'label' => 'Campo 1', 'type' => 'textarea' ) );
+        update_term_meta( $tid, 'schema', $schema );
+        update_term_meta( $tid, 'resolate_type_fields', $schema );
 
         $post_id = wp_insert_post( array( 'post_type' => 'resolate_document', 'post_title' => 'Doc', 'post_status' => 'draft' ) );
         wp_set_post_terms( $post_id, array( $tid ), 'resolate_doc_type', false );
