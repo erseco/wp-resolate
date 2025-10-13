@@ -1,0 +1,137 @@
+.resolate-export-modal[hidden] {
+    display: none;
+}
+
+.resolate-export-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+}
+
+.resolate-export-modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.resolate-export-modal__dialog {
+    position: relative;
+    z-index: 1;
+    width: min(520px, calc(100% - 32px));
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
+    padding: 24px;
+}
+
+.resolate-export-modal__title {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.resolate-export-modal__intro {
+    margin: 0 0 16px;
+    color: #50575e;
+    font-size: 14px;
+}
+
+.resolate-export-modal__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    border: 0;
+    background: transparent;
+    color: #1d2327;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.resolate-export-modal__close:focus {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+
+.resolate-export-modal__steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+}
+
+.resolate-export-modal__step {
+    padding: 10px 0;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.resolate-export-modal__step:last-child {
+    border-bottom: 0;
+}
+
+.resolate-export-modal__step-title {
+    display: block;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.resolate-export-modal__step-status {
+    display: block;
+    font-size: 12px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+.resolate-export-modal__step.is-active .resolate-export-modal__step-status {
+    color: #2271b1;
+}
+
+.resolate-export-modal__step.is-ready .resolate-export-modal__step-status {
+    color: #1d2327;
+}
+
+.resolate-export-modal__step.is-done .resolate-export-modal__step-status {
+    color: #198754;
+}
+
+.resolate-export-modal__step.is-error .resolate-export-modal__step-status {
+    color: #b32d2e;
+}
+
+.resolate-export-modal__step.is-disabled {
+    opacity: 0.6;
+}
+
+.resolate-export-modal__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.resolate-export-modal__links {
+    margin-bottom: 12px;
+}
+
+.resolate-export-modal__notice {
+    margin: 0;
+    font-size: 12px;
+    color: #646970;
+}
+
+.resolate-export-modal__frame {
+    display: none;
+    width: 0;
+    height: 0;
+    border: 0;
+}
+
+body.resolate-export-modal--open {
+    overflow: hidden;
+}
