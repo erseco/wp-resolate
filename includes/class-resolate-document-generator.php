@@ -273,7 +273,24 @@ class Resolate_Document_Generator {
             }
 
             require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
-            if ( ! class_exists( 'Resolate_Zetajs_Converter' ) || ! Resolate_Zetajs_Converter::is_available() ) {
+            if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
+                return new WP_Error( 'resolate_zetajs_not_available', __( 'No se pudo cargar el conversor de ZetaJS.', 'resolate' ) );
+            }
+
+            if ( Resolate_Zetajs_Converter::is_cdn_mode() ) {
+                return new WP_Error(
+                    'resolate_zetajs_browser_only',
+                    Resolate_Zetajs_Converter::get_browser_conversion_message(),
+                    array(
+                        'mode'       => 'cdn',
+                        'cdn_base'   => Resolate_Zetajs_Converter::get_cdn_base_url(),
+                        'source'     => $source_path,
+                        'source_ext' => $source_format,
+                    )
+                );
+            }
+
+            if ( ! Resolate_Zetajs_Converter::is_available() ) {
                 return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura el ejecutable de ZetaJS para generar PDF.', 'resolate' ) );
             }
 
