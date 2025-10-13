@@ -57,7 +57,10 @@ class Resolate_Admin2 {
      * @param string $hook Current admin page hook.
      * @return void
      */
-    public function enqueue_zetajs_loader( $hook ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+    public function enqueue_zetajs_loader( $hook ) {
+        if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
+            return;
+        }
         if ( ! function_exists( 'get_current_screen' ) ) {
             return;
         }
