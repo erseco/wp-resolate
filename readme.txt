@@ -1,5 +1,5 @@
 === Resolate – Generador de resoluciones ===
-Contributors: ateeducacion, erseco
+Contributors: erseco
 Tags: ate, tasks, board, kanban
 Requires at least: 6.1
 Tested up to: 6.8

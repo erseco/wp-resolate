@@ -3,9 +3,9 @@
 ![WordPress Version](https://img.shields.io/badge/WordPress-6.1-blue)
 ![Language](https://img.shields.io/badge/Language-PHP-orange)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
-![Downloads](https://img.shields.io/github/downloads/ateeducacion/wp-resolate/total)
-![Last Commit](https://img.shields.io/github/last-commit/ateeducacion/wp-resolate)
-![Open Issues](https://img.shields.io/github/issues/ateeducacion/wp-resolate)
+![Downloads](https://img.shields.io/github/downloads/erseco/wp-resolate/total)
+![Last Commit](https://img.shields.io/github/last-commit/erseco/wp-resolate)
+![Open Issues](https://img.shields.io/github/issues/erseco/wp-resolate)
 
 **Resolate** es un plugin de WordPress para la generación de resoluciones oficiales con estructura de secciones y exportación a DOCX.
 
@@ -13,7 +13,7 @@
 
 Try Resolate instantly in your browser using WordPress Playground! The demo includes sample data to help you explore the features. Note that all changes will be lost when you close the browser window, as everything runs locally in your browser.
 
-[<kbd> <br> Preview in WordPress Playground <br> </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ateeducacion/wp-resolate/refs/heads/main/blueprint.json)
+[<kbd> <br> Preview in WordPress Playground <br> </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/erseco/wp-resolate/refs/heads/main/blueprint.json)
 
 
 ### Key Features
@@ -26,7 +26,7 @@ Try Resolate instantly in your browser using WordPress Playground! The demo incl
 
 ## Installation
 
-1. **Download the latest release** from the [GitHub Releases page](https://github.com/ateeducacion/wp-resolate/releases).
+1. **Download the latest release** from the [GitHub Releases page](https://github.com/erseco/wp-resolate/releases).
 2. Upload the downloaded ZIP file to your WordPress site via **Plugins > Add New > Upload Plugin**.
 3. Activate the plugin through the 'Plugins' menu in WordPress.
 4. Configure the plugin under 'Settings' by providing the necessary Nextcloud API details.
