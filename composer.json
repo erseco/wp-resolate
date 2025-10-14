@@ -1,6 +1,6 @@
 {    
     "require": {
-        "vendor/tinybutstrong": "*"
+        "tinybutstrong/tinybutstrong": "*"
     },
     "require-dev": {
         "phpcompatibility/phpcompatibility-wp": "*",
