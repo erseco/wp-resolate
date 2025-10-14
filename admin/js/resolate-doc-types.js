@@ -12,14 +12,6 @@
     return [];
   }
 
-  function schemaToSlugList(schema){
-    return (schema || []).map(function(row){
-      if (!row){ return ''; }
-      if (typeof row === 'string'){ return row; }
-      return normalizeText(row.slug, '').trim();
-    }).filter(function(slug){ return !!slug; });
-  }
-
   function normalizeText(value, fallback){
     if (value === undefined || value === null){
       return fallback || '';
@@ -74,6 +66,22 @@
     };
   }
 
+  function fieldComparisonKey(field){
+    var normalized = normalizeField(field);
+    if (!normalized){ return ''; }
+    var label = normalized.label || '';
+    var fallback = normalized.placeholder || normalized.slug || '';
+    var key = label || fallback;
+    return key ? key.toString().trim().toLowerCase() : '';
+  }
+
+  function fieldDisplayName(field){
+    var normalized = normalizeField(field);
+    if (!normalized){ return ''; }
+    var name = normalized.label || normalized.placeholder || normalized.slug || '';
+    return name ? name.toString().trim() : '';
+  }
+
   function renderSchema($container, fields, diff){
     $container.empty();
     if (!fields || !fields.length){
@@ -116,14 +124,28 @@
     var previous = Array.isArray(resolateDocTypes.schema) ? resolateDocTypes.schema : [];
     var added = [];
     var removed = [];
-    var normalized = newFields.map(normalizeField).filter(function(field){ return !!field; });
-    var newSlugs = normalized.map(function(field){ return field.slug; }).filter(function(slug){ return !!slug; });
+    var normalizedNew = newFields.map(normalizeField).filter(function(field){ return !!field; });
     var previousLookup = {};
-    previous.forEach(function(slug){ previousLookup[slug] = true; });
-    newSlugs.forEach(function(slug){ if (!previousLookup[slug]){ added.push(slug); } });
+    previous.forEach(function(field){
+      var key = fieldComparisonKey(field);
+      if (key){ previousLookup[key] = true; }
+    });
     var newLookup = {};
-    newSlugs.forEach(function(slug){ newLookup[slug] = true; });
-    previous.forEach(function(slug){ if (!newLookup[slug]){ removed.push(slug); } });
+    normalizedNew.forEach(function(field){
+      var key = fieldComparisonKey(field);
+      if (!key){ return; }
+      newLookup[key] = fieldDisplayName(field);
+      if (!previousLookup[key]){
+        added.push(fieldDisplayName(field));
+      }
+    });
+    previous.forEach(function(field){
+      var key = fieldComparisonKey(field);
+      if (!key){ return; }
+      if (!Object.prototype.hasOwnProperty.call(newLookup, key)){
+        removed.push(fieldDisplayName(field));
+      }
+    });
     return { added: added, removed: removed };
   }
 
@@ -161,7 +183,7 @@
       var normalized = fields.map(normalizeField).filter(function(field){ return !!field; });
       var diff = computeDiff(normalized);
       renderSchema($schemaBox, normalized, diff);
-      resolateDocTypes.schema = normalized.map(function(field){ return field.slug; });
+      resolateDocTypes.schema = normalized;
       updateTemplateTypeLabel($scope, resp.data.type || '');
     }).fail(function(){
       $schemaBox.removeClass('is-loading');
@@ -178,12 +200,13 @@
 
     var $schemaBox = $('#resolate_type_schema_preview');
     var initialSchemaRaw = parseSchemaData($schemaBox.data('schema'));
-    if (initialSchemaRaw.length){
-      renderSchema($schemaBox, initialSchemaRaw);
+    var initialNormalized = initialSchemaRaw.map(normalizeField).filter(function(field){ return !!field; });
+    if (initialNormalized.length){
+      renderSchema($schemaBox, initialNormalized);
     } else {
       renderSchema($schemaBox, []);
     }
-    resolateDocTypes.schema = schemaToSlugList(initialSchemaRaw);
+    resolateDocTypes.schema = initialNormalized;
 
     var initialType = $('.resolate-template-type').data('current') || resolateDocTypes.templateExt || '';
     updateTemplateTypeLabel($(document), initialType);
