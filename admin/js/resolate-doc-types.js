@@ -16,8 +16,41 @@
     return (schema || []).map(function(row){
       if (!row){ return ''; }
       if (typeof row === 'string'){ return row; }
-      return (row.slug || '').toString();
+      return normalizeText(row.slug, '').trim();
     }).filter(function(slug){ return !!slug; });
+  }
+
+  function normalizeText(value, fallback){
+    if (value === undefined || value === null){
+      return fallback || '';
+    }
+    if (typeof value === 'string'){
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean'){
+      return String(value);
+    }
+    if (Array.isArray(value)){
+      for (var i = 0; i < value.length; i++){
+        if (typeof value[i] === 'string' && value[i]){
+          return value[i];
+        }
+      }
+      return fallback || '';
+    }
+    if (typeof value === 'object'){
+      if (typeof value.rendered === 'string' && value.rendered){
+        return value.rendered;
+      }
+      var keys = Object.keys(value);
+      for (var j = 0; j < keys.length; j++){
+        var key = keys[j];
+        if (typeof value[key] === 'string' && value[key]){
+          return value[key];
+        }
+      }
+    }
+    return fallback || '';
   }
 
   function normalizeField(field){
@@ -28,15 +61,16 @@
       placeholder: field,
       data_type: 'text'
     }; }
-    var slug = (field.slug || '').toString();
-    var label = field.label || '';
-    var placeholder = field.placeholder || slug;
-    var type = field.data_type || 'text';
+    var slug = normalizeText(field.slug, '');
+    slug = slug ? slug.toString().trim() : '';
+    var label = normalizeText(field.label, '').trim();
+    var placeholder = normalizeText(field.placeholder, slug).trim();
+    var type = normalizeText(field.data_type, 'text').trim() || 'text';
     return {
       slug: slug,
       label: label,
       placeholder: placeholder,
-      data_type: type || 'text'
+      data_type: type
     };
   }
 
