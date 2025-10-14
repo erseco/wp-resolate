@@ -106,6 +106,7 @@ class Resolate_Zetajs_Converter {
 				$message = trim( $stdout );
 			}
 			if ( '' === $message ) {
+				/* translators: %d: exit status returned by the ZetaJS process. */
 				$message = sprintf( __( 'El proceso de ZetaJS finalizó con código %d.', 'resolate' ), $status );
 			}
 			return new WP_Error( 'resolate_zetajs_failed', $message );
@@ -113,6 +114,7 @@ class Resolate_Zetajs_Converter {
 
 		if ( ! file_exists( $output_path ) ) {
 			$context = $stderr ? $stderr : $stdout;
+			/* translators: %s: raw message captured from the ZetaJS converter output. */
 			return new WP_Error( 'resolate_zetajs_output_missing', sprintf( __( 'La conversión finalizó pero no se generó el archivo de salida. Detalles: %s', 'resolate' ), $context ) );
 		}
 

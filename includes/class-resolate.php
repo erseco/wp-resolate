@@ -100,17 +100,13 @@ class Resolate {
 		 * The classes responsible for defining the custom-post-types.
 		 */
 		// Keep boards/labels for KB; remove tasks/events/actions (Kanban removal).
-		// require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-boards.php';
-		// require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-labels.php';
-
-		// require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-kb.php';
 
 		// Resolate: Documents CPT and taxonomies (non-breaking addition).
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-documents.php';
 
 		// Removed email-to-post, mailer/notification, and calendar modules.
 
-				require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-disable-comment-notifications.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-disable-comment-notifications.php';
 
 		/**
 		 * The class responsible for protecting comments on custom post types via the REST API.
@@ -128,7 +124,7 @@ class Resolate {
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-admin.php';
 
 		// Resolate admin helpers (row actions, exports for resolutions).
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-admin.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-admin-helper.php';
 
 		// Admin UI for document types (taxonomy meta for templates, fields, etc.).
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-doc-types-admin.php';
@@ -137,7 +133,7 @@ class Resolate {
 		 * The class responsible for defining all actions that occur in the public-facing
 		 * side of the site.
 		 */
-		// require_once plugin_dir_path( __DIR__ ) . 'public/class-resolate-public.php';
+		// Public-facing hooks disabled because the plugin does not expose front-end features.
 
 		$this->loader = new Resolate_Loader();
 	}

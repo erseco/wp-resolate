@@ -11,6 +11,10 @@ These are natural-language guidelines for agents to follow when developing the R
   - Use English for source code (identifiers, comments, docblocks).
   - Write all implementation notes, inline comments, and documentation in English.
   - Use Spanish for user‑facing translations/strings and test assertions to check no untranslated strings remain.
+  - Keep class file names aligned with their class names (e.g., `class-resolate-admin-helper.php` for `Resolate_Admin_Helper`).
+  - Add `/* translators: */` comments immediately before translations containing placeholders such as `%s` or `%d`.
+  - Always unslash superglobals (e.g., `$_POST`) before sanitizing and storing their values.
+  - When emitting standalone pages, enqueue styles/scripts with WordPress APIs (`wp_enqueue_style`, `wp_enqueue_script`) and print them via `wp_print_*` helpers instead of hard-coding `<link>` or `<script>` tags.
   - Ensure all code passes `phpcs --standard=WordPress` and is auto-fixable with `phpcbf --standard=WordPress` where applicable.
   - Install coding standard tooling with Composer in the project root: `composer require --dev dealerdirect/phpcodesniffer-composer-installer:^1.0 wp-coding-standards/wpcs:^3.0`.
   - After installation, run `vendor/bin/phpcbf --standard=WordPress .` to auto-fix violations before linting with `vendor/bin/phpcs --standard=WordPress .`.

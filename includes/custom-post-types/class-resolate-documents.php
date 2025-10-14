@@ -207,12 +207,13 @@ class Resolate_Documents {
 		add_filter( '_wp_post_revision_field_resolate_annexes', array( $this, 'revision_field_annexes' ), 10, 2 );
 	}
 
-	/**
-	 * Add custom meta fields to the revisions UI.
-	 *
-	 * @param array $fields Existing fields.
-	 * @return array
-	 */
+		/**
+		 * Add custom meta fields to the revisions UI.
+		 *
+		 * @param array   $fields Existing fields.
+		 * @param WP_Post $post   Post being compared.
+		 * @return array
+		 */
 	public function add_revision_fields( $fields, $post ) {
 		$fields['resolate_objeto']       = __( 'Objeto', 'resolate' );
 		$fields['resolate_antecedentes'] = __( 'Antecedentes', 'resolate' );
@@ -764,7 +765,7 @@ class Resolate_Documents {
 		// Save annexes.
 		$annexes = array();
 		if ( isset( $_POST['resolate_annexes'] ) && is_array( $_POST['resolate_annexes'] ) ) {
-			$raw = $_POST['resolate_annexes']; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$raw = wp_unslash( $_POST['resolate_annexes'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized inside the loop.
 			foreach ( $raw as $idx => $item ) {
 				if ( ! is_array( $item ) ) {
 					continue;
@@ -841,10 +842,10 @@ class Resolate_Documents {
 			echo '</div>';
 		}
 
-		echo '</div>'; // list
+		echo '</div>'; // List container.
 		echo '<p><button type="button" class="button" id="resolate-add-annex">' . esc_html__( 'Añadir anexo', 'resolate' ) . '</button></p>';
 
-		// Template.
+		// Template markup for new annex items.
 		echo '<script type="text/template" id="resolate-annex-template">';
 		echo '<div class=\"resolate-annex-item\" data-index=\"__i__\" style=\"border:1px solid #e5e5e5;padding:12px;margin-bottom:12px;background:#fff;\">';
 		echo '<div style=\"display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;\">';
@@ -858,7 +859,7 @@ class Resolate_Documents {
 		echo '</div>';
 		echo '</script>';
 
-		echo '</div>'; // wrapper
+		echo '</div>'; // Wrapper container.
 	}
 
 	/**
@@ -969,7 +970,8 @@ class Resolate_Documents {
 		$unknown_fields = $this->collect_unknown_dynamic_fields( $post_id, $known_meta_keys );
 		if ( ! empty( $unknown_fields ) ) {
 			foreach ( $unknown_fields as $meta_key => $field ) {
-				$slug       = $this->humanize_unknown_field_label( $meta_key );
+				$slug = $this->humanize_unknown_field_label( $meta_key );
+				/* translators: %s: detected dynamic field key. */
 				$warn_label = sprintf( __( 'Campo adicional: %s', 'resolate' ), $slug );
 				$warning    = __( 'Este campo no está definido en la taxonomía seleccionada.', 'resolate' );
 				$value      = wp_kses_post( is_string( $field['value'] ) ? $field['value'] : '' );
@@ -985,7 +987,7 @@ class Resolate_Documents {
 		$annexes = array();
 		if ( isset( $_POST['resolate_annexes'] ) && is_array( $_POST['resolate_annexes'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$annexes = array();
-			foreach ( $_POST['resolate_annexes'] as $item ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			foreach ( wp_unslash( $_POST['resolate_annexes'] ) as $item ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized inside the loop.
 				if ( ! is_array( $item ) ) {
 					continue; }
 				$annexes[] = array(
@@ -1165,6 +1167,7 @@ class Resolate_Documents {
 				$value = wp_kses_post( $data['value'] );
 			}
 			echo '<div class="resolate-field resolate-field-warning" style="margin-bottom:16px;border:1px solid #dba617;padding:12px;background:#fffbea;">';
+			/* translators: %s: detected dynamic field key. */
 			echo '<label for="' . esc_attr( $meta_key ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( sprintf( __( 'Campo adicional: %s', 'resolate' ), $label ) ) . '</label>';
 			echo '<p class="description" style="margin-top:0;margin-bottom:8px;">' . esc_html__( 'Este campo no está definido en la taxonomía de tipo de documento actual.', 'resolate' ) . '</p>';
             // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles escaping.
@@ -1183,7 +1186,7 @@ class Resolate_Documents {
 					'editor_height' => 200,
 				)
 			);
-			echo '</div>';
+					echo '</div>';
 		}
 
 		echo '</div>';

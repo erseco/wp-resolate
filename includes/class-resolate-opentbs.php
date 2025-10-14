@@ -1,8 +1,13 @@
 <?php
 /**
- * Lightweight OpenTBS wrapper for Resolate.
+ * OpenTBS integration helpers for Resolate.
+ *
+ * @package Resolate
  */
 
+/**
+ * Lightweight OpenTBS wrapper for Resolate.
+ */
 class Resolate_OpenTBS {
 
 	/**
@@ -38,15 +43,15 @@ class Resolate_OpenTBS {
 			return new WP_Error( 'resolate_template_missing', __( 'Plantilla ODT no encontrada.', 'resolate' ) );
 		}
 		try {
-			$TBS = new clsTinyButStrong();
-			$TBS->Plugin( TBS_INSTALL, OPENTBS_PLUGIN );
-			$TBS->LoadTemplate( $template_path, OPENTBS_ALREADY_UTF8 );
+			$tbs_engine = new clsTinyButStrong();
+			$tbs_engine->Plugin( TBS_INSTALL, OPENTBS_PLUGIN );
+			$tbs_engine->LoadTemplate( $template_path, OPENTBS_ALREADY_UTF8 );
 
 			foreach ( $fields as $k => $v ) {
-				$TBS->MergeField( $k, $v );
+				$tbs_engine->MergeField( $k, $v );
 			}
 
-			$TBS->Show( OPENTBS_FILE, $dest_path );
+			$tbs_engine->Show( OPENTBS_FILE, $dest_path );
 			return true;
 		} catch ( \Throwable $e ) {
 			return new WP_Error( 'resolate_opentbs_error', $e->getMessage() );
