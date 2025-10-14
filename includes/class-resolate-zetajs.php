@@ -17,165 +17,165 @@
  */
 class Resolate_Zetajs_Converter {
 
-    /**
-     * Determine if the converter can run in the current environment.
-     *
-     * @return bool
-     */
-    public static function is_available() {
-        if ( self::is_cdn_mode() ) {
-            return true;
-        }
+	/**
+	 * Determine if the converter can run in the current environment.
+	 *
+	 * @return bool
+	 */
+	public static function is_available() {
+		if ( self::is_cdn_mode() ) {
+			return true;
+		}
 
-        $cli = self::get_cli_path();
-        if ( '' === $cli ) {
-            return false;
-        }
-        if ( ! file_exists( $cli ) || ! is_executable( $cli ) ) {
-            return false;
-        }
-        if ( ! function_exists( 'proc_open' ) ) {
-            return false;
-        }
-        return true;
-    }
+		$cli = self::get_cli_path();
+		if ( '' === $cli ) {
+			return false;
+		}
+		if ( ! file_exists( $cli ) || ! is_executable( $cli ) ) {
+			return false;
+		}
+		if ( ! function_exists( 'proc_open' ) ) {
+			return false;
+		}
+		return true;
+	}
 
-    /**
-     * Convert a document using zetajs.
-     *
-     * @param string $input_path     Absolute path to the source file.
-     * @param string $output_path    Absolute path to the desired output file.
-     * @param string $output_format  Optional target format (for logging only).
-     * @param string $input_format   Optional input format (unused but kept for compatibility).
-     * @return string|WP_Error       Output path on success or WP_Error on failure.
-     */
-    public static function convert( $input_path, $output_path, $output_format = '', $input_format = '' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
-        if ( self::is_cdn_mode() ) {
-            return new WP_Error(
-                'resolate_zetajs_browser_only',
-                self::get_browser_conversion_message(),
-                array(
-                    'mode'     => 'cdn',
-                    'cdn_base' => self::get_cdn_base_url(),
-                )
-            );
-        }
+	/**
+	 * Convert a document using zetajs.
+	 *
+	 * @param string $input_path     Absolute path to the source file.
+	 * @param string $output_path    Absolute path to the desired output file.
+	 * @param string $output_format  Optional target format (for logging only).
+	 * @param string $input_format   Optional input format (unused but kept for compatibility).
+	 * @return string|WP_Error       Output path on success or WP_Error on failure.
+	 */
+	public static function convert( $input_path, $output_path, $output_format = '', $input_format = '' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		if ( self::is_cdn_mode() ) {
+			return new WP_Error(
+				'resolate_zetajs_browser_only',
+				self::get_browser_conversion_message(),
+				array(
+					'mode'     => 'cdn',
+					'cdn_base' => self::get_cdn_base_url(),
+				)
+			);
+		}
 
-        if ( ! file_exists( $input_path ) ) {
-            return new WP_Error( 'resolate_zetajs_input_missing', __( 'El fichero origen para la conversión no existe.', 'resolate' ) );
-        }
+		if ( ! file_exists( $input_path ) ) {
+			return new WP_Error( 'resolate_zetajs_input_missing', __( 'El fichero origen para la conversión no existe.', 'resolate' ) );
+		}
 
-        if ( ! self::is_available() ) {
-            return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura la ruta del ejecutable de ZetaJS en RESOLATE_ZETAJS_BIN.', 'resolate' ) );
-        }
+		if ( ! self::is_available() ) {
+			return new WP_Error( 'resolate_zetajs_not_available', __( 'Configura la ruta del ejecutable de ZetaJS en RESOLATE_ZETAJS_BIN.', 'resolate' ) );
+		}
 
-        $cli = self::get_cli_path();
-        $dir = dirname( $output_path );
-        if ( ! is_dir( $dir ) ) {
-            wp_mkdir_p( $dir );
-        }
+		$cli = self::get_cli_path();
+		$dir = dirname( $output_path );
+		if ( ! is_dir( $dir ) ) {
+			wp_mkdir_p( $dir );
+		}
 
-        if ( file_exists( $output_path ) ) {
-            @unlink( $output_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-        }
+		if ( file_exists( $output_path ) ) {
+			@unlink( $output_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		}
 
-        $descriptor = array(
-            0 => array( 'pipe', 'r' ),
-            1 => array( 'pipe', 'w' ),
-            2 => array( 'pipe', 'w' ),
-        );
+		$descriptor = array(
+			0 => array( 'pipe', 'r' ),
+			1 => array( 'pipe', 'w' ),
+			2 => array( 'pipe', 'w' ),
+		);
 
-        $command = array( $cli, 'convert', $input_path, $output_path );
+		$command = array( $cli, 'convert', $input_path, $output_path );
 
-        $process = proc_open( $command, $descriptor, $pipes, null, null, array( 'bypass_shell' => true ) );
-        if ( ! is_resource( $process ) ) {
-            return new WP_Error( 'resolate_zetajs_proc', __( 'No se pudo iniciar el proceso de conversión con ZetaJS.', 'resolate' ) );
-        }
+		$process = proc_open( $command, $descriptor, $pipes, null, null, array( 'bypass_shell' => true ) );
+		if ( ! is_resource( $process ) ) {
+			return new WP_Error( 'resolate_zetajs_proc', __( 'No se pudo iniciar el proceso de conversión con ZetaJS.', 'resolate' ) );
+		}
 
-        // Close STDIN as we don't need to feed data.
-        fclose( $pipes[0] );
-        $stdout = stream_get_contents( $pipes[1] );
-        fclose( $pipes[1] );
-        $stderr = stream_get_contents( $pipes[2] );
-        fclose( $pipes[2] );
+		// Close STDIN as we don't need to feed data.
+		fclose( $pipes[0] );
+		$stdout = stream_get_contents( $pipes[1] );
+		fclose( $pipes[1] );
+		$stderr = stream_get_contents( $pipes[2] );
+		fclose( $pipes[2] );
 
-        $status = proc_close( $process );
-        if ( 0 !== $status ) {
-            $message = trim( $stderr );
-            if ( '' === $message ) {
-                $message = trim( $stdout );
-            }
-            if ( '' === $message ) {
-                $message = sprintf( __( 'El proceso de ZetaJS finalizó con código %d.', 'resolate' ), $status );
-            }
-            return new WP_Error( 'resolate_zetajs_failed', $message );
-        }
+		$status = proc_close( $process );
+		if ( 0 !== $status ) {
+			$message = trim( $stderr );
+			if ( '' === $message ) {
+				$message = trim( $stdout );
+			}
+			if ( '' === $message ) {
+				$message = sprintf( __( 'El proceso de ZetaJS finalizó con código %d.', 'resolate' ), $status );
+			}
+			return new WP_Error( 'resolate_zetajs_failed', $message );
+		}
 
-        if ( ! file_exists( $output_path ) ) {
-            $context = $stderr ? $stderr : $stdout;
-            return new WP_Error( 'resolate_zetajs_output_missing', sprintf( __( 'La conversión finalizó pero no se generó el archivo de salida. Detalles: %s', 'resolate' ), $context ) );
-        }
+		if ( ! file_exists( $output_path ) ) {
+			$context = $stderr ? $stderr : $stdout;
+			return new WP_Error( 'resolate_zetajs_output_missing', sprintf( __( 'La conversión finalizó pero no se generó el archivo de salida. Detalles: %s', 'resolate' ), $context ) );
+		}
 
-        return $output_path;
-    }
+		return $output_path;
+	}
 
-    /**
-     * Resolve the configured CLI path.
-     *
-     * @return string
-     */
-    private static function get_cli_path() {
-        $cli = defined( 'RESOLATE_ZETAJS_BIN' ) ? (string) RESOLATE_ZETAJS_BIN : '';
-        /**
-         * Filter the ZetaJS CLI path used by the converter.
-         *
-         * @param string $cli Current CLI path.
-         */
-        $cli = apply_filters( 'resolate_zetajs_cli', $cli );
-        return (string) $cli;
-    }
+	/**
+	 * Resolve the configured CLI path.
+	 *
+	 * @return string
+	 */
+	private static function get_cli_path() {
+		$cli = defined( 'RESOLATE_ZETAJS_BIN' ) ? (string) RESOLATE_ZETAJS_BIN : '';
+		/**
+		 * Filter the ZetaJS CLI path used by the converter.
+		 *
+		 * @param string $cli Current CLI path.
+		 */
+		$cli = apply_filters( 'resolate_zetajs_cli', $cli );
+		return (string) $cli;
+	}
 
-    /**
-     * Retrieve the configured CDN base URL for ZetaJS assets.
-     *
-     * @return string
-     */
-    public static function get_cdn_base_url() {
-        $options = get_option( 'resolate_settings', array() );
-        $engine  = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'collabora';
-        if ( 'wasm' !== $engine ) {
-            return '';
-        }
+	/**
+	 * Retrieve the configured CDN base URL for ZetaJS assets.
+	 *
+	 * @return string
+	 */
+	public static function get_cdn_base_url() {
+		$options = get_option( 'resolate_settings', array() );
+		$engine  = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'collabora';
+		if ( 'wasm' !== $engine ) {
+			return '';
+		}
 
-        $base = defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ? (string) RESOLATE_ZETAJS_CDN_BASE : '';
-        /**
-         * Filter the CDN base URL for ZetaJS assets.
-         *
-         * @param string $base Current CDN base URL.
-         */
-        $base = apply_filters( 'resolate_zetajs_cdn_base', $base );
-        $base = trim( (string) $base );
-        if ( '' === $base ) {
-            return '';
-        }
-        return trailingslashit( $base );
-    }
+		$base = defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ? (string) RESOLATE_ZETAJS_CDN_BASE : '';
+		/**
+		 * Filter the CDN base URL for ZetaJS assets.
+		 *
+		 * @param string $base Current CDN base URL.
+		 */
+		$base = apply_filters( 'resolate_zetajs_cdn_base', $base );
+		$base = trim( (string) $base );
+		if ( '' === $base ) {
+			return '';
+		}
+		return trailingslashit( $base );
+	}
 
-    /**
-     * Whether the plugin should rely on CDN-delivered assets for ZetaJS.
-     *
-     * @return bool
-     */
-    public static function is_cdn_mode() {
-        return '' !== self::get_cdn_base_url();
-    }
+	/**
+	 * Whether the plugin should rely on CDN-delivered assets for ZetaJS.
+	 *
+	 * @return bool
+	 */
+	public static function is_cdn_mode() {
+		return '' !== self::get_cdn_base_url();
+	}
 
-    /**
-     * Default user-facing message for browser-based conversion flow.
-     *
-     * @return string
-     */
-    public static function get_browser_conversion_message() {
-        return __( 'La conversión a PDF se realiza en el navegador usando ZetaJS cargado desde la CDN oficial.', 'resolate' );
-    }
+	/**
+	 * Default user-facing message for browser-based conversion flow.
+	 *
+	 * @return string
+	 */
+	public static function get_browser_conversion_message() {
+		return __( 'La conversión a PDF se realiza en el navegador usando ZetaJS cargado desde la CDN oficial.', 'resolate' );
+	}
 }
