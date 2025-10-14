@@ -3,7 +3,8 @@
  * The file that defines the Documents custom post type for Resolate.
  *
  * This CPT is the base for generating official documents with structured
- * sections stored as post meta, and two taxonomies: ámbitos and leyes.
+ * sections stored as post meta and a document type taxonomy that defines
+ * the available template fields.
  *
  * @link       https://github.com/erseco/wp-resolate
  * @since      0.1.0
@@ -408,69 +409,13 @@ class Resolate_Documents {
 		register_post_type( 'resolate_document', $args );
 	}
 
-	/**
-	 * Register taxonomies: ámbitos (hierarchical) and leyes (non-hierarchical).
-	 */
-	public function register_taxonomies() {
-		// Ámbitos.
-		$ambitos_labels = array(
-			'name'              => __( 'Ámbitos', 'resolate' ),
-			'singular_name'     => __( 'Ámbito', 'resolate' ),
-			'search_items'      => __( 'Buscar ámbitos', 'resolate' ),
-			'all_items'         => __( 'Todos los ámbitos', 'resolate' ),
-			'edit_item'         => __( 'Editar ámbito', 'resolate' ),
-			'update_item'       => __( 'Actualizar ámbito', 'resolate' ),
-			'add_new_item'      => __( 'Añadir nuevo ámbito', 'resolate' ),
-			'new_item_name'     => __( 'Nuevo ámbito', 'resolate' ),
-			'menu_name'         => __( 'Ámbitos', 'resolate' ),
-		);
-		register_taxonomy(
-			'resolate_ambito',
-			array( 'resolate_document' ),
-			array(
-				'hierarchical'      => true,
-				'labels'            => $ambitos_labels,
-				'show_ui'           => true,
-				'show_admin_column' => true,
-				'query_var'         => true,
-				'rewrite'           => false,
-				'show_in_rest'      => false,
-			)
-		);
-
-		// Leyes.
-		$leyes_labels = array(
-			'name'                       => __( 'Leyes', 'resolate' ),
-			'singular_name'              => __( 'Ley', 'resolate' ),
-			'search_items'               => __( 'Buscar leyes', 'resolate' ),
-			'popular_items'              => __( 'Leyes frecuentes', 'resolate' ),
-			'all_items'                  => __( 'Todas las leyes', 'resolate' ),
-			'edit_item'                  => __( 'Editar ley', 'resolate' ),
-			'update_item'                => __( 'Actualizar ley', 'resolate' ),
-			'add_new_item'               => __( 'Añadir nueva ley', 'resolate' ),
-			'new_item_name'              => __( 'Nueva ley', 'resolate' ),
-			'separate_items_with_commas' => __( 'Separar leyes con comas', 'resolate' ),
-			'add_or_remove_items'        => __( 'Añadir o eliminar leyes', 'resolate' ),
-			'choose_from_most_used'      => __( 'Elegir entre las más usadas', 'resolate' ),
-			'menu_name'                  => __( 'Leyes', 'resolate' ),
-		);
-		register_taxonomy(
-			'resolate_ley',
-			array( 'resolate_document' ),
-			array(
-				'hierarchical'      => false,
-				'labels'            => $leyes_labels,
-				'show_ui'           => true,
-				'show_admin_column' => false,
-				'query_var'         => true,
-				'rewrite'           => false,
-				'show_in_rest'      => false,
-			)
-		);
-
-		// Tipos de documento (definen plantillas y campos personalizados para el documento).
-		$types_labels = array(
-			'name'              => __( 'Tipos de documento', 'resolate' ),
+        /**
+         * Register taxonomies used by the documents CPT.
+         */
+        public function register_taxonomies() {
+                // Tipos de documento (definen plantillas y campos personalizados para el documento).
+                $types_labels = array(
+                        'name'              => __( 'Tipos de documento', 'resolate' ),
 			'singular_name'     => __( 'Tipo de documento', 'resolate' ),
 			'search_items'      => __( 'Buscar tipos', 'resolate' ),
 			'all_items'         => __( 'Todos los tipos', 'resolate' ),
