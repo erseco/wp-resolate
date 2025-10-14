@@ -47,7 +47,17 @@ class Resolate_OpenTBS {
 			$tbs_engine->Plugin( TBS_INSTALL, OPENTBS_PLUGIN );
 			$tbs_engine->LoadTemplate( $template_path, OPENTBS_ALREADY_UTF8 );
 
+			if ( ! is_array( $fields ) ) {
+				$fields = array();
+			}
+
+			$tbs_engine->ResetVarRef( false );
+
 			foreach ( $fields as $k => $v ) {
+				if ( ! is_string( $k ) || '' === $k ) {
+					continue;
+				}
+				$tbs_engine->SetVarRefItem( $k, $v );
 				$tbs_engine->MergeField( $k, $v );
 			}
 
