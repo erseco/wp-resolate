@@ -13,7 +13,7 @@ These are natural-language guidelines for agents to follow when developing the R
   - Use Spanish for user‑facing translations/strings and test assertions to check no untranslated strings remain.
   - Ensure all code passes `phpcs --standard=WordPress` and is auto-fixable with `phpcbf --standard=WordPress` where applicable.
   - Install coding standard tooling with Composer in the project root: `composer require --dev dealerdirect/phpcodesniffer-composer-installer:^1.0 wp-coding-standards/wpcs:^3.0`.
-  - After installation, run `vendor/bin/phpcs --standard=WordPress .` to lint and `vendor/bin/phpcbf --standard=WordPress .` to auto-fix violations.
+  - After installation, run `vendor/bin/phpcbf --standard=WordPress .` to auto-fix violations before linting with `vendor/bin/phpcs --standard=WordPress .`.
 
 ## Testing and development workflow
 
@@ -34,6 +34,7 @@ These are natural-language guidelines for agents to follow when developing the R
 - When working outside the `wp-env` Docker environment, call the binaries from `./vendor/bin/` directly. Inside wp-env, reuse the Make targets (`make fix` and `make lint`) which wrap `phpcbf`/`phpcs` with the same `.phpcs.xml.dist` ruleset path (`wp-content/plugins/resolate/.phpcs.xml.dist`).
 - The repository `composer.json` already whitelists the `dealerdirect/phpcodesniffer-composer-installer` plugin and exposes the scripts `composer phpcbf` and `composer phpcs`; these call the local binaries under `./vendor/bin/` with the shared `.phpcs.xml.dist` ruleset, so prefer them to keep tooling consistent.
 - Run the beautifier before linting when fixing coding standards violations: `composer phpcbf` (or the equivalent binary invocation) followed by `composer phpcs`.
+- After writing or updating code, always run `composer phpcbf` followed by `composer phpcs` (or their `./vendor/bin/` equivalents) to keep the codebase compliant with the configured standards.
 
 ## Linting workflow checklist
 
