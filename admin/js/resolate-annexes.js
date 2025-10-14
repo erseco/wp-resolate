@@ -1,55 +1,144 @@
-/* global jQuery */
-(function($){
-  'use strict';
+(function(){
+'use strict';
 
-  function renumberAnnexes($list){
-    $list.find('.resolate-annex-item').each(function(i){
-      var $item = $(this);
-      $item.attr('data-index', i);
-      // Header label
-      $item.find('strong').first().text('Anexo ' + (i + 1));
-      // Update field names
-      $item.find('input[name*="resolate_annexes"], textarea[name*="resolate_annexes"]').each(function(){
-        var isTitle = $(this).is('input');
-        var name = 'resolate_annexes['+ i +']['+ (isTitle ? 'title' : 'text') +']';
-        $(this).attr('name', name);
-      });
-      // Update textarea id; do not auto-init TinyMCE here to avoid losing content.
-      var $ta = $item.find('textarea');
-      if ($ta.length) {
-        var newId = 'resolate_annex_text_' + i;
-        $ta.attr('id', newId);
-      }
-    });
-  }
+function replacePlaceholders(element, index) {
+var placeholder = /__INDEX__/g;
+if (element.hasAttribute('data-index')) {
+element.setAttribute('data-index', element.getAttribute('data-index').replace(placeholder, index));
+}
+var nodes = element.querySelectorAll('*');
+nodes.forEach(function(node) {
+Array.prototype.slice.call(node.attributes).forEach(function(attr) {
+if (attr.value && attr.value.indexOf('__INDEX__') !== -1) {
+node.setAttribute(attr.name, attr.value.replace(placeholder, index));
+}
+});
+});
+}
 
-  function addAnnex($list){
-    var i = $list.find('.resolate-annex-item').length;
-    var tpl = $('#resolate-annex-template').html();
-    if (!tpl) return;
-    tpl = tpl.replace(/__i__/g, i).replace(/__n__/g, (i + 1));
-    var $node = $(tpl);
-    $list.append($node);
-    renumberAnnexes($list);
-  }
+function updateIndexes(container, slug) {
+var items = container.querySelectorAll('.resolate-array-item');
+items.forEach(function(item, idx) {
+item.setAttribute('data-index', String(idx));
+var fields = item.querySelectorAll('input, textarea');
+fields.forEach(function(field) {
+var name = field.getAttribute('name');
+if (name) {
+field.setAttribute('name', name.replace(/\[[0-9]+\](?=\[[^\[]+\]$)/, '[' + idx + ']'));
+}
+var id = field.getAttribute('id');
+if (id) {
+field.id = id.replace(/-\d+$/, '-' + idx);
+}
+});
+var labels = item.querySelectorAll('label[for]');
+labels.forEach(function(label) {
+var target = label.getAttribute('for');
+if (target) {
+label.setAttribute('for', target.replace(/-\d+$/, '-' + idx));
+}
+});
+});
+}
 
-  function initAnnexes(){
-    var $wrap = $('#resolate-annexes');
-    if (!$wrap.length) return;
-    var $list = $('#resolate-annex-list');
-    $('#resolate-add-annex').on('click', function(){ addAnnex($list); });
-    $wrap.on('click', '.resolate-annex-remove', function(){
-      $(this).closest('.resolate-annex-item').remove();
-      renumberAnnexes($list);
-    });
+function getDragAfterElement(container, y) {
+var draggableElements = Array.prototype.slice.call(container.querySelectorAll('.resolate-array-item:not(.is-dragging)'));
+return draggableElements.reduce(function(closest, child) {
+var box = child.getBoundingClientRect();
+var offset = y - box.top - box.height / 2;
+if (offset < 0 && offset > closest.offset) {
+return { offset: offset, element: child };
+}
+return closest;
+}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+}
 
-    // Ensure TinyMCE updates underlying textareas before submit
-    $('#post').on('submit', function(){
-      if (window.tinymce && typeof tinymce.triggerSave === 'function') {
-        try { tinymce.triggerSave(); } catch(e) {}
-      }
-    });
-  }
+function initArrayField(field) {
+var slug = field.getAttribute('data-array-field');
+if (!slug) {
+return;
+}
+var container = field.querySelector('.resolate-array-items');
+var template = field.querySelector('.resolate-array-template');
+var addButton = field.querySelector('.resolate-array-add');
+if (!container || !template || !addButton) {
+return;
+}
 
-  $(initAnnexes);
-})(jQuery);
+var dragSrc = null;
+
+function addItem() {
+var index = container.querySelectorAll('.resolate-array-item').length;
+var clone = document.importNode(template.content, true);
+var item = clone.querySelector('.resolate-array-item');
+replacePlaceholders(item, index);
+container.appendChild(clone);
+updateIndexes(container, slug);
+}
+
+addButton.addEventListener('click', function(event) {
+event.preventDefault();
+addItem();
+});
+
+container.addEventListener('click', function(event) {
+if (event.target.classList.contains('resolate-array-remove')) {
+event.preventDefault();
+var item = event.target.closest('.resolate-array-item');
+if (item) {
+item.parentNode.removeChild(item);
+if (!container.querySelector('.resolate-array-item')) {
+addItem();
+}
+updateIndexes(container, slug);
+}
+}
+});
+
+container.addEventListener('dragstart', function(event) {
+var item = event.target.closest('.resolate-array-item');
+if (!item) {
+return;
+}
+dragSrc = item;
+item.classList.add('is-dragging');
+event.dataTransfer.effectAllowed = 'move';
+event.dataTransfer.setData('text/plain', '');
+});
+
+container.addEventListener('dragend', function(event) {
+if (dragSrc) {
+dragSrc.classList.remove('is-dragging');
+dragSrc = null;
+}
+});
+
+container.addEventListener('dragover', function(event) {
+if (!dragSrc) {
+return;
+}
+event.preventDefault();
+var afterElement = getDragAfterElement(container, event.clientY);
+if (!afterElement) {
+container.appendChild(dragSrc);
+} else if (afterElement !== dragSrc) {
+container.insertBefore(dragSrc, afterElement);
+}
+});
+
+container.addEventListener('drop', function(event) {
+if (!dragSrc) {
+return;
+}
+event.preventDefault();
+updateIndexes(container, slug);
+});
+
+updateIndexes(container, slug);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+var fields = document.querySelectorAll('.resolate-array-field');
+fields.forEach(initArrayField);
+});
+})();
