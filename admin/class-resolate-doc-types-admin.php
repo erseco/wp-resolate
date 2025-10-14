@@ -82,36 +82,36 @@ class Resolate_Doc_Types_Admin {
 			}
 		}
 
-                wp_localize_script(
-                        'resolate-doc-types',
-                        'resolateDocTypes',
-                        array(
-                                'ajax'        => array(
-                                        'url'   => admin_url( 'admin-ajax.php' ),
-                                        'nonce' => wp_create_nonce( 'resolate_doc_type_template' ),
-                                ),
-                                'i18n'        => array(
-                                        'select'         => __( 'Seleccionar archivo', 'resolate' ),
-                                        'remove'         => __( 'Eliminar', 'resolate' ),
-                                        'fieldsDetected' => __( 'Campos detectados', 'resolate' ),
-                                        'noFields'       => __( 'No se encontraron campos en la plantilla.', 'resolate' ),
-                                        'typeDocx'       => __( 'Plantilla DOCX', 'resolate' ),
-                                        'typeOdt'        => __( 'Plantilla ODT', 'resolate' ),
-                                        'typeUnknown'    => __( 'Formato desconocido', 'resolate' ),
-                                        'diffAdded'      => __( 'Campos nuevos', 'resolate' ),
-                                        'diffRemoved'    => __( 'Campos eliminados', 'resolate' ),
-                                ),
-                                'fieldTypes' => array(
-                                        'text'    => __( 'Texto', 'resolate' ),
-                                        'number'  => __( 'Número', 'resolate' ),
-                                        'boolean' => __( 'Booleano', 'resolate' ),
-                                        'date'    => __( 'Fecha', 'resolate' ),
-                                ),
-                                'schema'      => $schema_slugs,
-                                'templateId'  => $template_id,
-                                'templateExt' => $template_ext,
-                        )
-                );
+				wp_localize_script(
+					'resolate-doc-types',
+					'resolateDocTypes',
+					array(
+						'ajax'        => array(
+							'url'   => admin_url( 'admin-ajax.php' ),
+							'nonce' => wp_create_nonce( 'resolate_doc_type_template' ),
+						),
+						'i18n'        => array(
+							'select'         => __( 'Seleccionar archivo', 'resolate' ),
+							'remove'         => __( 'Eliminar', 'resolate' ),
+							'fieldsDetected' => __( 'Campos detectados', 'resolate' ),
+							'noFields'       => __( 'No se encontraron campos en la plantilla.', 'resolate' ),
+							'typeDocx'       => __( 'Plantilla DOCX', 'resolate' ),
+							'typeOdt'        => __( 'Plantilla ODT', 'resolate' ),
+							'typeUnknown'    => __( 'Formato desconocido', 'resolate' ),
+							'diffAdded'      => __( 'Campos nuevos', 'resolate' ),
+							'diffRemoved'    => __( 'Campos eliminados', 'resolate' ),
+						),
+						'fieldTypes' => array(
+							'text'    => __( 'Texto', 'resolate' ),
+							'number'  => __( 'Número', 'resolate' ),
+							'boolean' => __( 'Booleano', 'resolate' ),
+							'date'    => __( 'Fecha', 'resolate' ),
+						),
+						'schema'      => $schema_slugs,
+						'templateId'  => $template_id,
+						'templateExt' => $template_ext,
+					)
+				);
 	}
 
 	/**
@@ -217,11 +217,11 @@ class Resolate_Doc_Types_Admin {
 		}
 
 		if ( $template_id > 0 ) {
-			$path   = get_attached_file( $template_id );
-			$fields = Resolate_Template_Parser::extract_fields( $path );
+				$path   = get_attached_file( $template_id );
+				$fields = Resolate_Template_Parser::extract_fields( $path );
 			if ( ! is_wp_error( $fields ) ) {
-				$template_type = $this->detect_template_type( $path );
-				$schema        = $this->build_schema_from_fields( $fields );
+						$template_type = $this->detect_template_type( $path );
+						$schema        = $this->build_schema_from_fields( $fields );
 			}
 		}
 
@@ -249,47 +249,21 @@ class Resolate_Doc_Types_Admin {
 
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-template-parser.php';
 
-                $path   = get_attached_file( $attachment_id );
-                $fields = Resolate_Template_Parser::extract_fields( $path );
-                if ( is_wp_error( $fields ) ) {
-                        wp_send_json_error( array( 'message' => $fields->get_error_message() ) );
-                }
+				$path   = get_attached_file( $attachment_id );
+				$fields = Resolate_Template_Parser::extract_fields( $path );
+		if ( is_wp_error( $fields ) ) {
+				wp_send_json_error( array( 'message' => $fields->get_error_message() ) );
+		}
 
-                $type   = $this->detect_template_type( $path );
-                $output = array();
-                if ( is_array( $fields ) ) {
-                        foreach ( $fields as $field ) {
-                                if ( ! is_array( $field ) ) {
-                                        continue;
-                                }
-                                $placeholder = isset( $field['placeholder'] ) ? $this->sanitize_placeholder_name( $field['placeholder'] ) : '';
-                                $slug        = isset( $field['slug'] ) ? sanitize_key( $field['slug'] ) : '';
-                                if ( '' === $slug && '' !== $placeholder ) {
-                                        $slug = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $placeholder ) ) );
-                                }
-                                if ( '' === $slug ) {
-                                        continue;
-                                }
-                                $label     = isset( $field['label'] ) ? sanitize_text_field( $field['label'] ) : $this->humanize_slug( $slug );
-                                $data_type = isset( $field['data_type'] ) ? sanitize_key( $field['data_type'] ) : 'text';
-                                if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-                                        $data_type = 'text';
-                                }
-                                $output[] = array(
-                                        'slug'        => $slug,
-                                        'label'       => $label,
-                                        'placeholder' => $placeholder,
-                                        'data_type'   => $data_type,
-                                );
-                        }
-                }
+				$type   = $this->detect_template_type( $path );
+				$output = $this->build_schema_from_fields( $fields );
 
-                wp_send_json_success(
-                        array(
-                                'type'   => $type,
-                                'fields' => $output,
-                        )
-                );
+				wp_send_json_success(
+					array(
+						'type'   => $type,
+						'fields' => $output,
+					)
+				);
 	}
 
 	/**
@@ -314,62 +288,100 @@ class Resolate_Doc_Types_Admin {
 	 *
 	 * @return array[]
 	 */
-        private function build_schema_from_fields( $fields ) {
-                $schema = array();
-                foreach ( $fields as $field ) {
-                        $placeholder = '';
-                        $slug        = '';
-                        $label       = '';
-                        $data_type   = 'text';
+	private function build_schema_from_fields( $fields ) {
+			$raw_schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
+		if ( ! is_array( $raw_schema ) ) {
+				return array();
+		}
 
-                        if ( is_array( $field ) ) {
-                                $placeholder = isset( $field['placeholder'] ) ? $this->sanitize_placeholder_name( $field['placeholder'] ) : '';
-                                $slug        = isset( $field['slug'] ) ? sanitize_key( $field['slug'] ) : '';
-                                if ( '' === $slug && '' !== $placeholder ) {
-                                        $slug = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $placeholder ) ) );
-                                }
-                                $label     = isset( $field['label'] ) ? sanitize_text_field( $field['label'] ) : '';
-                                $data_type = isset( $field['data_type'] ) ? sanitize_key( $field['data_type'] ) : 'text';
-                        } else {
-                                $placeholder = is_string( $field ) ? $this->sanitize_placeholder_name( $field ) : '';
-                                $slug        = sanitize_key( $placeholder );
-                        }
+			$schema = array();
+		foreach ( $raw_schema as $entry ) {
+			if ( ! is_array( $entry ) || empty( $entry['slug'] ) ) {
+					continue;
+			}
 
-                        if ( '' === $slug ) {
-                                continue;
-                        }
-                        if ( '' === $label ) {
-                                $label = $this->humanize_slug( '' !== $placeholder ? $placeholder : $slug );
-                        }
-                        if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-                                $data_type = 'text';
-                        }
-                        if ( '' === $placeholder ) {
-                                $placeholder = $slug;
-                        }
+				$slug        = sanitize_key( $entry['slug'] );
+				$label       = isset( $entry['label'] ) ? sanitize_text_field( $entry['label'] ) : $this->humanize_slug( $slug );
+				$type        = isset( $entry['type'] ) ? sanitize_key( $entry['type'] ) : 'textarea';
+				$placeholder = isset( $entry['placeholder'] ) ? $this->sanitize_placeholder_name( $entry['placeholder'] ) : $slug;
+				$data_type   = isset( $entry['data_type'] ) ? sanitize_key( $entry['data_type'] ) : 'text';
 
-                        $schema[] = array(
-                                'slug'        => $slug,
-                                'label'       => $label,
-                                'type'        => 'textarea',
-                                'placeholder' => $placeholder,
-                                'data_type'   => $data_type,
-                        );
-                }
-                return $schema;
-        }
+			if ( '' === $slug ) {
+					continue;
+			}
+			if ( '' === $label ) {
+					$label = $this->humanize_slug( $slug );
+			}
+			if ( '' === $placeholder ) {
+					$placeholder = $slug;
+			}
 
-        /**
-         * Sanitize a placeholder keeping TinyButStrong supported characters.
-         *
-         * @param string $name Placeholder name.
-         * @return string
-         */
-        private function sanitize_placeholder_name( $name ) {
-                $name = (string) $name;
-                $name = preg_replace( '/[^A-Za-z0-9._:-]/', '', $name );
-                return $name;
-        }
+			if ( 'array' === $type ) {
+					$item_schema = array();
+				if ( isset( $entry['item_schema'] ) && is_array( $entry['item_schema'] ) ) {
+					foreach ( $entry['item_schema'] as $key => $item ) {
+						$item_key = sanitize_key( $key );
+						if ( '' === $item_key ) {
+									continue;
+						}
+						$item_label = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : $this->humanize_slug( $item_key );
+						$item_type  = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
+						if ( ! in_array( $item_type, array( 'single', 'textarea', 'rich' ), true ) ) {
+										$item_type = 'textarea';
+						}
+							$item_data_type = isset( $item['data_type'] ) ? sanitize_key( $item['data_type'] ) : 'text';
+						if ( ! in_array( $item_data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
+							$item_data_type = 'text';
+						}
+							$item_schema[ $item_key ] = array(
+								'label'     => $item_label,
+								'type'      => $item_type,
+								'data_type' => $item_data_type,
+							);
+					}
+				}
+
+					$schema[] = array(
+						'slug'        => $slug,
+						'label'       => $label,
+						'type'        => 'array',
+						'placeholder' => $placeholder,
+						'data_type'   => 'array',
+						'item_schema' => $item_schema,
+					);
+					continue;
+			}
+
+			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+					$type = 'textarea';
+			}
+			if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
+					$data_type = 'text';
+			}
+
+				$schema[] = array(
+					'slug'        => $slug,
+					'label'       => $label,
+					'type'        => $type,
+					'placeholder' => $placeholder,
+					'data_type'   => $data_type,
+				);
+		}
+
+			return $schema;
+	}
+
+		/**
+		 * Sanitize a placeholder keeping TinyButStrong supported characters.
+		 *
+		 * @param string $name Placeholder name.
+		 * @return string
+		 */
+	private function sanitize_placeholder_name( $name ) {
+			$name = (string) $name;
+			$name = preg_replace( '/[^A-Za-z0-9._:-]/', '', $name );
+			return $name;
+	}
 
 	/**
 	 * Convert slug into a human readable label.
