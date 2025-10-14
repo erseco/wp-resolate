@@ -32,8 +32,16 @@ These are natural-language guidelines for agents to follow when developing the R
 - Composer scripts mirror these commands: `composer phpcbf` and `composer phpcs` respect the repository ignore list defined in `.phpcs.xml.dist`.
 - The `.phpcs.xml.dist` ruleset bundles the WordPress standard, limits scanning to PHP files, enables colorized output, suppresses warnings, and excludes vendor, assets, node_modules, tests/js, wp, tests, and `.composer` directories.
 - When working outside the `wp-env` Docker environment, call the binaries from `./vendor/bin/` directly. Inside wp-env, reuse the Make targets (`make fix` and `make lint`) which wrap `phpcbf`/`phpcs` with the same `.phpcs.xml.dist` ruleset path (`wp-content/plugins/resolate/.phpcs.xml.dist`).
-- The repository `composer.json` already whitelists the `dealerdirect/phpcodesniffer-composer-installer` plugin and exposes the scripts `composer phpcbf` and `composer phpcs`; prefer these helpers so the ignore list `--ignore=vendor/,assets/,node_modules/,tests/js/,wp/,wp-content/` stays in sync.
+- The repository `composer.json` already whitelists the `dealerdirect/phpcodesniffer-composer-installer` plugin and exposes the scripts `composer phpcbf` and `composer phpcs`; these call the local binaries under `./vendor/bin/` with the shared `.phpcs.xml.dist` ruleset, so prefer them to keep tooling consistent.
 - Run the beautifier before linting when fixing coding standards violations: `composer phpcbf` (or the equivalent binary invocation) followed by `composer phpcs`.
+
+## Linting workflow checklist
+
+1. Install/update tooling with `composer install` (run once per environment).
+2. For automated fixes, execute `composer phpcbf` or `make fix` when inside wp-env.
+3. Validate coding standards with `composer phpcs` or `make lint` inside wp-env.
+4. Address any reported violations manually, then repeat steps 2 and 3 until clean.
+5. Commit only after the lint command returns without errors.
 
 ## Environment and tools
 

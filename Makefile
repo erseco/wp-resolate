@@ -19,7 +19,13 @@ start-if-not-running:
 		echo "wp-env is NOT running. Starting (previous updating) containers..."; \
 		npx wp-env start --update; \
 		npx wp-env run cli wp plugin activate resolate; \
-		open "http://localhost:8888/?resolate_page=priority" || true; \
+		if command -v open >/dev/null 2>&1; then \
+			open "http://localhost:8888/?resolate_page=priority"; \
+		elif command -v xdg-open >/dev/null 2>&1; then \
+			xdg-open "http://localhost:8888/?resolate_page=priority"; \
+		else \
+			echo "Visit http://localhost:8888/?resolate_page=priority to access the Resolate dashboard."; \
+		fi; \
 	else \
 		echo "wp-env is already running, skipping start."; \
 	fi
