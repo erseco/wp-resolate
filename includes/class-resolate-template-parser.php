@@ -53,38 +53,65 @@ class Resolate_Template_Parser {
 			}
 		}
 
-		$placeholders = array();
-		foreach ( $targets as $file ) {
-			$contents = $zip->getFromName( $file );
-			if ( false === $contents ) {
-				continue;
-			}
-			$normalized = self::normalize_xml_text( $contents );
-			if ( '' === $normalized ) {
-				continue;
-			}
-			preg_match_all( '/\[[A-Za-z0-9._-]+\]/', $normalized, $matches );
-			if ( empty( $matches[0] ) ) {
-				continue;
-			}
-			foreach ( $matches[0] as $match ) {
-				$slug = trim( $match, '[]' );
-				if ( '' !== $slug ) {
-					$placeholders[ $slug ] = true;
-				}
-			}
-		}
+               $placeholders = array();
+               foreach ( $targets as $file ) {
+                       $contents = $zip->getFromName( $file );
+                       if ( false === $contents ) {
+                               continue;
+                       }
+                       $normalized = self::normalize_xml_text( $contents );
+                       if ( '' === $normalized ) {
+                               continue;
+                       }
+                       preg_match_all( '/\[([^\]\r\n]+)\]/', $normalized, $matches );
+                       if ( empty( $matches[1] ) ) {
+                               continue;
+                       }
+                       foreach ( $matches[1] as $raw_field ) {
+                               $parsed = self::parse_placeholder( $raw_field );
+                               if ( empty( $parsed['placeholder'] ) ) {
+                                       continue;
+                               }
+                               $key = strtolower( $parsed['placeholder'] );
+                               if ( isset( $placeholders[ $key ] ) ) {
+                                       // Prefer keeping parameters when multiple instances exist.
+                                       if ( empty( $placeholders[ $key ]['parameters'] ) && ! empty( $parsed['parameters'] ) ) {
+                                               $placeholders[ $key ] = $parsed;
+                                       }
+                                       continue;
+                               }
+                               $placeholders[ $key ] = $parsed;
+                       }
+               }
 
-		$zip->close();
+               $zip->close();
 
-		$fields = array_keys( $placeholders );
-		sort( $fields, SORT_NATURAL | SORT_FLAG_CASE );
-		return $fields;
-	}
+               if ( empty( $placeholders ) ) {
+                       return array();
+               }
 
-	/**
-	 * Normalize XML string content to merge split OpenTBS placeholders.
-	 *
+               $fields = array();
+               foreach ( $placeholders as $parsed ) {
+                       $fields[] = self::format_field_info( $parsed );
+               }
+
+               if ( ! empty( $fields ) ) {
+                       usort(
+                               $fields,
+                               static function ( $a, $b ) {
+                                       $label_a = isset( $a['label'] ) ? $a['label'] : '';
+                                       $label_b = isset( $b['label'] ) ? $b['label'] : '';
+                                       return strnatcasecmp( $label_a, $label_b );
+                               }
+                       );
+               }
+
+               return $fields;
+        }
+
+        /**
+         * Normalize XML string content to merge split OpenTBS placeholders.
+         *
 	 * @param string $xml XML fragment.
 	 * @return string Plain text representation.
 	 */
@@ -109,15 +136,197 @@ class Resolate_Template_Parser {
 
 		// Strip tags while keeping text.
 		$normalized = wp_strip_all_tags( $normalized );
-		return $normalized;
-	}
+                return $normalized;
+        }
 
-	/**
-	 * Polyfill for str_ends_with to support older PHP versions.
-	 *
-	 * @param string $haystack Full string.
-	 * @param string $needle   Ending to verify.
-	 * @return bool
+        /**
+         * Parse a raw OpenTBS placeholder definition.
+         *
+         * @param string $raw_field Placeholder string without brackets.
+         * @return array{
+         *     raw: string,
+         *     placeholder: string,
+         *     parameters: array<string, string>
+         * }
+         */
+        private static function parse_placeholder( $raw_field ) {
+                $raw_field = trim( $raw_field );
+                if ( '' === $raw_field ) {
+                        return array(
+                                'raw'         => '',
+                                'placeholder' => '',
+                                'parameters'  => array(),
+                        );
+                }
+
+                $parts       = preg_split( '/\s*;\s*/', $raw_field );
+                $placeholder = trim( array_shift( $parts ) );
+                $parameters  = array();
+
+                if ( ! empty( $parts ) ) {
+                        foreach ( $parts as $param ) {
+                                $param = trim( $param );
+                                if ( '' === $param ) {
+                                        continue;
+                                }
+                                $pair = explode( '=', $param, 2 );
+                                $name = strtolower( trim( $pair[0] ) );
+                                if ( '' === $name ) {
+                                        continue;
+                                }
+                                $value = ( count( $pair ) > 1 ) ? strtolower( trim( $pair[1] ) ) : '1';
+                                $parameters[ $name ] = $value;
+                        }
+                }
+
+                return array(
+                        'raw'         => $raw_field,
+                        'placeholder' => $placeholder,
+                        'parameters'  => $parameters,
+                );
+        }
+
+        /**
+         * Build normalized field information from a parsed placeholder.
+         *
+         * @param array $parsed Parsed placeholder data.
+         * @return array{
+         *     placeholder: string,
+         *     slug: string,
+         *     label: string,
+         *     data_type: string,
+         *     parameters: array<string, string>
+         * }
+         */
+        private static function format_field_info( $parsed ) {
+                $placeholder = isset( $parsed['placeholder'] ) ? (string) $parsed['placeholder'] : '';
+                $parameters  = isset( $parsed['parameters'] ) && is_array( $parsed['parameters'] ) ? $parsed['parameters'] : array();
+
+                $slug_source = self::normalize_slug_source( $placeholder );
+                $slug        = sanitize_key( $slug_source );
+                if ( '' === $slug ) {
+                        $slug = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $placeholder ) ) );
+                }
+
+                $label_source = str_replace( array( '.', ':' ), ' ', $slug_source );
+                $label        = self::humanize_key( $label_source );
+
+                $data_type = self::detect_data_type( $placeholder, $parameters );
+
+                return array(
+                        'placeholder' => $placeholder,
+                        'slug'        => $slug,
+                        'label'       => $label,
+                        'data_type'   => $data_type,
+                        'parameters'  => $parameters,
+                );
+        }
+
+        /**
+         * Normalize the slug source by dropping known command prefixes.
+         *
+         * @param string $placeholder Placeholder name without parameters.
+         * @return string
+         */
+        private static function normalize_slug_source( $placeholder ) {
+                $placeholder = trim( (string) $placeholder );
+                if ( '' === $placeholder ) {
+                        return '';
+                }
+
+                $segments = explode( '.', $placeholder );
+                if ( count( $segments ) > 1 ) {
+                        $prefix          = strtolower( $segments[0] );
+                        $reserved_prefix = array(
+                                'onshow',
+                                'onload',
+                                'onchange',
+                                'onformat',
+                                'ondata',
+                                'onsection',
+                                'var',
+                                'block',
+                        );
+                        if ( in_array( $prefix, $reserved_prefix, true ) ) {
+                                array_shift( $segments );
+                                $placeholder = implode( '.', $segments );
+                        }
+                }
+
+                return $placeholder;
+        }
+
+        /**
+         * Human readable label from slug source.
+         *
+         * @param string $slug Slug source.
+         * @return string
+         */
+        private static function humanize_key( $slug ) {
+                $slug = str_replace( array( '-', '_', '.' ), ' ', strtolower( $slug ) );
+                $slug = preg_replace( '/\s+/', ' ', $slug );
+                $slug = trim( $slug );
+                if ( '' === $slug ) {
+                        return '';
+                }
+                if ( function_exists( 'mb_convert_case' ) ) {
+                        return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
+                }
+                return ucwords( $slug );
+        }
+
+        /**
+         * Detect placeholder data type from parameters and slug heuristics.
+         *
+         * @param string $placeholder Placeholder name.
+         * @param array  $parameters  Placeholder parameters.
+         * @return string One of text|number|boolean|date.
+         */
+        private static function detect_data_type( $placeholder, $parameters ) {
+                $placeholder = strtolower( (string) $placeholder );
+                $parameters  = is_array( $parameters ) ? $parameters : array();
+
+                if ( isset( $parameters['ope'] ) ) {
+                        $ope = strtolower( (string) $parameters['ope'] );
+                        if ( in_array( $ope, array( 'tbs:num', 'tbs:curr', 'tbs:percent', 'xlsxnum', 'odsnum' ), true ) ) {
+                                return 'number';
+                        }
+                        if ( in_array( $ope, array( 'tbs:bool', 'xlsxbool', 'odsbool' ), true ) ) {
+                                return 'boolean';
+                        }
+                        if ( in_array( $ope, array( 'tbs:date', 'tbs:time', 'xlsxdate', 'odsdate', 'odstime' ), true ) ) {
+                                return 'date';
+                        }
+                }
+
+                foreach ( array( 'frm', 'format' ) as $key ) {
+                        if ( isset( $parameters[ $key ] ) ) {
+                                $candidate = strtolower( (string) $parameters[ $key ] );
+                                if ( preg_match( '/[dmyhs]/', $candidate ) ) {
+                                        return 'date';
+                                }
+                        }
+                }
+
+                if ( preg_match( '/(date|fecha)$/', $placeholder ) ) {
+                        return 'date';
+                }
+                if ( preg_match( '/(total|amount|importe|suma|numero|number|qty|cantidad)$/', $placeholder ) ) {
+                        return 'number';
+                }
+                if ( preg_match( '/^(is|has|tiene|flag|activo|enabled)[._-]?/', $placeholder ) || preg_match( '/(flag|activo|enabled)$/', $placeholder ) ) {
+                        return 'boolean';
+                }
+
+                return 'text';
+        }
+
+        /**
+         * Polyfill for str_ends_with to support older PHP versions.
+         *
+         * @param string $haystack Full string.
+         * @param string $needle   Ending to verify.
+         * @return bool
 	 */
 	private static function ends_with( $haystack, $needle ) {
 		if ( '' === $needle ) {

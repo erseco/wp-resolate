@@ -20,6 +20,26 @@
     }).filter(function(slug){ return !!slug; });
   }
 
+  function normalizeField(field){
+    if (!field){ return null; }
+    if (typeof field === 'string'){ return {
+      slug: field,
+      label: field,
+      placeholder: field,
+      data_type: 'text'
+    }; }
+    var slug = (field.slug || '').toString();
+    var label = field.label || '';
+    var placeholder = field.placeholder || slug;
+    var type = field.data_type || 'text';
+    return {
+      slug: slug,
+      label: label,
+      placeholder: placeholder,
+      data_type: type || 'text'
+    };
+  }
+
   function renderSchema($container, fields, diff){
     $container.empty();
     if (!fields || !fields.length){
@@ -28,7 +48,20 @@
     }
     var $list = $('<ul />');
     fields.forEach(function(field){
-      $list.append('<li>'+ _.escape(field) +'</li>');
+      var normalized = normalizeField(field);
+      if (!normalized){ return; }
+      var label = normalized.label || normalized.placeholder || normalized.slug;
+      var pieces = [];
+      pieces.push(_.escape(label));
+      if (normalized.placeholder && normalized.placeholder !== normalized.slug){
+        pieces.push(' <code>['+ _.escape(normalized.placeholder) +']</code>');
+      }
+      var typeKey = normalized.data_type || 'text';
+      if (typeKey && typeKey !== 'text'){
+        var typeLabel = (resolateDocTypes.fieldTypes && resolateDocTypes.fieldTypes[typeKey]) ? resolateDocTypes.fieldTypes[typeKey] : typeKey;
+        pieces.push(' <span class="resolate-field-type">('+ _.escape(typeLabel) +')</span>');
+      }
+      $list.append('<li>'+ pieces.join('') +'</li>');
     });
     $container.append($list);
     if (diff){
@@ -49,10 +82,14 @@
     var previous = Array.isArray(resolateDocTypes.schema) ? resolateDocTypes.schema : [];
     var added = [];
     var removed = [];
-    var newSet = {};
-    newFields.forEach(function(f){ newSet[f] = true; });
-    newFields.forEach(function(f){ if (previous.indexOf(f) === -1){ added.push(f); } });
-    previous.forEach(function(f){ if (!newSet[f]){ removed.push(f); } });
+    var normalized = newFields.map(normalizeField).filter(function(field){ return !!field; });
+    var newSlugs = normalized.map(function(field){ return field.slug; }).filter(function(slug){ return !!slug; });
+    var previousLookup = {};
+    previous.forEach(function(slug){ previousLookup[slug] = true; });
+    newSlugs.forEach(function(slug){ if (!previousLookup[slug]){ added.push(slug); } });
+    var newLookup = {};
+    newSlugs.forEach(function(slug){ newLookup[slug] = true; });
+    previous.forEach(function(slug){ if (!newLookup[slug]){ removed.push(slug); } });
     return { added: added, removed: removed };
   }
 
@@ -87,8 +124,10 @@
         return;
       }
       var fields = Array.isArray(resp.data.fields) ? resp.data.fields : [];
-      var diff = computeDiff(fields);
-      renderSchema($schemaBox, fields, diff);
+      var normalized = fields.map(normalizeField).filter(function(field){ return !!field; });
+      var diff = computeDiff(normalized);
+      renderSchema($schemaBox, normalized, diff);
+      resolateDocTypes.schema = normalized.map(function(field){ return field.slug; });
       updateTemplateTypeLabel($scope, resp.data.type || '');
     }).fail(function(){
       $schemaBox.removeClass('is-loading');
@@ -104,12 +143,13 @@
     });
 
     var $schemaBox = $('#resolate_type_schema_preview');
-    var initialSchema = schemaToSlugList(parseSchemaData($schemaBox.data('schema')));
-    if (initialSchema.length){
-      renderSchema($schemaBox, initialSchema);
+    var initialSchemaRaw = parseSchemaData($schemaBox.data('schema'));
+    if (initialSchemaRaw.length){
+      renderSchema($schemaBox, initialSchemaRaw);
     } else {
       renderSchema($schemaBox, []);
     }
+    resolateDocTypes.schema = schemaToSlugList(initialSchemaRaw);
 
     var initialType = $('.resolate-template-type').data('current') || resolateDocTypes.templateExt || '';
     updateTemplateTypeLabel($(document), initialType);
