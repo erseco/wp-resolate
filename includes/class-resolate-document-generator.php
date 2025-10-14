@@ -247,6 +247,13 @@ class Resolate_Document_Generator {
 	}
 
 	/**
+	 * Values detected as rich text (HTML) during merge preparation.
+	 *
+	 * @var array<int, string>
+	 */
+	private static $rich_field_values = array();
+
+	/**
 	 * Render a template using OpenTBS and return the generated document path.
 	 *
 	 * @param int    $post_id         Document post ID.
@@ -257,13 +264,14 @@ class Resolate_Document_Generator {
 	private static function render_with_template( $post_id, $template_path, $template_format ) {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';
 
-		$fields = self::build_merge_fields( $post_id );
-		$path   = self::build_output_path( $post_id, $template_format );
+		$fields      = self::build_merge_fields( $post_id );
+		$rich_values = self::get_rich_field_values();
+		$path        = self::build_output_path( $post_id, $template_format );
 
 		if ( 'docx' === $template_format ) {
-			$res = Resolate_OpenTBS::render_docx( $template_path, $fields, $path );
+			$res = Resolate_OpenTBS::render_docx( $template_path, $fields, $path, $rich_values );
 		} else {
-			$res = Resolate_OpenTBS::render_odt( $template_path, $fields, $path );
+			$res = Resolate_OpenTBS::render_odt( $template_path, $fields, $path, $rich_values );
 		}
 
 		if ( is_wp_error( $res ) ) {
@@ -280,6 +288,7 @@ class Resolate_Document_Generator {
 	 * @return array
 	 */
 	private static function build_merge_fields( $post_id ) {
+		self::reset_rich_field_values();
 		$opts = get_option( 'resolate_settings', array() );
 		$post = get_post( $post_id );
 		$structured = array();
@@ -297,75 +306,140 @@ class Resolate_Document_Generator {
 			$type_id = intval( $types[0] );
 			$schema  = array();
 			if ( class_exists( 'Resolate_Documents' ) ) {
-				$schema = Resolate_Documents::get_term_schema( $type_id );
+					$schema = Resolate_Documents::get_term_schema( $type_id );
 			} else {
-				$schema = self::get_type_schema( $type_id );
+					$schema = self::get_type_schema( $type_id );
 			}
 			foreach ( $schema as $def ) {
 				if ( empty( $def['slug'] ) ) {
-								continue;
+						continue;
 				}
 					$slug        = sanitize_key( $def['slug'] );
 					$placeholder = isset( $def['placeholder'] ) ? self::sanitize_placeholder_name( $def['placeholder'] ) : '';
 				if ( '' === $placeholder ) {
-									$placeholder = $slug;
+						$placeholder = $slug;
 				}
-										$data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
-										$type      = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
+					$data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
+					$type      = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
 
 				if ( 'array' === $type ) {
-						$items = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+						$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
 						$fields[ $placeholder ] = $items;
+						self::remember_rich_values_from_array_items( $items );
 						continue;
 				}
 
-                               $value = self::get_structured_field_value( $structured, $slug, $post_id );
-                               $fields[ $placeholder ] = self::prepare_field_value( $value, $type, $data_type );
+					$value                     = self::get_structured_field_value( $structured, $slug, $post_id );
+					$fields[ $placeholder ]    = self::prepare_field_value( $value, $type, $data_type );
+				if ( 'rich' === $type ) {
+						self::remember_rich_field_value( $fields[ $placeholder ] );
+				}
 			}
 
 			$logos = get_term_meta( $type_id, 'resolate_type_logos', true );
 			if ( is_array( $logos ) && ! empty( $logos ) ) {
-				$i = 1;
+					$i = 1;
 				foreach ( $logos as $att_id ) {
-					$att_id = intval( $att_id );
+						$att_id = intval( $att_id );
 					if ( $att_id <= 0 ) {
-						continue;
+							continue;
 					}
-					$fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
-					$fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
-					$i++;
+						$fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
+						$fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
+						$i++;
 				}
 			}
 		}
 
 		if ( ! empty( $structured ) ) {
 			foreach ( $structured as $slug => $info ) {
-						$slug = sanitize_key( $slug );
+					$slug = sanitize_key( $slug );
 				if ( '' === $slug ) {
-					continue;
+						continue;
 				}
-						$placeholder = $slug;
+					$placeholder = $slug;
 				if ( isset( $fields[ $placeholder ] ) && '' !== $fields[ $placeholder ] ) {
-					continue;
+						continue;
 				}
 				if ( isset( $info['type'] ) && 'array' === sanitize_key( $info['type'] ) ) {
-						$fields[ $placeholder ] = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+						$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+						$fields[ $placeholder ] = $items;
+						self::remember_rich_values_from_array_items( $items );
 						continue;
 				}
 
-						$value = '';
+					$value      = '';
 				if ( isset( $info['value'] ) ) {
 						$value = (string) $info['value'];
 				}
 				if ( '' === $value ) {
 						$value = self::get_structured_field_value( $structured, $slug, $post_id );
 				}
-                               $field_type = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
-                               $fields[ $placeholder ] = self::prepare_field_value( $value, $field_type, 'text' );
+					$field_type               = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
+					$fields[ $placeholder ]   = self::prepare_field_value( $value, $field_type, 'text' );
+				if ( 'rich' === $field_type ) {
+						self::remember_rich_field_value( $fields[ $placeholder ] );
+				}
 			}
 		}
 
-				return $fields;
+		return $fields;
+	}
+
+	/**
+	 * Reset tracked rich text field values.
+	 */
+	private static function reset_rich_field_values() {
+		self::$rich_field_values = array();
+	}
+
+	/**
+	 * Remember that a value contains HTML formatting for later conversions.
+	 *
+	 * @param string $value Field value.
+	 */
+	private static function remember_rich_field_value( $value ) {
+		$value = is_string( $value ) ? trim( $value ) : '';
+		if ( '' === $value ) {
+				return;
+		}
+		if ( false === strpos( $value, '<' ) || false === strpos( $value, '>' ) ) {
+				return;
+		}
+		self::$rich_field_values[ md5( $value ) ] = $value;
+	}
+
+	/**
+	 * Remember rich values coming from array field items.
+	 *
+	 * @param array<int, array<string, string>> $items Array field items.
+	 */
+	private static function remember_rich_values_from_array_items( $items ) {
+		if ( empty( $items ) || ! is_array( $items ) ) {
+				return;
+		}
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) ) {
+					continue;
+			}
+			foreach ( $item as $value ) {
+				if ( is_string( $value ) ) {
+						self::remember_rich_field_value( $value );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Get the list of rich text values detected during merge preparation.
+	 *
+	 * @return array<int, string>
+	 */
+	private static function get_rich_field_values() {
+		if ( empty( self::$rich_field_values ) ) {
+				return array();
+		}
+		return array_values( self::$rich_field_values );
 	}
 
 
@@ -498,14 +572,14 @@ class Resolate_Document_Generator {
 		return self::normalize_field_value( wp_strip_all_tags( $value ), $data_type );
 	}
 
-        /**
-         * Normalize a field value based on the detected data type.
-         *
-         * @param string $value     Original value.
-         * @param string $data_type Detected data type.
-         * @return mixed
-         */
-        private static function normalize_field_value( $value, $data_type ) {
+	/**
+	 * Normalize a field value based on the detected data type.
+	 *
+	 * @param string $value     Original value.
+	 * @param string $data_type Detected data type.
+	 * @return mixed
+	 */
+	private static function normalize_field_value( $value, $data_type ) {
 			$value     = is_string( $value ) ? trim( $value ) : $value;
 			$data_type = sanitize_key( $data_type );
 
@@ -561,6 +635,7 @@ class Resolate_Document_Generator {
 	 */
 	public static function generate_docx_law( $post_id ) {
 		try {
+			self::reset_rich_field_values();
 			$opts   = get_option( 'resolate_settings', array() );
 			$tpl_id = isset( $opts['docx_template_id'] ) ? intval( $opts['docx_template_id'] ) : 0;
 			if ( $tpl_id <= 0 ) {
@@ -577,8 +652,9 @@ class Resolate_Document_Generator {
 			$content = apply_filters( 'the_content', $content );
 			$fields = array(
 				'title'     => get_the_title( $post_id ),
-				'contenido' => wp_strip_all_tags( (string) $content ),
+				'contenido' => self::prepare_field_value( (string) $content, 'rich', 'text' ),
 			);
+			self::remember_rich_field_value( $fields['contenido'] );
 
 			$upload_dir = wp_upload_dir();
 			$dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
@@ -588,7 +664,7 @@ class Resolate_Document_Generator {
 			$filename = sanitize_title( $fields['title'] ) . '-' . $post_id . '.docx';
 			$path     = trailingslashit( $dir ) . $filename;
 
-			$res = Resolate_OpenTBS::render_docx( $template_path, $fields, $path );
+			$res = Resolate_OpenTBS::render_docx( $template_path, $fields, $path, self::get_rich_field_values() );
 			if ( is_wp_error( $res ) ) {
 				return $res;
 			}
