@@ -44,6 +44,13 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 				'placeholder' => 'resolution_title',
 				'data_type'   => 'text',
 			),
+			array(
+				'slug'        => 'resolution_body',
+				'label'       => 'Cuerpo',
+				'type'        => 'rich',
+				'placeholder' => 'resolution_body',
+				'data_type'   => 'text',
+			),
 		);
 		update_term_meta( $term_id, 'schema', $schema );
 		update_term_meta( $term_id, 'resolate_type_fields', $schema );
@@ -74,6 +81,7 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 			)
 		);
 		$_POST['resolate_field_resolution_title'] = '  Título base  ';
+		$_POST['resolate_field_resolution_body']  = '<p><strong>Detalle</strong> con formato.</p>';
 
 		$data    = array( 'post_type' => 'resolate_document' );
 		$postarr = array( 'ID' => $post_id );
@@ -99,5 +107,6 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 		$this->assertSame( 'I', $fields['annexes'][0]['number'] );
 		$this->assertSame( '<p>Detalle I</p>', $fields['annexes'][0]['content'] );
 		$this->assertSame( 'Título base', $fields['resolution_title'] );
+		$this->assertSame( '<p><strong>Detalle</strong> con formato.</p>', $fields['resolution_body'] );
 	}
 }
