@@ -157,14 +157,14 @@ class Resolate_Document_Generator {
 			if ( is_wp_error( $odt_result ) ) {
 				$docx_result = self::generate_docx( $post_id );
 				if ( is_wp_error( $docx_result ) ) {
-				return new WP_Error(
-					'resolate_pdf_source_missing',
-					__( 'No se pudo generar el documento base porque el tipo de documento no tiene una plantilla DOCX u ODT configurada.', 'resolate' ),
-					array(
+					return new WP_Error(
+						'resolate_pdf_source_missing',
+						__( 'No se pudo generar el documento base porque el tipo de documento no tiene una plantilla DOCX u ODT configurada.', 'resolate' ),
+						array(
 							'odt'  => $odt_result,
 							'docx' => $docx_result,
-					)
-				);
+						)
+					);
 				}
 				$source_path   = $docx_result;
 				$source_format = 'docx';
@@ -301,20 +301,28 @@ class Resolate_Document_Generator {
 			} else {
 				$schema = self::get_type_schema( $type_id );
 			}
-                        foreach ( $schema as $def ) {
-                                if ( empty( $def['slug'] ) ) {
-                                        continue;
-                                }
-                                $slug        = sanitize_key( $def['slug'] );
-                                $placeholder = isset( $def['placeholder'] ) ? self::sanitize_placeholder_name( $def['placeholder'] ) : '';
-                                if ( '' === $placeholder ) {
-                                        $placeholder = $slug;
-                                }
-                                $data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
-                                $value     = self::get_structured_field_value( $structured, $slug, $post_id );
-                                $value     = wp_strip_all_tags( $value );
-                                $fields[ $placeholder ] = self::normalize_field_value( $value, $data_type );
-                        }
+			foreach ( $schema as $def ) {
+				if ( empty( $def['slug'] ) ) {
+								continue;
+				}
+					$slug        = sanitize_key( $def['slug'] );
+					$placeholder = isset( $def['placeholder'] ) ? self::sanitize_placeholder_name( $def['placeholder'] ) : '';
+				if ( '' === $placeholder ) {
+									$placeholder = $slug;
+				}
+										$data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
+										$type      = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
+
+				if ( 'array' === $type ) {
+						$items = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+						$fields[ $placeholder ] = $items;
+						continue;
+				}
+
+										$value = self::get_structured_field_value( $structured, $slug, $post_id );
+										$value = wp_strip_all_tags( $value );
+										$fields[ $placeholder ] = self::normalize_field_value( $value, $data_type );
+			}
 
 			$logos = get_term_meta( $type_id, 'resolate_type_logos', true );
 			if ( is_array( $logos ) && ! empty( $logos ) ) {
@@ -331,28 +339,33 @@ class Resolate_Document_Generator {
 			}
 		}
 
-                if ( ! empty( $structured ) ) {
-                        foreach ( $structured as $slug => $info ) {
-                                $slug = sanitize_key( $slug );
-                                if ( '' === $slug ) {
-                                        continue;
-                                }
-                                $placeholder = $slug;
-                                if ( isset( $fields[ $placeholder ] ) && '' !== $fields[ $placeholder ] ) {
-                                        continue;
-                                }
-                                $value = '';
-                                if ( isset( $info['value'] ) ) {
-                                        $value = (string) $info['value'];
-                                }
-                                if ( '' === $value ) {
-                                        $value = self::get_structured_field_value( $structured, $slug, $post_id );
-                                }
-                                $fields[ $placeholder ] = wp_strip_all_tags( $value );
-                        }
-                }
+		if ( ! empty( $structured ) ) {
+			foreach ( $structured as $slug => $info ) {
+						$slug = sanitize_key( $slug );
+				if ( '' === $slug ) {
+					continue;
+				}
+						$placeholder = $slug;
+				if ( isset( $fields[ $placeholder ] ) && '' !== $fields[ $placeholder ] ) {
+					continue;
+				}
+				if ( isset( $info['type'] ) && 'array' === sanitize_key( $info['type'] ) ) {
+						$fields[ $placeholder ] = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+						continue;
+				}
 
-		return $fields;
+						$value = '';
+				if ( isset( $info['value'] ) ) {
+						$value = (string) $info['value'];
+				}
+				if ( '' === $value ) {
+						$value = self::get_structured_field_value( $structured, $slug, $post_id );
+				}
+						$fields[ $placeholder ] = wp_strip_all_tags( $value );
+			}
+		}
+
+				return $fields;
 	}
 
 
@@ -365,23 +378,59 @@ class Resolate_Document_Generator {
 	 * @return string
 	 */
 	private static function get_structured_field_value( $structured, $slug, $post_id ) {
-		$slug = sanitize_key( $slug );
+			$slug = sanitize_key( $slug );
 		if ( '' !== $slug && isset( $structured[ $slug ] ) && is_array( $structured[ $slug ] ) ) {
-			$value = isset( $structured[ $slug ]['value'] ) ? (string) $structured[ $slug ]['value'] : '';
+				$value = isset( $structured[ $slug ]['value'] ) ? (string) $structured[ $slug ]['value'] : '';
 			if ( '' !== $value ) {
 				return $value;
 			}
 		}
 
 		if ( '' !== $slug ) {
-			$meta_key = 'resolate_field_' . $slug;
-			$legacy   = get_post_meta( $post_id, $meta_key, true );
+				$meta_key = 'resolate_field_' . $slug;
+				$legacy   = get_post_meta( $post_id, $meta_key, true );
 			if ( '' !== $legacy ) {
-				return (string) $legacy;
+					return (string) $legacy;
 			}
 		}
 
-		return '';
+			return '';
+	}
+
+		/**
+		 * Retrieve array field items for template merges.
+		 *
+		 * @param array  $structured Structured map from post content.
+		 * @param string $slug       Field slug.
+		 * @param int    $post_id    Post ID.
+		 * @return array<int, array<string, string>>
+		 */
+	private static function get_array_field_items_for_merge( $structured, $slug, $post_id ) {
+			$slug  = sanitize_key( $slug );
+			$value = '';
+
+		if ( '' !== $slug && isset( $structured[ $slug ] ) && is_array( $structured[ $slug ] ) && isset( $structured[ $slug ]['value'] ) ) {
+				$value = (string) $structured[ $slug ]['value'];
+		}
+
+		if ( '' === $value && '' !== $slug ) {
+				$meta_value = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
+			if ( '' !== $meta_value ) {
+					$value = (string) $meta_value;
+			}
+		}
+
+		if ( '' === $value && '' !== $slug ) {
+				$legacy = get_post_meta( $post_id, 'resolate_' . $slug, true );
+			if ( empty( $legacy ) && 'annexes' === $slug ) {
+					$legacy = get_post_meta( $post_id, 'resolate_annexes', true );
+			}
+			if ( is_array( $legacy ) && ! empty( $legacy ) ) {
+					$value = wp_json_encode( $legacy );
+			}
+		}
+
+			return Resolate_Documents::decode_array_field_value( $value );
 	}
 
 	/**
@@ -404,81 +453,81 @@ class Resolate_Document_Generator {
 	 *
 	 * @return string Absolute directory path.
 	 */
-        private static function ensure_output_dir() {
-                $upload_dir = wp_upload_dir();
-                $dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
-                if ( ! is_dir( $dir ) ) {
-                        wp_mkdir_p( $dir );
-                }
+	private static function ensure_output_dir() {
+			$upload_dir = wp_upload_dir();
+			$dir        = trailingslashit( $upload_dir['basedir'] ) . 'resolate';
+		if ( ! is_dir( $dir ) ) {
+				wp_mkdir_p( $dir );
+		}
 
-                return $dir;
-        }
+			return $dir;
+	}
 
-        /**
-         * Sanitize placeholders preserving TinyButStrong supported characters.
-         *
-         * @param string $placeholder Placeholder name.
-         * @return string
-         */
-        private static function sanitize_placeholder_name( $placeholder ) {
-                $placeholder = (string) $placeholder;
-                $placeholder = preg_replace( '/[^A-Za-z0-9._:-]/', '', $placeholder );
-                return $placeholder;
-        }
+		/**
+		 * Sanitize placeholders preserving TinyButStrong supported characters.
+		 *
+		 * @param string $placeholder Placeholder name.
+		 * @return string
+		 */
+	private static function sanitize_placeholder_name( $placeholder ) {
+			$placeholder = (string) $placeholder;
+			$placeholder = preg_replace( '/[^A-Za-z0-9._:-]/', '', $placeholder );
+			return $placeholder;
+	}
 
-        /**
-         * Normalize a field value based on the detected data type.
-         *
-         * @param string $value     Original value.
-         * @param string $data_type Detected data type.
-         * @return mixed
-         */
-        private static function normalize_field_value( $value, $data_type ) {
-                $value     = is_string( $value ) ? trim( $value ) : $value;
-                $data_type = sanitize_key( $data_type );
+		/**
+		 * Normalize a field value based on the detected data type.
+		 *
+		 * @param string $value     Original value.
+		 * @param string $data_type Detected data type.
+		 * @return mixed
+		 */
+	private static function normalize_field_value( $value, $data_type ) {
+			$value     = is_string( $value ) ? trim( $value ) : $value;
+			$data_type = sanitize_key( $data_type );
 
-                switch ( $data_type ) {
-                        case 'number':
-                                if ( '' === $value ) {
-                                        return '';
-                                }
-                                if ( is_numeric( $value ) ) {
-                                        return 0 + $value;
-                                }
-                                $filtered = preg_replace( '/[^0-9.,\-]/', '', (string) $value );
-                                if ( '' === $filtered ) {
-                                        return '';
-                                }
-                                $normalized = str_replace( ',', '.', $filtered );
-                                if ( is_numeric( $normalized ) ) {
-                                        return 0 + $normalized;
-                                }
-                                return $value;
-                        case 'boolean':
-                                if ( is_bool( $value ) ) {
-                                        return $value ? 1 : 0;
-                                }
-                                $value = strtolower( (string) $value );
-                                if ( in_array( $value, array( '1', 'true', 'si', 'sí', 'yes', 'on' ), true ) ) {
-                                        return 1;
-                                }
-                                if ( in_array( $value, array( '0', 'false', 'no', 'off' ), true ) ) {
-                                        return 0;
-                                }
-                                return '' === $value ? 0 : 0;
-                        case 'date':
-                                if ( '' === $value ) {
-                                        return '';
-                                }
-                                $timestamp = strtotime( (string) $value );
-                                if ( false === $timestamp ) {
-                                        return $value;
-                                }
-                                return wp_date( 'Y-m-d', $timestamp );
-                        default:
-                                return $value;
-                }
-        }
+		switch ( $data_type ) {
+			case 'number':
+				if ( '' === $value ) {
+						return '';
+				}
+				if ( is_numeric( $value ) ) {
+						return 0 + $value;
+				}
+				$filtered = preg_replace( '/[^0-9.,\-]/', '', (string) $value );
+				if ( '' === $filtered ) {
+						return '';
+				}
+				$normalized = str_replace( ',', '.', $filtered );
+				if ( is_numeric( $normalized ) ) {
+						return 0 + $normalized;
+				}
+				return $value;
+			case 'boolean':
+				if ( is_bool( $value ) ) {
+					return $value ? 1 : 0;
+				}
+					$value = strtolower( (string) $value );
+				if ( in_array( $value, array( '1', 'true', 'si', 'sí', 'yes', 'on' ), true ) ) {
+						return 1;
+				}
+				if ( in_array( $value, array( '0', 'false', 'no', 'off' ), true ) ) {
+						return 0;
+				}
+				return '' === $value ? 0 : 0;
+			case 'date':
+				if ( '' === $value ) {
+						return '';
+				}
+					$timestamp = strtotime( (string) $value );
+				if ( false === $timestamp ) {
+						return $value;
+				}
+				return wp_date( 'Y-m-d', $timestamp );
+			default:
+				return $value;
+		}
+	}
 
 	/**
 	 * Generate DOCX for a Law post using the same configured DOCX template.
