@@ -143,12 +143,14 @@ class Resolate_Admin_Helper {
 			exit;
 		}
 
-		$upload_dir = wp_upload_dir();
-		$baseurl    = trailingslashit( $upload_dir['baseurl'] ) . 'resolate/';
-		$filename   = basename( $result );
-		$url        = $baseurl . $filename;
+		$stream = $this->stream_file_download(
+			$result,
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+		);
+		if ( is_wp_error( $stream ) ) {
+			wp_die( esc_html( $stream->get_error_message() ), '', array( 'back_link' => true ) );
+		}
 
-		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -175,12 +177,11 @@ class Resolate_Admin_Helper {
 			exit;
 		}
 
-		$upload_dir = wp_upload_dir();
-		$baseurl    = trailingslashit( $upload_dir['baseurl'] ) . 'resolate/';
-		$filename   = basename( $result );
-		$url        = $baseurl . $filename;
+		$stream = $this->stream_file_download( $result, 'application/vnd.oasis.opendocument.text' );
+		if ( is_wp_error( $stream ) ) {
+			wp_die( esc_html( $stream->get_error_message() ), '', array( 'back_link' => true ) );
+		}
 
-		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -207,12 +208,11 @@ class Resolate_Admin_Helper {
 			exit;
 		}
 
-		$upload_dir = wp_upload_dir();
-		$baseurl    = trailingslashit( $upload_dir['baseurl'] ) . 'resolate/';
-		$filename   = basename( $result );
-		$url        = $baseurl . $filename;
+		$stream = $this->stream_file_download( $result, 'application/pdf' );
+		if ( is_wp_error( $stream ) ) {
+			wp_die( esc_html( $stream->get_error_message() ), '', array( 'back_link' => true ) );
+		}
 
-		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -1094,6 +1094,53 @@ class Resolate_Admin_Helper {
 			}
 		}
 		return implode( ' ', $pairs );
+	}
+
+	/**
+	 * Stream a generated document to the browser as an attachment download.
+	 *
+	 * @param string $path Absolute path to the generated file.
+	 * @param string $mime Mime type to send in the response headers.
+	 * @return true|WP_Error
+	 */
+	private function stream_file_download( $path, $mime ) {
+		$path = (string) $path;
+		$mime = (string) $mime;
+		if ( '' === $path ) {
+			return new WP_Error( 'resolate_download_missing', __( 'No se pudo determinar el archivo generado.', 'resolate' ) );
+		}
+
+		if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
+			return new WP_Error( 'resolate_download_unreadable', __( 'No se pudo acceder al archivo generado.', 'resolate' ) );
+		}
+
+		$handle = fopen( $path, 'rb' );
+		if ( false === $handle ) {
+			return new WP_Error( 'resolate_download_unreadable', __( 'No se pudo leer el archivo generado.', 'resolate' ) );
+		}
+
+		$download_name = wp_basename( $path );
+		$encoded_name  = rawurlencode( $download_name );
+		$filesize      = filesize( $path );
+
+		while ( ob_get_level() > 0 ) {
+			ob_end_clean();
+		}
+
+		status_header( 200 );
+		nocache_headers();
+		header( 'Content-Type: ' . $mime );
+		header( 'Content-Disposition: attachment; filename="' . $download_name . '"; filename*=UTF-8\'\'' . $encoded_name );
+		if ( $filesize > 0 ) {
+			header( 'Content-Length: ' . $filesize );
+		}
+
+		while ( ! feof( $handle ) ) {
+			echo fread( $handle, 8192 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming binary data.
+		}
+		fclose( $handle );
+
+		return true;
 	}
 
 	/**
