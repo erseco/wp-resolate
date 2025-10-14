@@ -21,43 +21,43 @@
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
-    die;
+	die;
 }
 
 define( 'RESOLATE_VERSION', '0.0.0' );
 define( 'RESOLATE_PLUGIN_FILE', __FILE__ );
 
 if ( ! defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ) {
-    define( 'RESOLATE_ZETAJS_CDN_BASE', 'https://cdn.zetaoffice.net/zetaoffice_latest/' );
+	define( 'RESOLATE_ZETAJS_CDN_BASE', 'https://cdn.zetaoffice.net/zetaoffice_latest/' );
 }
 
 if ( ! defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
-    define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.collaboraonline.com' );
+	define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.collaboraonline.com' );
 }
 
 /**
  * The code that runs during plugin activation.
  */
 function activate_resolate() {
-    // Set the permalink structure if necessary.
-    if ( '/%postname%/' !== get_option( 'permalink_structure' ) ) {
-        update_option( 'permalink_structure', '/%postname%/' );
-    }
+	// Set the permalink structure if necessary.
+	if ( '/%postname%/' !== get_option( 'permalink_structure' ) ) {
+		update_option( 'permalink_structure', '/%postname%/' );
+	}
 
-    flush_rewrite_rules();
+	flush_rewrite_rules();
 
-    update_option( 'resolate_flush_rewrites', true );
-    update_option( 'resolate_version', RESOLATE_VERSION );
+	update_option( 'resolate_flush_rewrites', true );
+	update_option( 'resolate_version', RESOLATE_VERSION );
 
-    // Ensure default fixtures (templates/logos) are available in Media Library and settings.
-    resolate_ensure_default_media();
+	// Ensure default fixtures (templates/logos) are available in Media Library and settings.
+	resolate_ensure_default_media();
 }
 
 /**
  * The code that runs during plugin deactivation.
  */
 function deactivate_resolate() {
-    flush_rewrite_rules();
+	flush_rewrite_rules();
 }
 
 /**
@@ -67,19 +67,19 @@ function deactivate_resolate() {
  * @param array       $options         Upgrade options.
  */
 function resolate_update_handler( $upgrader_object, $options ) {
-    // Check if the update is for your specific plugin.
-    if ( 'update' === $options['action'] && 'plugin' === $options['type'] ) {
-        $plugins_updated = $options['plugins'];
+	// Check if the update is for your specific plugin.
+	if ( 'update' === $options['action'] && 'plugin' === $options['type'] ) {
+		$plugins_updated = $options['plugins'];
 
-        // Replace with your plugin's base name (typically folder/main-plugin-file.php).
-        $plugin_file = plugin_basename( __FILE__ );
+		// Replace with your plugin's base name (typically folder/main-plugin-file.php).
+		$plugin_file = plugin_basename( __FILE__ );
 
-        // Check if your plugin is in the list of updated plugins.
-        if ( in_array( $plugin_file, $plugins_updated ) ) {
-            // Perform update-specific tasks.
-            flush_rewrite_rules();
-        }
-    }
+		// Check if your plugin is in the list of updated plugins.
+		if ( in_array( $plugin_file, $plugins_updated ) ) {
+			// Perform update-specific tasks.
+			flush_rewrite_rules();
+		}
+	}
 }
 
 register_activation_hook( __FILE__, 'activate_resolate' );
@@ -91,14 +91,14 @@ add_action( 'upgrader_process_complete', 'resolate_update_handler', 10, 2 );
  * Maybe flush rewrite rules on init if needed.
  */
 function resolate_maybe_flush_rewrite_rules() {
-    $saved_version = get_option( 'resolate_version' );
+	$saved_version = get_option( 'resolate_version' );
 
-    // If plugin version changed, or a flag has been set (e.g. on activation), flush rules.
-    if ( RESOLATE_VERSION !== $saved_version || get_option( 'resolate_flush_rewrites' ) ) {
-        flush_rewrite_rules();
-        update_option( 'resolate_version', RESOLATE_VERSION );
-        delete_option( 'resolate_flush_rewrites' );
-    }
+	// If plugin version changed, or a flag has been set (e.g. on activation), flush rules.
+	if ( RESOLATE_VERSION !== $saved_version || get_option( 'resolate_flush_rewrites' ) ) {
+		flush_rewrite_rules();
+		update_option( 'resolate_version', RESOLATE_VERSION );
+		delete_option( 'resolate_flush_rewrites' );
+	}
 }
 add_action( 'init', 'resolate_maybe_flush_rewrite_rules', 999 );
 
@@ -107,12 +107,12 @@ add_action( 'init', 'resolate_maybe_flush_rewrite_rules', 999 );
  * attempt to import default fixtures into Media Library.
  */
 function resolate_maybe_import_fixtures_on_init() {
-    $options = get_option( 'resolate_settings', array() );
-    $need_templates = empty( $options['odt_template_id'] ) || empty( $options['docx_template_id'] );
-    $need_logos = empty( $options['doc_logo_id'] ) || empty( $options['doc_logo_right_id'] );
-    if ( $need_templates || $need_logos ) {
-        resolate_ensure_default_media();
-    }
+	$options = get_option( 'resolate_settings', array() );
+	$need_templates = empty( $options['odt_template_id'] ) || empty( $options['docx_template_id'] );
+	$need_logos = empty( $options['doc_logo_id'] ) || empty( $options['doc_logo_right_id'] );
+	if ( $need_templates || $need_logos ) {
+		resolate_ensure_default_media();
+	}
 }
 add_action( 'init', 'resolate_maybe_import_fixtures_on_init', 20 );
 
@@ -126,72 +126,76 @@ add_action( 'init', 'resolate_maybe_import_fixtures_on_init', 20 );
  * @return int Attachment ID or 0 on failure/missing file.
  */
 function resolate_import_fixture_file( $filename ) {
-    $base_dir = plugin_dir_path( __FILE__ );
-    $paths = array(
-        $base_dir . 'fixtures/' . $filename,
-        $base_dir . $filename,
-    );
-    $source = '';
-    foreach ( $paths as $p ) {
-        if ( file_exists( $p ) && is_readable( $p ) ) { $source = $p; break; }
-    }
-    if ( '' === $source ) {
-        return 0;
-    }
+	$base_dir = plugin_dir_path( __FILE__ );
+	$paths = array(
+		$base_dir . 'fixtures/' . $filename,
+		$base_dir . $filename,
+	);
+	$source = '';
+	foreach ( $paths as $p ) {
+		if ( file_exists( $p ) && is_readable( $p ) ) {
+			$source = $p;
+			break; }
+	}
+	if ( '' === $source ) {
+		return 0;
+	}
 
-    $hash = @md5_file( $source );
-    if ( $hash ) {
-        $found = get_posts( array(
-            'post_type'   => 'attachment',
-            'post_status' => 'inherit',
-            'meta_key'    => '_resolate_fixture_hash',
-            'meta_value'  => $hash,
-            'fields'      => 'ids',
-            'numberposts' => 1,
-        ) );
-        if ( ! empty( $found ) ) {
-            return intval( $found[0] );
-        }
-    }
+	$hash = @md5_file( $source );
+	if ( $hash ) {
+		$found = get_posts(
+			array(
+				'post_type'   => 'attachment',
+				'post_status' => 'inherit',
+				'meta_key'    => '_resolate_fixture_hash',
+				'meta_value'  => $hash,
+				'fields'      => 'ids',
+				'numberposts' => 1,
+			)
+		);
+		if ( ! empty( $found ) ) {
+			return intval( $found[0] );
+		}
+	}
 
-    $contents = @file_get_contents( $source );
-    if ( false === $contents ) {
-        return 0;
-    }
+	$contents = @file_get_contents( $source );
+	if ( false === $contents ) {
+		return 0;
+	}
 
-    $upload = wp_upload_bits( basename( $source ), null, $contents );
-    if ( ! empty( $upload['error'] ) ) {
-        return 0;
-    }
+	$upload = wp_upload_bits( basename( $source ), null, $contents );
+	if ( ! empty( $upload['error'] ) ) {
+		return 0;
+	}
 
-    $filetype = wp_check_filetype_and_ext( $upload['file'], basename( $upload['file'] ) );
-    $attachment = array(
-        'post_mime_type' => $filetype['type'] ? $filetype['type'] : 'application/octet-stream',
-        'post_title'     => sanitize_file_name( basename( $source ) ),
-        'post_content'   => '',
-        'post_status'    => 'inherit',
-    );
-    $attach_id = wp_insert_attachment( $attachment, $upload['file'] );
-    if ( ! $attach_id ) {
-        return 0;
-    }
+	$filetype = wp_check_filetype_and_ext( $upload['file'], basename( $upload['file'] ) );
+	$attachment = array(
+		'post_mime_type' => $filetype['type'] ? $filetype['type'] : 'application/octet-stream',
+		'post_title'     => sanitize_file_name( basename( $source ) ),
+		'post_content'   => '',
+		'post_status'    => 'inherit',
+	);
+	$attach_id = wp_insert_attachment( $attachment, $upload['file'] );
+	if ( ! $attach_id ) {
+		return 0;
+	}
 
-    // Generate and save attachment metadata (for images).
-    if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-    }
-    $attach_data = wp_generate_attachment_metadata( $attach_id, $upload['file'] );
-    if ( ! empty( $attach_data ) ) {
-        wp_update_attachment_metadata( $attach_id, $attach_data );
-    }
+	// Generate and save attachment metadata (for images).
+	if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+	}
+	$attach_data = wp_generate_attachment_metadata( $attach_id, $upload['file'] );
+	if ( ! empty( $attach_data ) ) {
+		wp_update_attachment_metadata( $attach_id, $attach_data );
+	}
 
-    // Tag as fixture to allow reuse.
-    if ( $hash ) {
-        update_post_meta( $attach_id, '_resolate_fixture_hash', $hash );
-    }
-    update_post_meta( $attach_id, '_resolate_fixture_name', basename( $source ) );
+	// Tag as fixture to allow reuse.
+	if ( $hash ) {
+		update_post_meta( $attach_id, '_resolate_fixture_hash', $hash );
+	}
+	update_post_meta( $attach_id, '_resolate_fixture_name', basename( $source ) );
 
-    return intval( $attach_id );
+	return intval( $attach_id );
 }
 
 /**
@@ -200,45 +204,45 @@ function resolate_import_fixture_file( $filename ) {
  * @return void
  */
 function resolate_ensure_default_media() {
-    $options = get_option( 'resolate_settings', array() );
+	$options = get_option( 'resolate_settings', array() );
 
-    // ODT template.
-    $odt_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
-    if ( $odt_id <= 0 || ! get_post( $odt_id ) ) {
-        $imported = resolate_import_fixture_file( 'plantilla.odt' );
-        if ( $imported > 0 ) {
-            $options['odt_template_id'] = $imported;
-        }
-    }
+	// ODT template.
+	$odt_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
+	if ( $odt_id <= 0 || ! get_post( $odt_id ) ) {
+		$imported = resolate_import_fixture_file( 'plantilla.odt' );
+		if ( $imported > 0 ) {
+			$options['odt_template_id'] = $imported;
+		}
+	}
 
-    // DOCX template.
-    $docx_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
-    if ( $docx_id <= 0 || ! get_post( $docx_id ) ) {
-        $imported = resolate_import_fixture_file( 'plantilla.docx' );
-        if ( $imported > 0 ) {
-            $options['docx_template_id'] = $imported;
-        }
-    }
+	// DOCX template.
+	$docx_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
+	if ( $docx_id <= 0 || ! get_post( $docx_id ) ) {
+		$imported = resolate_import_fixture_file( 'plantilla.docx' );
+		if ( $imported > 0 ) {
+			$options['docx_template_id'] = $imported;
+		}
+	}
 
-    // Logos.
-    $logo_left_id = isset( $options['doc_logo_id'] ) ? intval( $options['doc_logo_id'] ) : 0;
-    $logo_right_id = isset( $options['doc_logo_right_id'] ) ? intval( $options['doc_logo_right_id'] ) : 0;
+	// Logos.
+	$logo_left_id = isset( $options['doc_logo_id'] ) ? intval( $options['doc_logo_id'] ) : 0;
+	$logo_right_id = isset( $options['doc_logo_right_id'] ) ? intval( $options['doc_logo_right_id'] ) : 0;
 
-    if ( ( $logo_left_id <= 0 || ! get_post( $logo_left_id ) ) || ( $logo_right_id <= 0 || ! get_post( $logo_right_id ) ) ) {
-        $logo1 = resolate_import_fixture_file( 'logo1.png' );
-        $logo2 = resolate_import_fixture_file( 'logo2.jpg' );
+	if ( ( $logo_left_id <= 0 || ! get_post( $logo_left_id ) ) || ( $logo_right_id <= 0 || ! get_post( $logo_right_id ) ) ) {
+		$logo1 = resolate_import_fixture_file( 'logo1.png' );
+		$logo2 = resolate_import_fixture_file( 'logo2.jpg' );
 
-        if ( $logo_left_id <= 0 || ! get_post( $logo_left_id ) ) {
-            // Prefer PNG as left logo if available.
-            $options['doc_logo_id'] = $logo1 > 0 ? $logo1 : ( $logo2 > 0 ? $logo2 : 0 );
-        }
-        if ( $logo_right_id <= 0 || ! get_post( $logo_right_id ) ) {
-            // Prefer JPG as right logo if available to vary from left.
-            $options['doc_logo_right_id'] = $logo2 > 0 ? $logo2 : ( $logo1 > 0 ? $logo1 : 0 );
-        }
-    }
+		if ( $logo_left_id <= 0 || ! get_post( $logo_left_id ) ) {
+			// Prefer PNG as left logo if available.
+			$options['doc_logo_id'] = $logo1 > 0 ? $logo1 : ( $logo2 > 0 ? $logo2 : 0 );
+		}
+		if ( $logo_right_id <= 0 || ! get_post( $logo_right_id ) ) {
+			// Prefer JPG as right logo if available to vary from left.
+			$options['doc_logo_right_id'] = $logo2 > 0 ? $logo2 : ( $logo1 > 0 ? $logo1 : 0 );
+		}
+	}
 
-    update_option( 'resolate_settings', $options );
+	update_option( 'resolate_settings', $options );
 }
 
 /**
@@ -247,100 +251,100 @@ function resolate_ensure_default_media() {
  * @return void
  */
 function resolate_maybe_seed_default_doc_types() {
-    if ( ! taxonomy_exists( 'resolate_doc_type' ) ) {
-        return;
-    }
+	if ( ! taxonomy_exists( 'resolate_doc_type' ) ) {
+		return;
+	}
 
-    resolate_ensure_default_media();
+	resolate_ensure_default_media();
 
-    $options = get_option( 'resolate_settings', array() );
+	$options = get_option( 'resolate_settings', array() );
 
-    $definitions = array();
+	$definitions = array();
 
-    $odt_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
-    if ( $odt_id > 0 ) {
-        $definitions[] = array(
-            'slug'        => 'resolate-demo-odt',
-            'name'        => __( 'Tipo de documento de prueba (ODT)', 'resolate' ),
-            'description' => __( 'Ejemplo creado automáticamente con la plantilla ODT incluida.', 'resolate' ),
-            'color'       => '#37517e',
-            'template_id' => $odt_id,
-            'fixture_key' => 'resolate-demo-odt',
-        );
-    }
+	$odt_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
+	if ( $odt_id > 0 ) {
+		$definitions[] = array(
+			'slug'        => 'resolate-demo-odt',
+			'name'        => __( 'Tipo de documento de prueba (ODT)', 'resolate' ),
+			'description' => __( 'Ejemplo creado automáticamente con la plantilla ODT incluida.', 'resolate' ),
+			'color'       => '#37517e',
+			'template_id' => $odt_id,
+			'fixture_key' => 'resolate-demo-odt',
+		);
+	}
 
-    $docx_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
-    if ( $docx_id > 0 ) {
-        $definitions[] = array(
-            'slug'        => 'resolate-demo-docx',
-            'name'        => __( 'Tipo de documento de prueba (DOCX)', 'resolate' ),
-            'description' => __( 'Ejemplo creado automáticamente con la plantilla DOCX incluida.', 'resolate' ),
-            'color'       => '#2a7fb8',
-            'template_id' => $docx_id,
-            'fixture_key' => 'resolate-demo-docx',
-        );
-    }
+	$docx_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
+	if ( $docx_id > 0 ) {
+		$definitions[] = array(
+			'slug'        => 'resolate-demo-docx',
+			'name'        => __( 'Tipo de documento de prueba (DOCX)', 'resolate' ),
+			'description' => __( 'Ejemplo creado automáticamente con la plantilla DOCX incluida.', 'resolate' ),
+			'color'       => '#2a7fb8',
+			'template_id' => $docx_id,
+			'fixture_key' => 'resolate-demo-docx',
+		);
+	}
 
-    if ( empty( $definitions ) ) {
-        return;
-    }
+	if ( empty( $definitions ) ) {
+		return;
+	}
 
-    if ( ! class_exists( 'Resolate_Template_Parser' ) ) {
-        require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
-    }
+	if ( ! class_exists( 'Resolate_Template_Parser' ) ) {
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
+	}
 
-    foreach ( $definitions as $definition ) {
-        $slug        = $definition['slug'];
-        $template_id = intval( $definition['template_id'] );
-        if ( $template_id <= 0 ) {
-            continue;
-        }
+	foreach ( $definitions as $definition ) {
+		$slug        = $definition['slug'];
+		$template_id = intval( $definition['template_id'] );
+		if ( $template_id <= 0 ) {
+			continue;
+		}
 
-        $term    = get_term_by( 'slug', $slug, 'resolate_doc_type' );
-        $term_id = $term instanceof WP_Term ? intval( $term->term_id ) : 0;
+		$term    = get_term_by( 'slug', $slug, 'resolate_doc_type' );
+		$term_id = $term instanceof WP_Term ? intval( $term->term_id ) : 0;
 
-        if ( $term_id <= 0 ) {
-            $created = wp_insert_term(
-                $definition['name'],
-                'resolate_doc_type',
-                array(
-                    'slug'        => $slug,
-                    'description' => $definition['description'],
-                )
-            );
+		if ( $term_id <= 0 ) {
+			$created = wp_insert_term(
+				$definition['name'],
+				'resolate_doc_type',
+				array(
+					'slug'        => $slug,
+					'description' => $definition['description'],
+				)
+			);
 
-            if ( is_wp_error( $created ) ) {
-                continue;
-            }
+			if ( is_wp_error( $created ) ) {
+				continue;
+			}
 
-            $term_id = intval( $created['term_id'] );
-        }
+			$term_id = intval( $created['term_id'] );
+		}
 
-        if ( $term_id <= 0 ) {
-            continue;
-        }
+		if ( $term_id <= 0 ) {
+			continue;
+		}
 
-        $fixture_key = get_term_meta( $term_id, '_resolate_fixture', true );
-        if ( ! empty( $fixture_key ) && $fixture_key !== $definition['fixture_key'] ) {
-            continue;
-        }
+		$fixture_key = get_term_meta( $term_id, '_resolate_fixture', true );
+		if ( ! empty( $fixture_key ) && $fixture_key !== $definition['fixture_key'] ) {
+			continue;
+		}
 
-        update_term_meta( $term_id, '_resolate_fixture', $definition['fixture_key'] );
-        update_term_meta( $term_id, 'resolate_type_color', $definition['color'] );
-        update_term_meta( $term_id, 'resolate_type_template_id', $template_id );
+		update_term_meta( $term_id, '_resolate_fixture', $definition['fixture_key'] );
+		update_term_meta( $term_id, 'resolate_type_color', $definition['color'] );
+		update_term_meta( $term_id, 'resolate_type_template_id', $template_id );
 
-        $path = get_attached_file( $template_id );
-        if ( ! $path ) {
-            continue;
-        }
+		$path = get_attached_file( $template_id );
+		if ( ! $path ) {
+			continue;
+		}
 
-        $template_type = resolate_detect_template_type( $path );
-        $schema        = resolate_build_schema_from_template( $path );
+		$template_type = resolate_detect_template_type( $path );
+		$schema        = resolate_build_schema_from_template( $path );
 
-        update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
-        update_term_meta( $term_id, 'schema', $schema );
-        update_term_meta( $term_id, 'resolate_type_fields', $schema );
-    }
+		update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+		update_term_meta( $term_id, 'schema', $schema );
+		update_term_meta( $term_id, 'resolate_type_fields', $schema );
+	}
 }
 
 /**
@@ -350,11 +354,11 @@ function resolate_maybe_seed_default_doc_types() {
  * @return string
  */
 function resolate_detect_template_type( $path ) {
-    $ext = strtolower( pathinfo( (string) $path, PATHINFO_EXTENSION ) );
-    if ( in_array( $ext, array( 'docx', 'odt' ), true ) ) {
-        return $ext;
-    }
-    return '';
+	$ext = strtolower( pathinfo( (string) $path, PATHINFO_EXTENSION ) );
+	if ( in_array( $ext, array( 'docx', 'odt' ), true ) ) {
+		return $ext;
+	}
+	return '';
 }
 
 /**
@@ -364,26 +368,26 @@ function resolate_detect_template_type( $path ) {
  * @return array[]
  */
 function resolate_build_schema_from_template( $path ) {
-    $fields = Resolate_Template_Parser::extract_fields( $path );
-    if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
-        return array();
-    }
+	$fields = Resolate_Template_Parser::extract_fields( $path );
+	if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
+		return array();
+	}
 
-    $schema = array();
-    foreach ( $fields as $field ) {
-        $slug = sanitize_key( $field );
-        if ( '' === $slug ) {
-            continue;
-        }
+	$schema = array();
+	foreach ( $fields as $field ) {
+		$slug = sanitize_key( $field );
+		if ( '' === $slug ) {
+			continue;
+		}
 
-        $schema[] = array(
-            'slug'  => $slug,
-            'label' => resolate_humanize_slug( $slug ),
-            'type'  => 'textarea',
-        );
-    }
+		$schema[] = array(
+			'slug'  => $slug,
+			'label' => resolate_humanize_slug( $slug ),
+			'type'  => 'textarea',
+		);
+	}
 
-    return $schema;
+	return $schema;
 }
 
 /**
@@ -393,19 +397,19 @@ function resolate_build_schema_from_template( $path ) {
  * @return string
  */
 function resolate_humanize_slug( $slug ) {
-    $slug = str_replace( array( '-', '_' ), ' ', $slug );
-    $slug = preg_replace( '/\s+/', ' ', $slug );
-    $slug = trim( (string) $slug );
+	$slug = str_replace( array( '-', '_' ), ' ', $slug );
+	$slug = preg_replace( '/\s+/', ' ', $slug );
+	$slug = trim( (string) $slug );
 
-    if ( '' === $slug ) {
-        return '';
-    }
+	if ( '' === $slug ) {
+		return '';
+	}
 
-    if ( function_exists( 'mb_convert_case' ) ) {
-        return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
-    }
+	if ( function_exists( 'mb_convert_case' ) ) {
+		return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
+	}
 
-    return ucwords( strtolower( $slug ) );
+	return ucwords( strtolower( $slug ) );
 }
 
 add_action( 'init', 'resolate_maybe_seed_default_doc_types', 40 );
@@ -419,7 +423,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate.php';
 
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
-    require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-wpcli.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-wpcli.php';
 }
 
 /**
@@ -431,7 +435,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
  */
 function run_resolate() {
 
-    $plugin = new Resolate();
-    $plugin->run();
+	$plugin = new Resolate();
+	$plugin->run();
 }
 run_resolate();
