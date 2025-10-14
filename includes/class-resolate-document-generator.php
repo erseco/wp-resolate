@@ -207,31 +207,37 @@ class Resolate_Document_Generator {
 			return '';
 		}
 
-			$tpl_id = 0;
-			$types  = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-			if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-				$type_id       = intval( $types[0] );
-				$type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
-				$template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
-				if ( 0 < $type_template ) {
-					if ( $template_kind === $format ) {
+		$tpl_id = 0;
+		$types  = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+		if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
+			$type_id       = intval( $types[0] );
+			$type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
+			$template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
+			if ( 0 < $type_template ) {
+				if ( $template_kind === $format ) {
+					$tpl_id = $type_template;
+				} elseif ( '' === $template_kind ) {
+					$path = get_attached_file( $type_template );
+					if ( $path && strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) === $format ) {
 						$tpl_id = $type_template;
-					} elseif ( '' === $template_kind ) {
-						$path = get_attached_file( $type_template );
-						if ( $path && strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) === $format ) {
-							$tpl_id = $type_template;
-						}
 					}
 				}
-				if ( 0 >= $tpl_id ) {
-					$meta_key = 'resolate_type_' . $format . '_template';
-					$tpl_id   = intval( get_term_meta( $type_id, $meta_key, true ) );
-				}
 			}
-
 			if ( 0 >= $tpl_id ) {
-				return '';
+				$meta_key = 'resolate_type_' . $format . '_template';
+				$tpl_id   = intval( get_term_meta( $type_id, $meta_key, true ) );
 			}
+		}
+
+		if ( 0 >= $tpl_id ) {
+			$options    = get_option( 'resolate_settings', array() );
+			$option_key = 'docx' === $format ? 'docx_template_id' : 'odt_template_id';
+			$tpl_id     = isset( $options[ $option_key ] ) ? intval( $options[ $option_key ] ) : 0;
+		}
+
+		if ( 0 >= $tpl_id ) {
+			return '';
+		}
 
 		$template_path = get_attached_file( $tpl_id );
 		if ( ! $template_path || ! file_exists( $template_path ) ) {
