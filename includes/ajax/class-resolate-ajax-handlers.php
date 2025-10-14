@@ -37,10 +37,10 @@ class Resolate_Ajax_Handlers {
 	public function load_tasks_by_date() {
 		// Validate request and get parameters.
 		$validation_result = $this->validate_task_date_request();
-		if ( is_wp_error( $validation_result ) ) {
-			wp_send_json_error( $validation_result->get_error_message() );
-			return;
-		}
+               if ( is_wp_error( $validation_result ) ) {
+                       wp_send_json_error( esc_html( $validation_result->get_error_message() ) );
+                       return;
+               }
 
 		list( $date_obj, $user_id ) = $validation_result;
 
@@ -77,29 +77,29 @@ class Resolate_Ajax_Handlers {
 	 */
 	private function validate_task_date_request() {
 		// Verify nonce first before processing any form data.
-		if ( ! $this->verify_nonce() ) {
-			return new WP_Error( 'invalid_nonce', 'Invalid security token' );
-		}
+               if ( ! $this->verify_nonce() ) {
+                       return new WP_Error( 'invalid_nonce', __( 'Invalid security token.', 'resolate' ) );
+               }
 
 		// Now that nonce is verified, we can safely get parameters.
 		$date = $this->get_date_param();
 		$user_id = $this->get_user_id_param();
 
 		// Validate date format.
-		if ( ! $this->is_valid_date_format( $date ) ) {
-			return new WP_Error( 'invalid_date_format', 'Invalid date format' );
-		}
+               if ( ! $this->is_valid_date_format( $date ) ) {
+                       return new WP_Error( 'invalid_date_format', __( 'Invalid date format.', 'resolate' ) );
+               }
 
-		// Verify user permissions.
-		if ( ! $this->user_has_permission( $user_id ) ) {
-			return new WP_Error( 'permission_denied', 'Permission denied' );
-		}
+               // Verify user permissions.
+               if ( ! $this->user_has_permission( $user_id ) ) {
+                       return new WP_Error( 'permission_denied', __( 'Permission denied.', 'resolate' ) );
+               }
 
-		// Create date object.
-		$date_obj = DateTime::createFromFormat( 'Y-m-d', $date );
-		if ( ! $date_obj ) {
-			return new WP_Error( 'invalid_date', 'Invalid date' );
-		}
+               // Create date object.
+               $date_obj = DateTime::createFromFormat( 'Y-m-d', $date );
+               if ( ! $date_obj ) {
+                       return new WP_Error( 'invalid_date', __( 'Invalid date.', 'resolate' ) );
+               }
 
 		return array( $date_obj, $user_id );
 	}
@@ -149,8 +149,8 @@ class Resolate_Ajax_Handlers {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified in validate_task_date_request
-		return intval( $_POST['user_id'] );
-	}
+               return absint( wp_unslash( $_POST['user_id'] ) );
+       }
 
 	/**
 	 * Checks if the date format is valid.
