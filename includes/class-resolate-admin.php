@@ -21,6 +21,7 @@ class Resolate_Admin2 {
         add_action( 'admin_post_resolate_export_odt', array( $this, 'handle_export_odt' ) );
         add_action( 'admin_post_resolate_export_pdf', array( $this, 'handle_export_pdf' ) );
         add_action( 'admin_post_resolate_preview', array( $this, 'handle_preview' ) );
+        add_action( 'admin_post_resolate_preview_stream', array( $this, 'handle_preview_stream' ) );
 
         // Metabox with action buttons in the edit screen.
         add_action( 'add_meta_boxes', array( $this, 'add_actions_metabox' ) );
@@ -252,6 +253,8 @@ class Resolate_Admin2 {
         $baseurl    = trailingslashit( $upload_dir['baseurl'] ) . 'resolate/';
         $pdf_url    = $baseurl . basename( $result );
         $print      = isset( $_GET['print'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['print'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $stream_url = $this->get_preview_stream_url( $post_id, basename( $result ) );
+        $iframe_src = $stream_url ? $stream_url : $pdf_url;
 
         echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
         echo '<title>' . esc_html( sprintf( __( 'Vista previa PDF · %s', 'resolate' ), $title ) ) . '</title>';
@@ -270,13 +273,142 @@ class Resolate_Admin2 {
         echo '<header><h1>' . esc_html( $title ) . '</h1><div class="actions">';
         echo '<a href="' . esc_url( $pdf_url ) . '" download>' . esc_html__( 'Descargar PDF', 'resolate' ) . '</a>';
         echo '</div></header>';
-        echo '<main><div class="viewer"><iframe id="resolate-pdf-frame" src="' . esc_url( $pdf_url ) . '" title="' . esc_attr__( 'Documento en PDF', 'resolate' ) . '"></iframe></div></main>';
+        echo '<main><div class="viewer"><iframe id="resolate-pdf-frame" src="' . esc_url( $iframe_src ) . '" title="' . esc_attr__( 'Documento en PDF', 'resolate' ) . '"></iframe></div></main>';
         echo '<script>document.getElementById("resolate-pdf-frame").addEventListener("load",function(){document.body.classList.remove("loading");});</script>';
         if ( $print ) {
             echo '<script>(function(){const frame=document.getElementById("resolate-pdf-frame");frame.addEventListener("load",function(){try{frame.contentWindow.focus();frame.contentWindow.print();}catch(e){console.error(e);}});})();</script>';
         }
         echo '</body></html>';
         exit;
+    }
+
+    /**
+     * Stream the generated PDF inline so browsers can render it inside an iframe.
+     *
+     * @return void
+     */
+    public function handle_preview_stream() {
+        $post_id = isset( $_GET['post_id'] ) ? intval( $_GET['post_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+        if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+            wp_die( esc_html__( 'Permisos insuficientes.', 'resolate' ) );
+        }
+
+        if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'resolate_preview_stream_' . $post_id ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            wp_die( esc_html__( 'Nonce no válido.', 'resolate' ) );
+        }
+
+        $user_id = get_current_user_id();
+        if ( $user_id <= 0 ) {
+            wp_die( esc_html__( 'Usuario no autenticado.', 'resolate' ) );
+        }
+
+        $key      = $this->get_preview_stream_transient_key( $post_id, $user_id );
+        $filename = get_transient( $key );
+
+        if ( false === $filename || '' === $filename ) {
+            $this->ensure_document_generator();
+            $result = Resolate_Document_Generator::generate_pdf( $post_id );
+            if ( is_wp_error( $result ) ) {
+                wp_die( esc_html__( 'No se pudo generar el PDF para la vista previa.', 'resolate' ) );
+            }
+
+            $filename = basename( $result );
+            $this->remember_preview_stream_file( $post_id, $filename );
+        }
+
+        $filename = sanitize_file_name( (string) $filename );
+        if ( '' === $filename ) {
+            wp_die( esc_html__( 'Archivo de vista previa no disponible.', 'resolate' ) );
+        }
+
+        $upload_dir = wp_upload_dir();
+        $path       = trailingslashit( $upload_dir['basedir'] ) . 'resolate/' . $filename;
+
+        if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
+            wp_die( esc_html__( 'No se pudo acceder al archivo PDF generado.', 'resolate' ) );
+        }
+
+        $filesize       = filesize( $path );
+        $download_name  = wp_basename( $filename );
+        $encoded_name   = rawurlencode( $download_name );
+        $disposition    = 'inline; filename="' . $download_name . '"; filename*=UTF-8\'\'' . $encoded_name;
+
+        status_header( 200 );
+        nocache_headers();
+        header( 'Content-Type: application/pdf' );
+        header( 'Content-Disposition: ' . $disposition );
+        if ( $filesize > 0 ) {
+            header( 'Content-Length: ' . $filesize );
+        }
+
+        $handle = fopen( $path, 'rb' );
+        if ( false === $handle ) {
+            wp_die( esc_html__( 'No se pudo leer el archivo PDF.', 'resolate' ) );
+        }
+
+        while ( ! feof( $handle ) ) {
+            echo fread( $handle, 8192 );
+        }
+        fclose( $handle );
+        exit;
+    }
+
+    /**
+     * Store the generated filename so the streaming endpoint can serve it inline.
+     *
+     * @param int    $post_id  Document post ID.
+     * @param string $filename Generated filename.
+     * @return bool
+     */
+    private function remember_preview_stream_file( $post_id, $filename ) {
+        $user_id = get_current_user_id();
+        if ( $user_id <= 0 ) {
+            return false;
+        }
+
+        $filename = sanitize_file_name( (string) $filename );
+        if ( '' === $filename ) {
+            return false;
+        }
+
+        $ttl = defined( 'MINUTE_IN_SECONDS' ) ? 10 * MINUTE_IN_SECONDS : 600;
+        set_transient( $this->get_preview_stream_transient_key( $post_id, $user_id ), $filename, $ttl );
+
+        return true;
+    }
+
+    /**
+     * Build the streaming URL for the preview iframe.
+     *
+     * @param int    $post_id  Document post ID.
+     * @param string $filename Generated filename.
+     * @return string
+     */
+    private function get_preview_stream_url( $post_id, $filename ) {
+        if ( ! $this->remember_preview_stream_file( $post_id, $filename ) ) {
+            return '';
+        }
+
+        return add_query_arg(
+            array(
+                'action'   => 'resolate_preview_stream',
+                'post_id'  => $post_id,
+                '_wpnonce' => wp_create_nonce( 'resolate_preview_stream_' . $post_id ),
+            ),
+            admin_url( 'admin-post.php' )
+        );
+    }
+
+    /**
+     * Generate the transient key used to remember the preview filename.
+     *
+     * @param int $post_id Document post ID.
+     * @param int $user_id Current user ID.
+     * @return string
+     */
+    private function get_preview_stream_transient_key( $post_id, $user_id ) {
+        return 'resolate_preview_stream_' . absint( $user_id ) . '_' . absint( $post_id );
     }
 
     /**
