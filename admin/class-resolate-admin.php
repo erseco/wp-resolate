@@ -96,11 +96,11 @@ class Resolate_Admin {
 	 *
 	 * @param string $hook_suffix The current admin page.
 	 */
-    public function enqueue_scripts( $hook_suffix ) {
-        if ( 'settings_page_resolate_settings' !== $hook_suffix ) {
-            return;
-        }
-        wp_enqueue_media();
-        wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/resolate-admin.js', array( 'jquery' ), $this->version, true );
-    }
+	public function enqueue_scripts( $hook_suffix ) {
+		if ( 'settings_page_resolate_settings' !== $hook_suffix ) {
+			return;
+		}
+		wp_enqueue_media();
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/resolate-admin.js', array( 'jquery' ), $this->version, true );
+	}
 }

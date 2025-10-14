@@ -3,10 +3,19 @@
  * Admin UI for "Tipos de documento" taxonomy term meta.
  *
  * Configures a flat taxonomy with template, color and detected schema metadata.
+ *
+ * @package resolate
+ * @subpackage Resolate/admin
  */
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Manage taxonomy term meta and admin screens for document types.
+ *
+ * @package resolate
+ * @subpackage Resolate/admin
+ */
 class Resolate_Doc_Types_Admin {
 
 	/**
