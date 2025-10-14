@@ -343,13 +343,18 @@ class Resolate_Template_Parser {
 
 			foreach ( $scalar_fields as $field ) {
 				unset( $field['_order'] );
-				$field['type'] = 'textarea';
-				$schema[]       = $field;
+				$field['type'] = self::infer_scalar_field_type(
+					isset( $field['slug'] ) ? $field['slug'] : '',
+					isset( $field['label'] ) ? $field['label'] : '',
+					isset( $field['data_type'] ) ? $field['data_type'] : '',
+					isset( $field['placeholder'] ) ? $field['placeholder'] : ''
+				);
+				$schema[] = $field;
 			}
 		}
 
-			return $schema;
-	}
+		return $schema;
+        }
 
 		/**
 		 * Parse a raw OpenTBS placeholder definition.
@@ -608,37 +613,65 @@ class Resolate_Template_Parser {
 		 * @param string $data_type Detected data type.
 		 * @return string
 		 */
-	private static function infer_array_item_type( $item_key, $data_type ) {
-			$item_key  = strtolower( (string) $item_key );
-			$data_type = strtolower( (string) $data_type );
+        private static function infer_array_item_type( $item_key, $data_type ) {
+                        $item_key  = strtolower( (string) $item_key );
+        		$data_type = strtolower( (string) $data_type );
 
 		if ( in_array( $data_type, array( 'number', 'date', 'boolean' ), true ) ) {
-				return 'single';
-		}
+        			return 'single';
+                }
 
-		if ( preg_match( '/^(number|numero|número|index|indice)$/', $item_key ) ) {
-				return 'single';
-		}
+                if ( preg_match( '/^(number|numero|número|index|indice)$/', $item_key ) ) {
+        			return 'single';
+                }
 
-		if ( preg_match( '/^(title|titulo|título|heading|name)$/', $item_key ) ) {
-				return 'single';
-		}
+                if ( preg_match( '/^(title|titulo|título|heading|name)$/', $item_key ) ) {
+        			return 'single';
+                }
 
-		if ( preg_match( '/(content|texto|text|body|descripcion|descripción)$/', $item_key ) ) {
-				return 'rich';
-		}
+                if ( preg_match( '/(content|texto|text|body|descripcion|descripción)$/', $item_key ) ) {
+                		return 'rich';
+                }
 
-			return 'textarea';
-	}
+                        return 'textarea';
+        }
 
-		/**
-		 * Polyfill for str_ends_with to support older PHP versions.
-		 *
-		 * @param string $haystack Full string.
-		 * @param string $needle   Ending to verify.
-		 * @return bool
-		 */
-	private static function ends_with( $haystack, $needle ) {
+        /**
+         * Infer the control type for a scalar field definition.
+         *
+         * @param string $slug         Field slug.
+         * @param string $label        Field label.
+         * @param string $data_type    Detected data type.
+         * @param string $placeholder  Placeholder name.
+         * @return string
+         */
+	private static function infer_scalar_field_type( $slug, $label, $data_type, $placeholder ) {
+		$data_type = strtolower( (string) $data_type );
+		if ( in_array( $data_type, array( 'number', 'date', 'boolean' ), true ) ) {
+			return 'single';
+                }
+
+		$haystack = strtolower( trim( (string) $slug . ' ' . (string) $label . ' ' . (string) $placeholder ) );
+
+		if ( preg_match( '/\b(title|titulo|título|heading|subject|asunto|name|nombre)\b/u', $haystack ) ) {
+			return 'single';
+                }
+
+		if ( preg_match( '/(content|contenido|texto|text|body|descripcion|descripción|detalle|summary|resumen)/u', $haystack ) ) {
+        		return 'rich';
+                }
+
+		return 'rich';
+        }
+
+        /**
+         * Polyfill for str_ends_with to support older PHP versions.
+         *
+         * @param string $haystack Full string.
+         * @param string $needle   Ending to verify.
+         * @return bool
+         */
+        private static function ends_with( $haystack, $needle ) {
 		if ( '' === $needle ) {
 			return true;
 		}

@@ -319,9 +319,8 @@ class Resolate_Document_Generator {
 						continue;
 				}
 
-										$value = self::get_structured_field_value( $structured, $slug, $post_id );
-										$value = wp_strip_all_tags( $value );
-										$fields[ $placeholder ] = self::normalize_field_value( $value, $data_type );
+                               $value = self::get_structured_field_value( $structured, $slug, $post_id );
+                               $fields[ $placeholder ] = self::prepare_field_value( $value, $type, $data_type );
 			}
 
 			$logos = get_term_meta( $type_id, 'resolate_type_logos', true );
@@ -361,7 +360,8 @@ class Resolate_Document_Generator {
 				if ( '' === $value ) {
 						$value = self::get_structured_field_value( $structured, $slug, $post_id );
 				}
-						$fields[ $placeholder ] = wp_strip_all_tags( $value );
+                               $field_type = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
+                               $fields[ $placeholder ] = self::prepare_field_value( $value, $field_type, 'text' );
 			}
 		}
 
@@ -463,26 +463,49 @@ class Resolate_Document_Generator {
 			return $dir;
 	}
 
-		/**
-		 * Sanitize placeholders preserving TinyButStrong supported characters.
-		 *
-		 * @param string $placeholder Placeholder name.
-		 * @return string
-		 */
+	/**
+	 * Sanitize placeholders preserving TinyButStrong supported characters.
+	 *
+	 * @param string $placeholder Placeholder name.
+	 * @return string
+	 */
 	private static function sanitize_placeholder_name( $placeholder ) {
-			$placeholder = (string) $placeholder;
-			$placeholder = preg_replace( '/[^A-Za-z0-9._:-]/', '', $placeholder );
-			return $placeholder;
+		$placeholder = (string) $placeholder;
+		$placeholder = preg_replace( '/[^A-Za-z0-9._:-]/', '', $placeholder );
+		return $placeholder;
 	}
 
-		/**
-		 * Normalize a field value based on the detected data type.
-		 *
-		 * @param string $value     Original value.
-		 * @param string $data_type Detected data type.
-		 * @return mixed
-		 */
-	private static function normalize_field_value( $value, $data_type ) {
+	/**
+	 * Prepare a field value for merging according to the configured field type.
+	 *
+	 * @param string $value      Raw value retrieved from storage.
+	 * @param string $field_type Field UI type (single|textarea|rich|array).
+	 * @param string $data_type  Data type detected for the placeholder.
+	 * @return mixed
+	 */
+	private static function prepare_field_value( $value, $field_type, $data_type ) {
+		$field_type = sanitize_key( $field_type );
+		$value      = is_string( $value ) ? $value : '';
+
+		if ( 'rich' === $field_type ) {
+			return self::normalize_field_value( wp_kses_post( $value ), $data_type );
+		}
+
+		if ( '' === $value ) {
+			return self::normalize_field_value( '', $data_type );
+		}
+
+		return self::normalize_field_value( wp_strip_all_tags( $value ), $data_type );
+	}
+
+        /**
+         * Normalize a field value based on the detected data type.
+         *
+         * @param string $value     Original value.
+         * @param string $data_type Detected data type.
+         * @return mixed
+         */
+        private static function normalize_field_value( $value, $data_type ) {
 			$value     = is_string( $value ) ? trim( $value ) : $value;
 			$data_type = sanitize_key( $data_type );
 
