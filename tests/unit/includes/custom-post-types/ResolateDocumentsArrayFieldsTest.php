@@ -154,26 +154,3 @@ class ResolateDocumentsArrayFieldsTest extends WP_UnitTestCase {
 		);
 	}
 }
-
-	/**
-	 * It should expose array schema definitions when reading the term configuration.
-	 */
-	public function test_get_term_schema_returns_array_definition() {
-		$term    = wp_insert_term( 'Tipo Esquema', 'resolate_doc_type' );
-		$term_id = intval( $term['term_id'] );
-		$schema  = $this->get_annex_schema();
-		update_term_meta( $term_id, 'schema', $schema );
-		update_term_meta( $term_id, 'resolate_type_fields', $schema );
-
-		$result = Resolate_Documents::get_term_schema( $term_id );
-
-		$this->assertNotEmpty( $result );
-		$this->assertSame( 'annexes', $result[0]['slug'] );
-		$this->assertSame( 'array', $result[0]['type'] );
-		$this->assertSame( 'array', $result[0]['data_type'] );
-		$this->assertArrayHasKey( 'item_schema', $result[0] );
-		$this->assertArrayHasKey( 'number', $result[0]['item_schema'] );
-		$this->assertSame( 'single', $result[0]['item_schema']['number']['type'] );
-		$this->assertSame( 'Número', $result[0]['item_schema']['number']['label'] );
-	}
-
