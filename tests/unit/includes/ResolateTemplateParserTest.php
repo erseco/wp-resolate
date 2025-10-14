@@ -45,7 +45,14 @@ class ResolateTemplateParserTest extends WP_UnitTestCase {
 				'parameters'  => array(),
 				'data_type'   => 'text',
 			),
-		);
+			array(
+				'placeholder' => 'resolution_body',
+				'slug'        => 'resolution_body',
+				'label'       => 'Resolution Body',
+				'parameters'  => array(),
+				'data_type'   => 'text',
+			),
+                );
 
 		$schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
 
@@ -78,7 +85,19 @@ class ResolateTemplateParserTest extends WP_UnitTestCase {
 		}
 
 		$this->assertIsArray( $scalar_field );
-		$this->assertSame( 'textarea', $scalar_field['type'] );
+		$this->assertSame( 'single', $scalar_field['type'] );
 		$this->assertSame( 'text', $scalar_field['data_type'] );
-	}
+
+		$rich_scalar = null;
+		foreach ( $schema as $entry ) {
+			if ( isset( $entry['slug'] ) && 'resolution_body' === $entry['slug'] ) {
+				$rich_scalar = $entry;
+				break;
+			}
+		}
+
+		$this->assertIsArray( $rich_scalar );
+		$this->assertSame( 'rich', $rich_scalar['type'] );
+		$this->assertSame( 'text', $rich_scalar['data_type'] );
+        }
 }
