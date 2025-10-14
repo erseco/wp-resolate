@@ -81,48 +81,4 @@ class ResolateTemplateParserTest extends WP_UnitTestCase {
 		$this->assertSame( 'textarea', $scalar_field['type'] );
 		$this->assertSame( 'text', $scalar_field['data_type'] );
 	}
-	/**
-	 * It should normalize placeholders that still include leading brackets.
-	 */
-	public function test_build_schema_handles_leading_brackets() {
-		$fields = array(
-			array(
-				'placeholder' => '[annexes[*].number',
-				'slug'        => 'annexes_number',
-				'label'       => '',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => '[annexes.title',
-				'slug'        => 'annexes_title',
-				'label'       => '',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => 'onshow',
-				'slug'        => 'onshow',
-				'label'       => 'On Show',
-				'parameters'  => array( 'repeat' => 'annexes' ),
-				'data_type'   => 'text',
-			),
-		);
-
-		$schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
-
-		$annex_field = null;
-		foreach ( $schema as $entry ) {
-			if ( isset( $entry['slug'] ) && 'annexes' === $entry['slug'] ) {
-				$annex_field = $entry;
-				break;
-			}
-		}
-
-		$this->assertIsArray( $annex_field, 'El campo de anexos debe detectarse correctamente.' );
-		$this->assertArrayHasKey( 'item_schema', $annex_field );
-		$this->assertArrayHasKey( 'number', $annex_field['item_schema'] );
-		$this->assertArrayHasKey( 'title', $annex_field['item_schema'] );
-	}
-
 }

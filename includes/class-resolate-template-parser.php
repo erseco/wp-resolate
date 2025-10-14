@@ -373,7 +373,6 @@ class Resolate_Template_Parser {
 
 			$parts       = preg_split( '/\s*;\s*/', $raw_field );
 			$placeholder = trim( array_shift( $parts ) );
-			$placeholder = self::strip_placeholder_wrappers( $placeholder );
 			$parameters  = array();
 
 		if ( ! empty( $parts ) ) {
@@ -542,7 +541,6 @@ class Resolate_Template_Parser {
 		 */
 	private static function detect_array_placeholder_with_index( $placeholder ) {
 			$placeholder = strtolower( trim( (string) $placeholder ) );
-		$placeholder = self::strip_placeholder_wrappers( $placeholder );
 		if ( '' === $placeholder ) {
 				return null;
 		}
@@ -579,7 +577,6 @@ class Resolate_Template_Parser {
 		 */
 	private static function detect_array_placeholder_without_index( $placeholder ) {
 			$placeholder = strtolower( trim( (string) $placeholder ) );
-		$placeholder = self::strip_placeholder_wrappers( $placeholder );
 		if ( '' === $placeholder ) {
 				return null;
 		}
@@ -603,25 +600,6 @@ class Resolate_Template_Parser {
 				'raw_key' => $raw_key,
 			);
 	}
-
-	/**
-	 * Remove surrounding bracket characters from placeholder names.
-	 *
-	 * @param string $placeholder Placeholder string.
-	 * @return string
-	 */
-	private static function strip_placeholder_wrappers( $placeholder ) {
-		$placeholder = (string) $placeholder;
-		if ( '' === $placeholder ) {
-			return '';
-		}
-
-		$placeholder = preg_replace( '/^\[+/', '', $placeholder );
-		$placeholder = preg_replace( '/\]+$/', '', $placeholder );
-
-		return trim( $placeholder );
-	}
-
 
 		/**
 		 * Infer the best suited control type for an array item.
