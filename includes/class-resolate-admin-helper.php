@@ -736,17 +736,13 @@ class Resolate_Admin_Helper {
 				if ( empty( $def['slug'] ) ) {
 					continue;
 				}
-								$slug  = sanitize_key( $def['slug'] );
-								$label = isset( $def['label'] ) ? sanitize_text_field( $def['label'] ) : '';
+				$slug  = sanitize_key( $def['slug'] );
+				$label = isset( $def['label'] ) ? sanitize_text_field( $def['label'] ) : '';
 				if ( '' === $slug ) {
-						continue;
-				}
-								$type = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
-				if ( 'array' === $type ) {
-						continue;
+					continue;
 				}
 				if ( '' === $label ) {
-						$label = $humanize( $slug );
+					$label = $humanize( $slug );
 				}
 				if ( '' === $label ) {
 					continue;
@@ -758,17 +754,13 @@ class Resolate_Admin_Helper {
 			}
 		} elseif ( ! empty( $structured_fields ) ) {
 			foreach ( $structured_fields as $slug => $info ) {
-								$slug  = sanitize_key( $slug );
+				$slug  = sanitize_key( $slug );
 				if ( '' === $slug ) {
-						continue;
+					continue;
 				}
-								$type = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
-				if ( 'array' === $type ) {
-						continue;
-				}
-								$label = $humanize( $slug );
+				$label = $humanize( $slug );
 				if ( '' === $label ) {
-						continue;
+					continue;
 				}
 				$fields_to_render[] = array(
 					'slug'  => $slug,
@@ -798,68 +790,50 @@ class Resolate_Admin_Helper {
 			}
 		}
 
-				$annexes = array();
-		if ( isset( $structured_fields['annexes'] ) && isset( $structured_fields['annexes']['type'] ) && 'array' === sanitize_key( $structured_fields['annexes']['type'] ) ) {
-				$annex_value = isset( $structured_fields['annexes']['value'] ) ? (string) $structured_fields['annexes']['value'] : '';
-				$annexes     = Resolate_Documents::decode_array_field_value( $annex_value );
-		} else {
-				$legacy_annexes = get_post_meta( $post_id, 'resolate_annexes', true );
-			if ( is_array( $legacy_annexes ) ) {
-						$annexes = $legacy_annexes;
-			}
-		}
-
+		$annexes = get_post_meta( $post_id, 'resolate_annexes', true );
 		if ( is_array( $annexes ) && ! empty( $annexes ) ) {
-				$roman = function ( $num ) {
-						$map = array(
-							'M'  => 1000,
-							'CM' => 900,
-							'D'  => 500,
-							'CD' => 400,
-							'C'  => 100,
-							'XC' => 90,
-							'L'  => 50,
-							'XL' => 40,
-							'X'  => 10,
-							'IX' => 9,
-							'V'  => 5,
-							'IV' => 4,
-							'I'  => 1,
-						);
-						$res = '';
-						foreach ( $map as $rom => $int ) {
-							while ( $num >= $int ) {
-								$res .= $rom;
-								$num -= $int; }
-						}
-						return $res;
-				};
+			$roman = function ( $num ) {
+				$map = array(
+					'M'  => 1000,
+					'CM' => 900,
+					'D'  => 500,
+					'CD' => 400,
+					'C'  => 100,
+					'XC' => 90,
+					'L'  => 50,
+					'XL' => 40,
+					'X'  => 10,
+					'IX' => 9,
+					'V'  => 5,
+					'IV' => 4,
+					'I'  => 1,
+				);
+				$res = '';
+				foreach ( $map as $rom => $int ) {
+					while ( $num >= $int ) {
+						$res .= $rom;
+						$num -= $int; }
+				}
+				return $res;
+			};
 
 			foreach ( $annexes as $i => $anx ) {
-							$number = isset( $anx['number'] ) ? (string) $anx['number'] : '';
-							$t      = isset( $anx['title'] ) ? (string) $anx['title'] : '';
-							$c      = '';
-				if ( isset( $anx['content'] ) ) {
-						$c = (string) $anx['content'];
-				} elseif ( isset( $anx['text'] ) ) {
-						$c = (string) $anx['text'];
-				}
-							$c = preg_replace( '/<\\/?font[^>]*>/i', '', (string) $c );
-							$c = preg_replace( '/font-family\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
-							$c = preg_replace( '/font-size\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
+				$t = isset( $anx['title'] ) ? (string) $anx['title'] : '';
+				$c = isset( $anx['text'] ) ? (string) $anx['text'] : '';
+				$c = preg_replace( '/<\\/?font[^>]*>/i', '', (string) $c );
+				$c = preg_replace( '/font-family\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
+				$c = preg_replace( '/font-size\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
 				if ( '' === trim( $t ) && '' === trim( wp_strip_all_tags( (string) $c ) ) ) {
-						continue;
+					continue;
 				}
-							$label_number = '' !== trim( $number ) ? $number : $roman( $i + 1 );
-							/* translators: %s: annex identifier. */
-							$label = sprintf( __( 'Anexo %s', 'resolate' ), $label_number );
-							echo '<section data-new-page="1" data-avoid-break="1">';
-							echo '<h1>' . esc_html( $label ) . '</h1>';
+				$label = sprintf( 'Anexo %s', $roman( $i + 1 ) );
+				echo '<section data-new-page="1" data-avoid-break="1">';
+				echo '<h1>' . esc_html( $label ) . '</h1>';
 				if ( '' !== trim( $t ) ) {
 					echo '<h1>' . esc_html( $t ) . '</h1>';
 				}
-					echo wp_kses_post( $c );
-					echo '</section>';
+				echo wp_kses_post( $c );
+				echo '</section>';
 			}
 		}
 		echo '</div>';

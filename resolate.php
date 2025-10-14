@@ -368,12 +368,43 @@ function resolate_detect_template_type( $path ) {
  * @return array[]
  */
 function resolate_build_schema_from_template( $path ) {
-		$fields = Resolate_Template_Parser::extract_fields( $path );
-	if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
-			return array();
-	}
+        $fields = Resolate_Template_Parser::extract_fields( $path );
+        if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
+                return array();
+        }
 
-		return Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
+        $schema = array();
+        foreach ( $fields as $field ) {
+                if ( ! is_array( $field ) ) {
+                        continue;
+                }
+                $placeholder = isset( $field['placeholder'] ) ? preg_replace( '/[^A-Za-z0-9._:-]/', '', (string) $field['placeholder'] ) : '';
+                $slug        = isset( $field['slug'] ) ? sanitize_key( $field['slug'] ) : '';
+                if ( '' === $slug && '' !== $placeholder ) {
+                        $slug = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $placeholder ) ) );
+                }
+                if ( '' === $slug ) {
+                        continue;
+                }
+                $label     = isset( $field['label'] ) ? sanitize_text_field( $field['label'] ) : resolate_humanize_slug( '' !== $placeholder ? $placeholder : $slug );
+                $data_type = isset( $field['data_type'] ) ? sanitize_key( $field['data_type'] ) : 'text';
+                if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
+                        $data_type = 'text';
+                }
+                if ( '' === $placeholder ) {
+                        $placeholder = $slug;
+                }
+
+                $schema[] = array(
+                        'slug'        => $slug,
+                        'label'       => $label,
+                        'type'        => 'textarea',
+                        'placeholder' => $placeholder,
+                        'data_type'   => $data_type,
+                );
+        }
+
+        return $schema;
 }
 
 /**
