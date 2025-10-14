@@ -28,7 +28,10 @@ class Resolate_Document_Generator {
 
 			$odt_template = self::get_template_path( $post_id, 'odt' );
 			if ( '' === $odt_template ) {
-				return new WP_Error( 'resolate_template_missing', __( 'No hay plantilla disponible para generar DOCX.', 'resolate' ) );
+				return new WP_Error(
+					'resolate_template_missing',
+					__( 'Configura una plantilla DOCX en el tipo de documento seleccionado.', 'resolate' )
+				);
 			}
 
 			$base_odt = self::render_with_template( $post_id, $odt_template, 'odt' );
@@ -71,7 +74,10 @@ class Resolate_Document_Generator {
 
 			$docx_template = self::get_template_path( $post_id, 'docx' );
 			if ( '' === $docx_template ) {
-				return new WP_Error( 'resolate_template_missing', __( 'No hay plantilla disponible para generar ODT.', 'resolate' ) );
+				return new WP_Error(
+					'resolate_template_missing',
+					__( 'Configura una plantilla ODT en el tipo de documento seleccionado.', 'resolate' )
+				);
 			}
 
 			$base_docx = self::render_with_template( $post_id, $docx_template, 'docx' );
@@ -151,14 +157,14 @@ class Resolate_Document_Generator {
 			if ( is_wp_error( $odt_result ) ) {
 				$docx_result = self::generate_docx( $post_id );
 				if ( is_wp_error( $docx_result ) ) {
-					return new WP_Error(
-						'resolate_pdf_source_missing',
-						__( 'No se pudo generar el documento base en ODT ni en DOCX antes de convertir a PDF.', 'resolate' ),
-						array(
+				return new WP_Error(
+					'resolate_pdf_source_missing',
+					__( 'No se pudo generar el documento base porque el tipo de documento no tiene una plantilla DOCX u ODT configurada.', 'resolate' ),
+					array(
 							'odt'  => $odt_result,
 							'docx' => $docx_result,
-						)
-					);
+					)
+				);
 				}
 				$source_path   = $docx_result;
 				$source_format = 'docx';
@@ -201,37 +207,31 @@ class Resolate_Document_Generator {
 			return '';
 		}
 
-		$tpl_id = 0;
-		$opts   = get_option( 'resolate_settings', array() );
-		$types  = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-		if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-			$type_id       = intval( $types[0] );
-			$type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
-			$template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
-			if ( 0 < $type_template ) {
-				if ( $template_kind === $format ) {
-					$tpl_id = $type_template;
-				} elseif ( '' === $template_kind ) {
-					$path = get_attached_file( $type_template );
-					if ( $path && strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) === $format ) {
+			$tpl_id = 0;
+			$types  = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+			if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
+				$type_id       = intval( $types[0] );
+				$type_template = intval( get_term_meta( $type_id, 'resolate_type_template_id', true ) );
+				$template_kind = sanitize_key( (string) get_term_meta( $type_id, 'resolate_type_template_type', true ) );
+				if ( 0 < $type_template ) {
+					if ( $template_kind === $format ) {
 						$tpl_id = $type_template;
+					} elseif ( '' === $template_kind ) {
+						$path = get_attached_file( $type_template );
+						if ( $path && strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) === $format ) {
+							$tpl_id = $type_template;
+						}
 					}
 				}
+				if ( 0 >= $tpl_id ) {
+					$meta_key = 'resolate_type_' . $format . '_template';
+					$tpl_id   = intval( get_term_meta( $type_id, $meta_key, true ) );
+				}
 			}
+
 			if ( 0 >= $tpl_id ) {
-				$meta_key = 'resolate_type_' . $format . '_template';
-				$tpl_id   = intval( get_term_meta( $type_id, $meta_key, true ) );
+				return '';
 			}
-		}
-
-		if ( 0 >= $tpl_id ) {
-			$opt_key = $format . '_template_id';
-			$tpl_id  = isset( $opts[ $opt_key ] ) ? intval( $opts[ $opt_key ] ) : 0;
-		}
-
-		if ( 0 >= $tpl_id ) {
-			return '';
-		}
 
 		$template_path = get_attached_file( $tpl_id );
 		if ( ! $template_path || ! file_exists( $template_path ) ) {

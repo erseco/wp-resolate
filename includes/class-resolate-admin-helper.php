@@ -485,11 +485,14 @@ class Resolate_Admin_Helper {
 
 		$docx_message = '' === $docx_template && '' !== $odt_template
 			? __( 'Configura ZetaJS para convertir tu plantilla ODT a DOCX.', 'resolate' )
-			: __( 'Configura una plantilla DOCX en los ajustes.', 'resolate' );
+			: __( 'Configura una plantilla DOCX en el tipo de documento.', 'resolate' );
 		$odt_message = '' === $odt_template && '' !== $docx_template
 			? __( 'Configura ZetaJS para convertir tu plantilla DOCX a ODT.', 'resolate' )
-			: __( 'Configura una plantilla ODT en los ajustes.', 'resolate' );
+			: __( 'Configura una plantilla ODT en el tipo de documento.', 'resolate' );
 		$pdf_message = __( 'Instala ZetaJS y configura RESOLATE_ZETAJS_BIN para habilitar la conversión a PDF.', 'resolate' );
+		if ( '' === $docx_template && '' === $odt_template ) {
+			$pdf_message = __( 'Configura una plantilla DOCX u ODT en el tipo de documento antes de generar el PDF.', 'resolate' );
+		}
 
 		$steps = array(
 			'docx' => array(
@@ -960,18 +963,18 @@ class Resolate_Admin_Helper {
 		$odt_available  = ( '' !== $odt_template ) || ( $odt_requires_conversion && $conversion_ready );
 		$pdf_available  = $conversion_ready && ( '' !== $docx_template || '' !== $odt_template );
 
-		$docx_message = __( 'Configura una plantilla DOCX en los ajustes.', 'resolate' );
+		$docx_message = __( 'Configura una plantilla DOCX en el tipo de documento.', 'resolate' );
 		if ( $docx_requires_conversion && ! $conversion_ready ) {
 			$docx_message = Resolate_Conversion_Manager::get_unavailable_message( 'odt', 'docx' );
 		}
 
-		$odt_message = __( 'Configura una plantilla ODT en los ajustes.', 'resolate' );
+		$odt_message = __( 'Configura una plantilla ODT en el tipo de documento.', 'resolate' );
 		if ( $odt_requires_conversion && ! $conversion_ready ) {
 			$odt_message = Resolate_Conversion_Manager::get_unavailable_message( 'docx', 'odt' );
 		}
 
 		if ( '' === $docx_template && '' === $odt_template ) {
-			$pdf_message = __( 'Configura una plantilla DOCX u ODT para generar el PDF.', 'resolate' );
+			$pdf_message = __( 'Configura una plantilla DOCX u ODT en el tipo de documento antes de generar el PDF.', 'resolate' );
 		} else {
 			$source_for_pdf = '' !== $docx_template ? 'docx' : 'odt';
 			$pdf_message    = Resolate_Conversion_Manager::get_unavailable_message( $source_for_pdf, 'pdf' );
