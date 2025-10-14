@@ -1,8 +1,13 @@
 <?php
 /**
- * Template parser utility for extracting OpenTBS field placeholders.
+ * Template parser helpers for Resolate.
+ *
+ * @package Resolate
  */
 
+/**
+ * Template parser utility for extracting OpenTBS field placeholders.
+ */
 class Resolate_Template_Parser {
 
 	/**
@@ -32,6 +37,7 @@ class Resolate_Template_Parser {
 
 		$targets = array();
 		if ( 'docx' === $extension ) {
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- ZipArchive exposes camelCase properties.
 			for ( $i = 0; $i < $zip->numFiles; $i++ ) {
 				$name = $zip->getNameIndex( $i );
 				if ( 0 === strpos( $name, 'word/' ) && self::ends_with( $name, '.xml' ) ) {

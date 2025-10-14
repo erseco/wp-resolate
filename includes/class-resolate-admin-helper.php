@@ -1,9 +1,14 @@
 <?php
 /**
- * Admin helpers for Resolate (export actions, UI additions).
+ * Resolate admin helper bootstrap.
+ *
+ * @package Resolate
  */
 
-class Resolate_Admin2 {
+/**
+ * Admin helpers for Resolate (export actions, UI additions).
+ */
+class Resolate_Admin_Helper {
 
 	/**
 	 * Track whether the document generator class has been loaded.
@@ -235,7 +240,7 @@ class Resolate_Admin2 {
 				$engine = Resolate_Conversion_Manager::get_engine();
 				if ( Resolate_Conversion_Manager::ENGINE_WASM === $engine ) {
 					if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
-						require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+						require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs-converter.php';
 					}
 
 					if ( class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_cdn_mode() ) {
@@ -258,6 +263,7 @@ class Resolate_Admin2 {
 		$iframe_src = $stream_url ? $stream_url : $pdf_url;
 
 		echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+		/* translators: %s: document title shown in the PDF preview window. */
 		echo '<title>' . esc_html( sprintf( __( 'Vista previa PDF · %s', 'resolate' ), $title ) ) . '</title>';
 		echo '<style>
             body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f4f4f4;color:#111;min-height:100vh;display:flex;flex-direction:column}
@@ -349,7 +355,7 @@ class Resolate_Admin2 {
 		}
 
 		while ( ! feof( $handle ) ) {
-			echo fread( $handle, 8192 );
+			echo fread( $handle, 8192 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming PDF binary data.
 		}
 		fclose( $handle );
 		exit;
@@ -420,7 +426,7 @@ class Resolate_Admin2 {
 	 */
 	private function render_browser_workspace( $post_id ) {
 		if ( ! class_exists( 'Resolate_Zetajs_Converter' ) ) {
-			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs-converter.php';
 		}
 
 		if ( ! class_exists( 'Resolate_Zetajs_Converter' ) || ! Resolate_Zetajs_Converter::is_cdn_mode() ) {
@@ -549,10 +555,43 @@ class Resolate_Admin2 {
 
 		$workspace_class = 'resolate-export-workspace';
 
-		echo '<!doctype html><html lang="es"><head><meta charset="utf-8">';
-		echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
+		$style_handle  = 'resolate-export-workspace';
+		$loader_handle = 'resolate-zetajs-loader';
+		$app_handle    = 'resolate-export-workspace-app';
+
+		wp_enqueue_style( $style_handle, plugins_url( 'admin/css/resolate-export-workspace.css', RESOLATE_PLUGIN_FILE ), array(), RESOLATE_VERSION );
+		wp_enqueue_script( $loader_handle, plugins_url( 'admin/js/resolate-zetajs-loader.js', RESOLATE_PLUGIN_FILE ), array(), RESOLATE_VERSION, true );
+		if ( function_exists( 'wp_script_add_data' ) ) {
+			wp_script_add_data( $loader_handle, 'type', 'module' );
+		}
+		wp_enqueue_script( $app_handle, plugins_url( 'admin/js/resolate-export-workspace.js', RESOLATE_PLUGIN_FILE ), array(), RESOLATE_VERSION, true );
+		if ( function_exists( 'wp_script_add_data' ) ) {
+			wp_script_add_data( $app_handle, 'script_execution', 'defer' );
+		}
+
+		wp_add_inline_script( $loader_handle, 'window.resolateZetaLoaderConfig = ' . wp_json_encode( $loader_config ) . ';', 'before' );
+		wp_add_inline_script( $app_handle, 'window.resolateExportWorkspaceConfig = ' . wp_json_encode( $workspace_config ) . ';', 'before' );
+
+		$styles_html  = '';
+		$scripts_html = '';
+		if ( function_exists( 'wp_print_styles' ) ) {
+			ob_start();
+			wp_print_styles( array( $style_handle ) );
+			$styles_html = ob_get_clean();
+		}
+		if ( function_exists( 'wp_print_scripts' ) ) {
+			ob_start();
+			wp_print_scripts( array( $loader_handle, $app_handle ) );
+			$scripts_html = ob_get_clean();
+		}
+
+		echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+		/* translators: %s: document title shown in the export workspace window. */
 		echo '<title>' . esc_html( sprintf( __( 'Previsualizar y exportar · %s', 'resolate' ), $title ) ) . '</title>';
-		echo '<link rel="stylesheet" href="' . esc_url( plugins_url( 'admin/css/resolate-export-workspace.css', RESOLATE_PLUGIN_FILE ) ) . '" media="all">';
+		if ( '' !== $styles_html ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Core prints sanitized style tags.
+			echo $styles_html;
+		}
 		echo '</head><body class="' . esc_attr( $workspace_class ) . '">';
 
 		echo '<div class="resolate-export-workspace__layout">';
@@ -609,6 +648,7 @@ class Resolate_Admin2 {
 					'data-resolate-step-target' => $key,
 					'target'               => 'resolateExportFrame',
 				);
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
 				echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $data['label'] ) . '</a>';
 			} else {
 				echo '<button type="button" class="button" disabled>' . esc_html( $data['label'] ) . '</button>';
@@ -622,10 +662,10 @@ class Resolate_Admin2 {
 		echo '</main>';
 		echo '</div>';
 
-		echo '<script>window.resolateZetaLoaderConfig = ' . wp_json_encode( $loader_config ) . ';</script>';
-		echo '<script>window.resolateExportWorkspaceConfig = ' . wp_json_encode( $workspace_config ) . ';</script>';
-		echo '<script type="module" src="' . esc_url( plugins_url( 'admin/js/resolate-zetajs-loader.js', RESOLATE_PLUGIN_FILE ) ) . '"></script>';
-		echo '<script src="' . esc_url( plugins_url( 'admin/js/resolate-export-workspace.js', RESOLATE_PLUGIN_FILE ) ) . '" defer></script>';
+		if ( '' !== $scripts_html ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Core prints sanitized script tags.
+			echo $scripts_html;
+		}
 		echo '</body></html>';
 		exit;
 	}
@@ -943,6 +983,7 @@ class Resolate_Admin2 {
 				'target' => '_blank',
 				'rel'    => 'noopener',
 			);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
 			echo '<a ' . $this->build_action_attributes( $preview_attrs ) . '>' . esc_html__( 'Previsualizar', 'resolate' ) . '</a>';
 		} else {
 			echo '<button type="button" class="button button-secondary" disabled title="' . esc_attr( $preview_message ) . '">' . esc_html__( 'Previsualizar', 'resolate' ) . '</button>';
@@ -982,15 +1023,29 @@ class Resolate_Admin2 {
 					'class' => $class,
 					'href'  => $data['href'],
 				);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
 				echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $data['label'] ) . '</a> ';
 			} else {
-				$title = isset( $data['message'] ) ? $data['message'] : '';
-				$title = '' !== $title ? ' title="' . esc_attr( $title ) . '"' : '';
-				echo '<button type="button" class="' . esc_attr( $class ) . '" disabled' . $title . '>' . esc_html( $data['label'] ) . '</button> ';
+				$title_attr    = '';
+				$title_message = isset( $data['message'] ) ? $data['message'] : '';
+				if ( '' !== $title_message ) {
+					$title_attr = sanitize_text_field( $title_message );
+				}
+				$button_attrs = array(
+					'type'     => 'button',
+					'class'    => $class,
+					'disabled' => 'disabled',
+				);
+				if ( '' !== $title_attr ) {
+					$button_attrs['title'] = $title_attr;
+				}
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
+				echo '<button ' . $this->build_action_attributes( $button_attrs ) . '>' . esc_html( $data['label'] ) . '</button> ';
 			}
 		}
 		echo '</p>';
 
+		/* translators: %s: converter engine label. */
 		echo '<p class="description">' . sprintf( esc_html__( 'Las conversiones adicionales se realizan con %s.', 'resolate' ), esc_html( $engine_label ) ) . '</p>';
 	}
 
@@ -1033,4 +1088,4 @@ class Resolate_Admin2 {
 	}
 }
 
-new Resolate_Admin2();
+new Resolate_Admin_Helper();

@@ -62,11 +62,11 @@ class Resolate_Conversion_Manager {
 		$engine = self::get_engine();
 
 		if ( self::ENGINE_COLLABORA === $engine ) {
-			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-collabora.php';
+			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-collabora-converter.php';
 			return Resolate_Collabora_Converter::is_available();
 		}
 
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs-converter.php';
 		if ( Resolate_Zetajs_Converter::is_cdn_mode() ) {
 			return false;
 		}
@@ -86,11 +86,11 @@ class Resolate_Conversion_Manager {
 		$engine = self::get_engine();
 
 		if ( self::ENGINE_COLLABORA === $engine ) {
-			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-collabora.php';
+			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-collabora-converter.php';
 			return Resolate_Collabora_Converter::convert( $input_path, $output_path, $output_format, $input_format );
 		}
 
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs-converter.php';
 		if ( Resolate_Zetajs_Converter::is_cdn_mode() ) {
 			return new WP_Error( 'resolate_conversion_not_available', self::get_unavailable_message( $input_format, $output_format ) );
 		}
@@ -111,7 +111,7 @@ class Resolate_Conversion_Manager {
 		$default_label = __( 'No se pudo completar la conversión.', 'resolate' );
 
 		if ( self::ENGINE_COLLABORA === $engine ) {
-			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-collabora.php';
+			require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-collabora-converter.php';
 			$status = Resolate_Collabora_Converter::get_status_message();
 			if ( '' !== $status ) {
 				return $status . $context;
@@ -119,7 +119,7 @@ class Resolate_Conversion_Manager {
 			return __( 'Collabora Online no está disponible para convertir documentos.', 'resolate' ) . $context;
 		}
 
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-zetajs-converter.php';
 		if ( Resolate_Zetajs_Converter::is_cdn_mode() ) {
 			return __( 'Desactiva el modo CDN de ZetaJS y configura el ejecutable local para realizar conversiones en el servidor.', 'resolate' ) . $context;
 		}

@@ -18,7 +18,7 @@ class ResolateZetajsConverterTest extends Resolate_Test_Base {
     public function set_up() {
         parent::set_up();
 
-        require_once plugin_dir_path( RESOLATE_PLUGIN_FILE ) . 'includes/class-resolate-zetajs.php';
+        require_once plugin_dir_path( RESOLATE_PLUGIN_FILE ) . 'includes/class-resolate-zetajs-converter.php';
     }
 
     /**
