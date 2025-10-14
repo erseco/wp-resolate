@@ -70,14 +70,9 @@ class Resolate_Documents {
 	 * @return string[]
 	 */
 	private function get_meta_fields_for_post( $post_id ) {
-		$fields = array(
-			'resolate_objeto',
-			'resolate_antecedentes',
-			'resolate_fundamentos',
-			'resolate_dispositivo',
-			'resolate_firma',
-			'resolate_annexes',
-		);
+               $fields = array(
+                       'resolate_annexes',
+               );
 
 		$dynamic = $this->get_dynamic_fields_schema_for_post( $post_id );
 		$known   = array();
@@ -200,12 +195,7 @@ class Resolate_Documents {
 		add_filter( '_wp_post_revision_fields', array( $this, 'add_revision_fields' ), 10, 2 );
 
 		// One provider per field to fetch the value from the revision post.
-		add_filter( '_wp_post_revision_field_resolate_objeto', array( $this, 'revision_field_value' ), 10, 2 );
-		add_filter( '_wp_post_revision_field_resolate_antecedentes', array( $this, 'revision_field_value' ), 10, 2 );
-		add_filter( '_wp_post_revision_field_resolate_fundamentos', array( $this, 'revision_field_value' ), 10, 2 );
-		add_filter( '_wp_post_revision_field_resolate_dispositivo', array( $this, 'revision_field_value' ), 10, 2 );
-		add_filter( '_wp_post_revision_field_resolate_firma', array( $this, 'revision_field_value' ), 10, 2 );
-		add_filter( '_wp_post_revision_field_resolate_annexes', array( $this, 'revision_field_annexes' ), 10, 2 );
+               add_filter( '_wp_post_revision_field_resolate_annexes', array( $this, 'revision_field_annexes' ), 10, 2 );
 	}
 
 		/**
@@ -216,42 +206,8 @@ class Resolate_Documents {
 		 * @return array
 		 */
 	public function add_revision_fields( $fields, $post ) {
-		$fields['resolate_objeto']       = __( 'Objeto', 'resolate' );
-		$fields['resolate_antecedentes'] = __( 'Antecedentes', 'resolate' );
-		$fields['resolate_fundamentos']  = __( 'Fundamentos de derecho', 'resolate' );
-		$fields['resolate_dispositivo']  = __( 'Parte dispositiva (Resuelvo)', 'resolate' );
-		$fields['resolate_firma']        = __( 'Firma / Pie', 'resolate' );
-		$fields['resolate_annexes']      = __( 'Anexos', 'resolate' );
-		// Add dynamic fields based on the document type.
-		$ref = $post;
-		// Normalize to WP_Post if needed.
-		if ( is_array( $ref ) ) {
-			if ( isset( $ref['ID'] ) && is_numeric( $ref['ID'] ) ) {
-				$ref = get_post( intval( $ref['ID'] ) );
-			} else {
-				$ref = null;
-			}
-		} elseif ( is_numeric( $ref ) ) {
-			$ref = get_post( intval( $ref ) );
-		}
-		if ( $ref && 'revision' === $ref->post_type && ! empty( $ref->post_parent ) ) {
-			$ref = get_post( $ref->post_parent );
-		}
-		if ( $ref && is_object( $ref ) && 'resolate_document' === $ref->post_type ) {
-			$schema = $this->get_dynamic_fields_schema_for_post( $ref->ID );
-			if ( ! empty( $schema ) ) {
-				foreach ( $schema as $def ) {
-					if ( empty( $def['slug'] ) || empty( $def['label'] ) ) {
-						continue;
-					}
-					$key = 'resolate_field_' . sanitize_key( $def['slug'] );
-					$fields[ $key ] = sanitize_text_field( $def['label'] );
-					// Register provider dynamically for this request.
-					add_filter( '_wp_post_revision_field_' . $key, array( $this, 'revision_field_value' ), 10, 2 );
-				}
-			}
-		}
-		return $fields;
+               $fields['resolate_annexes']      = __( 'Anexos', 'resolate' );
+               return $fields;
 	}
 
 	/**
@@ -540,87 +496,61 @@ class Resolate_Documents {
 
 		$schema = $this->get_dynamic_fields_schema_for_post( $post->ID );
 		$known_meta_keys = array();
-		if ( ! empty( $schema ) ) {
-			echo '<div class="resolate-sections">';
-			foreach ( $schema as $def ) {
-				$slug  = sanitize_key( isset( $def['slug'] ) ? $def['slug'] : '' );
-				$label = isset( $def['label'] ) ? (string) $def['label'] : '';
-				$type  = isset( $def['type'] ) ? (string) $def['type'] : 'textarea';
-				if ( '' === $slug || '' === trim( $label ) ) {
-					continue;
-				}
-				$meta_key = 'resolate_field_' . $slug;
-				$known_meta_keys[] = $meta_key;
-				$value    = get_post_meta( $post->ID, $meta_key, true );
-
-				echo '<div class="resolate-field" style="margin-bottom:16px;">';
-				echo '<label for="' . esc_attr( $meta_key ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( $label ) . '</label>';
-
-				if ( 'single' === $type ) {
-					echo '<input type="text" class="widefat" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="' . esc_attr( (string) $value ) . '" />';
-				} elseif ( 'rich' === $type ) {
-                    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
-					wp_editor(
-						$value,
-						$meta_key,
-						array(
-							'textarea_name' => $meta_key,
-							'textarea_rows' => 8,
-							'media_buttons' => false,
-							'teeny'         => false,
-							'tinymce'       => array(
-								'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
-							),
-							'quicktags'     => true,
-							'editor_height' => 220,
-						)
-					);
-				} else {
-					echo '<textarea class="widefat" rows="6" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '">' . esc_textarea( (string) $value ) . '</textarea>';
-				}
+		if ( empty( $schema ) ) {
+				echo '<div class="resolate-sections">';
+				echo '<p class="description">' . esc_html__( 'Configura un tipo de documento con campos para poder editar su contenido.', 'resolate' ) . '</p>';
+				$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
+				$this->render_unknown_dynamic_fields_ui( $unknown );
 				echo '</div>';
-			}
-			$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
-			$this->render_unknown_dynamic_fields_ui( $unknown );
-			echo '</div>';
-			return;
+				return;
 		}
 
-		// Fallback legacy sections when no tipo is selected or has no schema.
-		$fields = array(
-			'resolate_objeto'       => __( 'Objeto', 'resolate' ),
-			'resolate_antecedentes' => __( 'Antecedentes', 'resolate' ),
-			'resolate_fundamentos'  => __( 'Fundamentos de derecho', 'resolate' ),
-			'resolate_dispositivo'  => __( 'Parte dispositiva (Resuelvo)', 'resolate' ),
-			'resolate_firma'        => __( 'Firma / Pie', 'resolate' ),
-		);
+		$stored_fields   = $this->get_structured_field_values( $post->ID );
+		$known_meta_keys = array();
 
 		echo '<div class="resolate-sections">';
-		foreach ( $fields as $key => $label ) {
-			$value = get_post_meta( $post->ID, $key, true );
-			echo '<div class="resolate-field" style="margin-bottom:16px;">';
-			echo '<label for="' . esc_attr( $key ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( $label ) . '</label>';
-            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
-			wp_editor(
-				$value,
-				$key,
-				array(
-					'textarea_name' => $key,
-					'textarea_rows' => 8,
-					'media_buttons' => false,
-					'teeny'         => false,
-					'tinymce'       => array(
-						'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
-					),
-					'quicktags'     => true,
-					'editor_height' => 220,
-				)
-			);
-			echo '</div>';
+		foreach ( $schema as $row ) {
+				if ( empty( $row['slug'] ) || empty( $row['label'] ) ) {
+						continue; }
+				$slug  = sanitize_key( $row['slug'] );
+				$label = sanitize_text_field( $row['label'] );
+				$type  = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+				if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+						$type = 'textarea';
+				}
+				$meta_key          = 'resolate_field_' . $slug;
+				$known_meta_keys[] = $meta_key;
+				$value             = isset( $stored_fields[ $slug ] ) ? (string) $stored_fields[ $slug ]['value'] : '';
+				echo '<div class="resolate-field" style="margin-bottom:16px;">';
+				echo '<label for="' . esc_attr( $meta_key ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( $label ) . '</label>';
+				if ( 'single' === $type ) {
+						echo '<input type="text" class="widefat" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="' . esc_attr( $value ) . '" />';
+				} elseif ( 'rich' === $type ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
+						wp_editor(
+								$value,
+								$meta_key,
+								array(
+										'textarea_name' => $meta_key,
+										'textarea_rows' => 8,
+										'media_buttons' => false,
+										'teeny'         => false,
+										'tinymce'       => array(
+												'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+										),
+										'quicktags'     => true,
+										'editor_height' => 220,
+								)
+								);
+				} else {
+						echo '<textarea class="widefat" rows="6" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '">' . esc_textarea( $value ) . '</textarea>';
+				}
+				echo '</div>';
 		}
 		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
 		$this->render_unknown_dynamic_fields_ui( $unknown );
 		echo '</div>';
+	
 	}
 
 	/**
@@ -651,61 +581,7 @@ class Resolate_Documents {
 			}
 		}
 
-		// Save dynamic fields if the selected type defines them; otherwise fallback to legacy.
-		$schema = $this->get_dynamic_fields_schema_for_post( $post_id );
-		$known_meta_keys = array();
-		if ( ! empty( $schema ) ) {
-			foreach ( $schema as $def ) {
-				if ( empty( $def['slug'] ) ) {
-					continue; }
-				$slug = sanitize_key( $def['slug'] );
-				$type = isset( $def['type'] ) ? (string) $def['type'] : 'textarea';
-				$key  = 'resolate_field_' . $slug;
-				$known_meta_keys[] = $key;
-				if ( isset( $_POST[ $key ] ) ) {
-					if ( 'rich' === $type ) {
-						$value = wp_kses_post( wp_unslash( $_POST[ $key ] ) );
-					} else {
-						$value = sanitize_textarea_field( wp_unslash( $_POST[ $key ] ) );
-					}
-					if ( '' !== $value && ! ( is_array( $value ) && empty( $value ) ) ) {
-						update_post_meta( $post_id, $key, $value );
-					} else {
-						delete_post_meta( $post_id, $key );
-					}
-				}
-			}
-		} else {
-			$fields = array(
-				'resolate_objeto',
-				'resolate_antecedentes',
-				'resolate_fundamentos',
-				'resolate_dispositivo',
-				'resolate_firma',
-			);
-			foreach ( $fields as $key ) {
-				if ( isset( $_POST[ $key ] ) ) {
-					$value = wp_kses_post( wp_unslash( $_POST[ $key ] ) );
-					update_post_meta( $post_id, $key, $value );
-				}
-			}
-		}
-
-		$unknown_fields = $this->collect_unknown_dynamic_fields( $post_id, $known_meta_keys );
-		if ( ! empty( $unknown_fields ) ) {
-			foreach ( $unknown_fields as $meta_key => $field ) {
-				if ( 'post' !== $field['source'] ) {
-					continue;
-				}
-				$raw = is_string( $field['value'] ) ? $field['value'] : '';
-				$value = wp_kses_post( $raw );
-				if ( '' !== trim( (string) $value ) ) {
-					update_post_meta( $post_id, $meta_key, $value );
-				} else {
-					delete_post_meta( $post_id, $meta_key );
-				}
-			}
-		}
+		// Dynamic fields are stored via post_content in filter_post_data_compose_content().
 
 		// Save annexes.
 		$annexes = array();
@@ -830,7 +706,6 @@ class Resolate_Documents {
 
 		$post_id = isset( $postarr['ID'] ) ? intval( $postarr['ID'] ) : 0;
 
-		// Determine the schema. Prefer the type posted; fallback to current assigned; then legacy.
 		$term_id = 0;
 		if ( isset( $_POST['resolate_doc_type'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$term_id = max( 0, intval( wp_unslash( $_POST['resolate_doc_type'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -841,146 +716,255 @@ class Resolate_Documents {
 				$term_id = intval( $assigned[0] );
 			}
 		}
+
 		$schema         = array();
 		$dynamic_schema = array();
 		if ( $term_id > 0 ) {
-			$dynamic_schema = $this->get_schema_for_term( $term_id );
+			$dynamic_schema = self::get_term_schema( $term_id );
 			$schema         = $dynamic_schema;
 		}
-		if ( empty( $schema ) ) {
-			$schema = array(
-				array(
-					'slug' => 'objeto',
-					'label' => __( 'Objeto', 'resolate' ),
-					'type' => 'rich',
-				),
-				array(
-					'slug' => 'antecedentes',
-					'label' => __( 'Antecedentes', 'resolate' ),
-					'type' => 'rich',
-				),
-				array(
-					'slug' => 'fundamentos',
-					'label' => __( 'Fundamentos de derecho', 'resolate' ),
-					'type' => 'rich',
-				),
-				array(
-					'slug' => 'dispositivo',
-					'label' => __( 'Parte dispositiva (Resuelvo)', 'resolate' ),
-					'type' => 'rich',
-				),
-				array(
-					'slug' => 'firma',
-					'label' => __( 'Firma / Pie', 'resolate' ),
-					'type' => 'rich',
-				),
+
+		$existing_structured = array();
+		if ( isset( $postarr['post_content'] ) && '' !== $postarr['post_content'] ) {
+			$existing_structured = self::parse_structured_content( (string) $postarr['post_content'] );
+		}
+		if ( empty( $existing_structured ) && $post_id > 0 ) {
+			$current_content = get_post_field( 'post_content', $post_id, 'edit' );
+			if ( is_string( $current_content ) && '' !== $current_content ) {
+				$existing_structured = self::parse_structured_content( $current_content );
+			}
+			if ( empty( $existing_structured ) ) {
+				$existing_structured = $this->get_structured_field_values( $post_id );
+			}
+		}
+
+		$structured_fields = array();
+		$known_slugs       = array();
+
+		foreach ( $schema as $row ) {
+			if ( empty( $row['slug'] ) ) {
+				continue;
+			}
+			$slug = sanitize_key( $row['slug'] );
+			if ( '' === $slug ) {
+				continue;
+			}
+			$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+				$type = 'textarea';
+			}
+			$known_slugs[ $slug ] = true;
+			$meta_key             = 'resolate_field_' . $slug;
+			$value                = '';
+
+			if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				if ( 'single' === $type ) {
+					$value = sanitize_text_field( wp_unslash( $_POST[ $meta_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				} elseif ( 'rich' === $type ) {
+					$value = wp_kses_post( wp_unslash( $_POST[ $meta_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				} else {
+					$value = sanitize_textarea_field( wp_unslash( $_POST[ $meta_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				}
+			} elseif ( isset( $existing_structured[ $slug ] ) ) {
+				$value = (string) $existing_structured[ $slug ]['value'];
+			}
+
+			$structured_fields[ $slug ] = array(
+				'type'  => $type,
+				'value' => (string) $value,
 			);
 		}
-		$using_dynamic_schema = ! empty( $dynamic_schema );
 
-		$blocks = array();
-		$known_meta_keys = array();
-		foreach ( $schema as $row ) {
-			if ( empty( $row['slug'] ) || empty( $row['label'] ) ) {
-				continue; }
-			$slug  = sanitize_key( $row['slug'] );
-			$label = sanitize_text_field( $row['label'] );
-			$type  = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+		$unknown_fields = array();
 
-			// Prefer posted value (most up-to-date); fallback to stored meta.
-			$meta_key = empty( $term_id ) ? 'resolate_' . $slug : 'resolate_field_' . $slug;
-			$posted_key = empty( $term_id ) ? $meta_key : $meta_key; // same variable name.
-			if ( $using_dynamic_schema ) {
-				$known_meta_keys[] = $meta_key;
-			}
-			$val = '';
-			if ( isset( $_POST[ $posted_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-				if ( 'single' === $type ) {
-					$val = sanitize_text_field( wp_unslash( $_POST[ $posted_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( ! empty( $existing_structured ) ) {
+			foreach ( $existing_structured as $slug => $info ) {
+				$slug = sanitize_key( $slug );
+				if ( '' === $slug || isset( $known_slugs[ $slug ] ) || isset( $unknown_fields[ $slug ] ) ) {
+					continue;
+				}
+				$meta_key = 'resolate_field_' . $slug;
+				if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					$val = wp_unslash( $_POST[ $meta_key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					$unknown_fields[ $slug ] = array(
+						'type'  => 'rich',
+						'value' => wp_kses_post( is_string( $val ) ? $val : '' ),
+					);
 				} else {
-					$val = wp_kses_post( wp_unslash( $_POST[ $posted_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					$type = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
+					if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+						$type = 'rich';
+					}
+					$unknown_fields[ $slug ] = array(
+						'type'  => $type,
+						'value' => (string) $info['value'],
+					);
 				}
-			} elseif ( $post_id > 0 ) {
-				$val = get_post_meta( $post_id, $meta_key, true );
-			}
-
-			$blocks[] = '<!-- wp:heading {"level":2} -->' . "\n" . '<h2>' . esc_html( $label ) . '</h2>' . "\n" . '<!-- /wp:heading -->';
-			if ( 'single' === $type ) {
-				$blocks[] = '<!-- wp:paragraph -->' . "\n" . '<p>' . esc_html( (string) $val ) . '</p>' . "\n" . '<!-- /wp:paragraph -->';
-			} else {
-				$blocks[] = '<!-- wp:html -->' . "\n" . (string) $val . "\n" . '<!-- /wp:html -->';
 			}
 		}
 
-		$unknown_fields = $this->collect_unknown_dynamic_fields( $post_id, $known_meta_keys );
+		foreach ( $_POST as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! is_string( $key ) || 0 !== strpos( $key, 'resolate_field_' ) ) {
+				continue;
+			}
+			$slug = sanitize_key( substr( $key, strlen( 'resolate_field_' ) ) );
+			if ( '' === $slug || isset( $structured_fields[ $slug ] ) || isset( $unknown_fields[ $slug ] ) ) {
+				continue;
+			}
+			if ( is_array( $value ) ) {
+				continue;
+			}
+			$unknown_fields[ $slug ] = array(
+				'type'  => 'rich',
+				'value' => wp_kses_post( wp_unslash( $value ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			);
+		}
+
+		if ( empty( $structured_fields ) && empty( $unknown_fields ) ) {
+			$data['post_content'] = '';
+			return $data;
+		}
+
+		$fragments = array();
+		foreach ( $structured_fields as $slug => $info ) {
+			$fragments[] = $this->build_structured_field_fragment( $slug, $info['type'], $info['value'] );
+		}
 		if ( ! empty( $unknown_fields ) ) {
-			foreach ( $unknown_fields as $meta_key => $field ) {
-				$slug = $this->humanize_unknown_field_label( $meta_key );
-				/* translators: %s: detected dynamic field key. */
-				$warn_label = sprintf( __( 'Campo adicional: %s', 'resolate' ), $slug );
-				$warning    = __( 'Este campo no está definido en la taxonomía seleccionada.', 'resolate' );
-				$value      = wp_kses_post( is_string( $field['value'] ) ? $field['value'] : '' );
-				$blocks[]   = '<!-- wp:heading {"level":2,"className":"resolate-unknown-field"} -->' . "\n" . '<h2>' . esc_html( $warn_label ) . '</h2>' . "\n" . '<!-- /wp:heading -->';
-				if ( '' !== trim( (string) $value ) ) {
-					$blocks[] = '<!-- wp:html -->' . "\n" . $value . "\n" . '<!-- /wp:html -->';
-				}
-				$blocks[] = '<!-- wp:paragraph {"className":"resolate-unknown-field-warning"} -->' . "\n" . '<p>' . esc_html( $warning ) . '</p>' . "\n" . '<!-- /wp:paragraph -->';
+			foreach ( $unknown_fields as $slug => $info ) {
+				$fragments[] = $this->build_structured_field_fragment( $slug, $info['type'], $info['value'] );
 			}
 		}
 
-		// Annexes from POST; fallback to saved.
-		$annexes = array();
-		if ( isset( $_POST['resolate_annexes'] ) && is_array( $_POST['resolate_annexes'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-			$annexes = array();
-			foreach ( wp_unslash( $_POST['resolate_annexes'] ) as $item ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized inside the loop.
-				if ( ! is_array( $item ) ) {
-					continue; }
-				$annexes[] = array(
-					'title' => isset( $item['title'] ) ? sanitize_text_field( wp_unslash( $item['title'] ) ) : '',
-					'text'  => isset( $item['text'] ) ? wp_kses_post( wp_unslash( $item['text'] ) ) : '',
-				);
-			}
-		} elseif ( $post_id > 0 ) {
-			$saved = get_post_meta( $post_id, 'resolate_annexes', true );
-			if ( is_array( $saved ) ) {
-				$annexes = $saved; }
-		}
-		if ( ! empty( $annexes ) ) {
-			$blocks[] = '<!-- wp:heading {"level":2} -->' . "\n" . '<h2>' . esc_html__( 'Anexos', 'resolate' ) . '</h2>' . "\n" . '<!-- /wp:heading -->';
-			$roman = function ( $num ) {
-				$map = array(
-					'M' => 1000,
-					'CM' => 900,
-					'D' => 500,
-					'CD' => 400,
-					'C' => 100,
-					'XC' => 90,
-					'L' => 50,
-					'XL' => 40,
-					'X' => 10,
-					'IX' => 9,
-					'V' => 5,
-					'IV' => 4,
-					'I' => 1,
-				);
-				$res = '';
-				foreach ( $map as $rom => $int ) {
-					while ( $num >= $int ) {
-						$res .= $rom;
-						$num -= $int; }
-				}
-				return $res;
-			};
-			foreach ( $annexes as $i => $anx ) {
-				$title = isset( $anx['title'] ) ? sanitize_text_field( $anx['title'] ) : '';
-				$text  = isset( $anx['text'] ) ? wp_kses_post( $anx['text'] ) : '';
-				$blocks[] = '<!-- wp:heading {"level":3} -->' . "\n" . '<h3>' . esc_html( sprintf( 'Anexo %s', $roman( $i + 1 ) ) ) . ( $title ? ': ' . esc_html( $title ) : '' ) . '</h3>' . "\n" . '<!-- /wp:heading -->';
-				$blocks[] = '<!-- wp:html -->' . "\n" . $text . "\n" . '<!-- /wp:html -->';
-			}
-		}
-
-		$data['post_content'] = implode( "\n\n", $blocks );
+		$data['post_content'] = implode( "\n\n", $fragments );
 		return $data;
+	}
+
+	/**
+	 * Retrieve structured field values stored in post_content.
+	 *
+	 * Falls back to dynamic meta keys when the content has not been migrated yet.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<string, array{value:string,type:string}>
+	 */
+	private function get_structured_field_values( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return array();
+		}
+
+		$fields = self::parse_structured_content( $post->post_content );
+		if ( ! empty( $fields ) ) {
+			return $fields;
+		}
+
+		$fallback = array();
+               $schema   = $this->get_dynamic_fields_schema_for_post( $post_id );
+		if ( ! empty( $schema ) ) {
+			foreach ( $schema as $row ) {
+				if ( empty( $row['slug'] ) ) {
+					continue;
+				}
+				$slug = sanitize_key( $row['slug'] );
+				if ( '' === $slug ) {
+					continue;
+				}
+				$meta_key = 'resolate_field_' . $slug;
+				$value    = get_post_meta( $post_id, $meta_key, true );
+				if ( '' === $value ) {
+					continue;
+				}
+				$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+				if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+					$type = 'textarea';
+				}
+				$fallback[ $slug ] = array(
+					'value' => (string) $value,
+					'type'  => $type,
+				);
+			}
+		}
+
+               return $fallback;
+	}
+
+	/**
+	 * Parse the structured post_content string into slug/value pairs.
+	 *
+	 * @param string $content Raw post content.
+	 * @return array<string, array{value:string,type:string}>
+	 */
+	public static function parse_structured_content( $content ) {
+		$content = (string) $content;
+		if ( '' === trim( $content ) ) {
+			return array();
+		}
+
+		$pattern = '/<!--\s*resolate-field\s+([^>]*)-->(.*?)<!--\s*\/resolate-field\s*-->/si';
+		if ( ! preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
+			return array();
+		}
+
+		$fields = array();
+		foreach ( $matches as $match ) {
+			$attrs = self::parse_structured_field_attributes( $match[1] );
+			$slug  = isset( $attrs['slug'] ) ? sanitize_key( $attrs['slug'] ) : '';
+			if ( '' === $slug ) {
+				continue;
+			}
+			$type = isset( $attrs['type'] ) ? sanitize_key( $attrs['type'] ) : '';
+			$fields[ $slug ] = array(
+				'value' => trim( (string) $match[2] ),
+				'type'  => $type,
+			);
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Parse attribute string from a structured field marker.
+	 *
+	 * @param string $attribute_string Raw attribute string.
+	 * @return array<string,string>
+	 */
+	private static function parse_structured_field_attributes( $attribute_string ) {
+		$result = array();
+		$pattern = '/([a-zA-Z0-9_-]+)="([^"]*)"/';
+		if ( preg_match_all( $pattern, (string) $attribute_string, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				$key = strtolower( $match[1] );
+				$result[ $key ] = $match[2];
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Compose the HTML comment fragment that stores a field value.
+	 *
+	 * @param string $slug  Field slug.
+	 * @param string $type  Field type.
+	 * @param string $value Field value.
+	 * @return string
+	 */
+	private function build_structured_field_fragment( $slug, $type, $value ) {
+		$slug = sanitize_key( $slug );
+		if ( '' === $slug ) {
+			return '';
+		}
+		$type = sanitize_key( $type );
+		if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+			$type = '';
+		}
+
+		$attributes = 'slug="' . esc_attr( $slug ) . '"';
+		if ( '' !== $type ) {
+			$attributes .= ' type="' . esc_attr( $type ) . '"';
+		}
+
+		$value = (string) $value;
+		return '<!-- resolate-field ' . $attributes . " -->\n" . $value . "\n<!-- /resolate-field -->";
 	}
 
 	/**
@@ -995,7 +979,7 @@ class Resolate_Documents {
 		if ( $term_id <= 0 ) {
 			return array();
 		}
-		return $this->get_schema_for_term( $term_id );
+		return self::get_term_schema( $term_id );
 	}
 
 	/**
@@ -1004,7 +988,7 @@ class Resolate_Documents {
 	 * @param int $term_id Term ID.
 	 * @return array[]
 	 */
-	private function get_schema_for_term( $term_id ) {
+	public static function get_term_schema( $term_id ) {
 		$raw = get_term_meta( $term_id, 'schema', true );
 		if ( ! is_array( $raw ) ) {
 			$raw = get_term_meta( $term_id, 'resolate_type_fields', true );
@@ -1070,21 +1054,19 @@ class Resolate_Documents {
 		}
 
 		if ( $post_id > 0 ) {
-			$all_meta = get_post_meta( $post_id );
-			foreach ( $all_meta as $meta_key => $values ) {
-				if ( 0 !== strpos( $meta_key, $prefix ) ) {
-					continue;
+			$stored = $this->get_structured_field_values( $post_id );
+			if ( ! empty( $stored ) ) {
+				foreach ( $stored as $slug => $info ) {
+					$meta_key = $prefix . sanitize_key( $slug );
+					if ( isset( $known_lookup[ $meta_key ] ) || isset( $unknown[ $meta_key ] ) ) {
+						continue;
+					}
+					$value = isset( $info['value'] ) ? (string) $info['value'] : '';
+					$unknown[ $meta_key ] = array(
+						'value'  => $value,
+						'source' => 'content',
+					);
 				}
-				if ( isset( $known_lookup[ $meta_key ] ) ) {
-					continue;
-				}
-				if ( isset( $unknown[ $meta_key ] ) ) {
-					continue;
-				}
-				$unknown[ $meta_key ] = array(
-					'value'  => get_post_meta( $post_id, $meta_key, true ),
-					'source' => 'meta',
-				);
 			}
 		}
 

@@ -502,7 +502,7 @@ class Resolate_Admin_Settings {
 		echo '</div>';
 		echo '<button type="button" class="button" id="resolate_odt_template_select">' . esc_html__( 'Seleccionar plantilla ODT', 'resolate' ) . '</button> ';
 		echo '<button type="button" class="button" id="resolate_odt_template_remove">' . esc_html__( 'Quitar', 'resolate' ) . '</button>';
-		echo '<p class="description">' . esc_html__( 'Sube una plantilla .odt con marcadores OpenTBS. Campos: [title], [objeto], [antecedentes], [fundamentos], [dispositivo], [firma], [margen].', 'resolate' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Sube una plantilla .odt con marcadores OpenTBS. Los campos disponibles dependen del tipo de documento seleccionado. Siempre podrás usar [title] y [margen].', 'resolate' ) . '</p>';
 		echo '</div>';
 	}
 
@@ -523,7 +523,7 @@ class Resolate_Admin_Settings {
 		echo '</div>';
 		echo '<button type="button" class="button" id="resolate_docx_template_select">' . esc_html__( 'Seleccionar plantilla DOCX', 'resolate' ) . '</button> ';
 		echo '<button type="button" class="button" id="resolate_docx_template_remove">' . esc_html__( 'Quitar', 'resolate' ) . '</button>';
-		echo '<p class="description">' . esc_html__( 'Sube una plantilla .docx con marcadores OpenTBS. Campos: [title], [objeto], [antecedentes], [fundamentos], [dispositivo], [firma], [margen].', 'resolate' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Sube una plantilla .docx con marcadores OpenTBS. Los campos disponibles dependen del tipo de documento seleccionado. Siempre podrás usar [title] y [margen].', 'resolate' ) . '</p>';
 		echo '</div>';
 	}
 

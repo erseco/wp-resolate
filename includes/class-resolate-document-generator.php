@@ -281,28 +281,33 @@ class Resolate_Document_Generator {
 	 */
 	private static function build_merge_fields( $post_id ) {
 		$opts = get_option( 'resolate_settings', array() );
+		$post = get_post( $post_id );
+		$structured = array();
+		if ( $post && class_exists( 'Resolate_Documents' ) ) {
+			$structured = Resolate_Documents::parse_structured_content( $post->post_content );
+		}
 
 		$fields = array(
-			'title'        => get_the_title( $post_id ),
-			'objeto'       => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_objeto', true ) ),
-			'antecedentes' => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_antecedentes', true ) ),
-			'fundamentos'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_fundamentos', true ) ),
-			'dispositivo'  => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_dispositivo', true ) ),
-			'firma'        => wp_strip_all_tags( (string) get_post_meta( $post_id, 'resolate_firma', true ) ),
-			'margen'       => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
+			'title'  => get_the_title( $post_id ),
+			'margen' => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
 		);
 
 		$types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
 		if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
 			$type_id = intval( $types[0] );
-			$schema  = self::get_type_schema( $type_id );
+			$schema  = array();
+			if ( class_exists( 'Resolate_Documents' ) ) {
+				$schema = Resolate_Documents::get_term_schema( $type_id );
+			} else {
+				$schema = self::get_type_schema( $type_id );
+			}
 			foreach ( $schema as $def ) {
 				if ( empty( $def['slug'] ) ) {
 					continue;
 				}
 				$slug            = sanitize_key( $def['slug'] );
-				$val             = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
-				$fields[ $slug ] = wp_strip_all_tags( (string) $val );
+				$value           = self::get_structured_field_value( $structured, $slug, $post_id );
+				$fields[ $slug ] = wp_strip_all_tags( $value );
 			}
 
 			$logos = get_term_meta( $type_id, 'resolate_type_logos', true );
@@ -320,7 +325,56 @@ class Resolate_Document_Generator {
 			}
 		}
 
+		if ( ! empty( $structured ) ) {
+			foreach ( $structured as $slug => $info ) {
+				$slug = sanitize_key( $slug );
+				if ( '' === $slug ) {
+					continue;
+				}
+				if ( isset( $fields[ $slug ] ) && '' !== $fields[ $slug ] ) {
+					continue;
+				}
+				$value = '';
+				if ( isset( $info['value'] ) ) {
+					$value = (string) $info['value'];
+				}
+				if ( '' === $value ) {
+					$value = self::get_structured_field_value( $structured, $slug, $post_id );
+				}
+				$fields[ $slug ] = wp_strip_all_tags( $value );
+			}
+		}
+
 		return $fields;
+	}
+
+
+	/**
+	 * Get a field value from structured content with dynamic meta fallback.
+	 *
+	 * @param array  $structured Structured field map.
+	 * @param string $slug       Field slug.
+	 * @param int    $post_id    Post ID.
+	 * @return string
+	 */
+	private static function get_structured_field_value( $structured, $slug, $post_id ) {
+		$slug = sanitize_key( $slug );
+		if ( '' !== $slug && isset( $structured[ $slug ] ) && is_array( $structured[ $slug ] ) ) {
+			$value = isset( $structured[ $slug ]['value'] ) ? (string) $structured[ $slug ]['value'] : '';
+			if ( '' !== $value ) {
+				return $value;
+			}
+		}
+
+		if ( '' !== $slug ) {
+			$meta_key = 'resolate_field_' . $slug;
+			$legacy   = get_post_meta( $post_id, $meta_key, true );
+			if ( '' !== $legacy ) {
+				return (string) $legacy;
+			}
+		}
+
+		return '';
 	}
 
 	/**
