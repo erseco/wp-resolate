@@ -7,7 +7,7 @@ These are natural-language guidelines for agents to follow when developing the R
 ## Project conventions
 
 - Follow **WordPress Coding Standards**:
-  - PHP code: 4 spaces indentation, PSR‑12 style where compatible, proper escaping, sanitization, use WP APIs.
+  - PHP code: indent blocks with **tabs** (WordPress default) and reserve spaces for alignment/continuations. Keep PSR‑12 compatibility when it does not contradict WP requirements. Always escape/sanitize properly and rely on WP APIs.
   - Use English for source code (identifiers, comments, docblocks).
   - Write all implementation notes, inline comments, and documentation in English.
   - Use Spanish for user‑facing translations/strings and test assertions to check no untranslated strings remain.
@@ -17,7 +17,7 @@ These are natural-language guidelines for agents to follow when developing the R
   - When emitting standalone pages, enqueue styles/scripts with WordPress APIs (`wp_enqueue_style`, `wp_enqueue_script`) and print them via `wp_print_*` helpers instead of hard-coding `<link>` or `<script>` tags.
   - Ensure all code passes `phpcs --standard=WordPress` and is auto-fixable with `phpcbf --standard=WordPress` where applicable.
   - Install coding standard tooling with Composer in the project root: `composer require --dev dealerdirect/phpcodesniffer-composer-installer:^1.0 wp-coding-standards/wpcs:^3.0`.
-  - After installation, run `vendor/bin/phpcbf --standard=WordPress .` to auto-fix violations before linting with `vendor/bin/phpcs --standard=WordPress .`.
+  - After installation, run `vendor/bin/phpcbf --standard=WordPress .` to auto-fix violations before linting with `vendor/bin/phpcs --standard=WordPress .`; this step will also normalize any space-indented blocks back to tabs.
 
 ## Testing and development workflow
 
@@ -32,13 +32,28 @@ These are natural-language guidelines for agents to follow when developing the R
 ## Tooling quick start
 
 - Run `composer install` in the project root to install PHP_CodeSniffer, WordPress Coding Standards, and other developer tools (requires outbound network access).
-- Use `./vendor/bin/phpcbf --standard=.phpcs.xml.dist` first to apply automatic fixes, then `./vendor/bin/phpcs --standard=.phpcs.xml.dist` to ensure the codebase is clean.
+- Use `./vendor/bin/phpcbf --standard=.phpcs.xml.dist` first to apply automatic fixes (including converting stray spaces back to tabs), then `./vendor/bin/phpcs --standard=.phpcs.xml.dist` to ensure the codebase is clean.
 - Composer scripts mirror these commands: `composer phpcbf` and `composer phpcs` respect the repository ignore list defined in `.phpcs.xml.dist`.
 - The `.phpcs.xml.dist` ruleset bundles the WordPress standard, limits scanning to PHP files, enables colorized output, suppresses warnings, and excludes vendor, assets, node_modules, tests/js, wp, tests, and `.composer` directories.
 - When working outside the `wp-env` Docker environment, call the binaries from `./vendor/bin/` directly. Inside wp-env, reuse the Make targets (`make fix` and `make lint`) which wrap `phpcbf`/`phpcs` with the same `.phpcs.xml.dist` ruleset path (`wp-content/plugins/resolate/.phpcs.xml.dist`).
 - The repository `composer.json` already whitelists the `dealerdirect/phpcodesniffer-composer-installer` plugin and exposes the scripts `composer phpcbf` and `composer phpcs`; these call the local binaries under `./vendor/bin/` with the shared `.phpcs.xml.dist` ruleset, so prefer them to keep tooling consistent.
-- Run the beautifier before linting when fixing coding standards violations: `composer phpcbf` (or the equivalent binary invocation) followed by `composer phpcs`.
+- Run the beautifier before linting when fixing coding standards violations: `composer phpcbf` (or the equivalent binary invocation) followed by `composer phpcs`. `phpcbf` will repair mixed indentation before PHPCS evaluates the files.
 - After writing or updating code, always run `composer phpcbf` followed by `composer phpcs` (or their `./vendor/bin/` equivalents) to keep the codebase compliant with the configured standards.
+
+## Editor configuration
+
+- Respect the root `.editorconfig`; it forces PHP files to use tabs for indentation (`indent_style = tab`, `tab_width = 4`). Most editors (and AI-assisted tooling) read this automatically, so leave it untouched.
+- **Sublime Text**: ensure your project/user settings include `{ "translate_tabs_to_spaces": false, "tab_size": 4 }` within the `"php"` scope to keep tabs. Enable `"ensure_newline_at_eof_on_save": true` to match repository style.
+- **Visual Studio Code**: add the following to your workspace `settings.json`:
+  ```json
+  {
+    "[php]": {
+      "editor.insertSpaces": false,
+      "editor.tabSize": 4
+    }
+  }
+  ```
+- When using other editors, disable "convert tabs to spaces" for PHP files and set the tab width to 4 characters.
 
 ## Linting workflow checklist
 
