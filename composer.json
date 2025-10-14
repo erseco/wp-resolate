@@ -22,7 +22,7 @@
             "cp -r vendor/tinybutstrong admin/vendor/"
         ],
         "phpunit": "vendor/bin/phpunit",
-        "test": "phpunit",
+        "test": "@phpunit",
         "phpcs": "@php ./vendor/bin/phpcs --standard=.phpcs.xml.dist",
         "phpcbf": "@php ./vendor/bin/phpcbf --standard=.phpcs.xml.dist"
     },
