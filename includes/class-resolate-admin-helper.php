@@ -704,64 +704,86 @@ class Resolate_Admin_Helper {
 		$lw = isset( $opts['doc_logo_left_width'] ) ? intval( $opts['doc_logo_left_width'] ) : 220;
 		$rw = isset( $opts['doc_logo_right_width'] ) ? intval( $opts['doc_logo_right_width'] ) : 160;
 		$margin_txt = isset( $opts['doc_margin_text'] ) ? wp_kses_post( $opts['doc_margin_text'] ) : '';
-		$fields = array(
-			'resolate_objeto'       => __( 'Objeto', 'resolate' ),
-			'resolate_antecedentes' => __( 'Antecedentes', 'resolate' ),
-			'resolate_fundamentos'  => __( 'Fundamentos de derecho', 'resolate' ),
-			'resolate_dispositivo'  => __( 'Parte dispositiva (Resuelvo)', 'resolate' ),
-			'resolate_firma'        => __( 'Firma / Pie', 'resolate' ),
-		);
+		$structured_fields = array();
+		$schema_fields     = array();
+		if ( class_exists( 'Resolate_Documents' ) ) {
+			$post = get_post( $post_id );
+			if ( $post ) {
+				$structured_fields = Resolate_Documents::parse_structured_content( $post->post_content );
+			}
+		}
 
-		echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc_html( $title ) . '</title>';
-		echo '<style>
-          :root{--page-w:794px;--page-h:1123px;--page-pad:56px;--page-pad-top:40px;--footer-h:32px}
-          *{box-sizing:border-box}
-          body{background:#f2f2f2;font-family:' . esc_attr( $font ) . ',serif;margin:0;padding:24px}
-          .page{background:#fff;width:var(--page-w);height:var(--page-h);margin:0 auto 24px;box-shadow:0 0 0 1px #ddd,0 8px 24px rgba(0,0,0,.08);position:relative;}
-          .page-inner{position:absolute;inset:0;padding:var(--page-pad-top) var(--page-pad) calc(var(--page-pad) + var(--footer-h)) var(--page-pad);overflow:hidden}
-          .page-footer{position:absolute;right:var(--page-pad);bottom:12px;font-size:' . esc_attr( (string) max( 9, min( 14, $size - 1 ) ) ) . 'pt;color:#333}
-          h1{font-size:' . esc_attr( (string) max( 12, min( 48, $size + 6 ) ) ) . 'pt;margin:0 0 16px}
-          h2{font-size:' . esc_attr( (string) max( 10, min( 40, $size ) ) ) . 'pt;margin:24px 0 8px}
-          section{margin-bottom:16px}
-          hr{margin:24px 0;border:0;border-top:1px solid #ddd}
-          img.logo{max-width:' . esc_attr( (string) $lw ) . 'px;height:auto;display:block;margin:0 0 16px}
-          .logo-right{width:0.8cm;height:1.54cm;object-fit:contain;display:block;position:absolute;top:16px;right:24px}
-          .margin-text{position:absolute;left:-60px;top:160px;transform:rotate(-90deg);transform-origin:left top;opacity:0.8;font-size:' . esc_attr( (string) max( 8, min( 36, $size - 2 ) ) ) . 'pt}
-          .pages{display:block}
-          #content-flow{width:var(--page-w);margin:0 auto;visibility:hidden;position:absolute;left:-9999px;top:-9999px}
-          [data-avoid-break]{break-inside:avoid;page-break-inside:avoid}
-          @media print{
-            body{background:#fff;padding:0}
-            .page{margin:0 auto;box-shadow:none;page-break-after:always}
-            .page:last-child{page-break-after:auto}
-            .logo-right{position:fixed}
-          }
-        </style>';
-		echo '</head><body>';
-		if ( $error instanceof WP_Error ) {
-			echo '<div style="max-width:760px;margin:16px auto;padding:12px 16px;background:#fff3cd;border:1px solid #ffeeba;color:#856404;font-size:14px;border-radius:4px;">' . esc_html( $error->get_error_message() ) . '</div>';
+		if ( ! is_wp_error( $types ) && ! empty( $types ) && class_exists( 'Resolate_Documents' ) ) {
+			$schema_fields = Resolate_Documents::get_term_schema( intval( $types[0] ) );
 		}
-		echo '<div id="content-flow">';
-		if ( $logo_r_url ) {
-			echo '<img class="logo-right" src="' . esc_url( $logo_r_url ) . '" alt="Logo derecho" />';
+
+		$humanize = static function ( $slug ) {
+			$label = str_replace( array( '-', '_' ), ' ', (string) $slug );
+			$label = preg_replace( '/\s+/', ' ', $label );
+			$label = trim( $label );
+			if ( '' === $label ) {
+				return '';
+			}
+			return ucwords( $label );
+		};
+
+		$fields_to_render = array();
+		if ( ! empty( $schema_fields ) ) {
+			foreach ( $schema_fields as $def ) {
+				if ( empty( $def['slug'] ) ) {
+					continue;
+				}
+				$slug  = sanitize_key( $def['slug'] );
+				$label = isset( $def['label'] ) ? sanitize_text_field( $def['label'] ) : '';
+				if ( '' === $slug ) {
+					continue;
+				}
+				if ( '' === $label ) {
+					$label = $humanize( $slug );
+				}
+				if ( '' === $label ) {
+					continue;
+				}
+				$fields_to_render[] = array(
+					'slug'  => $slug,
+					'label' => $label,
+				);
+			}
+		} elseif ( ! empty( $structured_fields ) ) {
+			foreach ( $structured_fields as $slug => $info ) {
+				$slug  = sanitize_key( $slug );
+				if ( '' === $slug ) {
+					continue;
+				}
+				$label = $humanize( $slug );
+				if ( '' === $label ) {
+					continue;
+				}
+				$fields_to_render[] = array(
+					'slug'  => $slug,
+					'label' => $label,
+				);
+			}
 		}
-		if ( '' !== trim( (string) $margin_txt ) ) {
-			echo '<div class="margin-text">' . wp_kses_post( $margin_txt ) . '</div>';
-		}
-		if ( $logo_url ) {
-			echo '<img class="logo" style="margin-left:0;float:left;" src="' . esc_url( $logo_url ) . '" alt="Logo" />';
-			echo '<div style="clear:both"></div>';
-		}
-		echo '<h1 data-avoid-break="1">' . esc_html( $title ) . '</h1><hr />';
-		foreach ( $fields as $meta_key => $label ) {
-			$val = get_post_meta( $post_id, $meta_key, true );
-			$val = preg_replace( '/<\\/?font[^>]*>/i', '', (string) $val );
-			$val = preg_replace( '/font-family\\s*:\\s*[^;"\']+;?/i', '', (string) $val );
-			$val = preg_replace( '/font-size\\s*:\\s*[^;"\']+;?/i', '', (string) $val );
-			if ( '' !== trim( (string) $val ) ) {
+
+		foreach ( $fields_to_render as $field ) {
+			$slug  = $field['slug'];
+			$label = $field['label'];
+			$value = '';
+			if ( isset( $structured_fields[ $slug ]['value'] ) ) {
+				$value = (string) $structured_fields[ $slug ]['value'];
+			} else {
+				$meta_key = 'resolate_field_' . $slug;
+				$value    = (string) get_post_meta( $post_id, $meta_key, true );
+			}
+			$value = preg_replace( '/<\/?font[^>]*>/i', '', $value );
+			$value = preg_replace( '/font-family\s*:\s*[^;\"\']+;?/i', '', $value );
+			$value = preg_replace( '/font-size\s*:\s*[^;\"\']+;?/i', '', $value );
+			$value = str_replace( '&nbsp;', ' ', $value );
+			$value = trim( $value );
+			if ( '' !== $value ) {
 				echo '<section data-avoid-break="1"><h2>' . esc_html( $label ) . '</h2>';
-				echo wp_kses_post( $val );
-				echo '</section>';
+				echo '<div class="section-content">' . wp_kses_post( $value ) . '</div></section>';
 			}
 		}
 
