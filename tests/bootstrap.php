@@ -5,17 +5,20 @@
  * @package Starter_Plugin
  */
 
-$_tests_dir = getenv( 'WP_TESTS_DIR' );
+use Yoast\WPTestUtils\WPIntegration;
 
-// Forward custom PHPUnit Polyfills configuration to PHPUnit bootstrap file.
-$_phpunit_polyfills_path = getenv( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' );
-if ( false !== $_phpunit_polyfills_path ) {
-	define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', $_phpunit_polyfills_path );
+require_once dirname( __DIR__ ) . '/vendor/yoast/wp-test-utils/src/WPIntegration/bootstrap-functions.php';
+
+$_tests_dir = WPIntegration\get_path_to_wp_test_dir();
+if ( false === $_tests_dir ) {
+        echo PHP_EOL . 'ERROR: The WordPress native unit test bootstrap file could not be found. '
+                . 'Please set either the WP_TESTS_DIR or the WP_DEVELOP_DIR environment variable, '
+                . 'either in your OS or in a custom phpunit.xml file.' . PHP_EOL;
+        exit( 1 );
 }
-require 'vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php';
 
 // Give access to tests_add_filter() function.
-require_once "{$_tests_dir}/includes/functions.php";
+require_once $_tests_dir . 'includes/functions.php';
 
 /**
  * Manually load the plugin being tested.
@@ -27,7 +30,7 @@ function _manually_load_plugin() {
 tests_add_filter( 'muplugins_loaded', '_manually_load_plugin' );
 
 // Start up the WP testing environment.
-require "{$_tests_dir}/includes/bootstrap.php";
+WPIntegration\bootstrap_it();
 
 
 // Include the custom factory classes.
