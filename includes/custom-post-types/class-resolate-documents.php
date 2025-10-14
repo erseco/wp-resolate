@@ -1001,23 +1001,27 @@ class Resolate_Documents {
 			if ( ! is_array( $item ) ) {
 				continue;
 			}
-			$slug  = isset( $item['slug'] ) ? sanitize_key( $item['slug'] ) : '';
-			$label = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : '';
-			$type  = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
-			if ( '' === $slug || '' === $label ) {
-				continue;
-			}
-			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-				$type = 'textarea';
-			}
-			$out[] = array(
-				'slug'  => $slug,
-				'label' => $label,
-				'type'  => $type,
-			);
-		}
-		return $out;
-	}
+                        $slug        = isset( $item['slug'] ) ? sanitize_key( $item['slug'] ) : '';
+                        $label       = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : '';
+                        $type        = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
+                        $placeholder = isset( $item['placeholder'] ) ? preg_replace( '/[^A-Za-z0-9._:-]/', '', (string) $item['placeholder'] ) : '';
+                        $data_type   = isset( $item['data_type'] ) ? sanitize_key( $item['data_type'] ) : '';
+                        if ( '' === $slug || '' === $label ) {
+                                continue;
+                        }
+                        if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+                                $type = 'textarea';
+                        }
+                        $out[] = array(
+                                'slug'        => $slug,
+                                'label'       => $label,
+                                'type'        => $type,
+                                'placeholder' => $placeholder,
+                                'data_type'   => $data_type,
+                        );
+                }
+                return $out;
+        }
 
 	/**
 	 * Collect meta values whose keys start with resolate_field_ but are not part of the schema.
