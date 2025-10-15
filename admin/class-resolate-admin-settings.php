@@ -262,7 +262,7 @@ class Resolate_Admin_Settings {
 		}
 
 		echo '<input type="url" class="regular-text" name="resolate_settings[collabora_base_url]" value="' . esc_attr( $value ) . '" placeholder="https://example.com">';
-		echo '<p class="description">' . esc_html__( 'Ejemplo: https://demo.collaboraonline.com', 'resolate' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Ejemplo: https://demo.us.collaboraonline.com', 'resolate' ) . '</p>';
 	}
 
 	/**

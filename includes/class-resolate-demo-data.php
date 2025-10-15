@@ -22,7 +22,6 @@ class Resolate_Demo_Data {
 		$old_user = $current_user;
 		wp_set_current_user( 1 ); // Switch to admin user (ID 1).
 
-
 		// Set up alert settings for demo data.
 		$options = get_option( 'resolate_settings', array() );
 		$options['alert_color'] = 'danger';
@@ -81,7 +80,7 @@ class Resolate_Demo_Data {
 	 * @param string $end End date (format recognized by strtotime).
 	 * @return DateTime Randomly generated date.
 	 */
-	private function ( $start, $end ) {
+	private function random_date( $start, $end ) {
 		$min = strtotime( $start );
 		$max = strtotime( $end );
 		$timestamp = $this->custom_rand( $min, $max );

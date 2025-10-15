@@ -62,6 +62,9 @@ class Resolate_Documents {
 		// Ensure a revision is created even if only meta fields change.
 		add_filter( 'wp_save_post_revision_post_has_changed', array( $this, 'force_revision_on_meta' ), 10, 3 );
 
+		add_action( 'admin_head-post.php', array( $this, 'hide_submit_box_controls' ) );
+		add_action( 'admin_head-post-new.php', array( $this, 'hide_submit_box_controls' ) );
+
 		$this->register_revision_ui();
 	}
 
@@ -309,6 +312,35 @@ class Resolate_Documents {
 		);
 
 		register_post_type( 'resolate_document', $args );
+	}
+
+	/**
+	 * Hide visibility and publish date controls for documents submit box.
+	 *
+	 * @return void
+	 */
+	public function hide_submit_box_controls() {
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+		if ( ! $screen || 'resolate_document' !== $screen->post_type ) {
+			return;
+		}
+
+		$css  = '<style id="resolate-document-submitbox-controls">';
+		$css .= '.post-type-resolate_document #visibility,';
+		$css .= '.post-type-resolate_document .misc-pub-visibility,';
+		$css .= '.post-type-resolate_document .misc-pub-curtime,';
+		$css .= '.post-type-resolate_document #timestampdiv,';
+		$css .= '.post-type-resolate_document #password-span,';
+		$css .= '.post-type-resolate_document .edit-visibility,';
+		$css .= '.post-type-resolate_document .edit-timestamp';
+		$css .= ' {display:none!important;}';
+		$css .= '</style>';
+
+		echo $css; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 		/**
@@ -655,13 +687,40 @@ class Resolate_Documents {
 			echo '</div>';
 	}
 
-		/**
-		 * Sanitize posted array field items against the schema definition.
-		 *
-		 * @param array $items      Raw submitted items.
-		 * @param array $definition Schema definition for the field.
-		 * @return array<int, array<string, string>>
-		 */
+	/**
+	 * Sanitize rich text content by stripping disallowed blocks completely.
+	 *
+	 * @param string $value Raw submitted value.
+	 * @return string
+	 */
+	private function sanitize_rich_text_value( $value ) {
+		$value = (string) $value;
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		$patterns = array(
+			'#<script\b[^>]*>.*?</script>#is',
+			'#<style\b[^>]*>.*?</style>#is',
+			'#<iframe\b[^>]*>.*?</iframe>#is',
+		);
+
+		$clean = preg_replace( $patterns, '', $value );
+		if ( null === $clean ) {
+			$clean = $value;
+		}
+
+		return wp_kses_post( $clean );
+	}
+
+	/**
+	 * Sanitize posted array field items against the schema definition.
+	 *
+	 * @param array $items      Raw submitted items.
+	 * @param array $definition Schema definition for the field.
+	 * @return array<int, array<string, string>>
+	 */
 	private function sanitize_array_field_items( $items, $definition ) {
 		if ( ! is_array( $items ) ) {
 				return array();
@@ -687,7 +746,7 @@ class Resolate_Documents {
 						$value = sanitize_text_field( $raw );
 						break;
 					case 'rich':
-							$value = wp_kses_post( $raw );
+							$value = $this->sanitize_rich_text_value( $raw );
 						break;
 					default:
 							$value = sanitize_textarea_field( $raw );
@@ -746,29 +805,33 @@ class Resolate_Documents {
 		 * @return array<int, array<string, string>>
 		 */
 	public static function decode_array_field_value( $value ) {
-			$value = (string) $value;
+		$value = (string) $value;
 		if ( '' === trim( $value ) ) {
-				return array();
+			return array();
 		}
 
-			$decoded = json_decode( $value, true );
+		if ( false !== strpos( $value, '&' ) ) {
+			$value = wp_specialchars_decode( $value, ENT_QUOTES );
+		}
+
+		$decoded = json_decode( $value, true );
 		if ( ! is_array( $decoded ) ) {
-				return array();
+			return array();
 		}
 
-			$items = array();
+		$items = array();
 		foreach ( $decoded as $item ) {
 			if ( ! is_array( $item ) ) {
-					continue;
+				continue;
 			}
-				$normalized = array();
+			$normalized = array();
 			foreach ( $item as $key => $val ) {
-					$normalized[ sanitize_key( $key ) ] = is_scalar( $val ) ? (string) $val : '';
+				$normalized[ sanitize_key( $key ) ] = is_scalar( $val ) ? (string) $val : '';
 			}
-				$items[] = $normalized;
+			$items[] = $normalized;
 		}
 
-			return array_slice( $items, 0, self::ARRAY_FIELD_MAX_ITEMS );
+		return array_slice( $items, 0, self::ARRAY_FIELD_MAX_ITEMS );
 	}
 
 	/**
@@ -791,15 +854,127 @@ class Resolate_Documents {
 
 		// Handle type selection (lock after set).
 		if ( isset( $_POST['resolate_type_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['resolate_type_nonce'] ) ), 'resolate_type_nonce' ) ) {
-			$posted   = isset( $_POST['resolate_doc_type'] ) ? intval( $_POST['resolate_doc_type'] ) : 0;
+			$posted   = 0;
+			if ( isset( $_POST['resolate_doc_type'] ) ) {
+				$posted = intval( wp_unslash( $_POST['resolate_doc_type'] ) );
+			}
 			$assigned = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
 			$current  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
+			$target   = $current;
 			if ( $current <= 0 && $posted > 0 ) {
-				wp_set_post_terms( $post_id, array( $posted ), 'resolate_doc_type', false );
+				$target = $posted;
+			}
+
+			if ( $target > 0 ) {
+				wp_set_post_terms( $post_id, array( $target ), 'resolate_doc_type', false );
 			}
 		}
 
+		$this->save_dynamic_fields_meta( $post_id );
+
 		// post_content is composed in wp_insert_post_data filter; avoid recursion here.
+	}
+
+	/**
+	 * Persist dynamic field values posted from the sections metabox.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	private function save_dynamic_fields_meta( $post_id ) {
+		$schema = $this->get_dynamic_fields_schema_for_post( $post_id );
+		if ( empty( $schema ) ) {
+			return;
+		}
+
+		$post_values = array();
+		if ( isset( $_POST ) && is_array( $_POST ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$post_values = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		}
+
+		$known_meta_keys     = array();
+		$posted_array_fields = array();
+		if ( isset( $post_values['tpl_fields'] ) && is_array( $post_values['tpl_fields'] ) ) {
+			$posted_array_fields = $post_values['tpl_fields'];
+		}
+
+		foreach ( $schema as $definition ) {
+			if ( empty( $definition['slug'] ) ) {
+				continue;
+			}
+
+			$slug = sanitize_key( $definition['slug'] );
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$type     = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
+			$meta_key = 'resolate_field_' . $slug;
+			$known_meta_keys[ $meta_key ] = true;
+
+			if ( 'array' === $type ) {
+				if ( isset( $posted_array_fields[ $slug ] ) ) {
+					$items = $this->sanitize_array_field_items( $posted_array_fields[ $slug ], $definition );
+					if ( empty( $items ) ) {
+						delete_post_meta( $post_id, $meta_key );
+					} else {
+						update_post_meta( $post_id, $meta_key, wp_json_encode( $items ) );
+					}
+				}
+				continue;
+			}
+
+			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+				$type = 'textarea';
+			}
+
+			if ( ! array_key_exists( $meta_key, $post_values ) ) {
+				continue;
+			}
+
+			$raw_value = $post_values[ $meta_key ];
+			$raw_value = is_scalar( $raw_value ) ? (string) $raw_value : '';
+
+			switch ( $type ) {
+				case 'single':
+					$value = sanitize_text_field( $raw_value );
+					break;
+				case 'rich':
+					$value = $this->sanitize_rich_text_value( $raw_value );
+					break;
+				default:
+					$value = sanitize_textarea_field( $raw_value );
+					break;
+			}
+
+			if ( '' === $value ) {
+				delete_post_meta( $post_id, $meta_key );
+			} else {
+				update_post_meta( $post_id, $meta_key, $value );
+			}
+		}
+
+		foreach ( $post_values as $key => $value ) {
+			if ( ! is_string( $key ) || 0 !== strpos( $key, 'resolate_field_' ) ) {
+				continue;
+			}
+			if ( isset( $known_meta_keys[ $key ] ) ) {
+				continue;
+			}
+			if ( is_array( $value ) ) {
+				continue;
+			}
+
+			$raw_value = wp_unslash( $value );
+			$raw_value = is_scalar( $raw_value ) ? (string) $raw_value : '';
+			$sanitized = $this->sanitize_rich_text_value( $raw_value );
+
+			if ( '' === $sanitized ) {
+				delete_post_meta( $post_id, $key );
+			} else {
+				update_post_meta( $post_id, $key, $sanitized );
+			}
+		}
 	}
 
 		/**
@@ -815,6 +990,28 @@ class Resolate_Documents {
 		}
 
 		$post_id = isset( $postarr['ID'] ) ? intval( $postarr['ID'] ) : 0;
+		$status_before_filter = isset( $data['post_status'] ) ? $data['post_status'] : '';
+		$should_force_private = ! in_array( $status_before_filter, array( 'auto-draft', 'trash' ), true );
+
+		if ( $should_force_private ) {
+			$data['post_status']   = 'private';
+			$data['post_password'] = '';
+
+			if ( $post_id > 0 ) {
+				$current_post = get_post( $post_id );
+				if ( $current_post && 'resolate_document' === $current_post->post_type ) {
+					$data['post_date']     = $current_post->post_date;
+					$data['post_date_gmt'] = $current_post->post_date_gmt;
+				}
+			} else {
+				$now     = current_time( 'mysql' );
+				$now_gmt = current_time( 'mysql', true );
+				$data['post_date']     = $now;
+				$data['post_date_gmt'] = $now_gmt;
+			}
+		} else {
+			$data['post_password'] = '';
+		}
 
 		$term_id = 0;
 		if ( isset( $_POST['resolate_doc_type'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -888,12 +1085,15 @@ class Resolate_Documents {
 							$value                = '';
 
 			if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+				$raw_input = wp_unslash( $_POST[ $meta_key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+				$raw_input = is_scalar( $raw_input ) ? (string) $raw_input : '';
+
 				if ( 'single' === $type ) {
-					$value = sanitize_text_field( wp_unslash( $_POST[ $meta_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+					$value = sanitize_text_field( $raw_input );
 				} elseif ( 'rich' === $type ) {
-							$value = wp_kses_post( wp_unslash( $_POST[ $meta_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+							$value = $this->sanitize_rich_text_value( $raw_input );
 				} else {
-						$value = sanitize_textarea_field( wp_unslash( $_POST[ $meta_key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+						$value = sanitize_textarea_field( $raw_input );
 				}
 			} elseif ( isset( $existing_structured[ $slug ] ) ) {
 				$value = (string) $existing_structured[ $slug ]['value'];
@@ -916,9 +1116,10 @@ class Resolate_Documents {
 				$meta_key = 'resolate_field_' . $slug;
 				if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 					$val = wp_unslash( $_POST[ $meta_key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+					$val = is_scalar( $val ) ? (string) $val : '';
 					$unknown_fields[ $slug ] = array(
 						'type'  => 'rich',
-						'value' => wp_kses_post( is_string( $val ) ? $val : '' ),
+						'value' => $this->sanitize_rich_text_value( $val ),
 					);
 				} else {
 					$type = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
@@ -944,9 +1145,11 @@ class Resolate_Documents {
 			if ( is_array( $value ) ) {
 				continue;
 			}
+			$raw_value = wp_unslash( $value ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$raw_value = is_scalar( $raw_value ) ? (string) $raw_value : '';
 			$unknown_fields[ $slug ] = array(
 				'type'  => 'rich',
-				'value' => wp_kses_post( wp_unslash( $value ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				'value' => $this->sanitize_rich_text_value( $raw_value ),
 			);
 		}
 

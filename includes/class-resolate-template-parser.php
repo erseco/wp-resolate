@@ -661,7 +661,7 @@ class Resolate_Template_Parser {
 				return 'rich';
 		}
 
-		return 'rich';
+		return 'textarea';
 	}
 
 		/**
