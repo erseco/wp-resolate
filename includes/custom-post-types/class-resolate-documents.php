@@ -286,7 +286,7 @@ class Resolate_Documents {
 			'new_item'              => __( 'Nuevo documento', 'resolate' ),
 			'edit_item'             => __( 'Editar documento', 'resolate' ),
 			'view_item'             => __( 'Ver documento', 'resolate' ),
-			'all_items'             => __( 'Todas los documentos', 'resolate' ),
+			'all_items'             => __( 'Todos los documentos', 'resolate' ),
 			'search_items'          => __( 'Buscar documentos', 'resolate' ),
 			'not_found'             => __( 'No se han encontrado documentos.', 'resolate' ),
 			'not_found_in_trash'    => __( 'No hay documentos en la papelera.', 'resolate' ),
