@@ -114,11 +114,11 @@ class Resolate_OpenTBS {
 	 * @param array<mixed> $rich_values Rich text values detected during merge.
 	 * @return bool|WP_Error
 	 */
-	private static function apply_docx_rich_text( $doc_path, $rich_values ) {
-		$lookup = self::prepare_rich_lookup( $rich_values );
-		if ( empty( $lookup ) ) {
-			return true;
-		}
+		private static function apply_docx_rich_text( $doc_path, $rich_values ) {
+				$lookup = self::prepare_rich_lookup( $rich_values );
+				if ( empty( $lookup ) ) {
+						return true;
+				}
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			return new WP_Error( 'resolate_docx_zip_missing', __( 'ZipArchive no está disponible para aplicar formato enriquecido.', 'resolate' ) );
 		}
@@ -126,29 +126,34 @@ class Resolate_OpenTBS {
 		if ( true !== $zip->open( $doc_path ) ) {
 			return new WP_Error( 'resolate_docx_zip_open', __( 'No se pudo abrir el DOCX generado para aplicar formato.', 'resolate' ) );
 		}
-		$targets     = array();
-		$total_files = $zip->numFiles; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-		for ( $i = 0; $i < $total_files; $i++ ) {
-			$name = $zip->getNameIndex( $i );
-			if ( preg_match( '/^word\/(document|header[0-9]*|footer[0-9]*).xml$/', $name ) ) {
-				$targets[] = $name;
-			}
+				$targets     = array();
+				$total_files = $zip->numFiles; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				for ( $i = 0; $i < $total_files; $i++ ) {
+						$name = $zip->getNameIndex( $i );
+						if ( preg_match( '/^word\/(document|header[0-9]*|footer[0-9]*).xml$/', $name ) ) {
+								$targets[] = $name;
+						}
+				}
+				$changed = false;
+				foreach ( $targets as $target ) {
+						$xml = $zip->getFromName( $target );
+						if ( false === $xml ) {
+								continue;
+						}
+						$relationships = self::load_relationships_for_part( $zip, $target );
+						$updated       = self::convert_docx_part_rich_text( $xml, $lookup, $relationships );
+						if ( $updated !== $xml ) {
+								$zip->addFromString( $target, $updated );
+								$changed = true;
+						}
+						if ( is_array( $relationships ) && ! empty( $relationships['modified'] ) && ! empty( $relationships['path'] ) ) {
+								$zip->addFromString( $relationships['path'], $relationships['doc']->saveXML() );
+								$changed = true;
+						}
+				}
+				$zip->close();
+				return $changed;
 		}
-		$changed = false;
-		foreach ( $targets as $target ) {
-			$xml = $zip->getFromName( $target );
-			if ( false === $xml ) {
-				continue;
-			}
-			$updated = self::convert_docx_part_rich_text( $xml, $lookup );
-			if ( $updated !== $xml ) {
-				$zip->addFromString( $target, $updated );
-				$changed = true;
-			}
-		}
-		$zip->close();
-		return $changed;
-	}
 
 	/**
 	 * Replace HTML fragments in a DOCX XML part with formatted runs.
@@ -157,12 +162,12 @@ class Resolate_OpenTBS {
 	 * @param array<string,string> $lookup Rich text lookup table.
 	 * @return string
 	 */
-	public static function convert_docx_part_rich_text( $xml, $lookup ) {
-		$rich_lookup = self::prepare_rich_lookup( $lookup );
-		if ( empty( $rich_lookup ) ) {
-			return $xml;
-		}
-		$dom = new DOMDocument();
+		public static function convert_docx_part_rich_text( $xml, $lookup, &$relationships = null ) {
+				$rich_lookup = self::prepare_rich_lookup( $lookup );
+				if ( empty( $rich_lookup ) ) {
+						return $xml;
+				}
+				$dom = new DOMDocument();
 		$dom->preserveWhiteSpace = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		$dom->formatOutput       = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		libxml_use_internal_errors( true );
@@ -185,16 +190,16 @@ class Resolate_OpenTBS {
 					continue;
 				}
 				$run = $node->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				if ( ! $run instanceof DOMElement ) {
-					continue;
-				}
-				$base_rpr = self::clone_run_properties( $run );
-				$runs     = self::build_docx_runs_from_html( $dom, $value, $base_rpr );
-				if ( empty( $runs ) ) {
-					continue;
-				}
-				$parent = $run->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				if ( ! $parent ) {
+								if ( ! $run instanceof DOMElement ) {
+										continue;
+								}
+								$base_rpr = self::clone_run_properties( $run );
+								$runs     = self::build_docx_runs_from_html( $dom, $value, $base_rpr, $relationships );
+								if ( empty( $runs ) ) {
+										continue;
+								}
+								$parent = $run->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+								if ( ! $parent ) {
 					continue;
 				}
 				foreach ( $runs as $new_run ) {
@@ -242,12 +247,12 @@ class Resolate_OpenTBS {
 	 * @param DOMElement|null $base_rpr Base run properties to clone.
 	 * @return array<int, DOMElement>
 	 */
-	private static function build_docx_runs_from_html( DOMDocument $doc, $html, $base_rpr = null ) {
-		$html = trim( (string) $html );
-		if ( '' === $html ) {
-			return array();
-		}
-		$tmp = new DOMDocument();
+		private static function build_docx_runs_from_html( DOMDocument $doc, $html, $base_rpr = null, &$relationships = null ) {
+				$html = trim( (string) $html );
+				if ( '' === $html ) {
+						return array();
+				}
+				$tmp = new DOMDocument();
 		libxml_use_internal_errors( true );
 		$wrapped = '<div>' . $html . '</div>';
 		$loaded  = $tmp->loadHTML( '<?xml encoding="utf-8"?>' . $wrapped, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
@@ -256,14 +261,14 @@ class Resolate_OpenTBS {
 			return array();
 		}
 		$body = $tmp->getElementsByTagName( 'div' )->item( 0 );
-		if ( ! $body ) {
-			return array();
+				if ( ! $body ) {
+						return array();
+				}
+				$runs = array();
+				self::append_html_nodes_to_runs( $doc, $runs, $body->childNodes, $base_rpr, array(), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				self::trim_trailing_break_runs( $runs );
+				return $runs;
 		}
-		$runs = array();
-		self::append_html_nodes_to_runs( $doc, $runs, $body->childNodes, $base_rpr, array() ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-		self::trim_trailing_break_runs( $runs );
-		return $runs;
-	}
 
 	/**
 	 * Recursively append HTML nodes as WordprocessingML runs.
@@ -274,25 +279,25 @@ class Resolate_OpenTBS {
 	 * @param DOMElement|null        $base_rpr Base run properties to reuse.
 	 * @param array<string,bool>     $formatting Active formatting flags.
 	 */
-	private static function append_html_nodes_to_runs( DOMDocument $doc, array &$runs, $nodes, $base_rpr, array $formatting ) {
-		if ( ! $nodes instanceof DOMNodeList ) {
-			return;
-		}
-		foreach ( $nodes as $node ) {
+		private static function append_html_nodes_to_runs( DOMDocument $doc, array &$runs, $nodes, $base_rpr, array $formatting, &$relationships = null ) {
+				if ( ! $nodes instanceof DOMNodeList ) {
+						return;
+				}
+				foreach ( $nodes as $node ) {
 			if ( XML_TEXT_NODE === $node->nodeType ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 				$text = str_replace( array( "\r\n", "\r" ), "\n", $node->nodeValue ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 				$parts = explode( "\n", $text );
 				foreach ( $parts as $index => $part ) {
 					$part = (string) $part;
 					if ( '' !== $part ) {
-						$run = self::create_text_run( $doc, $part, $base_rpr, $formatting );
-						if ( $run ) {
-								$runs[] = $run;
-						}
-					}
-					if ( $index < count( $parts ) - 1 ) {
-						$runs[] = self::create_break_run( $doc, $base_rpr );
-					}
+												$run = self::create_text_run( $doc, $part, $base_rpr, $formatting );
+												if ( $run ) {
+														$runs[] = $run;
+												}
+										}
+										if ( $index < count( $parts ) - 1 ) {
+												$runs[] = self::create_break_run( $doc, $base_rpr );
+										}
 				}
 				continue;
 			}
@@ -301,47 +306,79 @@ class Resolate_OpenTBS {
 			}
 			$tag = strtolower( $node->nodeName ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			switch ( $tag ) {
-				case 'strong':
-				case 'b':
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'bold', true ) ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'em':
-				case 'i':
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'italic', true ) ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'u':
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'underline', true ) ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'br':
-					$runs[] = self::create_break_run( $doc, $base_rpr );
-					break;
-				case 'p':
-				case 'div':
-				case 'section':
-				case 'article':
-				case 'blockquote':
-				case 'address':
-				case 'span':
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::extract_span_formatting( $formatting, $node ) ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					if ( 'span' !== $tag ) {
-						$runs[] = self::create_break_run( $doc, $base_rpr );
-					}
-					break;
-				case 'ul':
-				case 'ol':
-					self::append_list_runs( $doc, $runs, $node, $base_rpr, $formatting, 'ol' === $tag );
-					break;
-				case 'li':
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'a':
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				default:
-					self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			}
+								case 'strong':
+								case 'b':
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'bold', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										break;
+								case 'em':
+								case 'i':
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'italic', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										break;
+								case 'u':
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'underline', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										break;
+								case 'br':
+										$runs[] = self::create_break_run( $doc, $base_rpr );
+										break;
+								case 'h1':
+								case 'h2':
+								case 'h3':
+								case 'h4':
+								case 'h5':
+								case 'h6':
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'bold', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										$runs[] = self::create_break_run( $doc, $base_rpr );
+										$runs[] = self::create_break_run( $doc, $base_rpr );
+										break;
+								case 'p':
+								case 'div':
+								case 'section':
+								case 'article':
+								case 'blockquote':
+								case 'address':
+								case 'span':
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::extract_span_formatting( $formatting, $node ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										if ( 'span' !== $tag ) {
+												$runs[] = self::create_break_run( $doc, $base_rpr );
+										}
+										break;
+								case 'ul':
+								case 'ol':
+										self::append_list_runs( $doc, $runs, $node, $base_rpr, $formatting, 'ol' === $tag, $relationships );
+										break;
+								case 'li':
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										break;
+								case 'a':
+										$href = trim( $node->getAttribute( 'href' ) );
+										if ( '' === $href ) {
+												self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+												break;
+										}
+										$link_runs = array();
+										$link_formatting = self::with_format_flag( $formatting, 'hyperlink', true );
+										$link_formatting = self::with_format_flag( $link_formatting, 'underline', true );
+										self::append_html_nodes_to_runs( $doc, $link_runs, $node->childNodes, $base_rpr, $link_formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+										if ( empty( $link_runs ) ) {
+												$run = self::create_text_run( $doc, $href, $base_rpr, $link_formatting );
+												if ( $run ) {
+														$link_runs[] = $run;
+												}
+										}
+										$hyperlink = self::create_hyperlink_container( $doc, $link_runs, $relationships, $href );
+										if ( $hyperlink ) {
+												$runs[] = $hyperlink;
+										} else {
+												foreach ( $link_runs as $link_run ) {
+														$runs[] = $link_run;
+												}
+										}
+										break;
+								default:
+										self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+						}
+				}
 		}
-	}
 
 	/**
 	 * Append list items as runs (basic bullet/number rendering).
@@ -353,22 +390,22 @@ class Resolate_OpenTBS {
 	 * @param array<string,bool>     $formatting Formatting flags.
 	 * @param bool                   $ordered   Whether list is ordered.
 	 */
-	private static function append_list_runs( DOMDocument $doc, array &$runs, DOMElement $list, $base_rpr, array $formatting, $ordered ) {
-		$index = 1;
-		foreach ( $list->childNodes as $item ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			if ( ! $item instanceof DOMElement || 'li' !== strtolower( $item->nodeName ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				continue;
-			}
-			$prefix = $ordered ? $index . '. ' : '• ';
-			$prefix_run = self::create_text_run( $doc, $prefix, $base_rpr, $formatting );
-			if ( $prefix_run ) {
-				$runs[] = $prefix_run;
-			}
-			self::append_html_nodes_to_runs( $doc, $runs, $item->childNodes, $base_rpr, $formatting ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			$runs[] = self::create_break_run( $doc, $base_rpr );
-			$index++;
+		private static function append_list_runs( DOMDocument $doc, array &$runs, DOMElement $list, $base_rpr, array $formatting, $ordered, &$relationships = null ) {
+				$index = 1;
+				foreach ( $list->childNodes as $item ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+						if ( ! $item instanceof DOMElement || 'li' !== strtolower( $item->nodeName ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+								continue;
+						}
+						$prefix = $ordered ? $index . '. ' : '• ';
+						$prefix_run = self::create_text_run( $doc, $prefix, $base_rpr, $formatting );
+						if ( $prefix_run ) {
+								$runs[] = $prefix_run;
+						}
+						self::append_html_nodes_to_runs( $doc, $runs, $item->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+						$runs[] = self::create_break_run( $doc, $base_rpr );
+						$index++;
+				}
 		}
-	}
 
 	/**
 	 * Merge formatting flags with additional span-based styles.
@@ -430,30 +467,38 @@ class Resolate_OpenTBS {
 	 * @param array<string,bool> $formatting Formatting flags.
 	 * @return DOMElement|null
 	 */
-	private static function create_text_run( DOMDocument $doc, $text, $base_rpr, array $formatting ) {
-		if ( '' === $text ) {
-			return null;
-		}
-		$run = $doc->createElementNS( self::WORD_NAMESPACE, 'w:r' );
-		if ( $base_rpr instanceof DOMElement ) {
-			$run->appendChild( $base_rpr->cloneNode( true ) );
-		}
-		$rpr = self::get_or_create_run_properties( $doc, $run );
-		if ( ! empty( $formatting['bold'] ) ) {
-			$rpr->appendChild( $doc->createElementNS( self::WORD_NAMESPACE, 'w:b' ) );
-		}
-		if ( ! empty( $formatting['italic'] ) ) {
-			$rpr->appendChild( $doc->createElementNS( self::WORD_NAMESPACE, 'w:i' ) );
-		}
-		if ( ! empty( $formatting['underline'] ) ) {
-			$u = $doc->createElementNS( self::WORD_NAMESPACE, 'w:u' );
-			$u->setAttribute( 'w:val', 'single' );
-			$rpr->appendChild( $u );
-		}
-		if ( 0 === $rpr->childNodes->length ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			$run->removeChild( $rpr );
-		}
-		$text_node = $doc->createElementNS( self::WORD_NAMESPACE, 'w:t' );
+		private static function create_text_run( DOMDocument $doc, $text, $base_rpr, array $formatting ) {
+				if ( '' === $text ) {
+						return null;
+				}
+				$run = $doc->createElementNS( self::WORD_NAMESPACE, 'w:r' );
+				if ( $base_rpr instanceof DOMElement ) {
+						$run->appendChild( $base_rpr->cloneNode( true ) );
+				}
+				$rpr = self::get_or_create_run_properties( $doc, $run );
+				if ( ! empty( $formatting['bold'] ) ) {
+						$rpr->appendChild( $doc->createElementNS( self::WORD_NAMESPACE, 'w:b' ) );
+				}
+				if ( ! empty( $formatting['italic'] ) ) {
+						$rpr->appendChild( $doc->createElementNS( self::WORD_NAMESPACE, 'w:i' ) );
+				}
+				if ( ! empty( $formatting['underline'] ) ) {
+						$u = $doc->createElementNS( self::WORD_NAMESPACE, 'w:u' );
+						$u->setAttribute( 'w:val', 'single' );
+						$rpr->appendChild( $u );
+				}
+				if ( ! empty( $formatting['hyperlink'] ) ) {
+						$style = $doc->createElementNS( self::WORD_NAMESPACE, 'w:rStyle' );
+						$style->setAttribute( 'w:val', 'Hyperlink' );
+						$rpr->appendChild( $style );
+						$color = $doc->createElementNS( self::WORD_NAMESPACE, 'w:color' );
+						$color->setAttribute( 'w:val', '0000FF' );
+						$rpr->appendChild( $color );
+				}
+				if ( 0 === $rpr->childNodes->length ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+						$run->removeChild( $rpr );
+				}
+				$text_node = $doc->createElementNS( self::WORD_NAMESPACE, 'w:t' );
 		if ( preg_match( '/^\s|\s$/u', $text ) ) {
 			$text_node->setAttributeNS( 'http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve' );
 		}
@@ -533,15 +578,148 @@ class Resolate_OpenTBS {
 	 * @param DOMElement|null $run Run element.
 	 * @return bool
 	 */
-	private static function run_is_break( $run ) {
-		if ( ! $run instanceof DOMElement ) {
-			return false;
-		}
-		foreach ( $run->childNodes as $child ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		private static function run_is_break( $run ) {
+				if ( ! $run instanceof DOMElement ) {
+						return false;
+				}
+				foreach ( $run->childNodes as $child ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			if ( $child instanceof DOMElement && self::WORD_NAMESPACE === $child->namespaceURI && 'br' === $child->localName ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 				return true;
 			}
+				}
+				return false;
 		}
-		return false;
-	}
+
+		/**
+		 * Load the relationships XML for a given WordprocessingML part.
+		 *
+		 * @param ZipArchive $zip    Open archive instance.
+		 * @param string     $target Target XML part path.
+		 * @return array<string,mixed>|null
+		 */
+		private static function load_relationships_for_part( ZipArchive $zip, $target ) {
+				$rel_path = self::get_relationship_part_path( $target );
+				if ( '' === $rel_path ) {
+						return null;
+				}
+				$rels_xml = $zip->getFromName( $rel_path );
+				$doc      = new DOMDocument();
+				$doc->preserveWhiteSpace = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				$doc->formatOutput       = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				$map      = array();
+				$next_id  = 0;
+				libxml_use_internal_errors( true );
+				if ( false === $rels_xml || '' === trim( (string) $rels_xml ) || ! $doc->loadXML( $rels_xml ) ) {
+						$doc->loadXML( '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships" />' );
+				}
+				libxml_clear_errors();
+				$root = $doc->documentElement;
+				if ( $root instanceof DOMElement ) {
+						$relationships = $root->getElementsByTagNameNS( $root->namespaceURI, 'Relationship' );
+						foreach ( $relationships as $relationship ) {
+								if ( ! $relationship instanceof DOMElement ) {
+										continue;
+								}
+								$id = $relationship->getAttribute( 'Id' );
+								if ( preg_match( '/^rId(\d+)$/', $id, $matches ) ) {
+										$next_id = max( $next_id, (int) $matches[1] );
+								}
+								if ( 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink' === $relationship->getAttribute( 'Type' ) ) {
+										$target = $relationship->getAttribute( 'Target' );
+										if ( '' !== $target ) {
+												$map[ $target ] = $id;
+										}
+								}
+						}
+				}
+				return array(
+						'path'       => $rel_path,
+						'doc'        => $doc,
+						'next_index' => (int) $next_id,
+						'map'        => $map,
+						'modified'   => false,
+				);
+		}
+
+		/**
+		 * Determine the relationships part path for a given XML part.
+		 *
+		 * @param string $target Target XML part path.
+		 * @return string
+		 */
+		private static function get_relationship_part_path( $target ) {
+				if ( '' === $target ) {
+						return '';
+				}
+				$dir  = dirname( $target );
+				$file = basename( $target );
+				if ( '.' === $dir ) {
+						$dir = '';
+				}
+				$rel_dir = '' !== $dir ? $dir . '/_rels' : '_rels';
+				return $rel_dir . '/' . $file . '.rels';
+		}
+
+		/**
+		 * Create or reuse a hyperlink relationship and return its r:id value.
+		 *
+		 * @param array<string,mixed>|null $relationships Relationship context.
+		 * @param string                   $target        Hyperlink URL.
+		 * @return string
+		 */
+		private static function register_hyperlink_relationship( &$relationships, $target ) {
+				if ( empty( $target ) || ! is_array( $relationships ) ) {
+						return '';
+				}
+				if ( isset( $relationships['map'][ $target ] ) ) {
+						return $relationships['map'][ $target ];
+				}
+				if ( empty( $relationships['doc'] ) || ! $relationships['doc'] instanceof DOMDocument ) {
+						return '';
+				}
+				$doc  = $relationships['doc'];
+				$root = $doc->documentElement;
+				if ( ! $root instanceof DOMElement ) {
+						return '';
+				}
+				$relationships['next_index'] = (int) $relationships['next_index'] + 1;
+				$r_id                        = 'rId' . $relationships['next_index'];
+				$relationship                = $doc->createElementNS( $root->namespaceURI, 'Relationship' );
+				$relationship->setAttribute( 'Id', $r_id );
+				$relationship->setAttribute( 'Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink' );
+				$relationship->setAttribute( 'Target', $target );
+				$relationship->setAttribute( 'TargetMode', 'External' );
+				$root->appendChild( $relationship );
+				$relationships['map'][ $target ] = $r_id;
+				$relationships['modified']       = true;
+				return $r_id;
+		}
+
+		/**
+		 * Wrap runs inside a Word hyperlink container when possible.
+		 *
+		 * @param DOMDocument                $doc           Target DOM document.
+		 * @param array<int, DOMElement>     $link_runs     Runs representing the link text.
+		 * @param array<string,mixed>|null   $relationships Relationship context.
+		 * @param string                     $href          Hyperlink URL.
+		 * @return DOMElement|null
+		 */
+		private static function create_hyperlink_container( DOMDocument $doc, array $link_runs, &$relationships, $href ) {
+				if ( empty( $link_runs ) ) {
+						return null;
+				}
+				$relationship_id = self::register_hyperlink_relationship( $relationships, $href );
+				if ( '' === $relationship_id ) {
+						return null;
+				}
+				$hyperlink = $doc->createElementNS( self::WORD_NAMESPACE, 'w:hyperlink' );
+				$hyperlink->setAttributeNS( 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'r:id', $relationship_id );
+				$hyperlink->setAttribute( 'w:history', '1' );
+				foreach ( $link_runs as $run ) {
+						if ( $run instanceof DOMElement ) {
+								$hyperlink->appendChild( $run );
+						}
+				}
+				return $hyperlink;
+		}
 }
