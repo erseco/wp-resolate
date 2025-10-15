@@ -16,6 +16,31 @@ class Resolate_OpenTBS {
 	private const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
 	/**
+	 * ODF text namespace.
+	 */
+	private const ODF_TEXT_NS = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
+
+	/**
+	 * ODF office namespace.
+	 */
+	private const ODF_OFFICE_NS = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
+
+	/**
+	 * ODF style namespace.
+	 */
+	private const ODF_STYLE_NS = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0';
+
+	/**
+	 * ODF XSL-FO namespace.
+	 */
+	private const ODF_FO_NS = 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0';
+
+	/**
+	 * XLink namespace used for hyperlinks in ODT documents.
+	 */
+	private const ODF_XLINK_NS = 'http://www.w3.org/1999/xlink';
+
+	/**
 	 * Ensure libraries are loaded.
 	 *
 	 * @return bool
@@ -42,7 +67,17 @@ class Resolate_OpenTBS {
 	 * @return bool|WP_Error
 	 */
 	public static function render_odt( $template_path, $fields, $dest_path, $rich_values = array() ) {
-		return self::render_template_to_file( $template_path, $fields, $dest_path );
+		$result = self::render_template_to_file( $template_path, $fields, $dest_path );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$rich_result = self::apply_odt_rich_text( $dest_path, $rich_values );
+		if ( is_wp_error( $rich_result ) ) {
+			return $rich_result;
+		}
+
+		return $result;
 	}
 
 	/**
@@ -237,6 +272,548 @@ class Resolate_OpenTBS {
 			$lookup[ $value ] = $value;
 		}
 		return $lookup;
+	}
+
+	/**
+	 * Replace HTML fragments in the generated ODT archive with formatted markup.
+	 *
+	 * @param string       $odt_path    Generated ODT path.
+	 * @param array<mixed> $rich_values Rich text values detected during merge.
+	 * @return bool|WP_Error
+	 */
+	private static function apply_odt_rich_text( $odt_path, $rich_values ) {
+		$lookup = self::prepare_rich_lookup( $rich_values );
+		if ( empty( $lookup ) ) {
+			return true;
+		}
+
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return new WP_Error( 'resolate_odt_zip_missing', __( 'ZipArchive no está disponible para aplicar formato enriquecido en ODT.', 'resolate' ) );
+		}
+
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $odt_path ) ) {
+			return new WP_Error( 'resolate_odt_open_failed', __( 'No se pudo abrir el archivo ODT para aplicar formato enriquecido.', 'resolate' ) );
+		}
+
+		$targets = array( 'content.xml', 'styles.xml' );
+		foreach ( $targets as $target ) {
+			$xml = $zip->getFromName( $target );
+			if ( false === $xml ) {
+				continue;
+			}
+
+			$updated = self::convert_odt_part_rich_text( $xml, $lookup );
+			if ( is_wp_error( $updated ) ) {
+				$zip->close();
+				return $updated;
+			}
+
+			if ( $updated !== $xml ) {
+				$zip->addFromString( $target, $updated );
+			}
+		}
+
+		$zip->close();
+		return true;
+	}
+
+	/**
+	 * Convert HTML placeholders inside an ODT XML part to styled markup.
+	 *
+	 * @param string               $xml    Original XML contents.
+	 * @param array<string,string> $lookup Rich text lookup table.
+	 * @return string|WP_Error
+	 */
+	private static function convert_odt_part_rich_text( $xml, $lookup ) {
+		if ( empty( $lookup ) ) {
+			return $xml;
+		}
+
+		$doc = new DOMDocument();
+		$doc->preserveWhiteSpace = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$doc->formatOutput       = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+
+		libxml_use_internal_errors( true );
+		$loaded = $doc->loadXML( $xml );
+		libxml_clear_errors();
+		if ( ! $loaded ) {
+			return $xml;
+		}
+
+		$xpath = new DOMXPath( $doc );
+		$xpath->registerNamespace( 'office', self::ODF_OFFICE_NS );
+		$xpath->registerNamespace( 'text', self::ODF_TEXT_NS );
+		$xpath->registerNamespace( 'style', self::ODF_STYLE_NS );
+
+		$modified      = false;
+		$style_require = array();
+		$nodes         = $xpath->query( '//text()' );
+		if ( $nodes instanceof DOMNodeList ) {
+			foreach ( $nodes as $node ) {
+				if ( ! $node instanceof DOMText ) {
+					continue;
+				}
+				$changed = self::replace_odt_text_node_html( $node, $lookup, $style_require );
+				if ( $changed ) {
+					$modified = true;
+				}
+			}
+		}
+
+		if ( $modified ) {
+			if ( ! empty( $style_require ) ) {
+				self::ensure_odt_styles( $doc, $style_require );
+			}
+			return $doc->saveXML();
+		}
+
+		return $xml;
+	}
+
+	/**
+	 * Replace HTML fragments inside a DOMText node with formatted ODT nodes.
+	 *
+	 * @param DOMText              $text_node     Text node to inspect.
+	 * @param array<string,string> $lookup        Rich text lookup table.
+	 * @param array<string,bool>   $style_require Styles required so far.
+	 * @return bool
+	 */
+	private static function replace_odt_text_node_html( DOMText $text_node, $lookup, array &$style_require ) {
+		$value  = $text_node->wholeText; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$doc    = $text_node->ownerDocument;
+		$parent = $text_node->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		if ( ! $doc || ! $parent ) {
+			return false;
+		}
+
+		$position = 0;
+		$modified = false;
+
+		while ( true ) {
+			$match = self::find_next_html_match( $value, $lookup, $position );
+			if ( false === $match ) {
+				break;
+			}
+
+			list( $match_pos, $match_html ) = $match;
+			if ( $match_pos > $position ) {
+				$segment = substr( $value, $position, $match_pos - $position );
+				if ( '' !== $segment ) {
+					$parent->insertBefore( $doc->createTextNode( $segment ), $text_node );
+				}
+			}
+
+			$nodes = self::build_odt_inline_nodes( $doc, $match_html, $style_require );
+			foreach ( $nodes as $node ) {
+				$parent->insertBefore( $node, $text_node );
+			}
+
+			$position = $match_pos + strlen( $match_html );
+			$modified = true;
+		}
+
+		if ( $modified ) {
+			$tail = substr( $value, $position );
+			if ( '' !== $tail ) {
+				$parent->insertBefore( $doc->createTextNode( $tail ), $text_node );
+			}
+			$parent->removeChild( $text_node );
+		}
+
+		return $modified;
+	}
+
+	/**
+	 * Find the next HTML fragment occurrence within a text string.
+	 *
+	 * @param string               $text     Source text.
+	 * @param array<string,string> $lookup   Lookup table.
+	 * @param int                  $position Starting offset.
+	 * @return array{int,string}|false
+	 */
+	private static function find_next_html_match( $text, $lookup, $position ) {
+		$found_pos  = false;
+		$found_html = '';
+		foreach ( $lookup as $html => $raw ) {
+			unset( $raw );
+			$pos = strpos( $text, $html, $position );
+			if ( false === $pos ) {
+				continue;
+			}
+			if ( false === $found_pos || $pos < $found_pos || ( $pos === $found_pos && strlen( $html ) > strlen( $found_html ) ) ) {
+				$found_pos  = $pos;
+				$found_html = $html;
+			}
+		}
+
+		if ( false === $found_pos ) {
+			return false;
+		}
+
+		return array( $found_pos, $found_html );
+	}
+
+	/**
+	 * Build ODT inline nodes for a HTML fragment.
+	 *
+	 * @param DOMDocument        $doc           Destination document.
+	 * @param string             $html          HTML fragment.
+	 * @param array<string,bool> $style_require Styles required so far.
+	 * @return array<int,DOMNode>
+	 */
+	private static function build_odt_inline_nodes( DOMDocument $doc, $html, array &$style_require ) {
+		$html = trim( (string) $html );
+		if ( '' === $html ) {
+			return array();
+		}
+
+		$tmp = new DOMDocument();
+		libxml_use_internal_errors( true );
+		$loaded = $tmp->loadHTML( '<?xml encoding="utf-8"?><div>' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+		libxml_clear_errors();
+		if ( ! $loaded ) {
+			return array( $doc->createTextNode( $html ) );
+		}
+
+		$container = $tmp->getElementsByTagName( 'div' )->item( 0 );
+		if ( ! $container ) {
+			return array( $doc->createTextNode( $html ) );
+		}
+
+		$list_state = array(
+			'unordered' => 0,
+			'ordered'   => array(),
+		);
+
+		$result = array();
+		foreach ( $container->childNodes as $child ) {
+			$converted = self::convert_html_node_to_odt( $doc, $child, array(), $style_require, $list_state );
+			if ( ! empty( $converted ) ) {
+				$result = array_merge( $result, $converted );
+			}
+		}
+
+		self::trim_odt_inline_nodes( $result );
+		return $result;
+	}
+
+	/**
+	 * Convert an HTML node into ODT inline nodes.
+	 *
+	 * @param DOMDocument        $doc           Target document.
+	 * @param DOMNode            $node          HTML node to convert.
+	 * @param array<string,mixed> $formatting   Active formatting flags.
+	 * @param array<string,bool> $style_require Styles required so far.
+	 * @param array<string,mixed> $list_state   Current list state.
+	 * @return array<int,DOMNode>
+	 */
+	private static function convert_html_node_to_odt( DOMDocument $doc, $node, $formatting, array &$style_require, array &$list_state ) {
+		if ( XML_TEXT_NODE === $node->nodeType ) {
+			$text = $node->nodeValue;
+			if ( '' === $text ) {
+				return array();
+			}
+			$text_node = $doc->createTextNode( $text );
+			return self::wrap_nodes_with_formatting( $doc, array( $text_node ), $formatting, $style_require );
+		}
+
+		if ( XML_ELEMENT_NODE !== $node->nodeType ) {
+			return array();
+		}
+
+		$tag = strtolower( $node->nodeName );
+		switch ( $tag ) {
+			case 'br':
+				return array( $doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ) );
+			case 'strong':
+			case 'b':
+				$formatting['bold'] = true;
+				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+			case 'em':
+			case 'i':
+				$formatting['italic'] = true;
+				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+			case 'u':
+				$formatting['underline'] = true;
+				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+			case 'span':
+				if ( $node->hasAttribute( 'style' ) ) {
+					$style_attr = strtolower( $node->getAttribute( 'style' ) );
+					if ( false !== strpos( $style_attr, 'font-weight:bold' ) || false !== strpos( $style_attr, 'font-weight:700' ) ) {
+						$formatting['bold'] = true;
+					}
+					if ( false !== strpos( $style_attr, 'font-style:italic' ) ) {
+						$formatting['italic'] = true;
+					}
+					if ( false !== strpos( $style_attr, 'text-decoration:underline' ) ) {
+						$formatting['underline'] = true;
+					}
+				}
+				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+			case 'a':
+				$href = trim( $node->getAttribute( 'href' ) );
+				if ( '' !== $href ) {
+					$formatting['link'] = $href;
+				}
+				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+			case 'p':
+			case 'div':
+				$children = self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+				if ( empty( $children ) ) {
+					return array();
+				}
+				$result = $children;
+				$result[] = $doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' );
+				return $result;
+			case 'ul':
+				$list_state['unordered']++;
+				$items = array();
+				foreach ( $node->childNodes as $child ) {
+					if ( 'li' !== strtolower( $child->nodeName ) ) {
+						continue;
+					}
+					if ( ! empty( $items ) ) {
+						$items[] = $doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' );
+					}
+					$items = array_merge( $items, self::convert_html_node_to_odt( $doc, $child, $formatting, $style_require, $list_state ) );
+				}
+				$list_state['unordered'] = max( 0, $list_state['unordered'] - 1 );
+				return $items;
+			case 'ol':
+				$list_state['ordered'][] = 1;
+				$ordered = array();
+				foreach ( $node->childNodes as $child ) {
+					if ( 'li' !== strtolower( $child->nodeName ) ) {
+						continue;
+					}
+					if ( ! empty( $ordered ) ) {
+						$ordered[] = $doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' );
+					}
+					$ordered = array_merge( $ordered, self::convert_html_node_to_odt( $doc, $child, $formatting, $style_require, $list_state ) );
+					$index                     = count( $list_state['ordered'] ) - 1;
+					$list_state['ordered'][ $index ]++;
+				}
+				array_pop( $list_state['ordered'] );
+				return $ordered;
+			case 'li':
+				$line = array();
+				if ( ! empty( $list_state['ordered'] ) ) {
+					$numbers = $list_state['ordered'];
+					$numbers[ count( $numbers ) - 1 ]--;
+					$prefix = implode( '.', $numbers ) . '. ';
+					$line   = self::wrap_nodes_with_formatting( $doc, array( $doc->createTextNode( $prefix ) ), $formatting, $style_require );
+					$list_state['ordered'][ count( $list_state['ordered'] ) - 1 ]++;
+				} elseif ( $list_state['unordered'] > 0 ) {
+					$indent = str_repeat( '  ', max( 0, $list_state['unordered'] - 1 ) );
+					$bullet = $indent . "• ";
+					$line   = self::wrap_nodes_with_formatting( $doc, array( $doc->createTextNode( $bullet ) ), $formatting, $style_require );
+				}
+				$children = self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+				$line     = array_merge( $line, $children );
+				return $line;
+			default:
+				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+		}
+	}
+
+	/**
+	 * Convert all child nodes for the provided HTML node.
+	 *
+	 * @param DOMDocument        $doc           Target document.
+	 * @param DOMNode            $node          HTML node.
+	 * @param array<string,mixed> $formatting   Active formatting flags.
+	 * @param array<string,bool> $style_require Styles required so far.
+	 * @param array<string,mixed> $list_state   Current list state.
+	 * @return array<int,DOMNode>
+	 */
+	private static function collect_html_children_as_odt( DOMDocument $doc, DOMNode $node, $formatting, array &$style_require, array &$list_state ) {
+		$result = array();
+		foreach ( $node->childNodes as $child ) {
+			$converted = self::convert_html_node_to_odt( $doc, $child, $formatting, $style_require, $list_state );
+			if ( ! empty( $converted ) ) {
+				$result = array_merge( $result, $converted );
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Apply formatting wrappers to a list of nodes.
+	 *
+	 * @param DOMDocument        $doc           Target document.
+	 * @param array<int,DOMNode> $nodes         Nodes to wrap.
+	 * @param array<string,mixed> $formatting   Active formatting flags.
+	 * @param array<string,bool> $style_require Styles required so far.
+	 * @return array<int,DOMNode>
+	 */
+	private static function wrap_nodes_with_formatting( DOMDocument $doc, array $nodes, $formatting, array &$style_require ) {
+		$result = $nodes;
+		if ( empty( $result ) ) {
+			return $result;
+		}
+
+		if ( ! empty( $formatting['bold'] ) ) {
+			$style_require['bold'] = true;
+			$span = $doc->createElementNS( self::ODF_TEXT_NS, 'text:span' );
+			$span->setAttributeNS( self::ODF_TEXT_NS, 'text:style-name', 'ResolateRichBold' );
+			foreach ( $result as $child ) {
+				$span->appendChild( $child );
+			}
+			$result = array( $span );
+		}
+
+		if ( ! empty( $formatting['italic'] ) ) {
+			$style_require['italic'] = true;
+			$span = $doc->createElementNS( self::ODF_TEXT_NS, 'text:span' );
+			$span->setAttributeNS( self::ODF_TEXT_NS, 'text:style-name', 'ResolateRichItalic' );
+			foreach ( $result as $child ) {
+				$span->appendChild( $child );
+			}
+			$result = array( $span );
+		}
+
+		if ( ! empty( $formatting['underline'] ) ) {
+			$style_require['underline'] = true;
+			$span = $doc->createElementNS( self::ODF_TEXT_NS, 'text:span' );
+			$span->setAttributeNS( self::ODF_TEXT_NS, 'text:style-name', 'ResolateRichUnderline' );
+			foreach ( $result as $child ) {
+				$span->appendChild( $child );
+			}
+			$result = array( $span );
+		}
+
+		if ( ! empty( $formatting['link'] ) ) {
+			$href = (string) $formatting['link'];
+			$link = $doc->createElementNS( self::ODF_TEXT_NS, 'text:a' );
+			$link->setAttributeNS( self::ODF_XLINK_NS, 'xlink:href', $href );
+			$link->setAttributeNS( self::ODF_XLINK_NS, 'xlink:type', 'simple' );
+			$link->setAttributeNS( self::ODF_TEXT_NS, 'text:style-name', 'ResolateRichLink' );
+			$style_require['link'] = true;
+			foreach ( $result as $child ) {
+				$link->appendChild( $child );
+			}
+			$result = array( $link );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Trim trailing line-break elements from the generated node list.
+	 *
+	 * @param array<int,DOMNode> $nodes Node list reference.
+	 * @return void
+	 */
+	private static function trim_odt_inline_nodes( array &$nodes ) {
+		while ( ! empty( $nodes ) ) {
+			$last = end( $nodes );
+			if ( $last instanceof DOMElement && self::ODF_TEXT_NS === $last->namespaceURI && 'line-break' === $last->localName ) {
+				array_pop( $nodes );
+				continue;
+			}
+			if ( $last instanceof DOMText ) {
+				$value   = $last->nodeValue;
+				$trimmed = rtrim( $value, "\r\n" );
+				if ( $trimmed !== $value ) {
+					if ( '' === $trimmed ) {
+						array_pop( $nodes );
+						continue;
+					}
+					$last->nodeValue = $trimmed;
+				}
+			}
+			break;
+		}
+	}
+
+	/**
+	 * Ensure automatic styles required for HTML conversion are present.
+	 *
+	 * @param DOMDocument        $doc           XML document.
+	 * @param array<string,bool> $style_require Styles that must exist.
+	 * @return void
+	 */
+	private static function ensure_odt_styles( DOMDocument $doc, array $style_require ) {
+		if ( empty( $style_require ) ) {
+			return;
+		}
+
+		$xpath = new DOMXPath( $doc );
+		$xpath->registerNamespace( 'office', self::ODF_OFFICE_NS );
+		$xpath->registerNamespace( 'style', self::ODF_STYLE_NS );
+		$xpath->registerNamespace( 'text', self::ODF_TEXT_NS );
+		$xpath->registerNamespace( 'fo', self::ODF_FO_NS );
+
+		$auto = $xpath->query( '/*/office:automatic-styles' )->item( 0 );
+		if ( ! $auto instanceof DOMElement ) {
+			$root = $doc->documentElement;
+			if ( ! $root instanceof DOMElement ) {
+				return;
+			}
+			$auto = $doc->createElementNS( self::ODF_OFFICE_NS, 'office:automatic-styles' );
+			$root->insertBefore( $auto, $root->firstChild );
+		}
+
+		$styles = array(
+			'bold'      => array(
+				'name'   => 'ResolateRichBold',
+				'family' => 'text',
+				'props'  => array(
+					array( 'ns' => self::ODF_FO_NS, 'name' => 'fo:font-weight', 'value' => 'bold' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:font-weight-asian', 'value' => 'bold' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:font-weight-complex', 'value' => 'bold' ),
+				),
+			),
+			'italic'    => array(
+				'name'   => 'ResolateRichItalic',
+				'family' => 'text',
+				'props'  => array(
+					array( 'ns' => self::ODF_FO_NS, 'name' => 'fo:font-style', 'value' => 'italic' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:font-style-asian', 'value' => 'italic' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:font-style-complex', 'value' => 'italic' ),
+				),
+			),
+			'underline' => array(
+				'name'   => 'ResolateRichUnderline',
+				'family' => 'text',
+				'props'  => array(
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:text-underline-style', 'value' => 'solid' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:text-underline-width', 'value' => 'auto' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:text-underline-color', 'value' => 'font-color' ),
+				),
+			),
+			'link'      => array(
+				'name'   => 'ResolateRichLink',
+				'family' => 'text',
+				'props'  => array(
+					array( 'ns' => self::ODF_FO_NS, 'name' => 'fo:color', 'value' => '#0000FF' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:text-underline-style', 'value' => 'solid' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:text-underline-width', 'value' => 'auto' ),
+					array( 'ns' => self::ODF_STYLE_NS, 'name' => 'style:text-underline-color', 'value' => 'font-color' ),
+				),
+			),
+		);
+
+		foreach ( $style_require as $key => $flag ) {
+			if ( empty( $flag ) || ! isset( $styles[ $key ] ) ) {
+				continue;
+			}
+			$info = $styles[ $key ];
+			$exists = $xpath->query( './/style:style[@style:name="' . $info['name'] . '"]', $auto );
+			if ( $exists instanceof DOMNodeList && $exists->length > 0 ) {
+				continue;
+			}
+			$style = $doc->createElementNS( self::ODF_STYLE_NS, 'style:style' );
+			$style->setAttributeNS( self::ODF_STYLE_NS, 'style:name', $info['name'] );
+			$style->setAttributeNS( self::ODF_STYLE_NS, 'style:family', $info['family'] );
+			$props = $doc->createElementNS( self::ODF_STYLE_NS, 'style:text-properties' );
+			foreach ( $info['props'] as $prop ) {
+				$props->setAttributeNS( $prop['ns'], $prop['name'], $prop['value'] );
+			}
+			$style->appendChild( $props );
+			$auto->appendChild( $style );
+		}
 	}
 
 	/**
