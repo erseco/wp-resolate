@@ -34,30 +34,26 @@ WPIntegration\bootstrap_it();
 
 
 // Include the custom factory classes.
-require_once __DIR__ . '/includes/class-wp-unittest-factory-for-resolate-board.php';
-require_once __DIR__ . '/includes/class-wp-unittest-factory-for-resolate-label.php';
-require_once __DIR__ . '/includes/class-wp-unittest-factory-for-resolate-task.php';
-// Removed event factory as Kanban/Events are deprecated.
+require_once __DIR__ . '/includes/class-wp-unittest-factory-for-resolate-doc-type.php';
+require_once __DIR__ . '/includes/class-wp-unittest-factory-for-resolate-document.php';
 
 // Include the custom base test class.
 require_once __DIR__ . '/includes/class-wp-unittest-resolate-test-base.php';
 
-// tests_add_filter( 'after_setup_theme', function() {
+tests_add_filter( 'after_setup_theme', function() {
 
-// // Register the custom factories with the global WordPress factory.
-// $wp_factory = WP_UnitTestCase::factory();
+        // Register the custom factories with the global WordPress factory.
+        $wp_factory = WP_UnitTestCase::factory();
 
 
-// $wp_factory->board = new WP_UnitTest_Factory_For_Resolate_Board( $wp_factory );
-// $wp_factory->label = new WP_UnitTest_Factory_For_Resolate_Label( $wp_factory );
-// $wp_factory->task = new WP_UnitTest_Factory_For_Resolate_Task( $wp_factory );
+        $wp_factory->doctype = new WP_UnitTest_Factory_For_Resolate_Doc_Type( $wp_factory );
+        $wp_factory->document = new WP_UnitTest_Factory_For_Resolate_Document( $wp_factory );
 
-// if ( isset( $wp_factory ) && $wp_factory instanceof WP_UnitTest_Factory ) {
-// $wp_factory->register( 'board', 'WP_UnitTest_Factory_For_Resolate_Board' );
-// $wp_factory->register( 'label', 'WP_UnitTest_Factory_For_Resolate_Label' );
-// $wp_factory->register( 'task', 'WP_UnitTest_Factory_For_Resolate_Task' );
-// } else {
-// error_log( 'WP_UnitTest_Factory global is not available. Factories not registered.' );
-// exit(1);
-// }
-// });
+        if ( isset( $wp_factory ) && $wp_factory instanceof WP_UnitTest_Factory ) {
+                $wp_factory->register( 'doctype', 'WP_UnitTest_Factory_For_Resolate_Doc_Type' );
+                $wp_factory->register( 'document', 'WP_UnitTest_Factory_For_Resolate_Document' );
+        } else {
+                error_log( 'WP_UnitTest_Factory global is not available. Factories not registered.' );
+                exit(1);
+        }
+});
