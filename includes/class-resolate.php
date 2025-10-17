@@ -123,11 +123,14 @@ class Resolate {
 		 */
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-admin.php';
 
-		// Resolate admin helpers (row actions, exports for resolutions).
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-admin-helper.php';
+				// Resolate admin helpers (row actions, exports for resolutions).
+				require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-admin-helper.php';
 
-		// Admin UI for document types (taxonomy meta for templates, fields, etc.).
-		require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-doc-types-admin.php';
+				// Dynamic field manager.
+				require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-dynamic-fields.php';
+
+				// Admin UI for document types (taxonomy meta for templates, fields, etc.).
+				require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-doc-types-admin.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the public-facing

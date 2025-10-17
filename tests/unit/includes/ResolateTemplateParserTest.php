@@ -5,99 +5,85 @@
 
 class ResolateTemplateParserTest extends WP_UnitTestCase {
 
-	/**
-	 * It should detect array fields and build item schema entries.
-	 */
-	public function test_build_schema_from_field_definitions_detects_arrays() {
-		$fields = array(
-			array(
-				'placeholder' => 'annexes[*].number',
-				'slug'        => 'annexes_number',
-				'label'       => 'Annex Number',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => 'annexes[*].title',
-				'slug'        => 'annexes_title',
-				'label'       => 'Annex Title',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => 'annexes[*].content',
-				'slug'        => 'annexes_content',
-				'label'       => 'Annex Content',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => 'onshow',
-				'slug'        => 'onshow',
-				'label'       => 'On Show',
-				'parameters'  => array( 'repeat' => 'annexes' ),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => 'resolution_title',
-				'slug'        => 'resolution_title',
-				'label'       => 'Resolution Title',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-			array(
-				'placeholder' => 'resolution_body',
-				'slug'        => 'resolution_body',
-				'label'       => 'Resolution Body',
-				'parameters'  => array(),
-				'data_type'   => 'text',
-			),
-                );
+/**
+ * It should extract metadata for dynamic fields including validation parameters.
+ */
+public function test_build_schema_from_field_definitions_extracts_metadata() {
+$fields = array(
+array(
+'placeholder' => 'nombre completo',
+'parameters'  => array(
+'type'        => 'text',
+'title'       => 'Nombre completo',
+'placeholder' => 'Escribe tu nombre',
+'description' => 'Nombre tal y como figura en el DNI',
+'length'      => '120',
+'pattern'     => '^[A-ZÁÉÍÓÚÑ ]+$',
+'patternmsg'  => 'Usa letras mayúsculas.',
+'extra'       => 'valor',
+),
+),
+array(
+'placeholder' => 'importe total',
+'parameters'  => array(
+'type'      => 'number',
+'minvalue'  => '0',
+'maxvalue'  => '9999.99',
+),
+),
+array(
+'placeholder' => 'importe total',
+'parameters'  => array(
+'type' => 'number',
+),
+),
+);
 
-		$schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
+$schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
 
-		$this->assertNotEmpty( $schema, 'La definición de esquema no debe estar vacía.' );
+$this->assertCount( 3, $schema, 'Debe detectar los tres campos, incluyendo duplicados.' );
 
-		$array_field = null;
-		foreach ( $schema as $entry ) {
-			if ( isset( $entry['slug'] ) && 'annexes' === $entry['slug'] ) {
-				$array_field = $entry;
-				break;
-			}
-		}
+$names = wp_list_pluck( $schema, 'name' );
+$this->assertContains( 'nombre completo', $names );
+$this->assertContains( 'importe total', $names );
+$this->assertContains( 'importe total__2', $names, 'Los duplicados deben recibir un sufijo.' );
 
-		$this->assertIsArray( $array_field, 'Se debe detectar el campo de anexos.' );
-		$this->assertSame( 'array', $array_field['type'] );
-		$this->assertSame( 'array', $array_field['data_type'] );
-		$this->assertArrayHasKey( 'item_schema', $array_field );
-		$this->assertArrayHasKey( 'number', $array_field['item_schema'] );
-		$this->assertArrayHasKey( 'title', $array_field['item_schema'] );
-		$this->assertArrayHasKey( 'content', $array_field['item_schema'] );
-		$this->assertSame( 'single', $array_field['item_schema']['number']['type'] );
-		$this->assertSame( 'rich', $array_field['item_schema']['content']['type'] );
+$first = $this->find_field_by_name( $schema, 'nombre completo' );
+$this->assertSame( 'nombre completo', $first['merge_key'] );
+$this->assertSame( 'Nombre completo', $first['title'] );
+$this->assertSame( 'text', $first['type'] );
+$this->assertSame( 'nombre completo', $first['placeholder'] );
+$this->assertSame( 'Escribe tu nombre', $first['input_placeholder'] );
+$this->assertSame( 'Nombre tal y como figura en el DNI', $first['description'] );
+$this->assertSame( '^[A-ZÁÉÍÓÚÑ ]+$', $first['pattern'] );
+$this->assertSame( 'Usa letras mayúsculas.', $first['patternmsg'] );
+$this->assertSame( 120, $first['length'] );
+$this->assertArrayHasKey( 'parameters', $first );
+$this->assertSame( 'valor', $first['parameters']['extra'] );
 
-		$scalar_field = null;
-		foreach ( $schema as $entry ) {
-			if ( isset( $entry['slug'] ) && 'resolution_title' === $entry['slug'] ) {
-				$scalar_field = $entry;
-				break;
-			}
-		}
+$number = $this->find_field_by_name( $schema, 'importe total' );
+$this->assertSame( 'number', $number['type'] );
+$this->assertSame( '0', $number['minvalue'] );
+$this->assertSame( '9999.99', $number['maxvalue'] );
 
-		$this->assertIsArray( $scalar_field );
-		$this->assertSame( 'single', $scalar_field['type'] );
-		$this->assertSame( 'text', $scalar_field['data_type'] );
+$duplicate = $this->find_field_by_name( $schema, 'importe total__2' );
+$this->assertTrue( $duplicate['duplicate'], 'Los duplicados deben marcarse.' );
+$this->assertSame( 'importe total', $duplicate['merge_key'] );
+}
 
-		$rich_scalar = null;
-		foreach ( $schema as $entry ) {
-			if ( isset( $entry['slug'] ) && 'resolution_body' === $entry['slug'] ) {
-				$rich_scalar = $entry;
-				break;
-			}
-		}
-
-		$this->assertIsArray( $rich_scalar );
-		$this->assertSame( 'rich', $rich_scalar['type'] );
-		$this->assertSame( 'text', $rich_scalar['data_type'] );
-        }
+/**
+ * Helper to locate a field by name.
+ *
+ * @param array  $schema Schema array.
+ * @param string $name   Field name.
+ * @return array
+ */
+private function find_field_by_name( $schema, $name ) {
+foreach ( $schema as $field ) {
+if ( isset( $field['name'] ) && $name === $field['name'] ) {
+return $field;
+}
+}
+return array();
+}
 }
