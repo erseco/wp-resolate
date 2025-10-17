@@ -32,7 +32,7 @@ if ( ! defined( 'RESOLATE_ZETAJS_CDN_BASE' ) ) {
 }
 
 if ( ! defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
-	define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.collaboraonline.com' );
+	define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.us.collaboraonline.com' );
 }
 
 /**

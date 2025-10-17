@@ -9,8 +9,7 @@ class ResolateTaskCommentsTest extends Resolate_Test_Base {
 	private $administrator;
 	private $editor;
 	private $subscriber;
-	private $task_id;
-	private $board_id;
+	private $document_id;
 
 	/**
 	 * Set up before each test.
@@ -23,36 +22,24 @@ class ResolateTaskCommentsTest extends Resolate_Test_Base {
 		$this->editor        = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$this->subscriber    = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
-		// Create a board using our custom factory
+		// Ensure the CPT capability checks run under an administrator context.
 		wp_set_current_user( $this->administrator );
-		$board_result = self::factory()->board->create(
-			array(
-				'name'  => 'Test Comments Board',
-				'color' => '#ff5733',
-			)
-		);
 
-		// Verify board creation was successful
-		if ( is_wp_error( $board_result ) ) {
-			$this->fail( 'Failed to create board: ' . $board_result->get_error_message() );
-		}
-		$this->board_id = $board_result;
-
-		// Create a test task using our custom factory
-		$task_result = self::factory()->task->create(
+		// Create a test document using our custom factory
+		$documento_result = self::factory()->document->create(
 			array(
-				'post_title'  => 'Test Comments Task',
+				'post_title'  => 'Test Comments Document',
 				'post_author' => $this->administrator,
-				'board'       => $this->board_id,
-				'stack'       => 'to-do',
 			)
 		);
 
-		// Verify task creation was successful
-		if ( is_wp_error( $task_result ) ) {
-			$this->fail( 'Failed to create task: ' . $task_result->get_error_message() );
+		// Verify document creation was successful
+		if ( is_wp_error( $documento_result ) ) {
+			$this->fail( 'Failed to create document: ' . $documento_result->get_error_message() );
 		}
-		$this->task_id = $task_result;
+		$this->document_id = $documento_result;
+
+		wp_set_current_user( 0 );
 	}
 
 	/**
@@ -71,7 +58,7 @@ class ResolateTaskCommentsTest extends Resolate_Test_Base {
 			// Create a comment using WordPress factory
 			$comment_id = self::factory()->comment->create(
 				array(
-					'comment_post_ID' => $this->task_id,
+					'comment_post_ID' => $this->document_id,
 					'comment_content' => "Test comment from $role",
 					'user_id'         => $user_id,
 				)
@@ -101,8 +88,7 @@ class ResolateTaskCommentsTest extends Resolate_Test_Base {
 	 */
 	public function tear_down() {
 		wp_set_current_user( $this->administrator );
-		wp_delete_post( $this->task_id, true );
-		wp_delete_term( $this->board_id, 'resolate_board' );
+		wp_delete_post( $this->document_id, true );
 		wp_delete_user( $this->editor );
 		wp_delete_user( $this->subscriber );
 		wp_delete_user( $this->administrator );

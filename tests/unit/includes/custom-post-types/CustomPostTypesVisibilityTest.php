@@ -11,7 +11,7 @@ class CustomPostTypesVisibilityTest extends WP_UnitTestCase {
 
     public function test_resolate_kb_not_publicly_queryable() {
         do_action( 'init' );
-        $pto = get_post_type_object( 'resolate_kb' );
+        $pto = get_post_type_object( 'resolate_document' );
         $this->assertNotNull( $pto );
         $this->assertFalse( $pto->public );
         $this->assertFalse( $pto->publicly_queryable );

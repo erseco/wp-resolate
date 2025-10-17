@@ -45,3 +45,6 @@ wp/
 wp-content/
 wordpress-develop/
 artifacts/
+
+# Ignore Sass source maps
+public/style/workarea/*.css.map

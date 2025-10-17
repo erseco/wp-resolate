@@ -104,6 +104,10 @@ class Resolate {
 		// Resolate: Documents CPT and taxonomies (non-breaking addition).
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-documents.php';
 
+		// Document generator and templating helpers.
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-document-generator.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';
+
 		// Removed email-to-post, mailer/notification, and calendar modules.
 
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-disable-comment-notifications.php';

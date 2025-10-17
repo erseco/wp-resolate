@@ -74,7 +74,7 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         }
 
         sort( $slugs );
-        $expected = array( 'antecedentes', 'dispositivo', 'fundamentos', 'objeto', 'title' );
+        $expected = array( 'antecedentes', 'dispositivo', 'fundamentos', 'objeto', 'post_title' );
         sort( $expected );
         $this->assertSame( $expected, $slugs );
     }

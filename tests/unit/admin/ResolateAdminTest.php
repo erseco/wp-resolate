@@ -27,7 +27,6 @@ class ResolateAdminTest extends WP_UnitTestCase {
 
 	public function test_constructor() {
 		$this->assertInstanceOf( Resolate_Admin::class, $this->admin );
-		$this->assertEquals( 100, has_action( 'admin_bar_menu', array( $this->admin, 'add_admin_bar_link' ) ) );
 		$this->assertEquals( 10, has_filter( 'plugin_action_links_' . plugin_basename( RESOLATE_PLUGIN_FILE ), array( $this->admin, 'add_settings_link' ) ) );
 	}
 
@@ -39,30 +38,6 @@ class ResolateAdminTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $new_links );
 		$this->assertStringContainsString( 'options-general.php?page=resolate_settings', $new_links[0] );
 		$this->assertStringContainsString( 'Settings', $new_links[0] );
-	}
-
-	public function test_add_admin_bar_link() {
-		// Create a mock that matches WP_Admin_Bar's actual structure
-		$admin_bar = $this->getMockBuilder( 'WP_Admin_Bar' )
-			->disableOriginalConstructor()
-			->onlyMethods( array( 'add_node' ) )
-			->getMock();
-
-		// Set up expectations for add_node method
-		$admin_bar->expects( $this->once() )
-			->method( 'add_node' )
-			->with(
-				$this->callback(
-					function ( $args ) {
-						return $args['id'] === 'resolate_frontend_link' &&
-							strpos( $args['title'], 'Go to Resolate' ) !== false &&
-							$args['href'] === home_url( '/?resolate_page=priority' );
-					}
-				)
-			);
-
-		// Test with admin capabilities
-		$this->admin->add_admin_bar_link( $admin_bar );
 	}
 
 	public function test_enqueue_styles() {
