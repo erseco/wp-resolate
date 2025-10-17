@@ -147,338 +147,102 @@ class Resolate_Template_Parser {
 		 */
 	public static function build_schema_from_field_definitions( $fields ) {
 		if ( ! is_array( $fields ) ) {
-				return array();
+			return array();
 		}
 
-			$array_defs    = array();
-			$array_order   = array();
-			$repeat_hints  = array();
-			$pending       = array();
-			$order_counter = 0;
+		$schema          = array();
+		$used_names      = array();
+		$allowed_types   = array( 'text', 'number', 'date', 'email', 'url', 'html', 'textarea' );
+		$known_parameters = array( 'type', 'title', 'placeholder', 'description', 'pattern', 'patternmsg', 'minvalue', 'maxvalue', 'length' );
 
-		foreach ( $fields as $index => $field ) {
+		foreach ( $fields as $field ) {
 			if ( ! is_array( $field ) ) {
-					continue;
+				continue;
 			}
 
-				$placeholder = isset( $field['placeholder'] ) ? trim( (string) $field['placeholder'] ) : '';
-				$parameters  = isset( $field['parameters'] ) && is_array( $field['parameters'] ) ? $field['parameters'] : array();
-				$label       = isset( $field['label'] ) ? sanitize_text_field( $field['label'] ) : '';
-				$data_type   = isset( $field['data_type'] ) ? sanitize_key( $field['data_type'] ) : 'text';
-
-				$array_match = self::detect_array_placeholder_with_index( $placeholder );
-			if ( $array_match ) {
-					$base = $array_match['base'];
-					$key  = $array_match['key'];
-
-				if ( '' === $base || '' === $key ) {
-						continue;
-				}
-
-					$repeat_hints[ $base ] = true;
-
-				if ( ! isset( $array_defs[ $base ] ) ) {
-						$array_defs[ $base ] = array(
-							'slug'        => $base,
-							'label'       => self::humanize_key( $base ),
-							'type'        => 'array',
-							'placeholder' => $base,
-							'data_type'   => 'array',
-							'item_schema' => array(),
-							'_order'      => $order_counter++,
-						);
-						$array_order[] = $base;
-				}
-
-				if ( '' === $label ) {
-						$label = self::humanize_key( $array_match['raw_key'] );
-				}
-
-				if ( ! isset( $array_defs[ $base ]['item_schema'][ $key ] ) ) {
-						$item_data_type = self::detect_data_type( $placeholder, $parameters );
-					if ( '' === $item_data_type ) {
-							$item_data_type = 'text';
-					}
-
-						$array_defs[ $base ]['item_schema'][ $key ] = array(
-							'label'     => $label,
-							'type'      => self::infer_array_item_type( $key, $item_data_type ),
-							'data_type' => $item_data_type,
-						);
-				}
-
-					continue;
+			$placeholder = isset( $field['placeholder'] ) ? trim( (string) $field['placeholder'] ) : '';
+			if ( '' === $placeholder ) {
+				continue;
 			}
 
-			if ( isset( $parameters['repeat'] ) ) {
-					$repeat_base = sanitize_key( $parameters['repeat'] );
-				if ( '' !== $repeat_base ) {
-						$repeat_hints[ $repeat_base ] = true;
-				}
+			$parameters = isset( $field['parameters'] ) && is_array( $field['parameters'] ) ? $field['parameters'] : array();
+			$merge_key  = $placeholder;
+			$name       = $merge_key;
+			$suffix     = 2;
+
+			while ( isset( $used_names[ $name ] ) ) {
+				$name = $merge_key . '__' . $suffix;
+				$suffix++;
 			}
 
-				$pending[] = array(
-					'field'       => $field,
-					'placeholder' => $placeholder,
-					'parameters'  => $parameters,
-					'label'       => $label,
-					'data_type'   => $data_type,
-					'index'       => $index,
-				);
-		}
+			$used_names[ $name ] = true;
 
-			$schema        = array();
-			$scalar_fields = array();
+			$type = isset( $parameters['type'] ) ? strtolower( (string) $parameters['type'] ) : '';
+			if ( ! in_array( $type, $allowed_types, true ) ) {
+				$type = 'text';
+			}
 
-		foreach ( $pending as $entry ) {
-				$placeholder = $entry['placeholder'];
-				$parameters  = $entry['parameters'];
-				$label       = $entry['label'];
-				$data_type   = $entry['data_type'];
+			$title            = isset( $parameters['title'] ) ? trim( (string) $parameters['title'] ) : '';
+			$placeholder_attr = isset( $parameters['placeholder'] ) ? trim( (string) $parameters['placeholder'] ) : '';
+			$description      = isset( $parameters['description'] ) ? trim( (string) $parameters['description'] ) : '';
+			$pattern          = isset( $parameters['pattern'] ) ? (string) $parameters['pattern'] : '';
+			$pattern_message  = isset( $parameters['patternmsg'] ) ? (string) $parameters['patternmsg'] : '';
+			$min_value        = isset( $parameters['minvalue'] ) ? (string) $parameters['minvalue'] : '';
+			$max_value        = isset( $parameters['maxvalue'] ) ? (string) $parameters['maxvalue'] : '';
+			$length_value     = isset( $parameters['length'] ) ? (string) $parameters['length'] : '';
 
-				$dot_match = self::detect_array_placeholder_without_index( $placeholder );
-			if ( $dot_match && ( isset( $repeat_hints[ $dot_match['base'] ] ) || isset( $array_defs[ $dot_match['base'] ] ) ) ) {
-					$base = $dot_match['base'];
-					$key  = $dot_match['key'];
+			$length = is_numeric( $length_value ) ? absint( $length_value ) : 0;
 
-				if ( '' === $base || '' === $key ) {
+			$extras = array();
+			foreach ( $parameters as $param_key => $param_value ) {
+				if ( in_array( $param_key, $known_parameters, true ) ) {
 					continue;
 				}
-
-				if ( ! isset( $array_defs[ $base ] ) ) {
-						$array_defs[ $base ] = array(
-							'slug'        => $base,
-							'label'       => self::humanize_key( $base ),
-							'type'        => 'array',
-							'placeholder' => $base,
-							'data_type'   => 'array',
-							'item_schema' => array(),
-							'_order'      => $order_counter++,
-						);
-						$array_order[] = $base;
-				}
-
-				if ( ! isset( $array_defs[ $base ]['item_schema'][ $key ] ) ) {
-						$item_data_type = self::detect_data_type( $placeholder, $parameters );
-					if ( '' === $label ) {
-							$label = self::humanize_key( $dot_match['raw_key'] );
-					}
-					if ( '' === $item_data_type ) {
-							$item_data_type = 'text';
-					}
-						$array_defs[ $base ]['item_schema'][ $key ] = array(
-							'label'     => ( '' !== $label ) ? $label : self::humanize_key( $dot_match['raw_key'] ),
-							'type'      => self::infer_array_item_type( $key, $item_data_type ),
-							'data_type' => $item_data_type,
-						);
-				}
-
-					continue;
+				$extras[ $param_key ] = $param_value;
 			}
 
-				$slug = isset( $entry['field']['slug'] ) ? sanitize_key( $entry['field']['slug'] ) : '';
-			if ( '' === $slug ) {
-					$slug = sanitize_key( $placeholder );
+			$entry = array(
+				'name'              => $name,
+				'merge_key'         => $merge_key,
+				'title'             => '' !== $title ? $title : $merge_key,
+				'type'              => $type,
+				'placeholder'       => $merge_key,
+				'input_placeholder' => $placeholder_attr,
+				'description'       => $description,
+			);
+
+			$entry['slug']      = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $merge_key ) ) );
+			$entry['label']     = $entry['title'];
+			$entry['data_type'] = $type;
+
+			if ( '' !== $pattern ) {
+				$entry['pattern'] = $pattern;
+			}
+			if ( '' !== $pattern_message ) {
+				$entry['patternmsg'] = $pattern_message;
+			}
+			if ( '' !== $min_value ) {
+				$entry['minvalue'] = $min_value;
+			}
+			if ( '' !== $max_value ) {
+				$entry['maxvalue'] = $max_value;
+			}
+			if ( $length > 0 ) {
+				$entry['length'] = $length;
+			}
+			if ( ! empty( $extras ) ) {
+				$entry['parameters'] = $extras;
+			}
+			if ( $name !== $merge_key ) {
+				$entry['duplicate'] = true;
 			}
 
-			if ( '' === $slug ) {
-					continue;
-			}
-
-				$normalized_placeholder = '';
-			if ( '' !== $placeholder ) {
-					$normalized_placeholder = preg_replace( '/[^A-Za-z0-9._:-]/', '', $placeholder );
-			}
-			if ( '' === $label ) {
-					$source = '' !== $normalized_placeholder ? $normalized_placeholder : $slug;
-					$label  = self::humanize_key( $source );
-			}
-
-			if ( '' === $normalized_placeholder ) {
-					$normalized_placeholder = $slug;
-			}
-
-			if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-					$data_type = 'text';
-			}
-
-			if ( in_array( $slug, array( 'onshow', 'ondata', 'block', 'var' ), true ) ) {
-					continue;
-			}
-
-				$scalar_fields[] = array(
-					'slug'        => $slug,
-					'label'       => $label,
-					'placeholder' => $normalized_placeholder,
-					'data_type'   => $data_type,
-					'_order'      => $entry['index'],
-				);
-		}
-
-		if ( ! empty( $array_defs ) ) {
-				uasort(
-					$array_defs,
-					static function ( $a, $b ) {
-								$order_a = isset( $a['_order'] ) ? intval( $a['_order'] ) : 0;
-								$order_b = isset( $b['_order'] ) ? intval( $b['_order'] ) : 0;
-								return $order_a <=> $order_b;
-					}
-				);
-
-			foreach ( $array_defs as $base => $def ) {
-				unset( $def['_order'] );
-				$schema[] = $def;
-			}
-		}
-
-		if ( ! empty( $scalar_fields ) ) {
-				usort(
-					$scalar_fields,
-					static function ( $a, $b ) {
-								$order_a = isset( $a['_order'] ) ? intval( $a['_order'] ) : 0;
-								$order_b = isset( $b['_order'] ) ? intval( $b['_order'] ) : 0;
-								return $order_a <=> $order_b;
-					}
-				);
-
-			foreach ( $scalar_fields as $field ) {
-				unset( $field['_order'] );
-				$field['type'] = self::infer_scalar_field_type(
-					isset( $field['slug'] ) ? $field['slug'] : '',
-					isset( $field['label'] ) ? $field['label'] : '',
-					isset( $field['data_type'] ) ? $field['data_type'] : '',
-					isset( $field['placeholder'] ) ? $field['placeholder'] : ''
-				);
-				$schema[] = $field;
-			}
+			$schema[] = $entry;
 		}
 
 		return $schema;
 	}
 
-		/**
-		 * Parse a raw OpenTBS placeholder definition.
-		 *
-		 * @param string $raw_field Placeholder string without brackets.
-		 * @return array{
-		 *     raw: string,
-		 *     placeholder: string,
-		 *     parameters: array<string, string>
-		 * }
-		 */
-	private static function parse_placeholder( $raw_field ) {
-			$raw_field = trim( $raw_field );
-		if ( '' === $raw_field ) {
-				return array(
-					'raw'         => '',
-					'placeholder' => '',
-					'parameters'  => array(),
-				);
-		}
-
-			$parts       = preg_split( '/\s*;\s*/', $raw_field );
-			$placeholder = trim( array_shift( $parts ) );
-			$parameters  = array();
-
-		if ( ! empty( $parts ) ) {
-			foreach ( $parts as $param ) {
-					$param = trim( $param );
-				if ( '' === $param ) {
-					continue;
-				}
-					$pair = explode( '=', $param, 2 );
-					$name = strtolower( trim( $pair[0] ) );
-				if ( '' === $name ) {
-						continue;
-				}
-					$value = ( count( $pair ) > 1 ) ? strtolower( trim( $pair[1] ) ) : '1';
-					$parameters[ $name ] = $value;
-			}
-		}
-
-			return array(
-				'raw'         => $raw_field,
-				'placeholder' => $placeholder,
-				'parameters'  => $parameters,
-			);
-	}
-
-		/**
-		 * Build normalized field information from a parsed placeholder.
-		 *
-		 * @param array $parsed Parsed placeholder data.
-		 * @return array{
-		 *     placeholder: string,
-		 *     slug: string,
-		 *     label: string,
-		 *     data_type: string,
-		 *     parameters: array<string, string>
-		 * }
-		 */
-	private static function format_field_info( $parsed ) {
-			$placeholder = isset( $parsed['placeholder'] ) ? (string) $parsed['placeholder'] : '';
-			$parameters  = isset( $parsed['parameters'] ) && is_array( $parsed['parameters'] ) ? $parsed['parameters'] : array();
-
-			$slug_source = self::normalize_slug_source( $placeholder );
-			$slug        = sanitize_key( $slug_source );
-		if ( '' === $slug ) {
-				$slug = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $placeholder ) ) );
-		}
-
-			$label_source = str_replace( array( '.', ':' ), ' ', $slug_source );
-			$label        = self::humanize_key( $label_source );
-
-			$data_type = self::detect_data_type( $placeholder, $parameters );
-
-			return array(
-				'placeholder' => $placeholder,
-				'slug'        => $slug,
-				'label'       => $label,
-				'data_type'   => $data_type,
-				'parameters'  => $parameters,
-			);
-	}
-
-		/**
-		 * Normalize the slug source by dropping known command prefixes.
-		 *
-		 * @param string $placeholder Placeholder name without parameters.
-		 * @return string
-		 */
-	private static function normalize_slug_source( $placeholder ) {
-			$placeholder = trim( (string) $placeholder );
-		if ( '' === $placeholder ) {
-				return '';
-		}
-
-			$segments = explode( '.', $placeholder );
-		if ( count( $segments ) > 1 ) {
-				$prefix          = strtolower( $segments[0] );
-				$reserved_prefix = array(
-					'onshow',
-					'onload',
-					'onchange',
-					'onformat',
-					'ondata',
-					'onsection',
-					'var',
-					'block',
-				);
-				if ( in_array( $prefix, $reserved_prefix, true ) ) {
-						array_shift( $segments );
-						$placeholder = implode( '.', $segments );
-				}
-		}
-
-			return $placeholder;
-	}
-
-		/**
-		 * Human readable label from slug source.
-		 *
-		 * @param string $slug Slug source.
-		 * @return string
-		 */
 	private static function humanize_key( $slug ) {
 			$slug = str_replace( array( '-', '_', '.' ), ' ', strtolower( $slug ) );
 			$slug = preg_replace( '/\s+/', ' ', $slug );

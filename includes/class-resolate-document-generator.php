@@ -301,87 +301,119 @@ class Resolate_Document_Generator {
 			'margen' => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
 		);
 
-		$types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
-		if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
-			$type_id = intval( $types[0] );
-			$schema  = array();
-			if ( class_exists( 'Resolate_Documents' ) ) {
-					$schema = Resolate_Documents::get_term_schema( $type_id );
-			} else {
-					$schema = self::get_type_schema( $type_id );
-			}
-			foreach ( $schema as $def ) {
-				if ( empty( $def['slug'] ) ) {
+		$has_dynamic_schema = false;
+
+				if ( class_exists( 'Resolate_Dynamic_Fields' ) ) {
+			$dynamic_schema = Resolate_Dynamic_Fields::get_schema_for_post( $post_id );
+			if ( ! empty( $dynamic_schema ) ) {
+				$has_dynamic_schema = true;
+				$dynamic_values     = Resolate_Dynamic_Fields::get_field_values( $post_id );
+				foreach ( $dynamic_schema as $definition ) {
+					if ( empty( $definition['merge_key'] ) || empty( $definition['name'] ) ) {
 						continue;
-				}
-					$slug        = sanitize_key( $def['slug'] );
-					$placeholder = isset( $def['placeholder'] ) ? self::sanitize_placeholder_name( $def['placeholder'] ) : '';
-				if ( '' === $placeholder ) {
-						$placeholder = $slug;
-				}
-					$data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
-					$type      = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
-
-				if ( 'array' === $type ) {
-						$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
-						$fields[ $placeholder ] = $items;
-						self::remember_rich_values_from_array_items( $items );
-						continue;
-				}
-
-					$value                     = self::get_structured_field_value( $structured, $slug, $post_id );
-					$fields[ $placeholder ]    = self::prepare_field_value( $value, $type, $data_type );
-				if ( 'rich' === $type ) {
-						self::remember_rich_field_value( $fields[ $placeholder ] );
-				}
-			}
-
-			$logos = get_term_meta( $type_id, 'resolate_type_logos', true );
-			if ( is_array( $logos ) && ! empty( $logos ) ) {
-					$i = 1;
-				foreach ( $logos as $att_id ) {
-						$att_id = intval( $att_id );
-					if ( $att_id <= 0 ) {
-							continue;
 					}
-						$fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
-						$fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
-						$i++;
+
+					$merge_key = (string) $definition['merge_key'];
+					$name      = (string) $definition['name'];
+					$type      = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'text';
+					$value     = isset( $dynamic_values[ $name ] ) ? (string) $dynamic_values[ $name ] : '';
+
+					if ( 'html' === $type ) {
+						self::remember_rich_field_value( $value );
+					}
+
+					if ( 'number' === $type && '' !== $value && is_numeric( $value ) ) {
+						$fields[ $merge_key ] = $value + 0;
+					} else {
+						$fields[ $merge_key ] = $value;
+					}
 				}
 			}
 		}
 
-		if ( ! empty( $structured ) ) {
-			foreach ( $structured as $slug => $info ) {
-					$slug = sanitize_key( $slug );
-				if ( '' === $slug ) {
-						continue;
-				}
-					$placeholder = $slug;
-				if ( isset( $fields[ $placeholder ] ) && '' !== $fields[ $placeholder ] ) {
-						continue;
-				}
-				if ( isset( $info['type'] ) && 'array' === sanitize_key( $info['type'] ) ) {
-						$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
-						$fields[ $placeholder ] = $items;
-						self::remember_rich_values_from_array_items( $items );
-						continue;
+				$types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+				if ( ! is_wp_error( $types ) && ! empty( $types ) ) {
+						$type_id = intval( $types[0] );
+						$schema  = array();
+					if ( class_exists( 'Resolate_Documents' ) ) {
+									$schema = Resolate_Documents::get_term_schema( $type_id );
+					} else {
+									$schema = self::get_type_schema( $type_id );
+					}
+					if ( ! $has_dynamic_schema ) {
+						foreach ( $schema as $def ) {
+							if ( empty( $def['slug'] ) ) {
+								continue;
+							}
+								$slug        = sanitize_key( $def['slug'] );
+								$placeholder = isset( $def['placeholder'] ) ? self::sanitize_placeholder_name( $def['placeholder'] ) : '';
+							if ( '' === $placeholder ) {
+									$placeholder = $slug;
+							}
+								$data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
+								$type      = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
+
+							if ( 'array' === $type ) {
+									$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+									$fields[ $placeholder ] = $items;
+									self::remember_rich_values_from_array_items( $items );
+									continue;
+							}
+
+								$value                     = self::get_structured_field_value( $structured, $slug, $post_id );
+								$fields[ $placeholder ]    = self::prepare_field_value( $value, $type, $data_type );
+							if ( 'rich' === $type ) {
+									self::remember_rich_field_value( $fields[ $placeholder ] );
+							}
+						}
+					}
+
+						$logos = get_term_meta( $type_id, 'resolate_type_logos', true );
+					if ( is_array( $logos ) && ! empty( $logos ) ) {
+							$i = 1;
+						foreach ( $logos as $att_id ) {
+								$att_id = intval( $att_id );
+							if ( $att_id <= 0 ) {
+									continue;
+							}
+								$fields[ 'logo' . $i . '_path' ] = get_attached_file( $att_id );
+								$fields[ 'logo' . $i . '_url' ]  = wp_get_attachment_url( $att_id );
+								$i++;
+						}
+					}
 				}
 
-					$value      = '';
-				if ( isset( $info['value'] ) ) {
-						$value = (string) $info['value'];
+			if ( ! $has_dynamic_schema && ! empty( $structured ) ) {
+					foreach ( $structured as $slug => $info ) {
+							$slug = sanitize_key( $slug );
+						if ( '' === $slug ) {
+								continue;
+						}
+							$placeholder = $slug;
+						if ( isset( $fields[ $placeholder ] ) && '' !== $fields[ $placeholder ] ) {
+								continue;
+						}
+						if ( isset( $info['type'] ) && 'array' === sanitize_key( $info['type'] ) ) {
+								$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+								$fields[ $placeholder ] = $items;
+								self::remember_rich_values_from_array_items( $items );
+								continue;
+						}
+
+							$value      = '';
+						if ( isset( $info['value'] ) ) {
+								$value = (string) $info['value'];
+						}
+						if ( '' === $value ) {
+								$value = self::get_structured_field_value( $structured, $slug, $post_id );
+						}
+							$field_type               = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
+							$fields[ $placeholder ]   = self::prepare_field_value( $value, $field_type, 'text' );
+						if ( 'rich' === $field_type ) {
+								self::remember_rich_field_value( $fields[ $placeholder ] );
+						}
+					}
 				}
-				if ( '' === $value ) {
-						$value = self::get_structured_field_value( $structured, $slug, $post_id );
-				}
-					$field_type               = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
-					$fields[ $placeholder ]   = self::prepare_field_value( $value, $field_type, 'text' );
-				if ( 'rich' === $field_type ) {
-						self::remember_rich_field_value( $fields[ $placeholder ] );
-				}
-			}
-		}
 
 		return $fields;
 	}
