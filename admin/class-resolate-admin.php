@@ -97,10 +97,21 @@ class Resolate_Admin {
 	 * @param string $hook_suffix The current admin page.
 	 */
 	public function enqueue_scripts( $hook_suffix ) {
-		if ( 'settings_page_resolate_settings' !== $hook_suffix ) {
-			return;
+		global $post_type;
+
+		if ( 'settings_page_resolate_settings' === $hook_suffix ) {
+			wp_enqueue_media();
+			wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/resolate-admin.js', array( 'jquery' ), $this->version, true );
 		}
-		wp_enqueue_media();
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/resolate-admin.js', array( 'jquery' ), $this->version, true );
+
+		if ( 'resolate_doc' === $post_type && in_array( $hook_suffix, array( 'post.php', 'post-new.php' ) ) ) {
+			wp_enqueue_script(
+				'resolate-dynamic-fields',
+				plugin_dir_url( __FILE__ ) . 'js/resolate-dynamic-fields.js',
+				array( 'jquery' ),
+				$this->version,
+				true
+			);
+		}
 	}
 }

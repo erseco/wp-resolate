@@ -40,7 +40,10 @@ class Resolate_Documents {
 
 		// Meta boxes.
 		add_action( 'add_meta_boxes', array( $this, 'register_meta_boxes' ) );
-		add_action( 'save_post_resolate_document', array( $this, 'save_meta_boxes' ) );
+		add_action( 'save_post_resolate_doc', array( $this, 'save_meta_boxes' ) );
+		add_action( 'save_post_resolate_doc', array( $this, 'save_dynamic_fields' ) );
+
+		add_action( 'admin_notices', array( $this, 'display_save_errors' ) );
 
 		/**
 		 * Revisions: copy meta to the single revision WordPress creates.
@@ -115,7 +118,7 @@ class Resolate_Documents {
 	 */
 	public function copy_meta_to_revision( $post_id, $revision_id ) {
 		$parent = get_post( $post_id );
-		if ( ! $parent || 'resolate_document' !== $parent->post_type ) {
+		if ( ! $parent || 'resolate_doc' !== $parent->post_type ) {
 			return;
 		}
 
@@ -143,7 +146,7 @@ class Resolate_Documents {
 	 */
 	public function restore_meta_from_revision( $post_id, $revision_id ) {
 		$parent = get_post( $post_id );
-		if ( ! $parent || 'resolate_document' !== $parent->post_type ) {
+		if ( ! $parent || 'resolate_doc' !== $parent->post_type ) {
 			return;
 		}
 
@@ -165,7 +168,7 @@ class Resolate_Documents {
 	 * @return int
 	 */
 	public function limit_revisions_for_cpt( $num, $post ) {
-		if ( $post && 'resolate_document' === $post->post_type ) {
+		if ( $post && 'resolate_doc' === $post->post_type ) {
 			return 15; // Adjust to your needs.
 		}
 		return $num;
@@ -180,7 +183,7 @@ class Resolate_Documents {
 	 * @return bool
 	 */
 	public function force_revision_on_meta( $post_has_changed, $last_revision, $post ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
-		if ( $post && 'resolate_document' === $post->post_type ) {
+		if ( $post && 'resolate_doc' === $post->post_type ) {
 			return true;
 		}
 		return $post_has_changed;
@@ -308,7 +311,7 @@ class Resolate_Documents {
 			'show_in_rest'       => false,
 		);
 
-		register_post_type( 'resolate_document', $args );
+		register_post_type( 'resolate_doc', $args );
 	}
 
 		/**
@@ -329,7 +332,7 @@ class Resolate_Documents {
 			);
 			register_taxonomy(
 				'resolate_doc_type',
-				array( 'resolate_document' ),
+				array( 'resolate_doc' ),
 				array(
 					'hierarchical'      => false,
 					'labels'            => $types_labels,
@@ -352,7 +355,7 @@ class Resolate_Documents {
 	 * @return bool
 	 */
 	public function disable_gutenberg( $use_block_editor, $post_type ) {
-		if ( 'resolate_document' === $post_type ) {
+		if ( 'resolate_doc' === $post_type ) {
 			return false;
 		}
 		return $use_block_editor;
@@ -367,7 +370,7 @@ class Resolate_Documents {
 			'resolate_doc_type',
 			__( 'Tipo de documento', 'resolate' ),
 			array( $this, 'render_type_metabox' ),
-			'resolate_document',
+			'resolate_doc',
 			'side',
 			'high'
 		);
@@ -376,9 +379,18 @@ class Resolate_Documents {
 			'resolate_sections',
 			__( 'Secciones del documento', 'resolate' ),
 			array( $this, 'render_sections_metabox' ),
-			'resolate_document',
+			'resolate_doc',
 			'normal',
 			'default'
+		);
+
+		add_meta_box(
+			'resolate_dynamic_fields',
+			__( 'Campos del Documento (ODT)', 'wp-resolate' ),
+			array( $this, 'render_dynamic_fields_metabox' ),
+			'resolate_doc',
+			'normal',
+			'high'
 		);
 	}
 
@@ -810,7 +822,7 @@ class Resolate_Documents {
 		 * @return array
 		 */
 	public function filter_post_data_compose_content( $data, $postarr ) {
-		if ( empty( $data['post_type'] ) || 'resolate_document' !== $data['post_type'] ) {
+		if ( empty( $data['post_type'] ) || 'resolate_doc' !== $data['post_type'] ) {
 			return $data;
 		}
 
@@ -1377,6 +1389,315 @@ class Resolate_Documents {
 			return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
 		}
 		return ucwords( $slug );
+	}
+}
+
+	public function render_dynamic_fields_metabox( $post ) {
+		wp_nonce_field( 'resolate_dynamic_fields_nonce', 'resolate_dynamic_fields_nonce' );
+
+		$assigned = wp_get_post_terms( $post->ID, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+		$term_id  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
+
+		if ( ! $term_id ) {
+			echo '<p>' . esc_html__( 'Por favor, seleccione un tipo de documento y guarde para ver los campos.', 'wp-resolate' ) . '</p>';
+			return;
+		}
+
+		$template_id = get_term_meta( $term_id, 'resolate_type_template_id', true );
+		$template_path = get_attached_file( $template_id );
+
+		if ( ! $template_path || ! file_exists( $template_path ) || 'odt' !== strtolower( pathinfo( $template_path, PATHINFO_EXTENSION ) ) ) {
+			echo '<p>' . esc_html__( 'No hay una plantilla ODT asignada a este tipo de documento.', 'wp-resolate' ) . '</p>';
+			return;
+		}
+
+		$schema = Resolate_Dynamic_Fields_Parser::parse( $template_path );
+
+		if ( empty( $schema['fields'] ) ) {
+			echo '<p>' . esc_html__( 'No se encontraron campos dinámicos en la plantilla ODT.', 'wp-resolate' ) . '</p>';
+			return;
+		}
+
+		$saved_values = $this->parse_structured_content( $post->post_content );
+
+		echo '<div class="resolate-dynamic-fields">';
+		foreach ( $schema['fields'] as $field ) {
+			$this->render_field( $post->ID, $field, $saved_values );
+		}
+		echo '</div>';
+	}
+
+	private function render_field( $post_id, $field, $saved_values ) {
+		$meta_key = 'resolate_field_' . $field['name'];
+		$value = isset( $saved_values[ $field['name'] ] ) ? $saved_values[ $field['name'] ]['value'] : '';
+
+		echo '<div class="resolate-field" style="margin-bottom: 20px;">';
+		echo '<label for="' . esc_attr( $meta_key ) . '" style="font-weight: bold; display: block; margin-bottom: 5px;">' . esc_html( $field['title'] ) . '</label>';
+
+		$attributes = array(
+			'id'          => $meta_key,
+			'name'        => $meta_key,
+			'class'       => 'widefat',
+			'placeholder' => isset( $field['placeholder'] ) ? $field['placeholder'] : '',
+			'pattern'     => isset( $field['pattern'] ) ? $field['pattern'] : null,
+			'title'       => isset( $field['patternmsg'] ) ? $field['patternmsg'] : null,
+			'maxlength'   => isset( $field['length'] ) ? $field['length'] : null,
+			'min'         => isset( $field['minvalue'] ) ? $field['minvalue'] : null,
+			'max'         => isset( $field['maxvalue'] ) ? $field['maxvalue'] : null,
+		);
+
+		$attr_string = '';
+		foreach ( $attributes as $key => $attr_value ) {
+			if ( $attr_value !== null ) {
+				$attr_string .= ' ' . $key . '="' . esc_attr( $attr_value ) . '"';
+			}
+		}
+
+		switch ( $field['type'] ) {
+			case 'textarea':
+				echo '<textarea ' . $attr_string . ' rows="5">' . esc_textarea( $value ) . '</textarea>';
+				break;
+
+			case 'html':
+				wp_editor(
+					$value,
+					$meta_key,
+					array(
+						'textarea_name' => $meta_key,
+						'editor_height' => 250,
+					)
+				);
+				break;
+
+			case 'number':
+			case 'date':
+			case 'email':
+			case 'url':
+				echo '<input type="' . esc_attr( $field['type'] ) . '" value="' . esc_attr( $value ) . '"' . $attr_string . '>';
+				break;
+
+			case 'text':
+			default:
+				echo '<input type="text" value="' . esc_attr( $value ) . '"' . $attr_string . '>';
+				break;
+		}
+
+		if ( ! empty( $field['description'] ) ) {
+			echo '<p class="description" style="margin-top: 5px;">' . esc_html( $field['description'] ) . '</p>';
+		}
+
+		if ( ! empty( $field['is_duplicate'] ) ) {
+			echo '<p class="description" style="color: #d63638;">' . esc_html__( 'Advertencia: Nombre de campo duplicado. El nombre del campo en la base de datos ha sido modificado a', 'wp-resolate' ) . ' <code>' . esc_html($field['name']) . '</code>.</p>';
+		}
+
+		echo '</div>';
+	}
+
+	public function save_dynamic_fields( $post_id ) {
+		if ( ! isset( $_POST['resolate_dynamic_fields_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['resolate_dynamic_fields_nonce'] ) ), 'resolate_dynamic_fields_nonce' ) ) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		$assigned = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+		$term_id  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
+		if ( ! $term_id ) { return; }
+
+		$template_id = get_term_meta( $term_id, 'resolate_type_template_id', true );
+		$template_path = get_attached_file( $template_id );
+		if ( ! $template_path ) { return; }
+
+		$schema = Resolate_Dynamic_Fields_Parser::parse( $template_path );
+		if ( empty( $schema['fields'] ) ) { return; }
+
+		$errors = array();
+
+		foreach ( $schema['fields'] as $field ) {
+			$meta_key = 'resolate_field_' . $field['name'];
+			$value = isset( $_POST[ $meta_key ] ) ? wp_unslash( $_POST[ $meta_key ] ) : '';
+
+			$sanitized_value = $this->sanitize_value( $value, $field['type'] );
+			$validation_error = $this->validate_value( $sanitized_value, $field );
+
+			if ( $validation_error ) {
+				$errors[] = '<strong>' . esc_html( $field['title'] ) . ':</strong> ' . $validation_error;
+			}
+
+			$structured_data[ $field['name'] ] = array(
+				'value' => $sanitized_value,
+				'type' => $field['type'],
+			);
+		}
+
+		if ( ! empty( $errors ) ) {
+			set_transient( 'resolate_save_errors_' . $post_id, $errors, 45 );
+			add_filter( 'redirect_post_location', array( $this, 'add_error_query_arg' ), 99 );
+
+			// Don't update post_content if there are validation errors
+			return;
+		}
+
+		$this->update_post_content_with_structured_data( $post_id, $structured_data );
+	}
+
+	public function add_error_query_arg( $location ) {
+		remove_filter( 'redirect_post_location', array( $this, 'add_error_query_arg' ), 99 );
+		return add_query_arg( 'resolate_error', 1, $location );
+	}
+
+	public function display_save_errors() {
+		global $post;
+		if ( ! $post || ! isset( $_GET['resolate_error'] ) ) {
+			return;
+		}
+
+		$errors = get_transient( 'resolate_save_errors_' . $post->ID );
+		if ( $errors ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . wp_kses_post( implode( '<br>', $errors ) ) . '</p></div>';
+			delete_transient( 'resolate_save_errors_' . $post->ID );
+		}
+	}
+
+	private function sanitize_value( $value, $type ) {
+		switch ( $type ) {
+			case 'email':
+				return sanitize_email( $value );
+			case 'url':
+				return esc_url_raw( $value );
+			case 'number':
+				return is_numeric( $value ) ? floatval( $value ) : '';
+			case 'html':
+				return wp_kses_post( $value );
+			case 'textarea':
+				return sanitize_textarea_field( $value );
+			default:
+				return sanitize_text_field( $value );
+		}
+	}
+
+	private function validate_value( $value, $field ) {
+		if ( ! empty( $field['length'] ) && mb_strlen( $value ) > $field['length'] ) {
+			return sprintf( __( 'El valor no puede superar los %d caracteres.', 'wp-resolate' ), $field['length'] );
+		}
+
+		if ( ! empty( $field['pattern'] ) && ! preg_match( '/'. str_replace('/', '\/', $field['pattern']) . '/', $value ) ) {
+			return ! empty( $field['patternmsg'] ) ? $field['patternmsg'] : __( 'El formato del valor no es válido.', 'wp-resolate' );
+		}
+
+		if ( $field['type'] === 'number' ) {
+			if ( isset( $field['minvalue'] ) && is_numeric($field['minvalue']) && $value < $field['minvalue'] ) {
+				return sprintf( __( 'El valor mínimo permitido es %s.', 'wp-resolate' ), $field['minvalue'] );
+			}
+			if ( isset( $field['maxvalue'] ) && is_numeric($field['maxvalue']) && $value > $field['maxvalue'] ) {
+				return sprintf( __( 'El valor máximo permitido es %s.', 'wp-resolate' ), $field['maxvalue'] );
+			}
+		}
+
+		if ( $field['type'] === 'date' ) {
+			$date_val = strtotime( $value );
+			if ( ! empty( $field['minvalue'] ) && $date_val < strtotime( $field['minvalue'] ) ) {
+				return sprintf( __( 'La fecha mínima permitida es %s.', 'wp-resolate' ), $field['minvalue'] );
+			}
+			if ( ! empty( $field['maxvalue'] ) && $date_val > strtotime( $field['maxvalue'] ) ) {
+				return sprintf( __( 'La fecha máxima permitida es %s.', 'wp-resolate' ), $field['maxvalue'] );
+			}
+		}
+
+		return null;
+	}
+
+	private function update_post_content_with_structured_data( $post_id, $data ) {
+		$fragments = array();
+		foreach ( $data as $slug => $field_data ) {
+			$fragments[] = $this->build_structured_field_fragment( $slug, $field_data['type'], $field_data['value'] );
+		}
+		$content = implode( "\n\n", $fragments );
+
+		// Unhook our save method to prevent recursion
+		remove_action( 'save_post_resolate_doc', array( $this, 'save_dynamic_fields' ) );
+		wp_update_post( array( 'ID' => $post_id, 'post_content' => $content ) );
+		add_action( 'save_post_resolate_doc', array( $this, 'save_dynamic_fields' ) );
+	}
+
+	private function build_structured_field_fragment( $slug, $type, $value ) {
+		$attributes = 'slug="' . esc_attr( $slug ) . '" type="' . esc_attr( $type ) . '"';
+		return "<!-- resolate-field {$attributes} -->\n" . $value . "\n<!-- /resolate-field -->";
+	}
+
+	private function parse_structured_content( $content ) {
+		if ( empty( $content ) ) {
+			return array();
+		}
+
+		$fields = array();
+		$pattern = '/<!--\s*resolate-field\s+([^>]*?)-->\s*(.*?)\s*<!--\s*\/resolate-field\s*-->/si';
+		if ( ! preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
+			return array();
+		}
+
+		foreach ( $matches as $match ) {
+			$attrs = $this->parse_structured_field_attributes( $match[1] );
+			if ( ! empty( $attrs['slug'] ) ) {
+				$fields[ $attrs['slug'] ] = array(
+					'value' => $match[2],
+					'type' => isset( $attrs['type'] ) ? $attrs['type'] : 'text',
+				);
+			}
+		}
+		return $fields;
+	}
+
+	private function parse_structured_field_attributes( $attr_string ) {
+		$attributes = array();
+		if ( preg_match_all( '/(\w+)=["\']([^"\']+)["\']/', $attr_string, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				$attributes[ $match[1] ] = $match[2];
+			}
+		}
+		return $attributes;
+	}
+
+	public function get_merge_data( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return array();
+		}
+
+		$structured_data = $this->parse_structured_content( $post->post_content );
+		$merge_data = array();
+
+		// Get the schema to map slugs back to original names
+		$assigned = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+		$term_id  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
+		if ( ! $term_id ) { return $merge_data; }
+
+		$template_id = get_term_meta( $term_id, 'resolate_type_template_id', true );
+		$template_path = get_attached_file( $template_id );
+		if ( ! $template_path ) { return $merge_data; }
+
+		$schema = Resolate_Dynamic_Fields_Parser::parse( $template_path );
+		if ( empty( $schema['fields'] ) ) { return $merge_data; }
+
+		$name_map = array();
+		foreach( $schema['fields'] as $field ) {
+			$name_map[$field['name']] = isset( $field['original_name'] ) ? $field['original_name'] : $field['name'];
+		}
+
+		foreach ( $structured_data as $slug => $data ) {
+			if(isset($name_map[$slug])){
+				$merge_key = $name_map[$slug];
+				$merge_data[ $merge_key ] = $data['value'];
+			}
+		}
+
+		return $merge_data;
 	}
 }
 
