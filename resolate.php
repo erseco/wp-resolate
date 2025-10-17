@@ -405,6 +405,8 @@ add_action( 'init', 'resolate_maybe_seed_default_doc_types', 40 );
  * The core plugin class that is used to define internationalization,
  * admin-specific hooks, and public-facing site hooks.
  */
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-dynamic-fields-parser.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate.php';
 
 
