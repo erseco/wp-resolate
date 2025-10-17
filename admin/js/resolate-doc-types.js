@@ -53,16 +53,17 @@
       placeholder: field,
       data_type: 'text'
     }; }
-    var slug = normalizeText(field.slug, '');
+    var slug = normalizeText(field.merge_key || field.name || field.slug, '');
     slug = slug ? slug.toString().trim() : '';
-    var label = normalizeText(field.label, '').trim();
-    var placeholder = normalizeText(field.placeholder, slug).trim();
-    var type = normalizeText(field.data_type, 'text').trim() || 'text';
+    if (!slug){ return null; }
+    var label = normalizeText(field.title || field.label, '').trim();
+    var type = normalizeText(field.type || field.data_type, 'text').trim() || 'text';
     return {
       slug: slug,
-      label: label,
-      placeholder: placeholder,
-      data_type: type
+      label: label || slug,
+      placeholder: slug,
+      data_type: type,
+      input_placeholder: normalizeText(field.input_placeholder, '').trim()
     };
   }
 

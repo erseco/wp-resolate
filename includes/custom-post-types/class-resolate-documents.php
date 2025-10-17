@@ -80,16 +80,25 @@ class Resolate_Documents {
 	private function get_meta_fields_for_post( $post_id ) {
 		   $fields = array();
 
-		$dynamic = $this->get_dynamic_fields_schema_for_post( $post_id );
-		$known   = array();
+				$dynamic = $this->get_dynamic_fields_schema_for_post( $post_id );
+				$known   = array();
 		if ( ! empty( $dynamic ) ) {
 			foreach ( $dynamic as $def ) {
+				if ( isset( $def['name'] ) && isset( $def['merge_key'] ) ) {
+					$name = (string) $def['name'];
+					if ( '' === $name ) {
+								continue;
+					}
+					$fields[]         = $name;
+					$known[ $name ] = true;
+					continue;
+				}
 				if ( empty( $def['slug'] ) ) {
 					continue;
 				}
-				$key        = 'resolate_field_' . sanitize_key( $def['slug'] );
-				$fields[]   = $key;
-				$known[ $key ] = true;
+						$key        = 'resolate_field_' . sanitize_key( $def['slug'] );
+						$fields[]   = $key;
+						$known[ $key ] = true;
 			}
 		}
 
@@ -462,13 +471,21 @@ class Resolate_Documents {
 	public function render_sections_metabox( $post ) {
 			wp_nonce_field( 'resolate_sections_nonce', 'resolate_sections_nonce' );
 
-			$schema = $this->get_dynamic_fields_schema_for_post( $post->ID );
+		$schema = $this->get_dynamic_fields_schema_for_post( $post->ID );
+		if ( $this->is_new_dynamic_schema( $schema ) ) {
+			echo '<div class="resolate-sections">';
+			echo '<p class="description">' . esc_html__( 'Este tipo de documento utiliza campos dinámicos administrados en el cuadro "Campos dinámicos".', 'resolate' ) . '</p>';
+			echo '</div>';
+			return;
+		}
 		if ( empty( $schema ) ) {
-				echo '<div class="resolate-sections">';
-				echo '<p class="description">' . esc_html__( 'Configura un tipo de documento con campos para poder editar su contenido.', 'resolate' ) . '</p>';
-				$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
-				$this->render_unknown_dynamic_fields_ui( $unknown );
-				echo '</div>';
+			echo '<div class="resolate-sections">';
+			echo '<p class="description">' . esc_html__( 'Configura un tipo de documento con campos para poder editar su contenido.', 'resolate' ) . '</p>';
+			$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
+			$this->render_unknown_dynamic_fields_ui( $unknown );
+			echo '</div>';
+			return;
+		}
 				return;
 		}
 
@@ -1025,10 +1042,14 @@ class Resolate_Documents {
 		}
 
 		$schema         = array();
-		$dynamic_schema = array();
-		if ( $term_id > 0 ) {
-			$dynamic_schema = self::get_term_schema( $term_id );
-			$schema         = $dynamic_schema;
+		$dynamic_schema = $this->get_dynamic_fields_schema_for_post( $post_id );
+		if ( ! empty( $dynamic_schema ) ) {
+			if ( $this->is_new_dynamic_schema( $dynamic_schema ) ) {
+				return $data;
+			}
+			$schema = $dynamic_schema;
+		} elseif ( $term_id > 0 ) {
+			$schema = self::get_term_schema( $term_id );
 		}
 
 		$existing_structured = array();
@@ -1054,35 +1075,35 @@ class Resolate_Documents {
 
 		foreach ( $schema as $row ) {
 			if ( empty( $row['slug'] ) ) {
-						continue;
+					continue;
 			}
-					$slug = sanitize_key( $row['slug'] );
+				$slug = sanitize_key( $row['slug'] );
 			if ( '' === $slug ) {
 				continue;
 			}
-					$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
-				$known_slugs[ $slug ] = true;
+				$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+			$known_slugs[ $slug ] = true;
 
 			if ( 'array' === $type ) {
-							$items = array();
+						$items = array();
 				if ( isset( $posted_array_fields[ $slug ] ) && is_array( $posted_array_fields[ $slug ] ) ) {
-						$items = $this->sanitize_array_field_items( $posted_array_fields[ $slug ], $row );
+					$items = $this->sanitize_array_field_items( $posted_array_fields[ $slug ], $row );
 				} elseif ( isset( $existing_structured[ $slug ] ) && isset( $existing_structured[ $slug ]['type'] ) && 'array' === $existing_structured[ $slug ]['type'] ) {
-						$items = $this->get_array_field_items_from_structured( $existing_structured[ $slug ] );
+					$items = $this->get_array_field_items_from_structured( $existing_structured[ $slug ] );
 				}
 
-							$structured_fields[ $slug ] = array(
-								'type'  => 'array',
-								'value' => ! empty( $items ) ? wp_json_encode( $items ) : '[]',
-							);
-							continue;
+						$structured_fields[ $slug ] = array(
+							'type'  => 'array',
+							'value' => ! empty( $items ) ? wp_json_encode( $items ) : '[]',
+						);
+						continue;
 			}
 
 			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
 				$type = 'textarea';
 			}
-							$meta_key             = 'resolate_field_' . $slug;
-							$value                = '';
+						$meta_key             = 'resolate_field_' . $slug;
+						$value                = '';
 
 			if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				$raw_input = wp_unslash( $_POST[ $meta_key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -1099,10 +1120,10 @@ class Resolate_Documents {
 				$value = (string) $existing_structured[ $slug ]['value'];
 			}
 
-							$structured_fields[ $slug ] = array(
-								'type'  => $type,
-								'value' => (string) $value,
-							);
+						$structured_fields[ $slug ] = array(
+							'type'  => $type,
+							'value' => (string) $value,
+						);
 		}
 
 		$unknown_fields = array();
@@ -1330,6 +1351,13 @@ class Resolate_Documents {
 	 * @return array[] Array of field definitions with keys: slug, label, type.
 	 */
 	private function get_dynamic_fields_schema_for_post( $post_id ) {
+		if ( class_exists( 'Resolate_Dynamic_Fields' ) ) {
+			$dynamic_schema = Resolate_Dynamic_Fields::get_schema_for_post( $post_id );
+			if ( ! empty( $dynamic_schema ) ) {
+				return $dynamic_schema;
+			}
+		}
+
 		$assigned = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
 		$term_id  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
 		if ( $term_id <= 0 ) {
@@ -1580,6 +1608,24 @@ class Resolate_Documents {
 			return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
 		}
 		return ucwords( $slug );
+	}
+
+	/**
+	 * Check whether the provided schema matches the new dynamic format.
+	 *
+	 * @param array $schema Schema array.
+	 * @return bool
+	 */
+	private function is_new_dynamic_schema( $schema ) {
+		if ( empty( $schema ) || ! is_array( $schema ) ) {
+			return false;
+		}
+		foreach ( $schema as $row ) {
+			if ( isset( $row['merge_key'] ) || isset( $row['name'] ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 

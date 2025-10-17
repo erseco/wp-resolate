@@ -77,8 +77,8 @@ class Resolate_Doc_Types_Admin {
 
 		$schema_slugs = array();
 		foreach ( $schema as $item ) {
-			if ( is_array( $item ) && ! empty( $item['slug'] ) ) {
-				$schema_slugs[] = sanitize_key( $item['slug'] );
+			if ( is_array( $item ) && ! empty( $item['merge_key'] ) ) {
+				$schema_slugs[] = $this->sanitize_schema_field_name( $item['merge_key'] );
 			}
 		}
 
@@ -102,10 +102,13 @@ class Resolate_Doc_Types_Admin {
 							'diffRemoved'    => __( 'Campos eliminados', 'resolate' ),
 						),
 						'fieldTypes' => array(
-							'text'    => __( 'Texto', 'resolate' ),
-							'number'  => __( 'Número', 'resolate' ),
-							'boolean' => __( 'Booleano', 'resolate' ),
-							'date'    => __( 'Fecha', 'resolate' ),
+							'text'     => __( 'Texto', 'resolate' ),
+							'textarea' => __( 'Texto largo', 'resolate' ),
+							'html'     => __( 'HTML', 'resolate' ),
+							'number'   => __( 'Número', 'resolate' ),
+							'date'     => __( 'Fecha', 'resolate' ),
+							'email'    => __( 'Correo electrónico', 'resolate' ),
+							'url'      => __( 'URL', 'resolate' ),
 						),
 						'schema'      => $schema_slugs,
 						'templateId'  => $template_id,
@@ -289,86 +292,93 @@ class Resolate_Doc_Types_Admin {
 	 * @return array[]
 	 */
 	private function build_schema_from_fields( $fields ) {
-			$raw_schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
+		$raw_schema = Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
 		if ( ! is_array( $raw_schema ) ) {
-				return array();
+			return array();
 		}
 
-			$schema = array();
+		$schema = array();
 		foreach ( $raw_schema as $entry ) {
-			if ( ! is_array( $entry ) || empty( $entry['slug'] ) ) {
-					continue;
+			if ( ! is_array( $entry ) || empty( $entry['name'] ) || empty( $entry['merge_key'] ) ) {
+				continue;
 			}
 
-				$slug        = sanitize_key( $entry['slug'] );
-				$label       = isset( $entry['label'] ) ? sanitize_text_field( $entry['label'] ) : $this->humanize_slug( $slug );
-				$type        = isset( $entry['type'] ) ? sanitize_key( $entry['type'] ) : 'textarea';
-				$placeholder = isset( $entry['placeholder'] ) ? $this->sanitize_placeholder_name( $entry['placeholder'] ) : $slug;
-				$data_type   = isset( $entry['data_type'] ) ? sanitize_key( $entry['data_type'] ) : 'text';
-
-			if ( '' === $slug ) {
-					continue;
-			}
-			if ( '' === $label ) {
-					$label = $this->humanize_slug( $slug );
-			}
-			if ( '' === $placeholder ) {
-					$placeholder = $slug;
+			$name      = $this->sanitize_schema_field_name( $entry['name'] );
+			$merge_key = $this->sanitize_schema_field_name( $entry['merge_key'] );
+			if ( '' === $name || '' === $merge_key ) {
+				continue;
 			}
 
-			if ( 'array' === $type ) {
-					$item_schema = array();
-				if ( isset( $entry['item_schema'] ) && is_array( $entry['item_schema'] ) ) {
-					foreach ( $entry['item_schema'] as $key => $item ) {
-						$item_key = sanitize_key( $key );
-						if ( '' === $item_key ) {
-									continue;
-						}
-						$item_label = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : $this->humanize_slug( $item_key );
-						$item_type  = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
-						if ( ! in_array( $item_type, array( 'single', 'textarea', 'rich' ), true ) ) {
-										$item_type = 'textarea';
-						}
-							$item_data_type = isset( $item['data_type'] ) ? sanitize_key( $item['data_type'] ) : 'text';
-						if ( ! in_array( $item_data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-							$item_data_type = 'text';
-						}
-							$item_schema[ $item_key ] = array(
-								'label'     => $item_label,
-								'type'      => $item_type,
-								'data_type' => $item_data_type,
-							);
-					}
+			$type = isset( $entry['type'] ) ? sanitize_key( $entry['type'] ) : 'text';
+			if ( ! in_array( $type, array( 'text', 'number', 'date', 'email', 'url', 'html', 'textarea' ), true ) ) {
+				$type = 'text';
+			}
+
+			$field = array(
+				'name'        => $name,
+				'merge_key'   => $merge_key,
+				'title'       => isset( $entry['title'] ) && '' !== $entry['title'] ? sanitize_text_field( $entry['title'] ) : $merge_key,
+				'type'        => $type,
+				'placeholder' => $merge_key,
+			);
+
+			if ( isset( $entry['input_placeholder'] ) && '' !== $entry['input_placeholder'] ) {
+				$field['input_placeholder'] = sanitize_text_field( $entry['input_placeholder'] );
+			}
+
+			if ( isset( $entry['description'] ) && '' !== $entry['description'] ) {
+				$field['description'] = sanitize_textarea_field( $entry['description'] );
+			}
+
+			foreach ( array( 'pattern', 'patternmsg', 'minvalue', 'maxvalue' ) as $maybe ) {
+				if ( isset( $entry[ $maybe ] ) && '' !== $entry[ $maybe ] ) {
+					$field[ $maybe ] = is_string( $entry[ $maybe ] ) ? trim( $entry[ $maybe ] ) : $entry[ $maybe ];
 				}
-
-					$schema[] = array(
-						'slug'        => $slug,
-						'label'       => $label,
-						'type'        => 'array',
-						'placeholder' => $placeholder,
-						'data_type'   => 'array',
-						'item_schema' => $item_schema,
-					);
-					continue;
 			}
 
-			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-					$type = 'textarea';
-			}
-			if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-					$data_type = 'text';
+			if ( isset( $entry['length'] ) && absint( $entry['length'] ) > 0 ) {
+				$field['length'] = absint( $entry['length'] );
 			}
 
-				$schema[] = array(
-					'slug'        => $slug,
-					'label'       => $label,
-					'type'        => $type,
-					'placeholder' => $placeholder,
-					'data_type'   => $data_type,
-				);
+			if ( ! empty( $entry['parameters'] ) && is_array( $entry['parameters'] ) ) {
+				$extras = array();
+				foreach ( $entry['parameters'] as $key => $value ) {
+					$extra_key = sanitize_key( $key );
+					if ( '' === $extra_key ) {
+						continue;
+					}
+					$extras[ $extra_key ] = is_scalar( $value ) ? sanitize_text_field( (string) $value ) : '';
+				}
+				if ( ! empty( $extras ) ) {
+					$field['parameters'] = $extras;
+				}
+			}
+
+			$field['slug']      = sanitize_key( str_replace( array( '.', ':' ), '_', strtolower( $merge_key ) ) );
+			$field['label']     = $field['title'];
+			$field['data_type'] = $type;
+
+			if ( ! empty( $entry['duplicate'] ) ) {
+				$field['duplicate'] = true;
+			}
+
+			$schema[] = $field;
 		}
 
-			return $schema;
+		return $schema;
+	}
+
+	/**
+	 * Sanitize field names while keeping characters required by OpenTBS placeholders.
+	 *
+	 * @param string $name Raw field name.
+	 * @return string
+	 */
+	private function sanitize_schema_field_name( $name ) {
+		$name = is_string( $name ) ? $name : '';
+		$name = preg_replace( '/[\x00-\x1F\x7F]/', '', $name );
+		$name = trim( preg_replace( '/\s+/', ' ', $name ) );
+		return $name;
 	}
 
 		/**
