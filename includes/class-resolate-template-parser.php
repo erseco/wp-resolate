@@ -63,7 +63,12 @@ class Resolate_Template_Parser {
 			if ( '' === $normalized ) {
 						   continue;
 			}
-						  preg_match_all( '/\[([^\]\r\n]+)\]/', $normalized, $matches );
+							  preg_match_all( '/\[([^\]\r\n]+)\]/', $normalized, $matches );
+							  if ( empty( $matches[1] ) ) {
+								  // Fallback: allow newlines inside placeholders if the XML introduced breaks.
+								  preg_match_all( '/\([^\]]+\)/s', 'dummy', $m2 ); // no-op to ensure PCRE availability
+								  preg_match_all( '/\[([^\]]+)\]/s', $normalized, $matches );
+							  }
 			if ( empty( $matches[1] ) ) {
 				 continue;
 			}
@@ -155,6 +160,7 @@ class Resolate_Template_Parser {
 			$repeat_hints  = array();
 			$pending       = array();
 			$order_counter = 0;
+			$repeat_stack  = array(); // Track current repeat context from onshow blocks.
 
 		foreach ( $fields as $index => $field ) {
 			if ( ! is_array( $field ) ) {
@@ -166,6 +172,7 @@ class Resolate_Template_Parser {
 				$label       = isset( $field['label'] ) ? sanitize_text_field( $field['label'] ) : '';
 				$data_type   = isset( $field['data_type'] ) ? sanitize_key( $field['data_type'] ) : 'text';
 
+				// Detect explicit array with bracket notation (e.g., annexes[*].title).
 				$array_match = self::detect_array_placeholder_with_index( $placeholder );
 			if ( $array_match ) {
 					$base = $array_match['base'];
@@ -210,11 +217,23 @@ class Resolate_Template_Parser {
 					continue;
 			}
 
-			if ( isset( $parameters['repeat'] ) ) {
-					$repeat_base = sanitize_key( $parameters['repeat'] );
-				if ( '' !== $repeat_base ) {
-						$repeat_hints[ $repeat_base ] = true;
+			// Track repeat context from onshow blocks.
+			$block_param  = isset( $parameters['block'] ) ? strtolower( (string) $parameters['block'] ) : '';
+			$repeat_param = isset( $parameters['repeat'] ) ? sanitize_key( (string) $parameters['repeat'] ) : '';
+			if ( 'onshow' === strtolower( $placeholder ) ) {
+				if ( 'begin' === $block_param && '' !== $repeat_param ) {
+					$repeat_hints[ $repeat_param ] = true;
+					$repeat_stack[]               = $repeat_param;
 				}
+				if ( 'end' === $block_param ) {
+					array_pop( $repeat_stack );
+				}
+				// Control marker: skip adding to pending list.
+				continue;
+			}
+
+			if ( '' !== $repeat_param ) {
+				$repeat_hints[ $repeat_param ] = true;
 			}
 
 				$pending[] = array(
@@ -224,6 +243,7 @@ class Resolate_Template_Parser {
 					'label'       => $label,
 					'data_type'   => $data_type,
 					'index'       => $index,
+					'repeat_ctx'  => ( ! empty( $repeat_stack ) ? end( $repeat_stack ) : '' ),
 				);
 		}
 
@@ -236,6 +256,45 @@ class Resolate_Template_Parser {
 				$label       = $entry['label'];
 				$data_type   = $entry['data_type'];
 
+				// 1) If field is inside a repeat block, treat as array item of that block.
+				$repeat_ctx = isset( $entry['repeat_ctx'] ) ? sanitize_key( (string) $entry['repeat_ctx'] ) : '';
+			if ( '' !== $repeat_ctx ) {
+					$base = $repeat_ctx;
+					$key  = sanitize_key( str_replace( '.', '_', $placeholder ) );
+
+				if ( '' !== $base && '' !== $key ) {
+					if ( ! isset( $array_defs[ $base ] ) ) {
+						$array_defs[ $base ] = array(
+							'slug'        => $base,
+							'label'       => self::humanize_key( $base ),
+							'type'        => 'array',
+							'placeholder' => $base,
+							'data_type'   => 'array',
+							'item_schema' => array(),
+							'_order'      => $order_counter++,
+						);
+						$array_order[] = $base;
+					}
+
+					if ( ! isset( $array_defs[ $base ]['item_schema'][ $key ] ) ) {
+						$item_data_type = self::detect_data_type( $placeholder, $parameters );
+						if ( '' === $label ) {
+							$label = self::humanize_key( $placeholder );
+						}
+						if ( '' === $item_data_type ) {
+							$item_data_type = 'text';
+						}
+						$array_defs[ $base ]['item_schema'][ $key ] = array(
+							'label'     => $label,
+							'type'      => self::infer_array_item_type( $key, $item_data_type ),
+							'data_type' => $item_data_type,
+						);
+					}
+					// Handled via repeat context, skip scalar processing.
+					continue;
+				}
+
+				// 2) Try dot notation when repeat hints exist.
 				$dot_match = self::detect_array_placeholder_without_index( $placeholder );
 			if ( $dot_match && ( isset( $repeat_hints[ $dot_match['base'] ] ) || isset( $array_defs[ $dot_match['base'] ] ) ) ) {
 					$base = $dot_match['base'];
@@ -356,16 +415,10 @@ class Resolate_Template_Parser {
 		return $schema;
 	}
 
-		/**
-		 * Parse a raw OpenTBS placeholder definition.
-		 *
-		 * @param string $raw_field Placeholder string without brackets.
-		 * @return array{
-		 *     raw: string,
-		 *     placeholder: string,
-		 *     parameters: array<string, string>
-		 * }
-		 */
+ 	// Close any remaining scope just in case of nested contexts.
+	}
+
+			/* Parse a raw OpenTBS placeholder definition. */
 	private static function parse_placeholder( $raw_field ) {
 			$raw_field = trim( $raw_field );
 		if ( '' === $raw_field ) {
@@ -614,26 +667,9 @@ class Resolate_Template_Parser {
 		 * @return string
 		 */
 	private static function infer_array_item_type( $item_key, $data_type ) {
-					$item_key  = strtolower( (string) $item_key );
-			$data_type = strtolower( (string) $data_type );
-
-		if ( in_array( $data_type, array( 'number', 'date', 'boolean' ), true ) ) {
-					return 'single';
-		}
-
-		if ( preg_match( '/^(number|numero|número|index|indice)$/', $item_key ) ) {
-			return 'single';
-		}
-
-		if ( preg_match( '/^(title|titulo|título|heading|name)$/', $item_key ) ) {
-			return 'single';
-		}
-
-		if ( preg_match( '/(content|texto|text|body|descripcion|descripción)$/', $item_key ) ) {
-				return 'rich';
-		}
-
-					return 'textarea';
+		// Force all array item controls to rich text, per project decision.
+		// Previous heuristic inference is intentionally bypassed.
+		return 'rich';
 	}
 
 		/**
@@ -646,22 +682,9 @@ class Resolate_Template_Parser {
 		 * @return string
 		 */
 	private static function infer_scalar_field_type( $slug, $label, $data_type, $placeholder ) {
-		$data_type = strtolower( (string) $data_type );
-		if ( in_array( $data_type, array( 'number', 'date', 'boolean' ), true ) ) {
-			return 'single';
-		}
-
-		$haystack = strtolower( trim( (string) $slug . ' ' . (string) $label . ' ' . (string) $placeholder ) );
-
-		if ( preg_match( '/\b(title|titulo|título|heading|subject|asunto|name|nombre)\b/u', $haystack ) ) {
-			return 'single';
-		}
-
-		if ( preg_match( '/(content|contenido|texto|text|body|descripcion|descripción|detalle|summary|resumen)/u', $haystack ) ) {
-				return 'rich';
-		}
-
-		return 'textarea';
+		// Force all scalar controls to rich text, per project decision.
+		// Previous heuristic inference is intentionally bypassed.
+		return 'rich';
 	}
 
 		/**

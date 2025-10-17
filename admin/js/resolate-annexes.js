@@ -74,6 +74,7 @@ var item = clone.querySelector('.resolate-array-item');
 replacePlaceholders(item, index);
 container.appendChild(clone);
 updateIndexes(container, slug);
+ initRichEditors(container);
 }
 
 addButton.addEventListener('click', function(event) {
@@ -86,6 +87,11 @@ if (event.target.classList.contains('resolate-array-remove')) {
 event.preventDefault();
 var item = event.target.closest('.resolate-array-item');
 if (item) {
+ // Remove any initialized editors inside this item to avoid orphans.
+ if (window.wp && wp.editor) {
+ var editors = item.querySelectorAll('textarea.wp-editor-area');
+ editors.forEach(function(ed){ if (ed.id) { try { wp.editor.remove(ed.id); } catch(e){} } });
+ }
 item.parentNode.removeChild(item);
 if (!container.querySelector('.resolate-array-item')) {
 addItem();
@@ -135,10 +141,31 @@ updateIndexes(container, slug);
 });
 
 updateIndexes(container, slug);
+ initRichEditors(container);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
 var fields = document.querySelectorAll('.resolate-array-field');
 fields.forEach(initArrayField);
 });
+
+function initRichEditors(scope) {
+ if (!window.wp || !wp.editor) { return; }
+ var areas = scope.querySelectorAll('textarea.resolate-rich-init');
+ areas.forEach(function(area){
+   if (!area.id) { return; }
+   // Initialize TinyMCE/Quicktags for this textarea.
+   try {
+     wp.editor.initialize(area.id, {
+       tinymce: {
+         wpautop: true,
+         toolbar1: 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat'
+       },
+       quicktags: true,
+       mediaButtons: false
+     });
+     area.classList.remove('resolate-rich-init');
+   } catch (e) {}
+ });
+}
 })();

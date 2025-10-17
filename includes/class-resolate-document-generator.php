@@ -282,6 +282,35 @@ class Resolate_Document_Generator {
 	}
 
 	/**
+	 * Return a snapshot of the merge payload for debugging/preview purposes.
+	 *
+	 * @param int $post_id Document post ID.
+	 * @return array{template_format:string,template_path:string,fields:array,rich_values:array}
+	 */
+	public static function get_merge_snapshot( $post_id ) {
+		$tpl_format = '';
+		$tpl_path   = self::get_template_path( $post_id, 'docx' );
+		if ( '' !== $tpl_path ) {
+			$tpl_format = 'docx';
+		} else {
+			$tpl_path = self::get_template_path( $post_id, 'odt' );
+			if ( '' !== $tpl_path ) {
+				$tpl_format = 'odt';
+			}
+		}
+
+		self::reset_rich_field_values();
+		$fields = self::build_merge_fields( $post_id );
+
+		return array(
+			'template_format' => $tpl_format,
+			'template_path'   => $tpl_path,
+			'fields'          => $fields,
+			'rich_values'     => self::get_rich_field_values(),
+		);
+	}
+
+	/**
 	 * Build the array of merge fields used by OpenTBS templates.
 	 *
 	 * @param int $post_id Document post ID.
@@ -297,8 +326,8 @@ class Resolate_Document_Generator {
 		}
 
 		$fields = array(
-			'title'  => get_the_title( $post_id ),
-			'margen' => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
+			'post_title' => get_the_title( $post_id ),
+			'margen'     => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
 		);
 
 		$types = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
@@ -504,7 +533,45 @@ class Resolate_Document_Generator {
 			}
 		}
 
-			return Resolate_Documents::decode_array_field_value( $value );
+		$decoded = Resolate_Documents::decode_array_field_value( $value );
+		if ( empty( $decoded ) ) {
+			return array();
+		}
+
+		// Normalize common key synonyms so templates can use
+		// annexes.number/title/content regardless of the configured labels.
+		$normalized = array();
+		foreach ( $decoded as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$copy = $item;
+			// number ↔ numero
+			if ( ! isset( $copy['number'] ) ) {
+				if ( isset( $copy['numero'] ) ) {
+					$copy['number'] = (string) $copy['numero'];
+				}
+			}
+			// title ↔ titulo/título
+			if ( ! isset( $copy['title'] ) ) {
+				if ( isset( $copy['titulo'] ) ) {
+					$copy['title'] = (string) $copy['titulo'];
+				} elseif ( isset( $copy['título'] ) ) {
+					$copy['title'] = (string) $copy['título'];
+				}
+			}
+			// content ↔ contenido/text
+			if ( ! isset( $copy['content'] ) ) {
+				if ( isset( $copy['contenido'] ) ) {
+					$copy['content'] = (string) $copy['contenido'];
+				} elseif ( isset( $copy['text'] ) ) {
+					$copy['content'] = (string) $copy['text'];
+				}
+			}
+			$normalized[] = $copy;
+		}
+
+		return $normalized;
 	}
 
 	/**

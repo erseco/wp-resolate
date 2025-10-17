@@ -276,10 +276,31 @@ class Resolate_Admin_Helper {
             iframe{border:0;width:100%;height:100%}
             body.loading .viewer::after{content:"' . esc_js( __( 'Cargando PDF…', 'resolate' ) ) . '";color:#fff;font-size:16px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
         </style>';
+		$debug_param = isset( $_GET['debug'] ) ? sanitize_text_field( wp_unslash( $_GET['debug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$debug_open  = ( '1' === $debug_param );
+		$debug_snap  = array();
+		if ( $debug_open ) {
+			$debug_snap = Resolate_Document_Generator::get_merge_snapshot( $post_id );
+		}
+
 		echo '</head><body class="loading">';
 		echo '<header><h1>' . esc_html( $title ) . '</h1><div class="actions">';
 		echo '<a href="' . esc_url( $pdf_url ) . '" download>' . esc_html__( 'Descargar PDF', 'resolate' ) . '</a>';
+		// Debug toggle link.
+		$toggle_url = add_query_arg( array( 'debug' => $debug_open ? '0' : '1' ) );
+		echo ' <a href="' . esc_url( $toggle_url ) . '">' . ( $debug_open ? esc_html__( 'Ocultar depuración', 'resolate' ) : esc_html__( 'Depurar campos', 'resolate' ) ) . '</a>';
 		echo '</div></header>';
+
+		if ( $debug_open ) {
+			$pretty = wp_json_encode( $debug_snap, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+			if ( ! is_string( $pretty ) ) {
+				$pretty = '{}';
+			}
+			echo '<section style="padding:12px 16px;background:#f7f7f7;border-bottom:1px solid #e0e0e0;">';
+			echo '<h2 style="margin:0 0 8px;font-size:16px;">' . esc_html__( 'Campos enviados a OpenTBS (snapshot)', 'resolate' ) . '</h2>';
+			echo '<pre style="margin:0;padding:12px;background:#fff;border:1px solid #ddd;border-radius:4px;max-height:280px;overflow:auto;white-space:pre-wrap;">' . esc_html( $pretty ) . '</pre>';
+			echo '</section>';
+		}
 		echo '<main><div class="viewer"><iframe id="resolate-pdf-frame" src="' . esc_url( $iframe_src ) . '" title="' . esc_attr__( 'Documento en PDF', 'resolate' ) . '"></iframe></div></main>';
 		echo '<script>document.getElementById("resolate-pdf-frame").addEventListener("load",function(){document.body.classList.remove("loading");});</script>';
 		if ( $print ) {
@@ -792,6 +813,7 @@ class Resolate_Admin_Helper {
 			$value = preg_replace( '/font-size\s*:\s*[^;\"\']+;?/i', '', $value );
 			$value = str_replace( '&nbsp;', ' ', $value );
 			$value = trim( $value );
+			$value = self::strip_editor_wrappers( $value );
 			if ( '' !== $value ) {
 				echo '<section data-avoid-break="1"><h2>' . esc_html( $label ) . '</h2>';
 				echo '<div class="section-content">' . wp_kses_post( $value ) . '</div></section>';
@@ -847,6 +869,7 @@ class Resolate_Admin_Helper {
 							$c = preg_replace( '/<\\/?font[^>]*>/i', '', (string) $c );
 							$c = preg_replace( '/font-family\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
 							$c = preg_replace( '/font-size\\s*:\\s*[^;"\']+;?/i', '', (string) $c );
+							$c = self::strip_editor_wrappers( (string) $c );
 				if ( '' === trim( $t ) && '' === trim( wp_strip_all_tags( (string) $c ) ) ) {
 						continue;
 				}
@@ -907,6 +930,27 @@ class Resolate_Admin_Helper {
         })();</script>';
 		echo '</body></html>';
 		exit;
+	}
+
+	/**
+	 * Strip WordPress editor wrapper markup if it appears in a stored value.
+	 *
+	 * @param string $html HTML content.
+	 * @return string
+	 */
+	private static function strip_editor_wrappers( $html ) {
+		$html = (string) $html;
+		if ( '' === $html ) {
+			return '';
+		}
+		// Remove common WP editor wrapper containers if present.
+		$patterns = array(
+			'#<div[^>]+class=\"[^\"]*wp-editor-wrap[^\"]*\"[^>]*>.*?<\/div>#is',
+			'#<div[^>]+id=\"wp-[^\"]+-editor-tools\"[^>]*>.*?<\/div>#is',
+			'#<div[^>]+class=\"[^\"]*wp-editor-tools[^\"]*\"[^>]*>.*?<\/div>#is',
+		);
+		$clean = preg_replace( $patterns, '', $html );
+		return ( null === $clean ) ? $html : $clean;
 	}
 
 	/**

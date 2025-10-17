@@ -62,7 +62,7 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         $this->assertCount( 2, $schema );
         $this->assertEquals( 'campo_1', $schema[0]['slug'] );
         $this->assertEquals( 'Campo 1', $schema[0]['label'] );
-        $this->assertEquals( 'textarea', $schema[0]['type'] );
+        $this->assertEquals( 'rich', $schema[0]['type'] );
         $this->assertEquals( 'campo2', $schema[1]['slug'] );
         $this->assertEquals( 'Campo2', $schema[1]['label'] );
 

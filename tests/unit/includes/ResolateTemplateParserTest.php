@@ -73,7 +73,7 @@ class ResolateTemplateParserTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'number', $array_field['item_schema'] );
 		$this->assertArrayHasKey( 'title', $array_field['item_schema'] );
 		$this->assertArrayHasKey( 'content', $array_field['item_schema'] );
-		$this->assertSame( 'single', $array_field['item_schema']['number']['type'] );
+		$this->assertSame( 'rich', $array_field['item_schema']['number']['type'] );
 		$this->assertSame( 'rich', $array_field['item_schema']['content']['type'] );
 
 		$scalar_field = null;
@@ -85,7 +85,7 @@ class ResolateTemplateParserTest extends WP_UnitTestCase {
 		}
 
 		$this->assertIsArray( $scalar_field );
-		$this->assertSame( 'single', $scalar_field['type'] );
+		$this->assertSame( 'rich', $scalar_field['type'] );
 		$this->assertSame( 'text', $scalar_field['data_type'] );
 
 		$rich_scalar = null;
