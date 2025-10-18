@@ -498,6 +498,7 @@ class Resolate_Documents {
 			}
 
 			if ( 'post_title' === $slug ) {
+				$known_meta_keys[] = 'resolate_field_' . $slug;
 				// Let WordPress handle the native title field.
 				continue;
 			}
@@ -512,6 +513,9 @@ class Resolate_Documents {
 				$item_schema = $this->normalize_array_item_schema( $row );
 				$items       = array();
 				$raw_repeater = isset( $raw_schema['repeaters'][ $slug ] ) && is_array( $raw_schema['repeaters'][ $slug ] ) ? $raw_schema['repeaters'][ $slug ] : array();
+
+				// Mark repeater meta key as known so it does not appear under unknown fields.
+				$known_meta_keys[] = 'resolate_field_' . $slug;
 
 				if ( isset( $stored_fields[ $slug ] ) && isset( $stored_fields[ $slug ]['type'] ) && 'array' === $stored_fields[ $slug ]['type'] ) {
 					$items = $this->get_array_field_items_from_structured( $stored_fields[ $slug ] );
