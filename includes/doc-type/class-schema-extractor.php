@@ -449,6 +449,7 @@ class SchemaExtractor {
 		}
 
 		$field_type = $this->determine_field_type( $name, $parameters );
+		$field_type = $this->normalize_field_type_name( $field_type );
 
 		$title       = isset( $parameters['title'] ) ? sanitize_text_field( $parameters['title'] ) : '';
 		$placeholder = isset( $parameters['placeholder'] ) ? sanitize_text_field( $parameters['placeholder'] ) : '';
@@ -528,41 +529,86 @@ class SchemaExtractor {
 	 * @return string
 	 */
 	private function determine_field_type( $name, $parameters ) {
-		$name = strtolower( (string) $name );
+		$name       = strtolower( (string) $name );
+		$parameters = is_array( $parameters ) ? $parameters : array();
 
-		$type = '';
+		$declared = '';
 		if ( isset( $parameters['type'] ) ) {
-			$type = strtolower( (string) $parameters['type'] );
+			$declared = $this->normalize_declared_field_type( $parameters['type'] );
 		} elseif ( isset( $parameters['data-type'] ) ) {
-			$type = strtolower( (string) $parameters['data-type'] );
+			$declared = $this->normalize_declared_field_type( $parameters['data-type'] );
 		}
 
-		switch ( $type ) {
-			case 'email':
-				return 'email';
-			case 'url':
-				return 'url';
-			case 'html':
-			case 'tinymce':
-			case 'editor':
-				return 'html';
-			case 'textarea':
-			case 'text-area':
-				return 'textarea';
-			case 'date':
-				return 'date';
-			case 'number':
-			case 'numeric':
-				return 'number';
-			case 'bool':
-			case 'boolean':
-				return 'boolean';
+		if ( '' !== $declared ) {
+			return $declared;
 		}
 
 		if ( preg_match( '/(html|rich|contenido|body|cuerpo)/u', $name ) ) {
 			return 'html';
 		}
 
-		return 'text';
+		return '';
+	}
+
+	/**
+	 * Normalize a declared field type value.
+	 *
+	 * @param string $candidate Declared type value.
+	 * @return string Normalized type or empty string if unknown.
+	 */
+	private function normalize_declared_field_type( $candidate ) {
+		$type = strtolower( trim( (string) $candidate ) );
+
+		if ( '' === $type ) {
+			return '';
+		}
+
+		$aliases = array(
+			'rich'        => 'html',
+			'tinymce'     => 'html',
+			'editor'      => 'html',
+			'text-area'   => 'textarea',
+			'text_area'   => 'textarea',
+			'numeric'     => 'number',
+			'int'         => 'number',
+			'integer'     => 'number',
+			'float'       => 'number',
+			'decimal'     => 'number',
+			'bool'        => 'boolean',
+			'checkbox'    => 'boolean',
+		);
+
+		if ( isset( $aliases[ $type ] ) ) {
+			$type = $aliases[ $type ];
+		}
+
+		$valid = array( 'text', 'number', 'date', 'email', 'url', 'textarea', 'html', 'boolean' );
+		if ( in_array( $type, $valid, true ) ) {
+			return $type;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Apply default normalization to a computed field type.
+	 *
+	 * @param string $type Computed field type.
+	 * @return string Normalized field type.
+	 */
+	private function normalize_field_type_name( $type ) {
+		$type = strtolower( trim( (string) $type ) );
+
+		if ( '' === $type ) {
+			return 'textarea';
+		}
+
+		$valid = array( 'text', 'number', 'date', 'email', 'url', 'textarea', 'html', 'boolean' );
+
+		if ( in_array( $type, $valid, true ) ) {
+			return $type;
+		}
+
+		return 'textarea';
 	}
 }

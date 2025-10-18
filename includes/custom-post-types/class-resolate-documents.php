@@ -762,8 +762,15 @@ class Resolate_Documents {
 	 */
 	private function resolve_field_control_type( $legacy_type, $raw_field ) {
 		$legacy_type = sanitize_key( $legacy_type );
+		if ( '' === $legacy_type ) {
+			$legacy_type = 'textarea';
+		}
 		if ( 'array' === $legacy_type ) {
 			return 'array';
+		}
+
+		if ( ! in_array( $legacy_type, array( 'single', 'textarea', 'rich' ), true ) ) {
+			$legacy_type = 'textarea';
 		}
 
 		$raw_type = '';
@@ -773,6 +780,10 @@ class Resolate_Documents {
 			} elseif ( isset( $raw_field['parameters']['type'] ) ) {
 				$raw_type = sanitize_key( $raw_field['parameters']['type'] );
 			}
+		}
+
+		if ( '' === $raw_type ) {
+			return ( 'rich' === $legacy_type ) ? 'rich' : 'textarea';
 		}
 
 		if ( in_array( $raw_type, array( 'html', 'rich', 'tinymce', 'editor' ), true ) ) {
@@ -791,6 +802,7 @@ class Resolate_Documents {
 				'varchar',
 				'email',
 				'url',
+				'link',
 				'number',
 				'numeric',
 				'int',
@@ -815,16 +827,8 @@ class Resolate_Documents {
 			return 'single';
 		}
 
-		if ( 'rich' === $legacy_type ) {
-			return 'rich';
-		}
-
-		if ( 'textarea' === $legacy_type ) {
-			return 'textarea';
-		}
-
-		// Default to textarea when the schema does not define an explicit type.
-		return 'textarea';
+		// Fall back to the legacy control type (usually textarea) for plain text fields.
+		return $legacy_type;
 	}
 
 	/**

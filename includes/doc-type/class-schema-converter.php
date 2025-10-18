@@ -62,7 +62,10 @@ class SchemaConverter {
 
 		$label       = self::resolve_label( $field, $slug );
 		$placeholder = self::sanitize_placeholder( $field, $slug );
-		$type        = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : 'text';
+		$type        = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : '';
+		if ( '' === $type ) {
+			$type = 'textarea';
+		}
 
 		return array(
 			'slug'        => $slug,
@@ -104,7 +107,10 @@ class SchemaConverter {
 			}
 
 			$item_label = self::resolve_label( $field, $item_slug );
-			$item_type  = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : 'text';
+			$item_type  = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : '';
+			if ( '' === $item_type ) {
+				$item_type = 'textarea';
+			}
 
 			$item_schema[ $item_slug ] = array(
 				'label'     => $item_label,
@@ -137,6 +143,13 @@ class SchemaConverter {
 				return 'date';
 			case 'boolean':
 				return 'boolean';
+			case 'email':
+			case 'url':
+			case 'text':
+				return 'text';
+			case 'html':
+			case 'textarea':
+				return 'text';
 			default:
 				return 'text';
 		}
@@ -158,7 +171,7 @@ class SchemaConverter {
 		$placeholder = strtolower( (string) $placeholder );
 		$haystack    = trim( $slug . ' ' . $label . ' ' . $placeholder );
 
-		if ( in_array( $field_type, array( 'number', 'date', 'boolean' ), true ) ) {
+		if ( in_array( $field_type, array( 'number', 'date', 'boolean', 'email', 'url', 'text' ), true ) ) {
 			return 'single';
 		}
 
@@ -190,7 +203,7 @@ class SchemaConverter {
 		$slug       = strtolower( (string) $slug );
 		$label      = strtolower( (string) $label );
 
-		if ( in_array( $field_type, array( 'number', 'date', 'boolean' ), true ) ) {
+		if ( in_array( $field_type, array( 'number', 'date', 'boolean', 'email', 'url', 'text' ), true ) ) {
 			return 'single';
 		}
 
@@ -297,4 +310,3 @@ class SchemaConverter {
 		return ucwords( strtolower( $slug ) );
 	}
 }
-
