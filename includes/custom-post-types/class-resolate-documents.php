@@ -463,96 +463,760 @@ class Resolate_Documents {
 	 * @param WP_Post $post Current post.
 	 */
 	public function render_sections_metabox( $post ) {
-			wp_nonce_field( 'resolate_sections_nonce', 'resolate_sections_nonce' );
+		wp_nonce_field( 'resolate_sections_nonce', 'resolate_sections_nonce' );
 
-			$schema = $this->get_dynamic_fields_schema_for_post( $post->ID );
+		$schema     = $this->get_dynamic_fields_schema_for_post( $post->ID );
+		$raw_schema = $this->get_raw_schema_for_post( $post->ID );
+		$raw_fields = isset( $raw_schema['fields'] ) && is_array( $raw_schema['fields'] ) ? $raw_schema['fields'] : array();
+		// Load the raw schema so we can expose placeholders, constraints and help text.
+
 		if ( empty( $schema ) ) {
-				echo '<div class="resolate-sections">';
-				echo '<p class="description">' . esc_html__( 'Configura un tipo de documento con campos para poder editar su contenido.', 'resolate' ) . '</p>';
-				$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
-				$this->render_unknown_dynamic_fields_ui( $unknown );
-				echo '</div>';
-				return;
+			echo '<div class="resolate-sections">';
+			echo '<p class="description">' . esc_html__( 'Configura un tipo de documento con campos para poder editar su contenido.', 'resolate' ) . '</p>';
+			$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
+			$this->render_unknown_dynamic_fields_ui( $unknown );
+			echo '</div>';
+			return;
 		}
 
-			$stored_fields   = $this->get_structured_field_values( $post->ID );
-			$known_meta_keys = array();
+		$stored_fields   = $this->get_structured_field_values( $post->ID );
+		$known_meta_keys = array();
 
-			echo '<div class="resolate-sections">';
+		echo '<div class="resolate-sections">';
+		echo '<table class="form-table"><tbody>';
+
 		foreach ( $schema as $row ) {
 			if ( empty( $row['slug'] ) || empty( $row['label'] ) ) {
-					continue;
+				continue;
 			}
 
-				$slug  = sanitize_key( $row['slug'] );
-				$label = sanitize_text_field( $row['label'] );
+			$slug  = sanitize_key( $row['slug'] );
+			$label = sanitize_text_field( $row['label'] );
 
 			if ( '' === $slug || '' === $label ) {
-					continue;
+				continue;
 			}
 
-				$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+			if ( 'post_title' === $slug ) {
+				// Let WordPress handle the native title field.
+				continue;
+			}
+
+			$type       = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
+			$raw_field  = isset( $raw_fields[ $slug ] ) ? $raw_fields[ $slug ] : array();
+			$field_type = isset( $raw_field['type'] ) ? sanitize_key( $raw_field['type'] ) : '';
+			$data_type  = isset( $row['data_type'] ) ? sanitize_key( $row['data_type'] ) : '';
+			$type       = $this->resolve_field_control_type( $type, $raw_field );
 
 			if ( 'array' === $type ) {
-					$item_schema = $this->normalize_array_item_schema( $row );
-					$items       = array();
+				$item_schema = $this->normalize_array_item_schema( $row );
+				$items       = array();
+				$raw_repeater = isset( $raw_schema['repeaters'][ $slug ] ) && is_array( $raw_schema['repeaters'][ $slug ] ) ? $raw_schema['repeaters'][ $slug ] : array();
 
 				if ( isset( $stored_fields[ $slug ] ) && isset( $stored_fields[ $slug ]['type'] ) && 'array' === $stored_fields[ $slug ]['type'] ) {
-						$items = $this->get_array_field_items_from_structured( $stored_fields[ $slug ] );
+					$items = $this->get_array_field_items_from_structured( $stored_fields[ $slug ] );
 				}
 
 				if ( empty( $items ) ) {
-						$items = array( array() );
+					$items = array( array() );
 				}
 
-					$this->render_array_field( $slug, $label, $item_schema, $items );
-					continue;
+				$description = $this->get_field_description( $raw_field );
+				$validation  = $this->get_field_validation_message( $raw_field );
+
+				echo '<tr class="resolate-field resolate-field-array resolate-field-' . esc_attr( $slug ) . '">';
+				echo '<th scope="row"><label>' . esc_html( $label ) . '</label></th>';
+				echo '<td>';
+				$this->render_array_field( $slug, $label, $item_schema, $items, $raw_repeater );
+				if ( '' !== $description ) {
+					echo '<p class="description">' . esc_html( $description ) . '</p>';
+				}
+				if ( '' !== $validation ) {
+					echo '<p class="description resolate-field-validation" data-resolate-validation-message="true">' . esc_html( $validation ) . '</p>';
+				}
+				echo '</td></tr>';
+				continue;
 			}
 
 			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-					$type = 'textarea';
+				$type = 'textarea';
 			}
 
-				$meta_key          = 'resolate_field_' . $slug;
-				$known_meta_keys[] = $meta_key;
-				$value             = '';
+			$meta_key          = 'resolate_field_' . $slug;
+			$known_meta_keys[] = $meta_key;
+			$value             = '';
 
 			if ( isset( $stored_fields[ $slug ] ) ) {
-					$value = (string) $stored_fields[ $slug ]['value'];
+				$value = (string) $stored_fields[ $slug ]['value'];
 			}
 
-				echo '<div class="resolate-field" style="margin-bottom:16px;">';
-				echo '<label for="' . esc_attr( $meta_key ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( $label ) . '</label>';
+			$description    = $this->get_field_description( $raw_field );
+			$validation     = $this->get_field_validation_message( $raw_field );
+			$description_id = '' !== $description ? $meta_key . '-description' : '';
+			$validation_id  = '' !== $validation ? $meta_key . '-validation' : '';
+			$describedby    = array();
+
+			if ( '' !== $description_id ) {
+				$describedby[] = $description_id;
+			}
+			if ( '' !== $validation_id ) {
+				$describedby[] = $validation_id;
+			}
+
+			echo '<tr class="resolate-field resolate-field-' . esc_attr( $slug ) . ' resolate-field-control-' . esc_attr( $type ) . '">';
+			echo '<th scope="row"><label for="' . esc_attr( $meta_key ) . '">' . esc_html( $label ) . '</label></th>';
+			echo '<td>';
 
 			if ( 'single' === $type ) {
-					echo '<input type="text" class="widefat" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="' . esc_attr( $value ) . '" />';
+				// Map schema hints into the appropriate HTML control and attributes.
+				$input_type       = $this->map_single_input_type( $field_type, $data_type );
+				$normalized_value = $this->normalize_scalar_value( $value, $input_type );
+				$attributes       = $this->build_scalar_input_attributes( $raw_field, $input_type );
+
+				if ( ! empty( $describedby ) ) {
+					$attributes['aria-describedby'] = implode( ' ', $describedby );
+				}
+				if ( '' !== $validation ) {
+					$attributes['data-validation-message'] = $validation;
+				}
+
+				$attributes['class'] = $this->build_input_class( $input_type );
+				$attribute_string    = $this->format_field_attributes( $attributes );
+
+				if ( 'select' === $input_type ) {
+					$options     = $this->parse_select_options( $raw_field );
+					$placeholder = $this->get_select_placeholder( $raw_field );
+					echo '<select id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" ' . $attribute_string . '>';
+					if ( '' !== $placeholder ) {
+						echo '<option value="">' . esc_html( $placeholder ) . '</option>';
+					} elseif ( empty( $attributes['required'] ) ) {
+						echo '<option value="">' . esc_html__( 'Selecciona una opción…', 'resolate' ) . '</option>';
+					}
+					foreach ( $options as $option_value => $option_label ) {
+						echo '<option value="' . esc_attr( $option_value ) . '" ' . selected( $option_value, $normalized_value, false ) . '>' . esc_html( $option_label ) . '</option>';
+					}
+					echo '</select>';
+				} elseif ( 'checkbox' === $input_type ) {
+					// Hidden field guarantees we persist an explicit "0" when unchecked.
+					echo '<input type="hidden" name="' . esc_attr( $meta_key ) . '" value="0" />';
+					echo '<label class="resolate-checkbox-wrapper">';
+					echo '<input type="checkbox" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="1" ' . checked( '1', $normalized_value, false ) . ' ' . $attribute_string . ' />';
+					echo '<span class="screen-reader-text">' . esc_html( $label ) . '</span>';
+					echo '</label>';
+				} else {
+					echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="' . esc_attr( $normalized_value ) . '" ' . $attribute_string . ' />';
+				}
 			} elseif ( 'rich' === $type ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
-					wp_editor(
-						$value,
-						$meta_key,
-						array(
-							'textarea_name' => $meta_key,
-							'textarea_rows' => 8,
-							'media_buttons' => false,
-							'teeny'         => false,
-							'tinymce'       => array(
-								'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
-							),
-							'quicktags'     => true,
-							'editor_height' => 220,
-						)
-					);
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
+				wp_editor(
+					$value,
+					$meta_key,
+					array(
+						'textarea_name' => $meta_key,
+						'textarea_rows' => 8,
+						'media_buttons' => false,
+						'teeny'         => false,
+						'tinymce'       => array(
+							'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+						),
+						'quicktags'     => true,
+						'editor_height' => 220,
+					)
+				);
 			} else {
-					echo '<textarea class="widefat" rows="6" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '">' . esc_textarea( $value ) . '</textarea>';
+				$attributes = $this->build_scalar_input_attributes( $raw_field, 'textarea' );
+				if ( ! empty( $describedby ) ) {
+					$attributes['aria-describedby'] = implode( ' ', $describedby );
+				}
+				if ( '' !== $validation ) {
+					$attributes['data-validation-message'] = $validation;
+				}
+				if ( ! isset( $attributes['rows'] ) ) {
+					$attributes['rows'] = 6;
+				}
+				$attributes['class'] = $this->build_input_class( 'textarea' );
+				$attribute_string    = $this->format_field_attributes( $attributes );
+				echo '<textarea id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" ' . $attribute_string . '>' . esc_textarea( $value ) . '</textarea>';
 			}
 
-				echo '</div>';
+			if ( '' !== $description ) {
+				echo '<p id="' . esc_attr( $description_id ) . '" class="description">' . esc_html( $description ) . '</p>';
+			}
+			if ( '' !== $validation ) {
+				echo '<p id="' . esc_attr( $validation_id ) . '" class="description resolate-field-validation" data-resolate-validation-message="true">' . esc_html( $validation ) . '</p>';
+			}
+
+			echo '</td></tr>';
 		}
 
-			$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
-			$this->render_unknown_dynamic_fields_ui( $unknown );
-			echo '</div>';
+		echo '</tbody></table>';
+
+		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
+		$this->render_unknown_dynamic_fields_ui( $unknown );
+		echo '</div>';
+	}
+
+	/**
+	 * Retrieve raw schema data for the current document type.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<string,array<string,array>> Indexed schema details.
+	 */
+	private function get_raw_schema_for_post( $post_id ) {
+		$post_id = intval( $post_id );
+		if ( $post_id <= 0 ) {
+			return array();
+		}
+
+		$assigned = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+		$term_id  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
+		if ( $term_id <= 0 ) {
+			return array();
+		}
+
+		$storage   = new SchemaStorage();
+		$schema_v2 = $storage->get_schema( $term_id );
+		if ( ! is_array( $schema_v2 ) ) {
+			return array();
+		}
+
+		$fields_index    = array();
+		$repeaters_index = array();
+		if ( isset( $schema_v2['fields'] ) && is_array( $schema_v2['fields'] ) ) {
+			foreach ( $schema_v2['fields'] as $field ) {
+				if ( ! is_array( $field ) ) {
+					continue;
+				}
+				$slug = '';
+				if ( isset( $field['slug'] ) ) {
+					$slug = sanitize_key( $field['slug'] );
+				} elseif ( isset( $field['name'] ) ) {
+					$slug = sanitize_key( $field['name'] );
+				}
+				if ( '' === $slug ) {
+					continue;
+				}
+				$fields_index[ $slug ] = $field;
+			}
+		}
+
+		if ( isset( $schema_v2['repeaters'] ) && is_array( $schema_v2['repeaters'] ) ) {
+			foreach ( $schema_v2['repeaters'] as $repeater ) {
+				if ( ! is_array( $repeater ) ) {
+					continue;
+				}
+
+				$slug = '';
+				if ( isset( $repeater['slug'] ) ) {
+					$slug = sanitize_key( $repeater['slug'] );
+				} elseif ( isset( $repeater['name'] ) ) {
+					$slug = sanitize_key( $repeater['name'] );
+				}
+
+				if ( '' === $slug ) {
+					continue;
+				}
+
+				$fields = array();
+				if ( isset( $repeater['fields'] ) && is_array( $repeater['fields'] ) ) {
+					foreach ( $repeater['fields'] as $field ) {
+						if ( ! is_array( $field ) ) {
+							continue;
+						}
+						$field_slug = '';
+						if ( isset( $field['slug'] ) ) {
+							$field_slug = sanitize_key( $field['slug'] );
+						} elseif ( isset( $field['name'] ) ) {
+							$field_slug = sanitize_key( $field['name'] );
+						}
+						if ( '' === $field_slug ) {
+							continue;
+						}
+						$fields[ $field_slug ] = $field;
+					}
+				}
+
+				$repeaters_index[ $slug ] = array(
+					'definition' => $repeater,
+					'fields'     => $fields,
+				);
+			}
+		}
+
+		return array(
+			'fields'    => $fields_index,
+			'repeaters' => $repeaters_index,
+		);
+	}
+
+	/**
+	 * Decide the UI control to use based on schema hints.
+	 *
+	 * @param string     $legacy_type Legacy control type.
+	 * @param array|null $raw_field   Raw schema definition.
+	 * @return string Control identifier: single|textarea|rich|array.
+	 */
+	private function resolve_field_control_type( $legacy_type, $raw_field ) {
+		$legacy_type = sanitize_key( $legacy_type );
+		if ( 'array' === $legacy_type ) {
+			return 'array';
+		}
+
+		$raw_type = '';
+		if ( is_array( $raw_field ) ) {
+			if ( isset( $raw_field['type'] ) ) {
+				$raw_type = sanitize_key( $raw_field['type'] );
+			} elseif ( isset( $raw_field['parameters']['type'] ) ) {
+				$raw_type = sanitize_key( $raw_field['parameters']['type'] );
+			}
+		}
+
+		if ( in_array( $raw_type, array( 'html', 'rich', 'tinymce', 'editor' ), true ) ) {
+			return 'rich';
+		}
+
+		if ( in_array( $raw_type, array( 'textarea', 'text-area', 'text_area' ), true ) ) {
+			return 'textarea';
+		}
+
+		if ( in_array(
+			$raw_type,
+			array(
+				'text',
+				'string',
+				'varchar',
+				'email',
+				'url',
+				'number',
+				'numeric',
+				'int',
+				'integer',
+				'float',
+				'decimal',
+				'date',
+				'datetime',
+				'datetime-local',
+				'time',
+				'tel',
+				'phone',
+				'boolean',
+				'bool',
+				'checkbox',
+				'select',
+				'dropdown',
+				'choice',
+			),
+			true
+		) ) {
+			return 'single';
+		}
+
+		if ( 'rich' === $legacy_type ) {
+			return 'rich';
+		}
+
+		if ( 'textarea' === $legacy_type ) {
+			return 'textarea';
+		}
+
+		// Default to textarea when the schema does not define an explicit type.
+		return 'textarea';
+	}
+
+	/**
+	 * Retrieve the field description from the raw schema record.
+	 *
+	 * @param array $raw_field Raw field definition.
+	 * @return string
+	 */
+	private function get_field_description( $raw_field ) {
+		if ( ! is_array( $raw_field ) ) {
+			return '';
+		}
+
+		if ( isset( $raw_field['description'] ) && is_string( $raw_field['description'] ) && '' !== $raw_field['description'] ) {
+			return sanitize_text_field( $raw_field['description'] );
+		}
+
+		if ( isset( $raw_field['parameters'] ) && is_array( $raw_field['parameters'] ) ) {
+			foreach ( array( 'description', 'help', 'hint' ) as $key ) {
+				if ( isset( $raw_field['parameters'][ $key ] ) && '' !== $raw_field['parameters'][ $key ] ) {
+					return sanitize_text_field( (string) $raw_field['parameters'][ $key ] );
+				}
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Retrieve the validation message associated with the field.
+	 *
+	 * @param array $raw_field Raw field definition.
+	 * @return string
+	 */
+	private function get_field_validation_message( $raw_field ) {
+		if ( ! is_array( $raw_field ) ) {
+			return '';
+		}
+
+		if ( isset( $raw_field['patternmsg'] ) && is_string( $raw_field['patternmsg'] ) && '' !== $raw_field['patternmsg'] ) {
+			return sanitize_text_field( $raw_field['patternmsg'] );
+		}
+
+		if ( isset( $raw_field['parameters'] ) && is_array( $raw_field['parameters'] ) ) {
+			foreach ( array( 'validation_message', 'validation-message', 'invalid', 'error' ) as $key ) {
+				if ( isset( $raw_field['parameters'][ $key ] ) && '' !== $raw_field['parameters'][ $key ] ) {
+					return sanitize_text_field( (string) $raw_field['parameters'][ $key ] );
+				}
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Map schema type hints to concrete HTML input types.
+	 *
+	 * @param string $field_type Original schema field type.
+	 * @param string $data_type  Normalized data type.
+	 * @return string
+	 */
+	private function map_single_input_type( $field_type, $data_type ) {
+		$field_type = strtolower( (string) $field_type );
+		$data_type  = strtolower( (string) $data_type );
+
+		switch ( $field_type ) {
+			case 'text':
+			case 'string':
+			case 'varchar':
+				return 'text';
+			case 'number':
+			case 'numeric':
+			case 'int':
+			case 'integer':
+			case 'float':
+			case 'decimal':
+				return 'number';
+			case 'email':
+				return 'email';
+			case 'url':
+			case 'link':
+				return 'url';
+			case 'tel':
+			case 'phone':
+				return 'tel';
+			case 'date':
+				return 'date';
+			case 'datetime':
+			case 'datetime-local':
+			case 'datetime_local':
+				return 'datetime-local';
+			case 'time':
+				return 'time';
+			case 'boolean':
+			case 'bool':
+			case 'checkbox':
+				return 'checkbox';
+			case 'select':
+			case 'dropdown':
+			case 'choice':
+				return 'select';
+			default:
+				break;
+		}
+
+		switch ( $data_type ) {
+			case 'number':
+				return 'number';
+			case 'date':
+				return 'date';
+			case 'boolean':
+				return 'checkbox';
+		}
+
+		return 'text';
+	}
+
+	/**
+	 * Normalize stored value for the selected HTML control type.
+	 *
+	 * @param string $value      Stored value.
+	 * @param string $input_type Target input type.
+	 * @return string
+	 */
+	private function normalize_scalar_value( $value, $input_type ) {
+		$value      = is_scalar( $value ) ? (string) $value : '';
+		$input_type = sanitize_key( $input_type );
+
+		if ( 'checkbox' === $input_type ) {
+			return $this->is_truthy( $value ) ? '1' : '0';
+		}
+
+		if ( 'datetime-local' === $input_type ) {
+			$timestamp = strtotime( $value );
+			if ( false !== $timestamp ) {
+				return gmdate( 'Y-m-d\TH:i', $timestamp );
+			}
+			return $value;
+		}
+
+		if ( 'date' === $input_type ) {
+			$timestamp = strtotime( $value );
+			if ( false !== $timestamp ) {
+				return gmdate( 'Y-m-d', $timestamp );
+			}
+			return $value;
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Build common HTML attributes from raw schema metadata.
+	 *
+	 * @param array  $raw_field  Raw field definition.
+	 * @param string $input_type Input type being rendered.
+	 * @return array<string,string>
+	 */
+	private function build_scalar_input_attributes( $raw_field, $input_type ) {
+		$attributes        = array();
+		$input_type        = sanitize_key( $input_type );
+		$allows_placeholder = ! in_array( $input_type, array( 'checkbox', 'select' ), true );
+
+		if ( ! is_array( $raw_field ) ) {
+			return $attributes;
+		}
+
+		if ( $allows_placeholder && ! empty( $raw_field['placeholder'] ) ) {
+			$attributes['placeholder'] = sanitize_text_field( $raw_field['placeholder'] );
+		}
+
+		if ( $allows_placeholder && ! empty( $raw_field['pattern'] ) ) {
+			$attributes['pattern'] = (string) $raw_field['pattern'];
+		}
+
+		if ( $allows_placeholder && isset( $raw_field['length'] ) ) {
+			$length = intval( $raw_field['length'] );
+			if ( $length > 0 ) {
+				$attributes['maxlength'] = (string) $length;
+			}
+		}
+
+		if ( isset( $raw_field['minvalue'] ) && in_array( $input_type, array( 'number', 'range', 'date', 'datetime-local', 'time' ), true ) ) {
+			$attributes['min'] = (string) $raw_field['minvalue'];
+		}
+
+		if ( isset( $raw_field['maxvalue'] ) && in_array( $input_type, array( 'number', 'range', 'date', 'datetime-local', 'time' ), true ) ) {
+			$attributes['max'] = (string) $raw_field['maxvalue'];
+		}
+
+		if ( isset( $raw_field['parameters'] ) && is_array( $raw_field['parameters'] ) ) {
+			$params = $raw_field['parameters'];
+
+			if ( isset( $params['required'] ) && $this->is_truthy( $params['required'] ) ) {
+				$attributes['required'] = 'required';
+			} elseif ( isset( $params['is_required'] ) && $this->is_truthy( $params['is_required'] ) ) {
+				$attributes['required'] = 'required';
+			}
+
+			if ( $allows_placeholder && empty( $attributes['placeholder'] ) && isset( $params['placeholder'] ) ) {
+				$attributes['placeholder'] = sanitize_text_field( (string) $params['placeholder'] );
+			}
+
+			if ( isset( $params['step'] ) && in_array( $input_type, array( 'number', 'range' ), true ) ) {
+				$attributes['step'] = (string) $params['step'];
+			}
+
+			if ( isset( $params['min'] ) && ! isset( $attributes['min'] ) && in_array( $input_type, array( 'number', 'range', 'date', 'datetime-local', 'time' ), true ) ) {
+				$attributes['min'] = (string) $params['min'];
+			}
+
+			if ( isset( $params['max'] ) && ! isset( $attributes['max'] ) && in_array( $input_type, array( 'number', 'range', 'date', 'datetime-local', 'time' ), true ) ) {
+				$attributes['max'] = (string) $params['max'];
+			}
+
+			if ( 'textarea' === $input_type && isset( $params['rows'] ) ) {
+				$rows = intval( $params['rows'] );
+				if ( $rows > 0 ) {
+					$attributes['rows'] = (string) $rows;
+				}
+			}
+		}
+
+		return $attributes;
+	}
+
+	/**
+	 * Build CSS classes for rendered controls following WP admin conventions.
+	 *
+	 * @param string $input_type Input type.
+	 * @return string
+	 */
+	private function build_input_class( $input_type ) {
+		$input_type = sanitize_key( $input_type );
+		$classes    = array(
+			'resolate-field-input',
+			'resolate-field-input-' . $input_type,
+		);
+
+		switch ( $input_type ) {
+			case 'textarea':
+				$classes[] = 'large-text';
+				break;
+			case 'checkbox':
+				$classes[] = 'resolate-field-checkbox';
+				break;
+			case 'select':
+				$classes[] = 'regular-text';
+				break;
+			default:
+				$classes[] = 'regular-text';
+				break;
+		}
+
+		$classes = array_filter(
+			array_map(
+				static function ( $class ) {
+					return preg_replace( '/[^a-z0-9_\-]/', '', (string) $class );
+				},
+				array_unique( $classes )
+			)
+		);
+
+		return implode( ' ', $classes );
+	}
+
+	/**
+	 * Convert attribute arrays into HTML attribute strings.
+	 *
+	 * @param array<string,string> $attributes Attribute map.
+	 * @return string
+	 */
+	private function format_field_attributes( $attributes ) {
+		if ( empty( $attributes ) || ! is_array( $attributes ) ) {
+			return '';
+		}
+
+		$parts = array();
+		foreach ( $attributes as $name => $value ) {
+			$name = strtolower( (string) $name );
+			$name = preg_replace( '/[^a-z0-9_\-:]/', '', $name );
+			if ( '' === $name ) {
+				continue;
+			}
+
+			if ( is_bool( $value ) ) {
+				if ( $value ) {
+					$parts[] = esc_attr( $name );
+				}
+				continue;
+			}
+
+			if ( null === $value ) {
+				continue;
+			}
+
+			$parts[] = esc_attr( $name ) . '="' . esc_attr( (string) $value ) . '"';
+		}
+
+		return implode( ' ', $parts );
+	}
+
+	/**
+	 * Parse select options from schema parameters.
+	 *
+	 * @param array $raw_field Raw field definition.
+	 * @return array<string,string>
+	 */
+	private function parse_select_options( $raw_field ) {
+		if ( ! is_array( $raw_field ) ) {
+			return array();
+		}
+
+		$options = array();
+
+		if ( isset( $raw_field['parameters'] ) && is_array( $raw_field['parameters'] ) ) {
+			$params    = $raw_field['parameters'];
+			$source    = '';
+			$candidate = null;
+
+			foreach ( array( 'options', 'choices', 'values' ) as $key ) {
+				if ( isset( $params[ $key ] ) && '' !== $params[ $key ] ) {
+					$candidate = $params[ $key ];
+					break;
+				}
+			}
+
+			if ( is_array( $candidate ) ) {
+				foreach ( $candidate as $value => $label ) {
+					$option_value = is_int( $value ) ? (string) $label : (string) $value;
+					$option_label = is_int( $value ) ? (string) $label : (string) $label;
+					$options[ sanitize_text_field( $option_value ) ] = sanitize_text_field( $option_label );
+				}
+			} elseif ( is_string( $candidate ) && '' !== $candidate ) {
+				$source = $candidate;
+			}
+
+			if ( '' !== $source ) {
+				$delimiter = ( false !== strpos( $source, '|' ) ) ? '|' : ',';
+				$pieces    = array_map( 'trim', explode( $delimiter, $source ) );
+				foreach ( $pieces as $piece ) {
+					if ( '' === $piece ) {
+						continue;
+					}
+					if ( false !== strpos( $piece, ':' ) ) {
+						list( $value, $label ) = array_map( 'trim', explode( ':', $piece, 2 ) );
+					} else {
+						$value = $piece;
+						$label = $piece;
+					}
+					$options[ sanitize_text_field( $value ) ] = sanitize_text_field( $label );
+				}
+			}
+		}
+
+		return $options;
+	}
+
+	/**
+	 * Determine select placeholder text if provided.
+	 *
+	 * @param array $raw_field Raw field definition.
+	 * @return string
+	 */
+	private function get_select_placeholder( $raw_field ) {
+		if ( ! is_array( $raw_field ) ) {
+			return '';
+		}
+
+		if ( isset( $raw_field['placeholder'] ) && '' !== $raw_field['placeholder'] ) {
+			return sanitize_text_field( $raw_field['placeholder'] );
+		}
+
+		if ( isset( $raw_field['parameters'] ) && is_array( $raw_field['parameters'] ) ) {
+			foreach ( array( 'placeholder', 'prompt', 'empty', 'empty_label' ) as $key ) {
+				if ( isset( $raw_field['parameters'][ $key ] ) && '' !== $raw_field['parameters'][ $key ] ) {
+					return sanitize_text_field( (string) $raw_field['parameters'][ $key ] );
+				}
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Evaluate truthy values commonly used in schema flags.
+	 *
+	 * @param mixed $value Value to evaluate.
+	 * @return bool
+	 */
+	private function is_truthy( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		$value = strtolower( trim( (string) $value ) );
+		return in_array( $value, array( '1', 'true', 'yes', 'on' ), true );
 	}
 
 		/**
@@ -601,21 +1265,26 @@ class Resolate_Documents {
 			return $schema;
 	}
 
-		/**
-		 * Render an array field with repeatable items.
-		 *
-		 * @param string $slug        Field slug.
-		 * @param string $label       Field label.
-		 * @param array  $item_schema Item schema definition.
-		 * @param array  $items       Current values.
-		 * @return void
-		 */
-	private function render_array_field( $slug, $label, $item_schema, $items ) {
+	/**
+	 * Render an array field with repeatable items.
+	 *
+	 * @param string $slug         Field slug.
+	 * @param string $label        Field label.
+	 * @param array  $item_schema  Item schema definition.
+	 * @param array  $items        Current values.
+	 * @param array  $raw_repeater Raw schema definition for this repeater.
+	 * @return void
+	 */
+	private function render_array_field( $slug, $label, $item_schema, $items, $raw_repeater = array() ) {
 			$slug        = sanitize_key( $slug );
 			$label       = sanitize_text_field( $label );
 			$field_id    = 'resolate-array-' . $slug;
 			$items       = is_array( $items ) ? $items : array();
 			$item_schema = is_array( $item_schema ) ? $item_schema : array();
+			$raw_fields  = array();
+			if ( isset( $raw_repeater['fields'] ) && is_array( $raw_repeater['fields'] ) ) {
+				$raw_fields = $raw_repeater['fields'];
+			}
 
 			echo '<div class="resolate-array-field" data-array-field="' . esc_attr( $slug ) . '" style="margin-bottom:24px;">';
 			echo '<div class="resolate-array-heading" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;">';
@@ -626,31 +1295,33 @@ class Resolate_Documents {
 			echo '<div class="resolate-array-items" id="' . esc_attr( $field_id ) . '" data-field="' . esc_attr( $slug ) . '">';
 		foreach ( $items as $index => $values ) {
 				$values = is_array( $values ) ? $values : array();
-				$this->render_array_field_item( $slug, (string) $index, $item_schema, $values );
+				$this->render_array_field_item( $slug, (string) $index, $item_schema, $values, false, $raw_fields );
 		}
 			echo '</div>';
 
 			echo '<template class="resolate-array-template" data-field="' . esc_attr( $slug ) . '">';
-			$this->render_array_field_item( $slug, '__INDEX__', $item_schema, array(), true );
+			$this->render_array_field_item( $slug, '__INDEX__', $item_schema, array(), true, $raw_fields );
 			echo '</template>';
 			echo '</div>';
 	}
 
-		/**
-		 * Render a single repeatable array item row.
-		 *
-		 * @param string $slug         Field slug.
-		 * @param string $index        Item index.
-		 * @param array  $item_schema  Item schema definition.
-		 * @param array  $values       Current values.
-		 * @param bool   $is_template  Whether the row is a template placeholder.
-		 * @return void
-		 */
-	private function render_array_field_item( $slug, $index, $item_schema, $values, $is_template = false ) {
+	/**
+	 * Render a single repeatable array item row.
+	 *
+	 * @param string $slug         Field slug.
+	 * @param string $index        Item index.
+	 * @param array  $item_schema  Item schema definition.
+	 * @param array  $values       Current values.
+	 * @param bool   $is_template  Whether the row is a template placeholder.
+	 * @param array  $raw_fields   Raw schema definitions for the repeater items.
+	 * @return void
+	 */
+	private function render_array_field_item( $slug, $index, $item_schema, $values, $is_template = false, $raw_fields = array() ) {
 			$slug        = sanitize_key( $slug );
 			$index_attr  = (string) $index;
 			$item_schema = is_array( $item_schema ) ? $item_schema : array();
 			$values      = is_array( $values ) ? $values : array();
+			$raw_fields  = is_array( $raw_fields ) ? $raw_fields : array();
 
 			echo '<div class="resolate-array-item" data-index="' . esc_attr( $index_attr ) . '" draggable="true" style="border:1px solid #e5e5e5;padding:16px;margin-bottom:12px;background:#fff;">';
 			echo '<div class="resolate-array-item-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">';
@@ -668,20 +1339,134 @@ class Resolate_Documents {
 				$field_id   = 'resolate-' . $slug . '-' . $item_key . '-' . $index_attr;
 				$label      = isset( $definition['label'] ) ? sanitize_text_field( $definition['label'] ) : $this->humanize_unknown_field_label( $item_key );
 				$type       = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
+				$raw_field  = isset( $raw_fields[ $item_key ] ) ? $raw_fields[ $item_key ] : array();
+				$type       = $this->resolve_field_control_type( $type, $raw_field );
 				$value      = isset( $values[ $item_key ] ) ? (string) $values[ $item_key ] : '';
-
-			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-					$type = 'textarea';
-			}
 
 				echo '<div class="resolate-array-field-control" style="margin-bottom:12px;">';
 				echo '<label for="' . esc_attr( $field_id ) . '" style="font-weight:600;display:block;margin-bottom:4px;">' . esc_html( $label ) . '</label>';
 
 			if ( 'single' === $type ) {
-					echo '<input type="text" class="widefat" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '" />';
+					$raw_field_type   = isset( $raw_field['type'] ) ? sanitize_key( $raw_field['type'] ) : '';
+					$raw_data_type    = isset( $definition['data_type'] ) ? sanitize_key( $definition['data_type'] ) : '';
+					$input_type       = $this->map_single_input_type( $raw_field_type, $raw_data_type );
+					$normalized_value = $this->normalize_scalar_value( $value, $input_type );
+					$attributes       = $this->build_scalar_input_attributes( $raw_field, $input_type );
+					$description      = $this->get_field_description( $raw_field );
+					$validation       = $this->get_field_validation_message( $raw_field );
+					$description_id   = '' !== $description ? $field_id . '-description' : '';
+					$validation_id    = '' !== $validation ? $field_id . '-validation' : '';
+					$describedby      = array();
+					if ( '' !== $description_id ) {
+						$describedby[] = $description_id;
+					}
+					if ( '' !== $validation_id ) {
+						$describedby[] = $validation_id;
+					}
+					if ( ! empty( $describedby ) ) {
+						$attributes['aria-describedby'] = implode( ' ', $describedby );
+					}
+					if ( '' !== $validation ) {
+						$attributes['data-validation-message'] = $validation;
+					}
+					$attributes['class'] = $this->build_input_class( $input_type );
+					$attribute_string    = $this->format_field_attributes( $attributes );
+
+					if ( 'select' === $input_type ) {
+						$options     = $this->parse_select_options( $raw_field );
+						$placeholder = $this->get_select_placeholder( $raw_field );
+						echo '<select id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" ' . $attribute_string . '>';
+						if ( '' !== $placeholder ) {
+							echo '<option value="">' . esc_html( $placeholder ) . '</option>';
+						} elseif ( empty( $attributes['required'] ) ) {
+							echo '<option value="">' . esc_html__( 'Selecciona una opción…', 'resolate' ) . '</option>';
+						}
+						foreach ( $options as $option_value => $option_label ) {
+							echo '<option value="' . esc_attr( $option_value ) . '" ' . selected( $option_value, $normalized_value, false ) . '>' . esc_html( $option_label ) . '</option>';
+						}
+						echo '</select>';
+					} elseif ( 'checkbox' === $input_type ) {
+						echo '<input type="hidden" name="' . esc_attr( $field_name ) . '" value="0" />';
+						echo '<label class="resolate-checkbox-wrapper">';
+						echo '<input type="checkbox" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" value="1" ' . checked( '1', $normalized_value, false ) . ' ' . $attribute_string . ' />';
+						echo '<span class="screen-reader-text">' . esc_html( $label ) . '</span>';
+						echo '</label>';
+					} else {
+						echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $normalized_value ) . '" ' . $attribute_string . ' />';
+					}
+
+					if ( '' !== $description ) {
+						echo '<p id="' . esc_attr( $description_id ) . '" class="description">' . esc_html( $description ) . '</p>';
+					}
+					if ( '' !== $validation ) {
+						echo '<p id="' . esc_attr( $validation_id ) . '" class="description resolate-field-validation" data-resolate-validation-message="true">' . esc_html( $validation ) . '</p>';
+					}
+			} elseif ( 'rich' === $type ) {
+					$description    = $this->get_field_description( $raw_field );
+					$validation     = $this->get_field_validation_message( $raw_field );
+					$description_id = '' !== $description ? $field_id . '-description' : '';
+					$validation_id  = '' !== $validation ? $field_id . '-validation' : '';
+					$describedby    = array();
+					if ( '' !== $description_id ) {
+						$describedby[] = $description_id;
+					}
+					if ( '' !== $validation_id ) {
+						$describedby[] = $validation_id;
+					}
+					$attributes = $this->build_scalar_input_attributes( $raw_field, 'textarea' );
+					if ( ! empty( $describedby ) ) {
+						$attributes['aria-describedby'] = implode( ' ', $describedby );
+					}
+					if ( '' !== $validation ) {
+						$attributes['data-validation-message'] = $validation;
+					}
+					if ( ! isset( $attributes['rows'] ) ) {
+						$attributes['rows'] = 8;
+					}
+					$classes = trim(
+						$this->build_input_class( 'textarea' ) . ' resolate-array-rich' . ( $is_template ? ' resolate-array-rich-template' : '' )
+					);
+					$attributes['class'] = $classes;
+					$attributes['data-editor-initialized'] = 'false';
+					$attribute_string = $this->format_field_attributes( $attributes );
+					echo '<textarea ' . $attribute_string . ' id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '">' . esc_textarea( $value ) . '</textarea>';
+					if ( '' !== $description ) {
+						echo '<p id="' . esc_attr( $description_id ) . '" class="description">' . esc_html( $description ) . '</p>';
+					}
+					if ( '' !== $validation ) {
+						echo '<p id="' . esc_attr( $validation_id ) . '" class="description resolate-field-validation" data-resolate-validation-message="true">' . esc_html( $validation ) . '</p>';
+					}
 			} else {
-					$rows = ( 'rich' === $type ) ? 8 : 4;
-					echo '<textarea class="widefat" rows="' . esc_attr( (string) $rows ) . '" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '">' . esc_textarea( $value ) . '</textarea>';
+					$attributes  = $this->build_scalar_input_attributes( $raw_field, 'textarea' );
+					$description = $this->get_field_description( $raw_field );
+					$validation  = $this->get_field_validation_message( $raw_field );
+					$description_id = '' !== $description ? $field_id . '-description' : '';
+					$validation_id  = '' !== $validation ? $field_id . '-validation' : '';
+					$describedby    = array();
+					if ( '' !== $description_id ) {
+						$describedby[] = $description_id;
+					}
+					if ( '' !== $validation_id ) {
+						$describedby[] = $validation_id;
+					}
+					if ( ! empty( $describedby ) ) {
+						$attributes['aria-describedby'] = implode( ' ', $describedby );
+					}
+					if ( '' !== $validation ) {
+						$attributes['data-validation-message'] = $validation;
+					}
+					if ( ! isset( $attributes['rows'] ) ) {
+						$attributes['rows'] = 6;
+					}
+					$attributes['class'] = $this->build_input_class( 'textarea' );
+					$attribute_string    = $this->format_field_attributes( $attributes );
+					echo '<textarea ' . $attribute_string . ' id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '">' . esc_textarea( $value ) . '</textarea>';
+					if ( '' !== $description ) {
+						echo '<p id="' . esc_attr( $description_id ) . '" class="description">' . esc_html( $description ) . '</p>';
+					}
+					if ( '' !== $validation ) {
+						echo '<p id="' . esc_attr( $validation_id ) . '" class="description resolate-field-validation" data-resolate-validation-message="true">' . esc_html( $validation ) . '</p>';
+					}
 			}
 
 				echo '</div>';
