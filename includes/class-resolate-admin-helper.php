@@ -73,11 +73,12 @@ class Resolate_Admin_Helper {
 			return;
 		}
 
+		wp_enqueue_editor();
 		wp_enqueue_style( 'resolate-title-textarea', plugins_url( 'admin/css/resolate-title.css', RESOLATE_PLUGIN_FILE ), array(), RESOLATE_VERSION );
 		wp_enqueue_script( 'resolate-title-textarea', plugins_url( 'admin/js/resolate-title.js', RESOLATE_PLUGIN_FILE ), array( 'jquery' ), RESOLATE_VERSION, true );
 
 		// Annexes repeater UI.
-		wp_enqueue_script( 'resolate-annexes', plugins_url( 'admin/js/resolate-annexes.js', RESOLATE_PLUGIN_FILE ), array( 'jquery' ), RESOLATE_VERSION, true );
+		wp_enqueue_script( 'resolate-annexes', plugins_url( 'admin/js/resolate-annexes.js', RESOLATE_PLUGIN_FILE ), array( 'jquery', 'wp-editor' ), RESOLATE_VERSION, true );
 	}
 
 	/**
