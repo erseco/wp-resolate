@@ -104,6 +104,12 @@ class Resolate {
 		// Resolate: Documents CPT and taxonomies (non-breaking addition).
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-documents.php';
 
+		// Schema extraction/storage services.
+		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-extractor.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-storage.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-converter.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-template-parser.php';
+
 		// Document generator and templating helpers.
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-document-generator.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';

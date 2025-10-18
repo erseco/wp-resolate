@@ -11,6 +11,8 @@
  * This factory creates and updates terms in the 'resolate_doc_type' taxonomy.
  * It also handles setting the 'schema' meta for defining the document structure.
  */
+use Resolate\DocType\SchemaStorage;
+
 class WP_UnitTest_Factory_For_Resolate_Doc_Type extends WP_UnitTest_Factory_For_Term {
 
     /**
@@ -28,22 +30,7 @@ class WP_UnitTest_Factory_For_Resolate_Doc_Type extends WP_UnitTest_Factory_For_
             'name'        => new WP_UnitTest_Generator_Sequence( 'Document Type %s' ),
             'slug'        => new WP_UnitTest_Generator_Sequence( 'doctype-%s' ),
             'description' => 'Default document type for tests.',
-            'schema'      => array(
-                array(
-                    'slug'        => 'title',
-                    'label'       => 'Title',
-                    'type'        => 'single',
-                    'data_type'   => 'text',
-                    'placeholder' => 'Document title',
-                ),
-                array(
-                    'slug'        => 'content',
-                    'label'       => 'Content',
-                    'type'        => 'rich',
-                    'data_type'   => 'text',
-                    'placeholder' => 'Main content',
-                ),
-            ),
+            'schema'      => $this->get_default_schema(),
         );
     }
 
@@ -81,7 +68,8 @@ class WP_UnitTest_Factory_For_Resolate_Doc_Type extends WP_UnitTest_Factory_For_
 
         // Assign schema meta.
         if ( isset( $args['schema'] ) && is_array( $args['schema'] ) ) {
-            update_term_meta( $term_id, 'schema', $args['schema'] );
+            $storage = new SchemaStorage();
+            $storage->save_schema( $term_id, $this->normalize_schema_v2( $args['schema'] ) );
         }
 
         return $term_id;
@@ -132,9 +120,74 @@ class WP_UnitTest_Factory_For_Resolate_Doc_Type extends WP_UnitTest_Factory_For_
 
         // Update schema meta if provided.
         if ( isset( $fields['schema'] ) && is_array( $fields['schema'] ) ) {
-            update_term_meta( $term_id, 'schema', $fields['schema'] );
+            $storage = new SchemaStorage();
+            $storage->save_schema( $term_id, $this->normalize_schema_v2( $fields['schema'] ) );
         }
 
         return $term_id;
+    }
+
+    /**
+     * Default schema used when none provided.
+     *
+     * @return array
+     */
+    private function get_default_schema() {
+        return array(
+            'version'   => 2,
+            'fields'    => array(
+                array(
+                    'name'        => 'Title',
+                    'slug'        => 'title',
+                    'type'        => 'text',
+                    'title'       => 'Title',
+                    'placeholder' => 'Document title',
+                ),
+                array(
+                    'name'        => 'Content',
+                    'slug'        => 'content',
+                    'type'        => 'html',
+                    'title'       => 'Content',
+                    'placeholder' => 'Main content',
+                ),
+            ),
+            'repeaters' => array(),
+            'meta'      => array(
+                'template_type' => 'odt',
+                'template_name' => 'factory.odt',
+                'hash'          => md5( 'factory-schema' ),
+                'parsed_at'     => current_time( 'mysql' ),
+            ),
+        );
+    }
+
+    /**
+     * Ensure schema arrays contain the expected metadata.
+     *
+     * @param array $schema Raw schema array.
+     * @return array
+     */
+    private function normalize_schema_v2( $schema ) {
+        $normalized            = $schema;
+        $normalized['version'] = isset( $schema['version'] ) ? intval( $schema['version'] ) : 2;
+        $normalized['fields']  = isset( $schema['fields'] ) && is_array( $schema['fields'] ) ? $schema['fields'] : array();
+        $normalized['repeaters'] = isset( $schema['repeaters'] ) && is_array( $schema['repeaters'] ) ? $schema['repeaters'] : array();
+
+        $meta = isset( $schema['meta'] ) && is_array( $schema['meta'] ) ? $schema['meta'] : array();
+        if ( empty( $meta['parsed_at'] ) ) {
+            $meta['parsed_at'] = current_time( 'mysql' );
+        }
+        if ( empty( $meta['hash'] ) ) {
+            $meta['hash'] = md5( wp_json_encode( array( $normalized['fields'], $normalized['repeaters'] ) ) );
+        }
+        if ( empty( $meta['template_type'] ) ) {
+            $meta['template_type'] = 'odt';
+        }
+        if ( empty( $meta['template_name'] ) ) {
+            $meta['template_name'] = 'factory.odt';
+        }
+        $normalized['meta'] = $meta;
+
+        return $normalized;
     }
 }

@@ -15,11 +15,10 @@ class ResolateDocumentsArrayFieldsTest extends WP_UnitTestCase {
 	 * It should sanitize and encode array fields into structured content JSON.
 	 */
 	public function test_filter_post_data_compose_content_saves_array_fields_as_json() {
-		$term = wp_insert_term( 'Tipo Anexos', 'resolate_doc_type' );
+		$term    = wp_insert_term( 'Tipo Anexos', 'resolate_doc_type' );
 		$term_id = intval( $term['term_id'] );
-		$schema  = $this->get_annex_schema();
-		update_term_meta( $term_id, 'schema', $schema );
-		update_term_meta( $term_id, 'resolate_type_fields', $schema );
+		$storage = new Resolate\DocType\SchemaStorage();
+		$storage->save_schema( $term_id, $this->get_annex_schema_v2() );
 
 		$post_id = wp_insert_post(
 			array(
@@ -72,11 +71,10 @@ class ResolateDocumentsArrayFieldsTest extends WP_UnitTestCase {
 	 * It should cap stored items to the configured maximum.
 	 */
 	public function test_filter_post_data_compose_content_limits_array_items() {
-		$term = wp_insert_term( 'Tipo Límite', 'resolate_doc_type' );
+		$term    = wp_insert_term( 'Tipo Límite', 'resolate_doc_type' );
 		$term_id = intval( $term['term_id'] );
-		$schema  = $this->get_annex_schema();
-		update_term_meta( $term_id, 'schema', $schema );
-		update_term_meta( $term_id, 'resolate_type_fields', $schema );
+		$storage = new Resolate\DocType\SchemaStorage();
+		$storage->save_schema( $term_id, $this->get_annex_schema_v2() );
 
 		$post_id = wp_insert_post(
 			array(
@@ -125,31 +123,41 @@ class ResolateDocumentsArrayFieldsTest extends WP_UnitTestCase {
 	 *
 	 * @return array
 	 */
-	private function get_annex_schema() {
+	private function get_annex_schema_v2() {
 		return array(
-			array(
-				'slug'        => 'annexes',
-				'label'       => 'Anexos',
-				'type'        => 'array',
-				'placeholder' => 'annexes',
-				'data_type'   => 'array',
-				'item_schema' => array(
-					'number'  => array(
-						'label'     => 'Número',
-						'type'      => 'single',
-						'data_type' => 'text',
-					),
-					'title'   => array(
-						'label'     => 'Título',
-						'type'      => 'single',
-						'data_type' => 'text',
-					),
-					'content' => array(
-						'label'     => 'Contenido',
-						'type'      => 'rich',
-						'data_type' => 'text',
+			'version'   => 2,
+			'fields'    => array(),
+			'repeaters' => array(
+				array(
+					'name'   => 'annexes',
+					'slug'   => 'annexes',
+					'fields' => array(
+						array(
+							'name'  => 'Número',
+							'slug'  => 'number',
+							'type'  => 'text',
+							'title' => 'Número',
+						),
+						array(
+							'name'  => 'Título',
+							'slug'  => 'title',
+							'type'  => 'text',
+							'title' => 'Título',
+						),
+						array(
+							'name'  => 'Contenido',
+							'slug'  => 'content',
+							'type'  => 'html',
+							'title' => 'Contenido',
+						),
 					),
 				),
+			),
+			'meta'      => array(
+				'template_type' => 'odt',
+				'template_name' => 'annex-test.odt',
+				'hash'          => md5( 'annex-schema' ),
+				'parsed_at'     => current_time( 'mysql' ),
 			),
 		);
 	}

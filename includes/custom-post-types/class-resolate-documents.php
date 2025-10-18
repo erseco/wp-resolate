@@ -13,6 +13,9 @@
  * @subpackage Resolate/includes/custom-post-types
  */
 
+use Resolate\DocType\SchemaConverter;
+use Resolate\DocType\SchemaStorage;
+
 /**
  * Class to handle the Resolate Documents custom post type
  */
@@ -1345,122 +1348,14 @@ class Resolate_Documents {
 	 * @return array[]
 	 */
 	public static function get_term_schema( $term_id ) {
-			$raw = get_term_meta( $term_id, 'schema', true );
-		if ( ! is_array( $raw ) ) {
-				$raw = get_term_meta( $term_id, 'resolate_type_fields', true );
-		}
-		if ( ! is_array( $raw ) ) {
-				return array();
-		}
+		$storage   = new SchemaStorage();
+		$schema_v2 = $storage->get_schema( $term_id );
 
-			$out = array();
-		foreach ( $raw as $item ) {
-			if ( ! is_array( $item ) ) {
-					continue;
-			}
-
-				$slug        = isset( $item['slug'] ) ? sanitize_key( $item['slug'] ) : '';
-				$label       = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : '';
-				$type        = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
-				$placeholder = isset( $item['placeholder'] ) ? preg_replace( '/[^A-Za-z0-9._:-]/', '', (string) $item['placeholder'] ) : '';
-				$data_type   = isset( $item['data_type'] ) ? sanitize_key( $item['data_type'] ) : '';
-
-			if ( '' === $slug ) {
-					continue;
-			}
-
-			if ( '' === $label ) {
-					$label = self::humanize_schema_label( $slug );
-			}
-
-			if ( '' === $label ) {
-					continue;
-			}
-
-			if ( '' === $placeholder ) {
-					$placeholder = $slug;
-			}
-
-			if ( 'array' === $type ) {
-					$item_schema = array();
-				if ( isset( $item['item_schema'] ) && is_array( $item['item_schema'] ) ) {
-					foreach ( $item['item_schema'] as $key => $definition ) {
-						$item_key = sanitize_key( $key );
-						if ( '' === $item_key ) {
-									continue;
-						}
-
-						$item_label = isset( $definition['label'] ) ? sanitize_text_field( $definition['label'] ) : '';
-						if ( '' === $item_label ) {
-										$item_label = self::humanize_schema_label( $item_key );
-						}
-
-							$item_type = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
-						if ( ! in_array( $item_type, array( 'single', 'textarea', 'rich' ), true ) ) {
-							$item_type = 'textarea';
-						}
-
-							$item_data_type = isset( $definition['data_type'] ) ? sanitize_key( $definition['data_type'] ) : 'text';
-						if ( ! in_array( $item_data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-								$item_data_type = 'text';
-						}
-
-							$item_schema[ $item_key ] = array(
-								'label'     => $item_label,
-								'type'      => $item_type,
-								'data_type' => $item_data_type,
-							);
-					}
-				}
-
-					$out[] = array(
-						'slug'        => $slug,
-						'label'       => $label,
-						'type'        => 'array',
-						'placeholder' => $placeholder,
-						'data_type'   => 'array',
-						'item_schema' => $item_schema,
-					);
-					continue;
-			}
-
-			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-					$type = 'textarea';
-			}
-
-			if ( ! in_array( $data_type, array( 'text', 'number', 'boolean', 'date' ), true ) ) {
-					$data_type = 'text';
-			}
-
-				$out[] = array(
-					'slug'        => $slug,
-					'label'       => $label,
-					'type'        => $type,
-					'placeholder' => $placeholder,
-					'data_type'   => $data_type,
-				);
+		if ( is_array( $schema_v2 ) && ! empty( $schema_v2 ) ) {
+			return SchemaConverter::to_legacy( $schema_v2 );
 		}
 
-			return $out;
-	}
-
-		/**
-		 * Humanize a schema label from a slug.
-		 *
-		 * @param string $slug Field slug.
-		 * @return string
-		 */
-	private static function humanize_schema_label( $slug ) {
-			$slug = str_replace( array( '-', '_' ), ' ', (string) $slug );
-			$slug = preg_replace( '/\s+/', ' ', $slug );
-			$slug = trim( $slug );
-		if ( '' === $slug ) {
-				return '';
-		}
-		if ( function_exists( 'mb_convert_case' ) ) {
-				return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
-		}
-			return ucwords( $slug );
+		return array();
 	}
 
 	/**

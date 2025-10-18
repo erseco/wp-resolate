@@ -15,45 +15,55 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 	 * It should expose array fields as decoded PHP arrays for template merges.
 	 */
 	public function test_build_merge_fields_includes_array_values() {
-		$term = wp_insert_term( 'Tipo Merge', 'resolate_doc_type' );
+		$term    = wp_insert_term( 'Tipo Merge', 'resolate_doc_type' );
 		$term_id = intval( $term['term_id'] );
-		$schema  = array(
-			array(
-				'slug'        => 'annexes',
-				'label'       => 'Anexos',
-				'type'        => 'array',
-				'placeholder' => 'annexes',
-				'data_type'   => 'array',
-				'item_schema' => array(
-					'number'  => array(
-						'label'     => 'Número',
-						'type'      => 'single',
-						'data_type' => 'text',
-					),
-					'content' => array(
-						'label'     => 'Contenido',
-						'type'      => 'rich',
-						'data_type' => 'text',
+		$storage = new Resolate\DocType\SchemaStorage();
+		$schema_v2 = array(
+			'version'   => 2,
+			'fields'    => array(
+				array(
+					'name'        => 'Título',
+					'slug'        => 'resolution_title',
+					'type'        => 'textarea',
+					'title'       => 'Título',
+					'placeholder' => 'resolution_title',
+				),
+				array(
+					'name'        => 'Cuerpo',
+					'slug'        => 'resolution_body',
+					'type'        => 'html',
+					'title'       => 'Cuerpo',
+					'placeholder' => 'resolution_body',
+				),
+			),
+			'repeaters' => array(
+				array(
+					'name'   => 'annexes',
+					'slug'   => 'annexes',
+					'fields' => array(
+						array(
+							'name'  => 'Número',
+							'slug'  => 'number',
+							'type'  => 'text',
+							'title' => 'Número',
+						),
+						array(
+							'name'  => 'Contenido',
+							'slug'  => 'content',
+							'type'  => 'html',
+							'title' => 'Contenido',
+						),
 					),
 				),
 			),
-			array(
-				'slug'        => 'resolution_title',
-				'label'       => 'Título',
-				'type'        => 'textarea',
-				'placeholder' => 'resolution_title',
-				'data_type'   => 'text',
-			),
-			array(
-				'slug'        => 'resolution_body',
-				'label'       => 'Cuerpo',
-				'type'        => 'rich',
-				'placeholder' => 'resolution_body',
-				'data_type'   => 'text',
+			'meta'      => array(
+				'template_type' => 'odt',
+				'template_name' => 'test.odt',
+				'hash'          => md5( 'merge-schema' ),
+				'parsed_at'     => current_time( 'mysql' ),
 			),
 		);
-		update_term_meta( $term_id, 'schema', $schema );
-		update_term_meta( $term_id, 'resolate_type_fields', $schema );
+		$storage->save_schema( $term_id, $schema_v2 );
 
 		$post_id = wp_insert_post(
 			array(

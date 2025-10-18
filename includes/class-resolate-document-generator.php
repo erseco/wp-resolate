@@ -112,15 +112,15 @@ class Resolate_Document_Generator {
 	 * @return array[]
 	 */
 	private static function get_type_schema( $term_id ) {
-		$raw = get_term_meta( $term_id, 'schema', true );
-		if ( ! is_array( $raw ) ) {
-			$raw = get_term_meta( $term_id, 'resolate_type_fields', true );
-		}
-		if ( ! is_array( $raw ) ) {
+		$storage   = new Resolate\DocType\SchemaStorage();
+		$schema_v2 = $storage->get_schema( $term_id );
+		if ( ! is_array( $schema_v2 ) || empty( $schema_v2 ) ) {
 			return array();
 		}
-		$out = array();
-		foreach ( $raw as $item ) {
+
+		$legacy = Resolate\DocType\SchemaConverter::to_legacy( $schema_v2 );
+		$out    = array();
+		foreach ( $legacy as $item ) {
 			if ( ! is_array( $item ) ) {
 				continue;
 			}
@@ -129,9 +129,6 @@ class Resolate_Document_Generator {
 			$type  = isset( $item['type'] ) ? sanitize_key( $item['type'] ) : 'textarea';
 			if ( '' === $slug || '' === $label ) {
 				continue;
-			}
-			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-				$type = 'textarea';
 			}
 			$out[] = array(
 				'slug'  => $slug,

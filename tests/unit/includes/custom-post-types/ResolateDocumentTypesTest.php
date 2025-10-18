@@ -3,6 +3,8 @@
  * Tests for Resolate document types (taxonomy) and dynamic fields.
  */
 
+use Resolate\DocType\SchemaStorage;
+
 class ResolateDocumentTypesTest extends WP_UnitTestCase {
 
     public function set_up() : void {
@@ -57,17 +59,22 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         $this->assertEquals( 'docx', get_term_meta( $tid, 'resolate_type_template_type', true ) );
         $this->assertEquals( '#123abc', get_term_meta( $tid, 'resolate_type_color', true ) );
 
-        $schema = get_term_meta( $tid, 'schema', true );
-        $this->assertIsArray( $schema );
-        $this->assertCount( 2, $schema );
-        $this->assertEquals( 'campo_1', $schema[0]['slug'] );
-        $this->assertEquals( 'Campo 1', $schema[0]['label'] );
-        $this->assertEquals( 'textarea', $schema[0]['type'] );
-        $this->assertEquals( 'campo2', $schema[1]['slug'] );
-        $this->assertEquals( 'Campo2', $schema[1]['label'] );
+        $storage = new SchemaStorage();
+        $schema_v2 = $storage->get_schema( $tid );
+        $this->assertIsArray( $schema_v2 );
+        $this->assertSame( 2, $schema_v2['version'] );
+        $this->assertCount( 2, $schema_v2['fields'], 'Se esperaban dos campos en la plantilla de prueba.' );
+        $fields = array_column( $schema_v2['fields'], null, 'slug' );
+        $this->assertArrayHasKey( 'campo_1', $fields );
+        $this->assertSame( 'text', $fields['campo_1']['type'] );
+        $this->assertArrayHasKey( 'campo2', $fields );
+        $this->assertSame( 'text', $fields['campo2']['type'] );
 
-        $legacy = get_term_meta( $tid, 'resolate_type_fields', true );
-        $this->assertEquals( $schema, $legacy );
+        $ui_schema = Resolate_Documents::get_term_schema( $tid );
+        $this->assertIsArray( $ui_schema );
+        $this->assertCount( 2, $ui_schema );
+        $this->assertSame( 'campo_1', $ui_schema[0]['slug'] );
+        $this->assertSame( 'campo2', $ui_schema[1]['slug'] );
 
         $_POST = array();
     }
@@ -101,9 +108,34 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         // Create a type with one field.
         $term = wp_insert_term( 'Tipo X', 'resolate_doc_type' );
         $tid  = intval( $term['term_id'] );
-        $schema = array( array( 'slug' => 'campo1', 'label' => 'Campo 1', 'type' => 'textarea' ) );
-        update_term_meta( $tid, 'schema', $schema );
-        update_term_meta( $tid, 'resolate_type_fields', $schema );
+        $storage = new SchemaStorage();
+        $schema_v2 = array(
+            'version'   => 2,
+            'fields'    => array(
+                array(
+                    'name'        => 'Campo 1',
+                    'slug'        => 'campo1',
+                    'type'        => 'text',
+                    'title'       => 'Campo 1',
+                    'placeholder' => '',
+                    'description' => '',
+                    'pattern'     => '',
+                    'patternmsg'  => '',
+                    'minvalue'    => '',
+                    'maxvalue'    => '',
+                    'length'      => '',
+                    'parameters'  => array(),
+                ),
+            ),
+            'repeaters' => array(),
+            'meta'      => array(
+                'template_type' => 'odt',
+                'template_name' => 'prueba.odt',
+                'hash'          => md5( 'campo1' ),
+                'parsed_at'     => current_time( 'mysql' ),
+            ),
+        );
+        $storage->save_schema( $tid, $schema_v2 );
 
         $post_id = wp_insert_post( array( 'post_type' => 'resolate_document', 'post_title' => 'Doc', 'post_status' => 'draft' ) );
         wp_set_post_terms( $post_id, array( $tid ), 'resolate_doc_type', false );

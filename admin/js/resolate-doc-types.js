@@ -51,18 +51,22 @@
       slug: field,
       label: field,
       placeholder: field,
-      data_type: 'text'
+      data_type: 'text',
+      group: ''
     }; }
-    var slug = normalizeText(field.slug, '');
+    var slug = normalizeText(field.slug || field.name, '');
     slug = slug ? slug.toString().trim() : '';
-    var label = normalizeText(field.label, '').trim();
+    var label = normalizeText(field.title || field.label || field.name, '').trim();
+    if (!label){ label = normalizeText(field.placeholder, '').trim(); }
     var placeholder = normalizeText(field.placeholder, slug).trim();
-    var type = normalizeText(field.data_type, 'text').trim() || 'text';
+    var type = normalizeText(field.type || field.data_type, 'text').trim() || 'text';
+    var group = normalizeText(field.group, '').trim();
     return {
       slug: slug,
       label: label,
       placeholder: placeholder,
-      data_type: type
+      data_type: type,
+      group: group
     };
   }
 
@@ -82,7 +86,7 @@
     return name ? name.toString().trim() : '';
   }
 
-  function renderSchema($container, fields, diff){
+  function renderSchema($container, fields, diff, summary){
     $container.empty();
     if (!fields || !fields.length){
       $container.append('<div class="resolate-schema-empty">'+ _.escape(resolateDocTypes.i18n.noFields) +'</div>');
@@ -94,6 +98,9 @@
       if (!normalized){ return; }
       var label = normalized.label || normalized.placeholder || normalized.slug;
       var pieces = [];
+      if (normalized.group){
+        pieces.push('<strong>'+ _.escape(normalized.group) +'</strong>: ');
+      }
       pieces.push(_.escape(label));
       if (normalized.placeholder && normalized.placeholder !== normalized.slug){
         pieces.push(' <code>['+ _.escape(normalized.placeholder) +']</code>');
@@ -116,6 +123,23 @@
         var $removed = $('<p style="margin-top:4px;color:#cc1818;" />');
         $removed.text(resolateDocTypes.i18n.diffRemoved + ': ' + diff.removed.join(', '));
         $container.append($removed);
+      }
+    }
+    if (summary && typeof summary === 'object'){
+      var metaParts = [];
+      if (typeof summary.field_count !== 'undefined'){
+        metaParts.push(resolateDocTypes.i18n.fieldCount.replace('%d', summary.field_count));
+      }
+      if (summary.repeaters && summary.repeaters.length){
+        metaParts.push(resolateDocTypes.i18n.repeaterList.replace('%s', summary.repeaters.join(', ')));
+      }
+      if (summary.parsed_at){
+        metaParts.push(resolateDocTypes.i18n.parsedAt.replace('%s', summary.parsed_at));
+      }
+      if (metaParts.length){
+        var $meta = $('<p class="resolate-schema-meta" style="margin-top:8px;color:#555;" />');
+        $meta.text(metaParts.join(' • '));
+        $container.append($meta);
       }
     }
   }
@@ -166,6 +190,32 @@
     }
   }
 
+  function flattenSchema(schema){
+    var result = [];
+    if (!schema || typeof schema !== 'object'){ return result; }
+    if (Array.isArray(schema.fields)){
+      schema.fields.forEach(function(field){
+        if (!field){ return; }
+        var entry = Object.assign({}, field);
+        entry.group = '';
+        result.push(entry);
+      });
+    }
+    if (Array.isArray(schema.repeaters)){
+      schema.repeaters.forEach(function(repeater){
+        if (!repeater || !Array.isArray(repeater.fields)){ return; }
+        var groupName = normalizeText(repeater.title || repeater.name, '');
+        repeater.fields.forEach(function(field){
+          if (!field){ return; }
+          var entry = Object.assign({}, field);
+          entry.group = groupName;
+          result.push(entry);
+        });
+      });
+    }
+    return result;
+  }
+
   function fetchTemplateFields(attachmentId, $scope){
     var $schemaBox = $('#resolate_type_schema_preview');
     $schemaBox.addClass('is-loading');
@@ -179,11 +229,14 @@
         window.alert(resp && resp.data && resp.data.message ? resp.data.message : 'Error');
         return;
       }
-      var fields = Array.isArray(resp.data.fields) ? resp.data.fields : [];
-      var normalized = fields.map(normalizeField).filter(function(field){ return !!field; });
-      var diff = computeDiff(normalized);
-      renderSchema($schemaBox, normalized, diff);
-      resolateDocTypes.schema = normalized;
+      var schema = resp.data.schema || {};
+      var summary = resp.data.summary || {};
+      var flattened = flattenSchema(schema).map(normalizeField).filter(function(field){ return !!field; });
+      var diff = computeDiff(flattened);
+      renderSchema($schemaBox, flattened, diff, summary);
+      resolateDocTypes.schemaV2 = schema;
+      resolateDocTypes.schemaSummary = summary;
+      resolateDocTypes.schema = flattened;
       updateTemplateTypeLabel($scope, resp.data.type || '');
     }).fail(function(){
       $schemaBox.removeClass('is-loading');
@@ -197,6 +250,18 @@
         $(this).wpColorPicker();
       }
     });
+
+    resolateDocTypes.schemaV2 = resolateDocTypes.schemaV2 || {};
+    resolateDocTypes.schemaSummary = resolateDocTypes.schemaSummary || {};
+    var $schemaBox = $('#resolate_type_schema_preview');
+    if ($schemaBox.length){
+      var initialSchema = flattenSchema(resolateDocTypes.schemaV2);
+      var normalizedInitial = initialSchema.map(normalizeField).filter(function(field){ return !!field; });
+      resolateDocTypes.schema = normalizedInitial;
+      renderSchema($schemaBox, normalizedInitial, null, resolateDocTypes.schemaSummary);
+    } else {
+      resolateDocTypes.schema = flattenSchema(resolateDocTypes.schemaV2).map(normalizeField).filter(function(field){ return !!field; });
+    }
 
     var $schemaBox = $('#resolate_type_schema_preview');
     var initialSchemaRaw = parseSchemaData($schemaBox.data('schema'));

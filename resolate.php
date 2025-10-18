@@ -35,6 +35,11 @@ if ( ! defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
 	define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.us.collaboraonline.com' );
 }
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schema-extractor.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schema-storage.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schema-converter.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
+
 /**
  * The code that runs during plugin activation.
  */
@@ -317,10 +322,6 @@ function resolate_maybe_seed_default_doc_types() {
 		return;
 	}
 
-	if ( ! class_exists( 'Resolate_Template_Parser' ) ) {
-		require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
-	}
-
 	foreach ( $definitions as $definition ) {
 		$slug        = $definition['slug'];
 		$template_id = intval( $definition['template_id'] );
@@ -366,42 +367,34 @@ function resolate_maybe_seed_default_doc_types() {
 			continue;
 		}
 
-		$template_type = resolate_detect_template_type( $path );
-		$schema        = resolate_build_schema_from_template( $path );
+		$extractor = new Resolate\DocType\SchemaExtractor();
+		$storage   = new Resolate\DocType\SchemaStorage();
 
-		update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
-		update_term_meta( $term_id, 'schema', $schema );
-		update_term_meta( $term_id, 'resolate_type_fields', $schema );
+		$existing_schema = $storage->get_schema( $term_id );
+		$template_hash   = @md5_file( $path );
+
+        if ( ! empty( $existing_schema ) && $template_hash && isset( $existing_schema['meta']['hash'] ) && $template_hash === $existing_schema['meta']['hash'] ) {
+            $template_type = isset( $existing_schema['meta']['template_type'] ) ? (string) $existing_schema['meta']['template_type'] : strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+            update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+            continue;
+        }
+
+		$schema = $extractor->extract( $path );
+		if ( is_wp_error( $schema ) ) {
+			continue;
+		}
+
+		$schema['meta']['template_id']   = $template_id;
+        $schema['meta']['template_type'] = isset( $schema['meta']['template_type'] ) ? (string) $schema['meta']['template_type'] : strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+		$schema['meta']['template_name'] = basename( $path );
+		if ( empty( $schema['meta']['hash'] ) && $template_hash ) {
+			$schema['meta']['hash'] = $template_hash;
+		}
+
+		update_term_meta( $term_id, 'resolate_type_template_type', $schema['meta']['template_type'] );
+
+        $storage->save_schema( $term_id, $schema );
 	}
-}
-
-/**
- * Detect template type (odt/docx) from file path.
- *
- * @param string $path File path.
- * @return string
- */
-function resolate_detect_template_type( $path ) {
-	$ext = strtolower( pathinfo( (string) $path, PATHINFO_EXTENSION ) );
-	if ( in_array( $ext, array( 'docx', 'odt' ), true ) ) {
-		return $ext;
-	}
-	return '';
-}
-
-/**
- * Build schema array from template placeholders.
- *
- * @param string $path Template path.
- * @return array[]
- */
-function resolate_build_schema_from_template( $path ) {
-		$fields = Resolate_Template_Parser::extract_fields( $path );
-	if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
-			return array();
-	}
-
-		return Resolate_Template_Parser::build_schema_from_field_definitions( $fields );
 }
 
 /**
