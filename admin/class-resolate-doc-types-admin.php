@@ -12,6 +12,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Resolate\DocType\SchemaExtractor;
 use Resolate\DocType\SchemaStorage;
+use Resolate\DocType\SchemaConverter;
 
 /**
  * Manage taxonomy term meta and admin screens for document types.
@@ -195,7 +196,13 @@ class Resolate_Doc_Types_Admin {
 		</div>
 		<div class="form-field">
 			<label><?php esc_html_e( 'Campos detectados', 'resolate' ); ?></label>
-			<div id="resolate_type_schema_preview" class="resolate-schema-preview" data-schema-v2="{}" data-schema-summary="{}"></div>
+			<?php
+			$storage = new SchemaStorage();
+			$schema  = $storage->get_schema( 0 ); // Default empty schema.
+			?>
+			<div id="resolate_type_schema_preview" class="resolate-schema-preview" data-schema-v2="<?php echo esc_attr( wp_json_encode( $schema ) ); ?>" data-schema-summary="{}">
+				<?php $this->render_schema_preview_fallback( $schema ); ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -242,7 +249,9 @@ public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalys
 		<tr class="form-field">
 			<th scope="row"><label><?php esc_html_e( 'Campos detectados', 'resolate' ); ?></label></th>
 			<td>
-				<div id="resolate_type_schema_preview" class="resolate-schema-preview" data-schema-v2="<?php echo esc_attr( (string) $schema_json ); ?>" data-schema-summary="<?php echo esc_attr( (string) $summary_json ); ?>"></div>
+				<div id="resolate_type_schema_preview" class="resolate-schema-preview" data-schema-v2="<?php echo esc_attr( (string) $schema_json ); ?>" data-schema-summary="<?php echo esc_attr( (string) $summary_json ); ?>">
+					<?php $this->render_schema_preview_fallback( $schema ); ?>
+				</div>
 				<?php if ( $template_id ) : ?>
 					<p style="margin-top:8px;">
 						<a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=resolate_reparse_schema&term_id=' . $term->term_id ), 'resolate_reparse_schema_' . $term->term_id ) ); ?>">
@@ -325,6 +334,59 @@ public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalys
 		$storage->delete_schema( $term_id );
 		delete_term_meta( $term_id, 'schema' );
 		delete_term_meta( $term_id, 'resolate_type_fields' );
+	}
+
+	/**
+	 * Render a basic schema preview in PHP as fallback (before JS enhancement).
+	 *
+	 * @param array $schema Schema array.
+	 * @return void
+	 */
+	private function render_schema_preview_fallback( $schema ) {
+		if ( empty( $schema ) || ( empty( $schema['fields'] ) && empty( $schema['repeaters'] ) ) ) {
+			echo '<p class="description resolate-schema-empty">' . esc_html__( 'No se encontraron campos en la plantilla.', 'resolate' ) . '</p>';
+			return;
+		}
+
+		$legacy = SchemaConverter::to_legacy( $schema );
+		if ( empty( $legacy ) ) {
+			echo '<p class="description resolate-schema-empty">' . esc_html__( 'No se encontraron campos en la plantilla.', 'resolate' ) . '</p>';
+			return;
+		}
+
+		echo '<ul class="resolate-schema-list">';
+		foreach ( $legacy as $entry ) {
+			if ( ! is_array( $entry ) || empty( $entry['slug'] ) ) {
+				continue;
+			}
+			$label = isset( $entry['label'] ) && '' !== $entry['label'] ? $entry['label'] : $entry['slug'];
+			$type  = isset( $entry['type'] ) ? $entry['type'] : '';
+
+			if ( 'array' === $type ) {
+				echo '<li><strong>' . esc_html( $label ) . '</strong></li>';
+				if ( isset( $entry['item_schema'] ) && is_array( $entry['item_schema'] ) ) {
+					echo '<ul class="resolate-schema-list-nested">';
+					foreach ( $entry['item_schema'] as $item_slug => $item ) {
+						$item_label = isset( $item['label'] ) ? $item['label'] : $item_slug;
+						$item_type  = isset( $item['type'] ) ? $item['type'] : '';
+						echo '<li>' . esc_html( $item_label );
+						if ( '' !== $item_type ) {
+							echo ' <span class="resolate-field-type">(' . esc_html( $item_type ) . ')</span>';
+						}
+						echo '</li>';
+					}
+					echo '</ul>';
+				}
+				continue;
+			}
+
+			echo '<li>' . esc_html( $label );
+			if ( '' !== $type ) {
+				echo ' <span class="resolate-field-type">(' . esc_html( $type ) . ')</span>';
+			}
+			echo '</li>';
+		}
+		echo '</ul>';
 	}
 
 	/**

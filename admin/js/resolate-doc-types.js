@@ -253,25 +253,38 @@
 
     resolateDocTypes.schemaV2 = resolateDocTypes.schemaV2 || {};
     resolateDocTypes.schemaSummary = resolateDocTypes.schemaSummary || {};
+
     var $schemaBox = $('#resolate_type_schema_preview');
     if ($schemaBox.length){
-      var initialSchema = flattenSchema(resolateDocTypes.schemaV2);
-      var normalizedInitial = initialSchema.map(normalizeField).filter(function(field){ return !!field; });
-      resolateDocTypes.schema = normalizedInitial;
-      renderSchema($schemaBox, normalizedInitial, null, resolateDocTypes.schemaSummary);
+      var dataSchema = $schemaBox.data('schemaV2');
+      if (!dataSchema && typeof $schemaBox.attr('data-schema-v2') === 'string'){
+        try {
+          dataSchema = JSON.parse($schemaBox.attr('data-schema-v2'));
+        } catch (e){
+          dataSchema = {};
+        }
+      }
+      if (!dataSchema || typeof dataSchema !== 'object'){
+        dataSchema = resolateDocTypes.schemaV2;
+      }
+      resolateDocTypes.schemaV2 = dataSchema;
+
+      var dataSummary = $schemaBox.data('schemaSummary') || resolateDocTypes.schemaSummary;
+      if (!dataSummary && typeof $schemaBox.attr('data-schema-summary') === 'string'){
+        try {
+          dataSummary = JSON.parse($schemaBox.attr('data-schema-summary'));
+        } catch (e){
+          dataSummary = {};
+        }
+      }
+      resolateDocTypes.schemaSummary = dataSummary || {};
+
+      var flattened = flattenSchema(dataSchema).map(normalizeField).filter(function(field){ return !!field; });
+      resolateDocTypes.schema = flattened;
+      renderSchema($schemaBox, flattened, null, resolateDocTypes.schemaSummary);
     } else {
       resolateDocTypes.schema = flattenSchema(resolateDocTypes.schemaV2).map(normalizeField).filter(function(field){ return !!field; });
     }
-
-    var $schemaBox = $('#resolate_type_schema_preview');
-    var initialSchemaRaw = parseSchemaData($schemaBox.data('schema'));
-    var initialNormalized = initialSchemaRaw.map(normalizeField).filter(function(field){ return !!field; });
-    if (initialNormalized.length){
-      renderSchema($schemaBox, initialNormalized);
-    } else {
-      renderSchema($schemaBox, []);
-    }
-    resolateDocTypes.schema = initialNormalized;
 
     var initialType = $('.resolate-template-type').data('current') || resolateDocTypes.templateExt || '';
     updateTemplateTypeLabel($(document), initialType);
