@@ -17,6 +17,8 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
     public function test_default_document_types_seeded() {
         $this->delete_term_if_exists( 'resolate-demo-odt' );
         $this->delete_term_if_exists( 'resolate-demo-docx' );
+        $this->delete_term_if_exists( 'resolate-demo-wp-resolate-odt' );
+        $this->delete_term_if_exists( 'resolate-demo-wp-resolate-docx' );
 
         resolate_ensure_default_media();
         resolate_maybe_seed_default_doc_types();
@@ -41,9 +43,33 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $this->assertIsArray( $docx_schema );
         $this->assertContainsPlaceholders( $docx_schema );
 
+        $advanced_odt = get_term_by( 'slug', 'resolate-demo-wp-resolate-odt', 'resolate_doc_type' );
+        $this->assertInstanceOf( WP_Term::class, $advanced_odt );
+        $advanced_odt_template_id = intval( get_term_meta( $advanced_odt->term_id, 'resolate_type_template_id', true ) );
+        $this->assertGreaterThan( 0, $advanced_odt_template_id );
+        $this->assertSame( 'odt', get_term_meta( $advanced_odt->term_id, 'resolate_type_template_type', true ) );
+        $this->assertSame( 'resolate-demo-wp-resolate-odt', get_term_meta( $advanced_odt->term_id, '_resolate_fixture', true ) );
+        $advanced_odt_schema = get_term_meta( $advanced_odt->term_id, 'schema', true );
+        $this->assertIsArray( $advanced_odt_schema );
+        $this->assertNotEmpty( $advanced_odt_schema );
+
+        $advanced_docx = get_term_by( 'slug', 'resolate-demo-wp-resolate-docx', 'resolate_doc_type' );
+        $this->assertInstanceOf( WP_Term::class, $advanced_docx );
+        $advanced_docx_template_id = intval( get_term_meta( $advanced_docx->term_id, 'resolate_type_template_id', true ) );
+        $this->assertGreaterThan( 0, $advanced_docx_template_id );
+        $this->assertSame( 'docx', get_term_meta( $advanced_docx->term_id, 'resolate_type_template_type', true ) );
+        $this->assertSame( 'resolate-demo-wp-resolate-docx', get_term_meta( $advanced_docx->term_id, '_resolate_fixture', true ) );
+        $advanced_docx_schema = get_term_meta( $advanced_docx->term_id, 'schema', true );
+        $this->assertIsArray( $advanced_docx_schema );
+        $this->assertNotEmpty( $advanced_docx_schema );
+
         resolate_maybe_seed_default_doc_types();
         $odt_after = get_term_by( 'slug', 'resolate-demo-odt', 'resolate_doc_type' );
         $this->assertSame( $odt->term_id, $odt_after->term_id );
+        $advanced_odt_after = get_term_by( 'slug', 'resolate-demo-wp-resolate-odt', 'resolate_doc_type' );
+        $this->assertSame( $advanced_odt->term_id, $advanced_odt_after->term_id );
+        $advanced_docx_after = get_term_by( 'slug', 'resolate-demo-wp-resolate-docx', 'resolate_doc_type' );
+        $this->assertSame( $advanced_docx->term_id, $advanced_docx_after->term_id );
     }
 
     /**
@@ -79,4 +105,3 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $this->assertSame( $expected, $slugs );
     }
 }
-

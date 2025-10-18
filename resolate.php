@@ -224,6 +224,10 @@ function resolate_ensure_default_media() {
 		}
 	}
 
+	// Ensure demo fixtures are present for testing scenarios.
+	resolate_import_fixture_file( 'demo-wp-resolate.odt' );
+	resolate_import_fixture_file( 'demo-wp-resolate.docx' );
+
 	// Logos.
 	$logo_left_id = isset( $options['doc_logo_id'] ) ? intval( $options['doc_logo_id'] ) : 0;
 	$logo_right_id = isset( $options['doc_logo_right_id'] ) ? intval( $options['doc_logo_right_id'] ) : 0;
@@ -282,6 +286,30 @@ function resolate_maybe_seed_default_doc_types() {
 			'color'       => '#2a7fb8',
 			'template_id' => $docx_id,
 			'fixture_key' => 'resolate-demo-docx',
+		);
+	}
+
+	$advanced_odt_id = resolate_import_fixture_file( 'demo-wp-resolate.odt' );
+	if ( $advanced_odt_id > 0 ) {
+		$definitions[] = array(
+			'slug'        => 'resolate-demo-wp-resolate-odt',
+			'name'        => __( 'Tipo de documento de prueba avanzado (ODT)', 'resolate' ),
+			'description' => __( 'Ejemplo creado automáticamente con la plantilla demo-wp-resolate.odt incluida.', 'resolate' ),
+			'color'       => '#6c5ce7',
+			'template_id' => $advanced_odt_id,
+			'fixture_key' => 'resolate-demo-wp-resolate-odt',
+		);
+	}
+
+	$advanced_docx_id = resolate_import_fixture_file( 'demo-wp-resolate.docx' );
+	if ( $advanced_docx_id > 0 ) {
+		$definitions[] = array(
+			'slug'        => 'resolate-demo-wp-resolate-docx',
+			'name'        => __( 'Tipo de documento de prueba avanzado (DOCX)', 'resolate' ),
+			'description' => __( 'Ejemplo creado automáticamente con la plantilla demo-wp-resolate.docx incluida.', 'resolate' ),
+			'color'       => '#0f9d58',
+			'template_id' => $advanced_docx_id,
+			'fixture_key' => 'resolate-demo-wp-resolate-docx',
 		);
 	}
 
