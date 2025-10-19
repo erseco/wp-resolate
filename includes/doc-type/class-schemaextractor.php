@@ -460,9 +460,14 @@ class SchemaExtractor {
 		$max_value   = isset( $parameters['maxvalue'] ) ? (string) $parameters['maxvalue'] : '';
 		$length      = isset( $parameters['length'] ) ? (string) $parameters['length'] : '';
 
+		$slug = $this->resolve_field_slug( $name, $parameters );
+		if ( '' === $slug ) {
+			$slug = sanitize_key( $name );
+		}
+
 		return array(
 			'name'        => $name,
-			'slug'        => sanitize_key( $name ),
+			'slug'        => $slug,
 			'type'        => $field_type,
 			'title'       => $title,
 			'placeholder' => $placeholder,
@@ -610,5 +615,71 @@ class SchemaExtractor {
 		}
 
 		return 'textarea';
+	}
+
+	/**
+	 * Resolve a stable slug for a schema field.
+	 *
+	 * @param string              $name       Placeholder name.
+	 * @param array<string,mixed> $parameters Placeholder parameters.
+	 * @return string
+	 */
+	private function resolve_field_slug( $name, $parameters ) {
+		$parameters = is_array( $parameters ) ? $parameters : array();
+
+		if ( isset( $parameters['slug'] ) ) {
+			$explicit = sanitize_key( $parameters['slug'] );
+			if ( '' !== $explicit ) {
+				return $explicit;
+			}
+		}
+
+		$base_slug  = sanitize_key( $name );
+		$title_slug = '';
+
+		if ( isset( $parameters['title'] ) ) {
+			$title_slug = sanitize_key( $parameters['title'] );
+		}
+
+		if ( '' === $base_slug && '' !== $title_slug ) {
+			return $title_slug;
+		}
+
+		if ( '' !== $title_slug && $this->should_prefer_title_slug( $base_slug ) ) {
+			return $title_slug;
+		}
+
+		return $base_slug;
+	}
+
+	/**
+	 * Determine whether we should fall back to the title-derived slug.
+	 *
+	 * @param string $slug Current slug candidate.
+	 * @return bool
+	 */
+	private function should_prefer_title_slug( $slug ) {
+		if ( '' === $slug ) {
+			return true;
+		}
+
+		$generic = array(
+			'name',
+			'phone',
+			'units',
+			'field',
+			'value',
+			'column',
+		);
+
+		if ( in_array( $slug, $generic, true ) ) {
+			return true;
+		}
+
+		if ( preg_match( '/^(field|col|column|item|entry)[0-9]+$/', $slug ) ) {
+			return true;
+		}
+
+		return false;
 	}
 }
