@@ -128,7 +128,7 @@ class SchemaStorage {
 		return array(
 			'version'       => $version,
 			'field_count'   => count( $fields ),
-			'repeater_count'=> count( $repeaters ),
+			'repeater_count' => count( $repeaters ),
 			'repeaters'     => $repeater_names,
 			'template_name' => $template,
 			'template_type' => $type,

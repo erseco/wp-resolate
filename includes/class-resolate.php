@@ -103,6 +103,8 @@ class Resolate {
 
 		// Resolate: Documents CPT and taxonomies (non-breaking addition).
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-resolate-documents.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/document/meta/class-document-meta-box.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/document/meta/class-document-meta.php';
 
 		// Schema extraction/storage services.
 		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-extractor.php';
@@ -113,6 +115,11 @@ class Resolate {
 		// Document generator and templating helpers.
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-document-generator.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-opentbs.php';
+
+		if ( class_exists( '\Resolate\Document\Meta\Document_Meta_Box' ) ) {
+			$document_meta_box = new \Resolate\Document\Meta\Document_Meta_Box();
+			$document_meta_box->register();
+		}
 
 		// Removed email-to-post, mailer/notification, and calendar modules.
 
@@ -197,40 +204,6 @@ class Resolate {
 	 */
 	public function get_version() {
 		return $this->version;
-	}
-
-
-	/**
-	 * Check if the current user has at least the required role.
-	 *
-	 * @return bool True if the user has the required role or higher, false otherwise.
-	 */
-	public static function current_user_has_at_least_minimum_role() {
-		// Get the saved user profile role from plugin options, default to 'editor'.
-		$options = get_option( 'resolate_settings', array() );
-		$required_role = isset( $options['minimum_user_profile'] ) ? $options['minimum_user_profile'] : 'editor';
-
-		// WordPress role hierarchy, ordered from lowest to highest.
-		$role_hierarchy = array( 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
-
-		// Determine the index of the required role.
-		$required_index = array_search( $required_role, $role_hierarchy );
-
-		if ( false === $required_index ) {
-			// Invalid role in settings, fallback to the default.
-			return false;
-		}
-
-		// Check each role of the current user.
-		foreach ( wp_get_current_user()->roles as $user_role ) {
-			$user_index = array_search( $user_role, $role_hierarchy );
-
-			if ( false !== $user_index && $user_index >= $required_index ) {
-				return true; // User has the required role or higher.
-			}
-		}
-
-		return false; // User does not meet the minimum role requirement.
 	}
 
 	/**

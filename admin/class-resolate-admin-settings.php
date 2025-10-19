@@ -27,40 +27,6 @@ class Resolate_Admin_Settings {
 	}
 
 	/**
-	 * Render User Profile Field.
-	 *
-	 * Outputs the HTML for the minimum_user_profile field, displaying only roles with edit permissions.
-	 */
-	public function minimum_user_profile_render() {
-		// Get saved plugin options.
-		$options       = get_option( 'resolate_settings', array() );
-
-		// Default to 'editor' if no user profile is selected.
-		$selected_role = isset( $options['minimum_user_profile'] ) && ! empty( $options['minimum_user_profile'] ) ? $options['minimum_user_profile'] : 'editor';
-
-		// Retrieve all registered roles in WordPress.
-		$roles = wp_roles()->roles;
-
-		// Filter roles to include only those with 'edit_posts' capability.
-		$editable_roles = array_filter(
-			$roles,
-			function ( $role ) {
-				return isset( $role['capabilities']['edit_posts'] ) && $role['capabilities']['edit_posts'];
-			}
-		);
-
-		// Render the select dropdown for user profiles.
-		echo '<select name="resolate_settings[minimum_user_profile]" id="minimum_user_profile">';
-		foreach ( $editable_roles as $role_value => $role_data ) {
-			echo '<option value="' . esc_attr( $role_value ) . '" ' . selected( $selected_role, $role_value, false ) . '>' . esc_html( $role_data['name'] ) . '</option>';
-		}
-		echo '</select>';
-
-		// Add a description below the dropdown.
-		echo '<p class="description">' . esc_html__( 'Select the minimum user profile that can use Resolate.', 'resolate' ) . '</p>';
-	}
-
-	/**
 	 * Handle Clear All Data.
 	 *
 	 * Handles the clearing of all Resolate data.
@@ -166,15 +132,10 @@ class Resolate_Admin_Settings {
 		);
 
 		$fields = array(
-			'minimum_user_profile'  => __( 'Minimum User Profile', 'resolate' ),
 			'conversion_engine'     => __( 'Motor de conversión', 'resolate' ),
 			'collabora_base_url'    => __( 'URL de Collabora Online', 'resolate' ),
 			'collabora_lang'        => __( 'Idioma para Collabora', 'resolate' ),
 			'collabora_disable_ssl' => __( 'Omitir verificación SSL (Collabora)', 'resolate' ),
-
-			// Document appearance settings.
-			'odt_template'          => __( 'Plantilla ODT (OpenTBS)', 'resolate' ),
-			'docx_template'         => __( 'Plantilla DOCX (OpenTBS)', 'resolate' ),
 		);
 
 		foreach ( $fields as $field_id => $field_title ) {
@@ -290,48 +251,6 @@ class Resolate_Admin_Settings {
 	}
 
 	/**
-	 * Render ODT Template field (media selector restricted to .odt).
-	 */
-	public function odt_template_render() {
-		$options = get_option( 'resolate_settings', array() );
-		$attachment_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
-		$file_url = $attachment_id ? wp_get_attachment_url( $attachment_id ) : '';
-
-		echo '<div id="resolate-odt-template-field">';
-		echo '<input type="hidden" id="resolate_odt_template_id" name="resolate_settings[odt_template_id]" value="' . esc_attr( $attachment_id ) . '">';
-		echo '<div id="resolate_odt_template_preview" style="margin:8px 0;">';
-		if ( $file_url ) {
-			echo '<a href="' . esc_url( $file_url ) . '" target="_blank" rel="noopener">' . esc_html( basename( $file_url ) ) . '</a>';
-		}
-		echo '</div>';
-		echo '<button type="button" class="button" id="resolate_odt_template_select">' . esc_html__( 'Seleccionar plantilla ODT', 'resolate' ) . '</button> ';
-		echo '<button type="button" class="button" id="resolate_odt_template_remove">' . esc_html__( 'Quitar', 'resolate' ) . '</button>';
-			echo '<p class="description">' . esc_html__( 'Sube una plantilla .odt con marcadores OpenTBS. Los campos disponibles dependen del tipo de documento seleccionado. Siempre podrás usar [title] y [margen].', 'resolate' ) . '</p>';
-		echo '</div>';
-	}
-
-	/**
-	 * Render DOCX Template field (media selector restricted to .docx).
-	 */
-	public function docx_template_render() {
-		$options = get_option( 'resolate_settings', array() );
-		$attachment_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
-		$file_url = $attachment_id ? wp_get_attachment_url( $attachment_id ) : '';
-
-		echo '<div id="resolate-docx-template-field">';
-		echo '<input type="hidden" id="resolate_docx_template_id" name="resolate_settings[docx_template_id]" value="' . esc_attr( $attachment_id ) . '">';
-		echo '<div id="resolate_docx_template_preview" style="margin:8px 0;">';
-		if ( $file_url ) {
-			echo '<a href="' . esc_url( $file_url ) . '" target="_blank" rel="noopener">' . esc_html( basename( $file_url ) ) . '</a>';
-		}
-		echo '</div>';
-		echo '<button type="button" class="button" id="resolate_docx_template_select">' . esc_html__( 'Seleccionar plantilla DOCX', 'resolate' ) . '</button> ';
-		echo '<button type="button" class="button" id="resolate_docx_template_remove">' . esc_html__( 'Quitar', 'resolate' ) . '</button>';
-			echo '<p class="description">' . esc_html__( 'Sube una plantilla .docx con marcadores OpenTBS. Los campos disponibles dependen del tipo de documento seleccionado. Siempre podrás usar [title] y [margen].', 'resolate' ) . '</p>';
-		echo '</div>';
-	}
-
-	/**
 	 * Options Page.
 	 *
 	 * Renders the settings page.
@@ -381,9 +300,6 @@ class Resolate_Admin_Settings {
 	 */
 	public function settings_validate( $input ) {
 
-		// Validate shared key.
-		$input['shared_key'] = isset( $input['shared_key'] ) ? sanitize_text_field( $input['shared_key'] ) : '';
-
 		// Validate conversion engine.
 		$valid_engines = array( 'wasm', 'collabora' );
 		$engine        = isset( $input['conversion_engine'] ) ? sanitize_key( $input['conversion_engine'] ) : 'collabora';
@@ -403,34 +319,6 @@ class Resolate_Admin_Settings {
 		$input['collabora_lang'] = $lang;
 
 		$input['collabora_disable_ssl'] = isset( $input['collabora_disable_ssl'] ) && '1' === $input['collabora_disable_ssl'] ? '1' : '0';
-
-				// Validate user profile.
-				$roles = wp_roles()->get_names();
-		if ( isset( $input['minimum_user_profile'] ) && ! array_key_exists( $input['minimum_user_profile'], $roles ) ) {
-			$input['minimum_user_profile'] = 'editor'; // Default to editor if invalid.
-		} else {
-			$input['minimum_user_profile'] = isset( $input['minimum_user_profile'] ) ? $input['minimum_user_profile'] : 'editor';
-		}
-
-		// Validate ODT template attachment ID (.odt files).
-		$tpl_id = isset( $input['odt_template_id'] ) ? intval( $input['odt_template_id'] ) : 0;
-		if ( $tpl_id > 0 ) {
-			$mime = get_post_mime_type( $tpl_id );
-			if ( 'application/vnd.oasis.opendocument.text' !== $mime ) {
-				$tpl_id = 0;
-			}
-		}
-		$input['odt_template_id'] = $tpl_id;
-
-		// Validate DOCX template attachment ID (.docx files).
-		$tplx_id = isset( $input['docx_template_id'] ) ? intval( $input['docx_template_id'] ) : 0;
-		if ( $tplx_id > 0 ) {
-			$mime = get_post_mime_type( $tplx_id );
-			if ( 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' !== $mime ) {
-				$tplx_id = 0;
-			}
-		}
-		$input['docx_template_id'] = $tplx_id;
 
 		return $input;
 	}

@@ -54,7 +54,7 @@ function activate_resolate() {
 	update_option( 'resolate_flush_rewrites', true );
 	update_option( 'resolate_version', RESOLATE_VERSION );
 
-	// Ensure default fixtures (templates/logos) are available in Media Library and settings.
+	// Ensure default fixtures (templates) are available in Media Library and settings.
 	resolate_ensure_default_media();
 }
 
@@ -106,20 +106,6 @@ function resolate_maybe_flush_rewrite_rules() {
 	}
 }
 add_action( 'init', 'resolate_maybe_flush_rewrite_rules', 999 );
-
-/**
- * On first runs where settings are empty (e.g., after manual file deploy),
- * attempt to import default fixtures into Media Library.
- */
-function resolate_maybe_import_fixtures_on_init() {
-	$options = get_option( 'resolate_settings', array() );
-	$need_templates = empty( $options['odt_template_id'] ) || empty( $options['docx_template_id'] );
-	$need_logos = empty( $options['doc_logo_id'] ) || empty( $options['doc_logo_right_id'] );
-	if ( $need_templates || $need_logos ) {
-		resolate_ensure_default_media();
-	}
-}
-add_action( 'init', 'resolate_maybe_import_fixtures_on_init', 20 );
 
 /**
  * Import a fixture file to the Media Library if not already imported.
@@ -204,54 +190,20 @@ function resolate_import_fixture_file( $filename ) {
 }
 
 /**
- * Ensure default templates and logos are set in settings by importing fixtures when empty.
+ * Ensure default templates are set in settings by importing fixtures when empty.
  *
  * @return void
  */
 function resolate_ensure_default_media() {
-	$options = get_option( 'resolate_settings', array() );
 
 	// ODT template.
-	$odt_id = isset( $options['odt_template_id'] ) ? intval( $options['odt_template_id'] ) : 0;
-	if ( $odt_id <= 0 || ! get_post( $odt_id ) ) {
-		$imported = resolate_import_fixture_file( 'plantilla.odt' );
-		if ( $imported > 0 ) {
-			$options['odt_template_id'] = $imported;
-		}
-	}
-
+	resolate_import_fixture_file( 'plantilla.odt' );
 	// DOCX template.
-	$docx_id = isset( $options['docx_template_id'] ) ? intval( $options['docx_template_id'] ) : 0;
-	if ( $docx_id <= 0 || ! get_post( $docx_id ) ) {
-		$imported = resolate_import_fixture_file( 'plantilla.docx' );
-		if ( $imported > 0 ) {
-			$options['docx_template_id'] = $imported;
-		}
-	}
+	resolate_import_fixture_file( 'plantilla.docx' );
 
 	// Ensure demo fixtures are present for testing scenarios.
 	resolate_import_fixture_file( 'demo-wp-resolate.odt' );
 	resolate_import_fixture_file( 'demo-wp-resolate.docx' );
-
-	// Logos.
-	$logo_left_id = isset( $options['doc_logo_id'] ) ? intval( $options['doc_logo_id'] ) : 0;
-	$logo_right_id = isset( $options['doc_logo_right_id'] ) ? intval( $options['doc_logo_right_id'] ) : 0;
-
-	if ( ( $logo_left_id <= 0 || ! get_post( $logo_left_id ) ) || ( $logo_right_id <= 0 || ! get_post( $logo_right_id ) ) ) {
-		$logo1 = resolate_import_fixture_file( 'logo1.png' );
-		$logo2 = resolate_import_fixture_file( 'logo2.jpg' );
-
-		if ( $logo_left_id <= 0 || ! get_post( $logo_left_id ) ) {
-			// Prefer PNG as left logo if available.
-			$options['doc_logo_id'] = $logo1 > 0 ? $logo1 : ( $logo2 > 0 ? $logo2 : 0 );
-		}
-		if ( $logo_right_id <= 0 || ! get_post( $logo_right_id ) ) {
-			// Prefer JPG as right logo if available to vary from left.
-			$options['doc_logo_right_id'] = $logo2 > 0 ? $logo2 : ( $logo1 > 0 ? $logo1 : 0 );
-		}
-	}
-
-	update_option( 'resolate_settings', $options );
 }
 
 /**
@@ -373,11 +325,11 @@ function resolate_maybe_seed_default_doc_types() {
 		$existing_schema = $storage->get_schema( $term_id );
 		$template_hash   = @md5_file( $path );
 
-        if ( ! empty( $existing_schema ) && $template_hash && isset( $existing_schema['meta']['hash'] ) && $template_hash === $existing_schema['meta']['hash'] ) {
-            $template_type = isset( $existing_schema['meta']['template_type'] ) ? (string) $existing_schema['meta']['template_type'] : strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-            update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
-            continue;
-        }
+		if ( ! empty( $existing_schema ) && $template_hash && isset( $existing_schema['meta']['hash'] ) && $template_hash === $existing_schema['meta']['hash'] ) {
+			$template_type = isset( $existing_schema['meta']['template_type'] ) ? (string) $existing_schema['meta']['template_type'] : strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+			update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+			continue;
+		}
 
 		$schema = $extractor->extract( $path );
 		if ( is_wp_error( $schema ) ) {
@@ -385,7 +337,7 @@ function resolate_maybe_seed_default_doc_types() {
 		}
 
 		$schema['meta']['template_id']   = $template_id;
-        $schema['meta']['template_type'] = isset( $schema['meta']['template_type'] ) ? (string) $schema['meta']['template_type'] : strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+		$schema['meta']['template_type'] = isset( $schema['meta']['template_type'] ) ? (string) $schema['meta']['template_type'] : strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
 		$schema['meta']['template_name'] = basename( $path );
 		if ( empty( $schema['meta']['hash'] ) && $template_hash ) {
 			$schema['meta']['hash'] = $template_hash;
@@ -393,7 +345,7 @@ function resolate_maybe_seed_default_doc_types() {
 
 		update_term_meta( $term_id, 'resolate_type_template_type', $schema['meta']['template_type'] );
 
-        $storage->save_schema( $term_id, $schema );
+		$storage->save_schema( $term_id, $schema );
 	}
 }
 

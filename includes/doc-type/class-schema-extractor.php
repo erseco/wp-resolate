@@ -524,8 +524,8 @@ class SchemaExtractor {
 	/**
 	 * Determine the field type from placeholder parameters.
 	 *
-	 * @param string               $name       Placeholder name.
-	 * @param array<string,mixed>  $parameters Placeholder parameters.
+	 * @param string              $name       Placeholder name.
+	 * @param array<string,mixed> $parameters Placeholder parameters.
 	 * @return string
 	 */
 	private function determine_field_type( $name, $parameters ) {

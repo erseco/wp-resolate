@@ -90,13 +90,13 @@ class Resolate_Doc_Types_Admin {
 		$schema_summary  = array();
 		$template_id     = 0;
 		$template_ext    = '';
-	$schema_storage  = new SchemaStorage();
-	if ( $term_id > 0 ) {
-		$schema         = $schema_storage->get_schema( $term_id );
-		$schema_summary = $schema_storage->get_summary( $term_id );
-		$template_id    = intval( get_term_meta( $term_id, 'resolate_type_template_id', true ) );
-		$template_ext   = sanitize_key( (string) get_term_meta( $term_id, 'resolate_type_template_type', true ) );
-	}
+		$schema_storage  = new SchemaStorage();
+		if ( $term_id > 0 ) {
+			$schema         = $schema_storage->get_schema( $term_id );
+			$schema_summary = $schema_storage->get_summary( $term_id );
+			$template_id    = intval( get_term_meta( $term_id, 'resolate_type_template_id', true ) );
+			$template_ext   = sanitize_key( (string) get_term_meta( $term_id, 'resolate_type_template_type', true ) );
+		}
 
 		$schema_slugs = array();
 		if ( isset( $schema['fields'] ) && is_array( $schema['fields'] ) ) {
@@ -167,7 +167,7 @@ class Resolate_Doc_Types_Admin {
 						),
 						'schema'       => $schema_slugs,
 						'schemaV2'     => $schema_v2,
-						'schemaSummary'=> $schema_summary,
+						'schemaSummary' => $schema_summary,
 						'templateId'   => $template_id,
 						'templateExt'  => $template_ext,
 					)
@@ -215,19 +215,19 @@ class Resolate_Doc_Types_Admin {
 	 *
 	 * @return void
 	 */
-public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-	$this->output_notices();
+	public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+		$this->output_notices();
 		$color = sanitize_hex_color( (string) get_term_meta( $term->term_id, 'resolate_type_color', true ) );
 		if ( empty( $color ) ) {
 			$color = '#37517e';
 		}
 		$template_id  = intval( get_term_meta( $term->term_id, 'resolate_type_template_id', true ) );
 		$template_ext = sanitize_key( (string) get_term_meta( $term->term_id, 'resolate_type_template_type', true ) );
-	$storage        = new SchemaStorage();
-	$schema         = $storage->get_schema( $term->term_id );
-	$schema_summary = $storage->get_summary( $term->term_id );
+		$storage        = new SchemaStorage();
+		$schema         = $storage->get_schema( $term->term_id );
+		$schema_summary = $storage->get_summary( $term->term_id );
 		$schema_json    = wp_json_encode( $schema ? $schema : array() );
-	$summary_json   = wp_json_encode( $schema_summary ? $schema_summary : array() );
+		$summary_json   = wp_json_encode( $schema_summary ? $schema_summary : array() );
 		$template_name = $template_id ? basename( (string) get_attached_file( $template_id ) ) : '';
 		?>
 		<tr class="form-field">
@@ -317,13 +317,13 @@ public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalys
 			$this->clear_stored_schema( $term_id, $storage );
 		}
 
-	update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+		update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
 	}
 
 	/**
 	 * Clear stored schema metadata.
 	 *
-	 * @param int               $term_id Term ID.
+	 * @param int                $term_id Term ID.
 	 * @param SchemaStorage|null $storage Existing storage helper.
 	 * @return void
 	 */
@@ -484,10 +484,10 @@ public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalys
 
 		$template_type = isset( $schema['meta']['template_type'] ) ? (string) $schema['meta']['template_type'] : $this->detect_template_type( $path );
 
-        $storage = new SchemaStorage();
-        $storage->save_schema( $term_id, $schema );
+		$storage = new SchemaStorage();
+		$storage->save_schema( $term_id, $schema );
 
-	update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
+		update_term_meta( $term_id, 'resolate_type_template_type', $template_type );
 
 		$this->store_flash_message( __( 'Esquema actualizado correctamente.', 'resolate' ), 'updated' );
 		wp_safe_redirect( $redirect );
@@ -527,7 +527,6 @@ public function edit_fields( $term, $taxonomy ) { // phpcs:ignore VariableAnalys
 		}
 		return '';
 	}
-
 }
 
 new Resolate_Doc_Types_Admin();

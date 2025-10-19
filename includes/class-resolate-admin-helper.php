@@ -475,9 +475,6 @@ class Resolate_Admin_Helper {
 
 		$this->ensure_document_generator();
 
-		$docx_template = Resolate_Document_Generator::get_template_path( $post_id, 'docx' );
-		$odt_template  = Resolate_Document_Generator::get_template_path( $post_id, 'odt' );
-
 		$zetajs_ready = class_exists( 'Resolate_Zetajs_Converter' ) && Resolate_Zetajs_Converter::is_available();
 
 		$docx_available = ( '' !== $docx_template ) || ( '' !== $odt_template && $zetajs_ready );
