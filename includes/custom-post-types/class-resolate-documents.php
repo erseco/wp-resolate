@@ -1810,9 +1810,8 @@ class Resolate_Documents {
 			return array();
 		}
 
-		if ( function_exists( 'wp_unslash' ) ) {
-			$value = wp_unslash( $value );
-		}
+		// Do not unslash JSON payloads from DB/meta; removing backslashes would corrupt
+		// escape sequences like \u00e1. Values coming from POST are already encoded upstream.
 
 		if ( false !== strpos( $value, '&' ) ) {
 			$value = wp_specialchars_decode( $value, ENT_QUOTES );
@@ -1830,7 +1829,7 @@ class Resolate_Documents {
 			}
 			$normalized = array();
 			foreach ( $item as $key => $val ) {
-				$normalized[ sanitize_key( $key ) ] = is_scalar( $val ) ? (string) $val : '';
+				$normalized[ sanitize_key( $key ) ] = is_scalar( $val ) ? (string) self::fix_unescaped_unicode_sequences( (string) $val ) : '';
 			}
 			$items[] = $normalized;
 		}
@@ -1916,7 +1915,7 @@ class Resolate_Documents {
 					if ( empty( $items ) ) {
 						delete_post_meta( $post_id, $meta_key );
 					} else {
-						update_post_meta( $post_id, $meta_key, wp_json_encode( $items ) );
+						update_post_meta( $post_id, $meta_key, wp_json_encode( $items, JSON_UNESCAPED_UNICODE ) );
 					}
 				}
 				continue;
@@ -2073,7 +2072,7 @@ class Resolate_Documents {
 
 							$structured_fields[ $slug ] = array(
 								'type'  => 'array',
-								'value' => ! empty( $items ) ? wp_json_encode( $items ) : '[]',
+								'value' => ! empty( $items ) ? wp_json_encode( $items, JSON_UNESCAPED_UNICODE ) : '[]',
 							);
 							continue;
 			}
@@ -2219,7 +2218,7 @@ class Resolate_Documents {
 								$legacy = get_post_meta( $post_id, 'resolate_annexes', true );
 						}
 						if ( is_array( $legacy ) && ! empty( $legacy ) ) {
-								$encoded = wp_json_encode( $legacy );
+								$encoded = wp_json_encode( $legacy, JSON_UNESCAPED_UNICODE );
 						}
 					}
 
@@ -2471,7 +2470,41 @@ class Resolate_Documents {
 		if ( function_exists( 'mb_convert_case' ) ) {
 			return mb_convert_case( $slug, MB_CASE_TITLE, 'UTF-8' );
 		}
-		return ucwords( $slug );
+			return ucwords( $slug );
+	}
+
+		/**
+		 * Recover accidentally unescaped Unicode sequences (e.g., u00e1) in strings.
+		 *
+		 * This is a defensive fix for cases where JSON sequences like \\u00e1 lost their
+		 * leading backslash due to slashing/unslashing during persistence. If a string
+		 * contains patterns matching u00XXXX, convert them back to their UTF-8 chars.
+		 *
+		 * @param string $text Input text.
+		 * @return string
+		 */
+	private static function fix_unescaped_unicode_sequences( $text ) {
+		if ( ! is_string( $text ) || false === strpos( $text, 'u00' ) ) {
+			return $text;
+		}
+
+		$callback = static function ( $m ) {
+			$hex = $m[1];
+			if ( 4 !== strlen( $hex ) ) {
+				return $m[0];
+			}
+			$code  = hexdec( $hex );
+			$utf16 = pack( 'n', $code );
+			if ( function_exists( 'mb_convert_encoding' ) ) {
+				return mb_convert_encoding( $utf16, 'UTF-8', 'UTF-16BE' );
+			}
+			if ( function_exists( 'iconv' ) ) {
+				return (string) iconv( 'UTF-16BE', 'UTF-8', $utf16 );
+			}
+			return $m[0];
+		};
+
+			return (string) preg_replace_callback( '/u([0-9a-fA-F]{4})/i', $callback, $text );
 	}
 }
 

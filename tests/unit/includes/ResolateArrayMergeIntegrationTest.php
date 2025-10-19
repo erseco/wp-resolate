@@ -73,8 +73,8 @@ class ResolateArrayMergeIntegrationTest extends WP_UnitTestCase {
         foreach ( $item_fields as $slug ) {
             // Genera valores distintivos; usa HTML para alguno por si aplica formato rico.
             if ( false !== strpos( $slug, 'html' ) || false !== strpos( $slug, 'content' ) || false !== strpos( $slug, 'cuerpo' ) ) {
-                $item1[ $slug ] = '<p>Contenido <strong>uno</strong></p>';
-                $item2[ $slug ] = '<p>Contenido <em>dos</em></p>';
+                $item1[ $slug ] = '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>';
+                $item2[ $slug ] = '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>';
             } else {
                 $item1[ $slug ] = 'Valor Uno';
                 $item2[ $slug ] = 'Valor Dos';

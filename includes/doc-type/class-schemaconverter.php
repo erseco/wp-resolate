@@ -62,6 +62,8 @@ class SchemaConverter {
 
 		$label       = self::resolve_label( $field, $slug );
 		$placeholder = self::sanitize_placeholder( $field, $slug );
+		// Preserve the original template placeholder name for merging with OpenTBS.
+		$tbs_name    = self::sanitize_tbs_name( $field, $slug );
 		$type        = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : '';
 		if ( '' === $type ) {
 			$type = 'textarea';
@@ -72,6 +74,8 @@ class SchemaConverter {
 			'label'       => $label,
 			'type'        => self::guess_scalar_control_type( $type, $slug, $label, $placeholder ),
 			'placeholder' => $placeholder,
+			// Name of the placeholder in the template (e.g., "name", "phone", "Observaciones").
+			'name'        => $tbs_name,
 			'data_type'   => self::map_data_type( $type ),
 		);
 	}
@@ -93,6 +97,8 @@ class SchemaConverter {
 		}
 
 		$label       = self::resolve_label( $repeater, $slug );
+		// Preserve the base block name used in the template (e.g., "items").
+		$tbs_name    = self::sanitize_tbs_name( $repeater, $slug );
 		$fields      = isset( $repeater['fields'] ) && is_array( $repeater['fields'] ) ? $repeater['fields'] : array();
 		$item_schema = array();
 
@@ -124,6 +130,8 @@ class SchemaConverter {
 			'label'       => $label,
 			'type'        => 'array',
 			'placeholder' => $slug,
+			// Name of the block in the template ([items;block=...]).
+			'name'        => $tbs_name,
 			'data_type'   => 'array',
 			'item_schema' => $item_schema,
 		);
@@ -268,6 +276,24 @@ class SchemaConverter {
 		}
 		$placeholder = preg_replace( '/[^A-Za-z0-9._:-]/', '', $placeholder );
 		return $placeholder ? $placeholder : $fallback;
+	}
+
+	/**
+	 * Sanitize the original template placeholder name (TBS name).
+	 *
+	 * @param array  $record   Schema record with optional 'name' key.
+	 * @param string $fallback Fallback when name is missing.
+	 * @return string
+	 */
+	private static function sanitize_tbs_name( $record, $fallback ) {
+		$name = isset( $record['name'] ) ? (string) $record['name'] : '';
+		$name = trim( $name );
+		if ( '' === $name ) {
+			return $fallback;
+		}
+		// Keep case; allow TinyButStrong supported chars.
+		$name = preg_replace( '/[^A-Za-z0-9._:-]/', '', $name );
+		return '' !== $name ? $name : $fallback;
 	}
 
 	/**

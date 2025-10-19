@@ -79,11 +79,11 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 		$annex_items = array(
 			array(
 				'number'  => 'I',
-				'content' => '<p>Detalle I</p>',
+				'content' => '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>',
 			),
 			array(
 				'number'  => 'II',
-				'content' => '<p>Detalle II</p>',
+				'content' => '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>',
 			),
 		);
 		$_POST['tpl_fields']                      = wp_slash(
@@ -92,7 +92,7 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 			)
 		);
 		$_POST['resolate_field_resolution_title'] = '  Título base  ';
-		$_POST['resolate_field_resolution_body']  = '<p><strong>Detalle</strong> con formato.</p>';
+		$_POST['resolate_field_resolution_body']  = '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>';
 
 		$data    = array( 'post_type' => 'resolate_document' );
 		$postarr = array( 'ID' => $post_id );
@@ -116,8 +116,8 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 		$this->assertIsArray( $fields['annexes'] );
 		$this->assertCount( 2, $fields['annexes'] );
 		$this->assertSame( 'I', $fields['annexes'][0]['number'] );
-		$this->assertSame( '<p>Detalle I</p>', $fields['annexes'][0]['content'] );
+		$this->assertSame( '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>', $fields['annexes'][0]['content'] );
 		$this->assertSame( 'Título base', $fields['resolution_title'] );
-		$this->assertSame( '<p><strong>Detalle</strong> con formato.</p>', $fields['resolution_body'] );
+		$this->assertSame( '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>', $fields['resolution_body'] );
 	}
 }

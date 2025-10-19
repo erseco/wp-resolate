@@ -38,7 +38,7 @@ class ResolateDocumentsArrayFieldsTest extends WP_UnitTestCase {
 					array(
 						'number'  => ' I ',
 						'title'   => '  Marco  ',
-						'content' => '<p>Contenido <strong>válido</strong></p><script>alert(1)</script>',
+						'content' => '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table><script>alert(1)</script>',
 					),
 					array(
 						'number'  => '',
@@ -61,7 +61,7 @@ class ResolateDocumentsArrayFieldsTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $decoded, 'Solo el elemento con contenido debe persistir.' );
 		$this->assertSame( 'I', $decoded[0]['number'] );
 		$this->assertSame( 'Marco', $decoded[0]['title'] );
-		$this->assertSame( '<p>Contenido <strong>válido</strong></p>', $decoded[0]['content'] );
+		$this->assertSame( '<h3>Encabezado de prueba</h3><p>Primer párrafo con texto de ejemplo.</p><p>Segundo párrafo con <strong>negritas</strong>, <em>cursivas</em> y <u>subrayado</u>.</p><ul><li>Elemento uno</li><li>Elemento dos</li></ul><table><tr><th>Col 1</th><th>Col 2</th></tr><tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></table>', $decoded[0]['content'] );
 
 		$_POST = array();
 		remove_filter( 'wp_insert_post_data', array( $doc, 'filter_post_data_compose_content' ), 10 );

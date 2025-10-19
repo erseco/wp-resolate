@@ -487,7 +487,7 @@ function resolate_create_demo_document_for_type( $term ) {
 				continue;
 			}
 
-			$encoded = wp_json_encode( $items );
+			$encoded = wp_json_encode( $items, JSON_UNESCAPED_UNICODE );
 			update_post_meta( $post_id, 'resolate_field_' . $slug, $encoded );
 
 			$structured_fields[ $slug ] = array(
@@ -712,7 +712,28 @@ function resolate_generate_demo_scalar_value( $slug, $type, $data_type, $index =
 	}
 
 	if ( false !== strpos( $slug, 'body' ) || false !== strpos( $slug, 'cuerpo' ) ) {
-		return '<p>' . __( 'Este es un contenido HTML de ejemplo con formato en párrafos.', 'resolate' ) . '</p>';
+		$rich  = '<h3>' . __( 'Encabezado de prueba', 'resolate' ) . '</h3>';
+		$rich .= '<p>' . __( 'Primer párrafo con texto de ejemplo.', 'resolate' ) . '</p>';
+		/* translators: 1: bold text label, 2: italic text label, 3: underline text label. */
+		$rich .= '<p>' . sprintf( __( 'Segundo párrafo con %1$s, %2$s y %3$s.', 'resolate' ), '<strong>' . __( 'negritas', 'resolate' ) . '</strong>', '<em>' . __( 'cursivas', 'resolate' ) . '</em>', '<u>' . __( 'subrayado', 'resolate' ) . '</u>' ) . '</p>';
+		$rich .= '<ul><li>' . __( 'Elemento uno', 'resolate' ) . '</li><li>' . __( 'Elemento dos', 'resolate' ) . '</li></ul>';
+		$rich .= '<table><tr><th>' . __( 'Col 1', 'resolate' ) . '</th><th>' . __( 'Col 2', 'resolate' ) . '</th></tr><tr><td>' . __( 'Dato A1', 'resolate' ) . '</td><td>' . __( 'Dato A2', 'resolate' ) . '</td></tr><tr><td>' . __( 'Dato B1', 'resolate' ) . '</td><td>' . __( 'Dato B2', 'resolate' ) . '</td></tr></table>';
+		return $rich;
+	}
+
+	// Generic HTML content fields: enrich demo data with formatted HTML.
+	if (
+		false !== strpos( $slug, 'content' ) ||
+		false !== strpos( $slug, 'contenido' ) ||
+		false !== strpos( $slug, 'html' )
+	) {
+		$rich  = '<h3>' . __( 'Encabezado de prueba', 'resolate' ) . '</h3>';
+		$rich .= '<p>' . __( 'Primer párrafo con texto de ejemplo.', 'resolate' ) . '</p>';
+		/* translators: 1: bold text label, 2: italic text label, 3: underline text label. */
+		$rich .= '<p>' . sprintf( __( 'Segundo párrafo con %1$s, %2$s y %3$s.', 'resolate' ), '<strong>' . __( 'negritas', 'resolate' ) . '</strong>', '<em>' . __( 'cursivas', 'resolate' ) . '</em>', '<u>' . __( 'subrayado', 'resolate' ) . '</u>' ) . '</p>';
+		$rich .= '<ul><li>' . __( 'Elemento uno', 'resolate' ) . '</li><li>' . __( 'Elemento dos', 'resolate' ) . '</li></ul>';
+		$rich .= '<table><tr><th>' . __( 'Col 1', 'resolate' ) . '</th><th>' . __( 'Col 2', 'resolate' ) . '</th></tr><tr><td>' . __( 'Dato A1', 'resolate' ) . '</td><td>' . __( 'Dato A2', 'resolate' ) . '</td></tr><tr><td>' . __( 'Dato B1', 'resolate' ) . '</td><td>' . __( 'Dato B2', 'resolate' ) . '</td></tr></table>';
+		return $rich;
 	}
 
 	if ( false !== strpos( $slug, 'keywords' ) || false !== strpos( $slug, 'palabras' ) ) {

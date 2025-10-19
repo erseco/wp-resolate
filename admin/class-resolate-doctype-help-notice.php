@@ -61,8 +61,8 @@ class Resolate_Doctype_Help_Notice {
 	 */
 	private function get_notice_content() {
 		$markup   = '';
-		$markup  .= '<p><strong>' . esc_html__( 'Plantillas con OpenTBS (ODT/DOCX):', 'resolate' ) . '</strong> ';
-		$markup  .= esc_html__( 'wp-resolate usa OpenTBS para leer campos definidos en la plantilla y generar el documento final.', 'resolate' ) . '</p>';
+		$markup  .= '<p><strong>' . esc_html__( 'Plantillas para ODT/DOCX:', 'resolate' ) . '</strong> ';
+		$markup  .= esc_html__( 'wp-resolate puede leer los siguientes campos definidos en la plantilla y generar el documento final.', 'resolate' ) . '</p>';
 
 		$markup .= '<p><strong>' . esc_html__( 'Campos:', 'resolate' ) . '</strong> ';
 		$markup .= esc_html__( 'escribe marcadores así:', 'resolate' ) . ' <code>';
@@ -93,7 +93,7 @@ class Resolate_Doctype_Help_Notice {
 
 		$markup .= '<pre style="white-space:pre-wrap;">';
 		$markup .= esc_html( "[Email;type='email';title='Correo';placeholder='tu@dominio.es']\n" );
-		$markup .= esc_html( "[items;block=begin][Título ítem;type='text'] [Contenido ítem HTML;type='html'][items;block=end]" );
+		$markup .= esc_html( "[items;block=begin][Título ítem;type='text'] [items.content;type='html'][items;block=end]" );
 		$markup .= '</pre>';
 
 		$markup .= '<p>' . esc_html__( 'Consejo: en DOCX el texto puede fragmentarse; asegúrate de que cada marcador', 'resolate' ) . ' ';

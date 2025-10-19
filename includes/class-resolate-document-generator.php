@@ -294,7 +294,7 @@ class Resolate_Document_Generator {
 			if ( ! is_string( $content ) || '' === $content ) {
 				$content = $post->post_content;
 			}
-			$structured = Resolate_Documents::parse_structured_content( wp_unslash( (string) $content ) );
+			$structured = Resolate_Documents::parse_structured_content( (string) $content );
 		}
 
 		$fields = array(
@@ -315,25 +315,46 @@ class Resolate_Document_Generator {
 				if ( empty( $def['slug'] ) ) {
 						continue;
 				}
-					$slug        = sanitize_key( $def['slug'] );
-					$placeholder = isset( $def['placeholder'] ) ? self::sanitize_placeholder_name( $def['placeholder'] ) : '';
-				if ( '' === $placeholder ) {
-						$placeholder = $slug;
+					$slug     = sanitize_key( $def['slug'] );
+					// Prefer the original template name for TinyButStrong merges when available.
+					$tbs_name = '';
+				if ( isset( $def['name'] ) && is_string( $def['name'] ) ) {
+					$tbs_name = self::sanitize_placeholder_name( $def['name'] );
+				}
+				if ( '' === $tbs_name ) {
+					$tbs_name = self::sanitize_placeholder_name( $slug );
+				}
+
+					// Keep the legacy key used by UI (placeholder or slug) as alias for backward compatibility.
+					$alias_key = '';
+				if ( isset( $def['placeholder'] ) && is_string( $def['placeholder'] ) ) {
+					$alias_key = self::sanitize_placeholder_name( $def['placeholder'] );
+				}
+				if ( '' === $alias_key ) {
+					$alias_key = self::sanitize_placeholder_name( $slug );
 				}
 					$data_type = isset( $def['data_type'] ) ? sanitize_key( $def['data_type'] ) : 'text';
 					$type      = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
 
 				if ( 'array' === $type ) {
-						$items                  = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
-						$fields[ $placeholder ] = $items;
+						$items = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
+						// Use block name for MergeBlock, with alias for legacy behavior.
+						$fields[ $tbs_name ] = $items;
+					if ( $alias_key !== $tbs_name ) {
+						$fields[ $alias_key ] = $items;
+					}
 						self::remember_rich_values_from_array_items( $items );
 						continue;
 				}
 
-					$value                     = self::get_structured_field_value( $structured, $slug, $post_id );
-					$fields[ $placeholder ]    = self::prepare_field_value( $value, $type, $data_type );
+					$value                  = self::get_structured_field_value( $structured, $slug, $post_id );
+					$prepared               = self::prepare_field_value( $value, $type, $data_type );
+					$fields[ $tbs_name ]    = $prepared;
+				if ( $alias_key !== $tbs_name ) {
+					$fields[ $alias_key ] = $prepared;
+				}
 				if ( 'rich' === $type ) {
-						self::remember_rich_field_value( $fields[ $placeholder ] );
+						self::remember_rich_field_value( $prepared );
 				}
 			}
 
@@ -505,7 +526,7 @@ class Resolate_Document_Generator {
 				$legacy = get_post_meta( $post_id, 'resolate_annexes', true );
 			}
 			if ( is_array( $legacy ) && ! empty( $legacy ) ) {
-				$items = Resolate_Documents::decode_array_field_value( wp_json_encode( $legacy ) );
+				$items = Resolate_Documents::decode_array_field_value( wp_json_encode( $legacy, JSON_UNESCAPED_UNICODE ) );
 			}
 		}
 
