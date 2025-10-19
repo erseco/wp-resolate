@@ -71,45 +71,32 @@ class Resolate_Documents {
 		$this->register_revision_ui();
 	}
 
-		/**
-		 * Return the list of custom meta keys used by this CPT for a given post.
-		 *
-		 * Includes static section fields and dynamic fields defined by the selected
-		 * document type, if any.
-		 *
-		 * @param int $post_id Post ID.
-		 * @return string[]
-		 */
+	/**
+	 * Return the list of custom meta keys used by this CPT for a given post.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string[]
+	 */
 	private function get_meta_fields_for_post( $post_id ) {
-		   $fields = array();
+		$fields = array();
 
-		$dynamic = $this->get_dynamic_fields_schema_for_post( $post_id );
-		$known   = array();
-		if ( ! empty( $dynamic ) ) {
-			foreach ( $dynamic as $def ) {
-				if ( empty( $def['slug'] ) ) {
-					continue;
-				}
-				$key        = 'resolate_field_' . sanitize_key( $def['slug'] );
-				$fields[]   = $key;
-				$known[ $key ] = true;
-			}
+		if ( $post_id <= 0 ) {
+			return $fields;
 		}
 
-		if ( $post_id > 0 ) {
-			$all_meta = get_post_meta( $post_id );
-			foreach ( $all_meta as $meta_key => $values ) {
-				if ( 0 !== strpos( $meta_key, 'resolate_field_' ) ) {
-					continue;
-				}
-				if ( isset( $known[ $meta_key ] ) ) {
-					continue;
-				}
+		$all_meta = get_post_meta( $post_id );
+		if ( empty( $all_meta ) ) {
+			return $fields;
+		}
+
+		foreach ( $all_meta as $meta_key => $values ) {
+			unset( $values );
+			if ( 0 === strpos( $meta_key, 'resolate_field_' ) ) {
 				$fields[] = $meta_key;
 			}
 		}
 
-		return $fields;
+		return array_unique( $fields );
 	}
 
 	/**
@@ -136,7 +123,7 @@ class Resolate_Documents {
 					continue;
 			}
 			// Store meta on the revision row, not on the parent.
-			add_metadata( 'post', $revision_id, $key, $value, true );
+			update_post_meta( $revision_id, $key, $value );
 		}
 	}
 
@@ -1727,6 +1714,10 @@ class Resolate_Documents {
 			return array();
 		}
 
+		if ( function_exists( 'wp_unslash' ) ) {
+			$value = wp_unslash( $value );
+		}
+
 		if ( false !== strpos( $value, '&' ) ) {
 			$value = wp_specialchars_decode( $value, ENT_QUOTES );
 		}
@@ -1771,19 +1762,15 @@ class Resolate_Documents {
 
 		// Handle type selection (lock after set).
 		if ( isset( $_POST['resolate_type_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['resolate_type_nonce'] ) ), 'resolate_type_nonce' ) ) {
-			$posted   = 0;
-			if ( isset( $_POST['resolate_doc_type'] ) ) {
-				$posted = intval( wp_unslash( $_POST['resolate_doc_type'] ) );
-			}
 			$assigned = wp_get_post_terms( $post_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
 			$current  = ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) ? intval( $assigned[0] ) : 0;
-			$target   = $current;
-			if ( $current <= 0 && $posted > 0 ) {
-				$target = $posted;
-			}
-
-			if ( $target > 0 ) {
-				wp_set_post_terms( $post_id, array( $target ), 'resolate_doc_type', false );
+			if ( $current > 0 ) {
+				wp_set_post_terms( $post_id, array( $current ), 'resolate_doc_type', false );
+			} elseif ( isset( $_POST['resolate_doc_type'] ) ) {
+				$posted = intval( wp_unslash( $_POST['resolate_doc_type'] ) );
+				if ( $posted > 0 ) {
+					wp_set_post_terms( $post_id, array( $posted ), 'resolate_doc_type', false );
+				}
 			}
 		}
 

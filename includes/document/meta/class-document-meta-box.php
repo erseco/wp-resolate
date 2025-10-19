@@ -58,7 +58,11 @@ class Document_Meta_Box {
 	public function render( WP_Post $post ) {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
-		$title    = get_the_title( $post->ID );
+		$title = get_post_field( 'post_title', $post->ID, 'raw' );
+		if ( ! is_string( $title ) || '' === $title ) {
+			$title = $post->post_title;
+		}
+
 		$author   = get_post_meta( $post->ID, self::META_KEY_AUTHOR, true );
 		$keywords = get_post_meta( $post->ID, self::META_KEY_KEYWORDS, true );
 
@@ -84,7 +88,7 @@ class Document_Meta_Box {
 	 * @return void
 	 */
 	public function save( $post_id, $post = null, $update = false ) {
-		unset( $post, $update );
+		unset( $update );
 
 		if ( ! isset( $_POST[ self::NONCE_NAME ] ) ) {
 			return;
@@ -107,7 +111,20 @@ class Document_Meta_Box {
 			return;
 		}
 
-		$title_raw    = sanitize_text_field( (string) get_the_title( $post_id ) );
+		if ( null === $post ) {
+			$post = get_post( $post_id );
+		}
+
+		if ( ! $post instanceof WP_Post ) {
+			return;
+		}
+
+		$title_source = get_post_field( 'post_title', $post_id, 'raw' );
+		if ( ! is_string( $title_source ) || '' === $title_source ) {
+			$title_source = $post->post_title;
+		}
+
+		$title_raw    = sanitize_text_field( (string) $title_source );
 		$subject      = $this->sanitize_limited_text( $title_raw, 255 );
 		$author_input = isset( $_POST['resolate_document_meta_author'] ) ? sanitize_text_field( wp_unslash( $_POST['resolate_document_meta_author'] ) ) : '';
 		$author       = $this->sanitize_limited_text( $author_input, 255 );

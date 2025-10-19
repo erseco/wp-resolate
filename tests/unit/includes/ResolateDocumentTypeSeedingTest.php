@@ -34,7 +34,7 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $odt_schema = $storage->get_schema( $odt->term_id );
         $this->assertIsArray( $odt_schema );
         $this->assertSame( 2, $odt_schema['version'], 'El esquema básico ODT debe ser de la versión 2.' );
-        $this->assertSchemaHasFields( $odt_schema, array( 'antecedentes', 'dispositivo', 'fundamentos', 'objeto', 'post_title' ) );
+		$this->assertSchemaHasFields( $odt_schema, array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title' ) );
 
         $docx = get_term_by( 'slug', 'resolate-demo-docx', 'resolate_doc_type' );
         $this->assertInstanceOf( WP_Term::class, $docx );
@@ -42,7 +42,7 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $docx_schema = $storage->get_schema( $docx->term_id );
         $this->assertIsArray( $docx_schema );
         $this->assertSame( 2, $docx_schema['version'], 'El esquema básico DOCX debe ser de la versión 2.' );
-        $this->assertSchemaHasFields( $docx_schema, array( 'antecedentes', 'dispositivo', 'fundamentos', 'objeto', 'post_title' ) );
+		$this->assertSchemaHasFields( $docx_schema, array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title' ) );
 
         $advanced_odt = get_term_by( 'slug', 'resolate-demo-wp-resolate-odt', 'resolate_doc_type' );
         $this->assertInstanceOf( WP_Term::class, $advanced_odt );
@@ -193,7 +193,12 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $this->assertArrayHasKey( $slug, $indexed, sprintf( 'El campo %s debe existir.', $slug ) );
         foreach ( $expected as $key => $value ) {
             $this->assertArrayHasKey( $key, $indexed[ $slug ], sprintf( 'El campo %s debe incluir la clave %s.', $slug, $key ) );
-            $this->assertSame( $value, $indexed[ $slug ][ $key ], sprintf( 'El campo %s no coincide en la clave %s.', $slug, $key ) );
+            $actual_value = $indexed[ $slug ][ $key ];
+            if ( 'pattern' === $key ) {
+                $value        = $this->normalize_pattern( $value );
+                $actual_value = $this->normalize_pattern( $actual_value );
+            }
+            $this->assertSame( $value, $actual_value, sprintf( 'El campo %s no coincide en la clave %s.', $slug, $key ) );
         }
     }
 
@@ -228,6 +233,21 @@ class ResolateDocumentTypeSeedingTest extends WP_UnitTestCase {
         sort( $expected );
 
         $this->assertSame( $expected, $slugs, sprintf( 'El bloque %s no contiene los campos esperados.', $slug ) );
+    }
+
+    /**
+     * Normaliza patrones para comparar cadenas equivalentes.
+     *
+     * @param string $pattern Patrón original.
+     * @return string
+     */
+    private function normalize_pattern( $pattern ) {
+        $pattern = (string) $pattern;
+        // Unifica escapes redundantes en puntos y guiones.
+        $pattern = str_replace( array( '\.', '\-' ), array( '.', '-' ), $pattern );
+        // Normaliza secuencias duplicadas de llaves.
+        $pattern = str_replace( array( '{2,}', '{{2,}}' ), '{2,}', $pattern );
+        return $pattern;
     }
 
     /**

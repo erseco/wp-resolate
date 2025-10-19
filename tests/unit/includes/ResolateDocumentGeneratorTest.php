@@ -76,18 +76,19 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 
 		$doc = new Resolate_Documents();
 		$_POST['resolate_doc_type']               = (string) $term_id;
+		$annex_items = array(
+			array(
+				'number'  => 'I',
+				'content' => '<p>Detalle I</p>',
+			),
+			array(
+				'number'  => 'II',
+				'content' => '<p>Detalle II</p>',
+			),
+		);
 		$_POST['tpl_fields']                      = wp_slash(
 			array(
-				'annexes' => array(
-					array(
-						'number'  => 'I',
-						'content' => '<p>Detalle I</p>',
-					),
-					array(
-						'number'  => 'II',
-						'content' => '<p>Detalle II</p>',
-					),
-				),
+				'annexes' => $annex_items,
 			)
 		);
 		$_POST['resolate_field_resolution_title'] = '  Título base  ';
@@ -105,6 +106,7 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 				'post_content' => $result['post_content'],
 			)
 		);
+		update_post_meta( $post_id, 'resolate_field_annexes', wp_json_encode( $annex_items ) );
 
 		$ref     = new ReflectionClass( Resolate_Document_Generator::class );
 		$method  = $ref->getMethod( 'build_merge_fields' );

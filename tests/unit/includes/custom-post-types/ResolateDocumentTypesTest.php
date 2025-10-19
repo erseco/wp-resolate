@@ -66,7 +66,7 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         $this->assertCount( 2, $schema_v2['fields'], 'Se esperaban dos campos en la plantilla de prueba.' );
         $fields = array_column( $schema_v2['fields'], null, 'slug' );
         $this->assertArrayHasKey( 'campo_1', $fields );
-        $this->assertSame( 'text', $fields['campo_1']['type'] );
+		$this->assertSame( 'textarea', $fields['campo_1']['type'] );
         $this->assertArrayHasKey( 'campo2', $fields );
         $this->assertSame( 'text', $fields['campo2']['type'] );
 

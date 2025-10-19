@@ -83,6 +83,12 @@ class ResolateDocumentMetaBoxTest extends Resolate_Test_Base {
 				'post_title' => 'Documento Demo',
 			)
 		);
+		wp_update_post(
+			array(
+				'ID'         => $post_id,
+				'post_title' => 'Documento Demo',
+			)
+		);
 		update_post_meta( $post_id, Document_Meta_Box::META_KEY_SUBJECT, 'Asunto previo' );
 		update_post_meta( $post_id, Document_Meta_Box::META_KEY_AUTHOR, 'Autor previo' );
 		update_post_meta( $post_id, Document_Meta_Box::META_KEY_KEYWORDS, 'uno, dos' );
@@ -109,6 +115,12 @@ class ResolateDocumentMetaBoxTest extends Resolate_Test_Base {
 		$long_title = str_repeat( 'S', 260 ) . "\x07";
 		$post_id    = self::factory()->document->create(
 			array(
+				'post_title' => $long_title,
+			)
+		);
+		wp_update_post(
+			array(
+				'ID'         => $post_id,
 				'post_title' => $long_title,
 			)
 		);

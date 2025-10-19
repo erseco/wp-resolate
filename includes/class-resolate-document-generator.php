@@ -287,10 +287,14 @@ class Resolate_Document_Generator {
 	private static function build_merge_fields( $post_id ) {
 		self::reset_rich_field_values();
 		$opts = get_option( 'resolate_settings', array() );
-		$post = get_post( $post_id );
+		$post       = get_post( $post_id );
 		$structured = array();
 		if ( $post && class_exists( 'Resolate_Documents' ) ) {
-			$structured = Resolate_Documents::parse_structured_content( $post->post_content );
+			$content = get_post_field( 'post_content', $post_id, 'raw' );
+			if ( ! is_string( $content ) || '' === $content ) {
+				$content = $post->post_content;
+			}
+			$structured = Resolate_Documents::parse_structured_content( wp_unslash( (string) $content ) );
 		}
 
 		$fields = array(

@@ -460,6 +460,17 @@ class SchemaExtractor {
 		$max_value   = isset( $parameters['maxvalue'] ) ? (string) $parameters['maxvalue'] : '';
 		$length      = isset( $parameters['length'] ) ? (string) $parameters['length'] : '';
 
+		if ( '' === $pattern ) {
+			switch ( $field_type ) {
+				case 'email':
+					$pattern = '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$';
+					if ( '' === $pattern_msg ) {
+						$pattern_msg = __( 'Introduce un email válido (usuario@dominio.tld)', 'resolate' );
+					}
+					break;
+			}
+		}
+
 		$slug = $this->resolve_field_slug( $name, $parameters );
 		if ( '' === $slug ) {
 			$slug = sanitize_key( $name );
