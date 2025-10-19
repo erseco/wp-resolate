@@ -46,13 +46,13 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'observaciones', $fields, 'El campo Observaciones debe existir.' );
 		$this->assertSame( 'textarea', $fields['observaciones']['type'] );
 
-		$this->assertArrayHasKey( 'sitioweb', $fields, 'El campo Sitio web debe existir.' );
-		$this->assertSame( 'url', $fields['sitioweb']['type'] );
+		$this->assertArrayHasKey( 'web', $fields, 'El campo web debe existir.' );
+		$this->assertSame( 'url', $fields['web']['type'] );
 
-		$this->assertArrayHasKey( 'fechalmite', $fields, 'El campo Fecha límite debe existir.' );
-		$this->assertSame( 'date', $fields['fechalmite']['type'] );
-		$this->assertSame( '2025-01-01', $fields['fechalmite']['minvalue'] );
-		$this->assertSame( '2030-12-31', $fields['fechalmite']['maxvalue'] );
+		$this->assertArrayHasKey( 'datelimit', $fields, 'El campo Fecha límite debe existir.' );
+		$this->assertSame( 'date', $fields['datelimit']['type'] );
+		$this->assertSame( '2025-01-01', $fields['datelimit']['minvalue'] );
+		$this->assertSame( '2030-12-31', $fields['datelimit']['maxvalue'] );
 
 		$repeaters = $this->index_repeaters( $schema['repeaters'] );
 		$this->assertArrayHasKey( 'items', $repeaters, 'El bloque repetible items debe existir.' );
