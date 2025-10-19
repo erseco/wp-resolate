@@ -249,17 +249,48 @@ class Resolate_OpenTBS {
 				if ( ! $run instanceof DOMElement ) {
 						continue;
 				}
-							$base_rpr = self::clone_run_properties( $run );
-							$runs     = self::build_docx_runs_from_html( $dom, $value, $base_rpr, $relationships );
-				if ( empty( $runs ) ) {
-						continue;
-				}
-							$parent = $run->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				if ( ! $parent ) {
+				$base_rpr   = self::clone_run_properties( $run );
+				$conversion = self::build_docx_nodes_from_html( $dom, $value, $base_rpr, $relationships );
+				if ( empty( $conversion['nodes'] ) ) {
 					continue;
 				}
-				foreach ( $runs as $new_run ) {
-					$parent->insertBefore( $new_run, $run );
+
+				$paragraph = $run->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				if ( ! $paragraph instanceof DOMElement ) {
+					continue;
+				}
+
+				$parent = $paragraph;
+
+				if ( ! empty( $conversion['block'] ) && ! self::paragraph_contains_other_content( $paragraph, $run ) ) {
+					$container = $paragraph->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+					if ( $container ) {
+						foreach ( $conversion['nodes'] as $node_to_insert ) {
+							if ( $node_to_insert instanceof DOMElement ) {
+								$container->insertBefore( $node_to_insert, $paragraph );
+							}
+						}
+						$paragraph->removeChild( $run );
+						if ( 0 === $paragraph->childNodes->length ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+							$container->removeChild( $paragraph );
+						}
+						$modified = true;
+						continue;
+					}
+				}
+
+				$inline_runs = ! empty( $conversion['block'] )
+					? self::build_docx_inline_runs_from_html( $dom, $value, $base_rpr, $relationships )
+					: $conversion['nodes'];
+
+				if ( empty( $inline_runs ) ) {
+					continue;
+				}
+
+				foreach ( $inline_runs as $new_run ) {
+					if ( $new_run instanceof DOMElement ) {
+						$parent->insertBefore( $new_run, $run );
+					}
 				}
 				$parent->removeChild( $run );
 				$modified = true;
@@ -560,6 +591,23 @@ class Resolate_OpenTBS {
 			case 'u':
 				$formatting['underline'] = true;
 				return self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+			case 'h1':
+			case 'h2':
+			case 'h3':
+			case 'h4':
+			case 'h5':
+			case 'h6':
+				$formatting['bold'] = true;
+				$spacing = array(
+					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
+					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
+				);
+				$heading_nodes = self::collect_html_children_as_odt( $doc, $node, $formatting, $style_require, $list_state );
+				$tail_spacing   = array(
+					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
+					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
+				);
+				return array_merge( $spacing, $heading_nodes, $tail_spacing );
 			case 'span':
 				if ( $node->hasAttribute( 'style' ) ) {
 					$style_attr = strtolower( $node->getAttribute( 'style' ) );
@@ -589,6 +637,49 @@ class Resolate_OpenTBS {
 				$result = $children;
 				$result[] = $doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' );
 				return $result;
+			case 'table':
+				$table_element = $doc->createElementNS( self::ODF_TEXT_NS, 'text:table' );
+				foreach ( $node->childNodes as $row ) {
+					if ( ! $row instanceof DOMElement || 'tr' !== strtolower( $row->nodeName ) ) {
+						continue;
+					}
+					$row_element = $doc->createElementNS( self::ODF_TEXT_NS, 'text:table-row' );
+					foreach ( $row->childNodes as $cell ) {
+						if ( ! $cell instanceof DOMElement ) {
+							continue;
+						}
+						$cell_tag = strtolower( $cell->nodeName );
+						if ( 'td' !== $cell_tag && 'th' !== $cell_tag ) {
+							continue;
+						}
+						$cell_element = $doc->createElementNS( self::ODF_TEXT_NS, 'text:table-cell' );
+						$paragraph    = $doc->createElementNS( self::ODF_TEXT_NS, 'text:p' );
+						$cell_formatting = $formatting;
+						if ( 'th' === $cell_tag ) {
+							$cell_formatting['bold'] = true;
+						}
+						$cell_nodes = self::collect_html_children_as_odt( $doc, $cell, $cell_formatting, $style_require, $list_state );
+						if ( empty( $cell_nodes ) ) {
+							$cell_nodes = array( $doc->createTextNode( '' ) );
+						}
+						foreach ( $cell_nodes as $cell_node ) {
+							$paragraph->appendChild( $cell_node );
+						}
+						$cell_element->appendChild( $paragraph );
+						$row_element->appendChild( $cell_element );
+					}
+					if ( 0 !== $row_element->childNodes->length ) {
+						$table_element->appendChild( $row_element );
+					}
+				}
+				if ( 0 === $table_element->childNodes->length ) {
+					return array();
+				}
+				return array(
+					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
+					$table_element,
+					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
+				);
 			case 'ul':
 				$list_state['unordered']++;
 				$items = array();
@@ -901,165 +992,523 @@ class Resolate_OpenTBS {
 	 * @param array<string,mixed>|null $relationships  Relationships context, passed by reference.
 	 * @return array<int, DOMElement>
 	 */
-	private static function build_docx_runs_from_html( DOMDocument $doc, $html, $base_rpr = null, &$relationships = null ) {
-			$html = trim( (string) $html );
+	private static function build_docx_nodes_from_html( DOMDocument $doc, $html, $base_rpr = null, &$relationships = null ) {
+		$html = trim( (string) $html );
 		if ( '' === $html ) {
-				return array();
+			return array(
+				'block' => false,
+				'nodes' => array(),
+			);
 		}
-			$tmp = new DOMDocument();
-			libxml_use_internal_errors( true );
-			$wrapped = '<div>' . $html . '</div>';
-			$loaded  = $tmp->loadHTML( '<?xml encoding="utf-8"?>' . $wrapped, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
-			libxml_clear_errors();
+
+		$tmp = new DOMDocument();
+		libxml_use_internal_errors( true );
+		$wrapped = '<div>' . $html . '</div>';
+		$loaded  = $tmp->loadHTML( '<?xml encoding="utf-8"?>' . $wrapped, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+		libxml_clear_errors();
+		if ( ! $loaded ) {
+			return array(
+				'block' => false,
+				'nodes' => array(),
+			);
+		}
+
+		$body = $tmp->getElementsByTagName( 'div' )->item( 0 );
+		if ( ! $body ) {
+			return array(
+				'block' => false,
+				'nodes' => array(),
+			);
+		}
+
+		$conversion = self::convert_html_children_to_docx( $doc, $body->childNodes, $base_rpr, array(), $relationships, true );
+		if ( empty( $conversion['nodes'] ) ) {
+			return array(
+				'block' => false,
+				'nodes' => array(),
+			);
+		}
+
+		return $conversion;
+	}
+
+	/**
+	 * Build inline run nodes from HTML without introducing block structures.
+	 *
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param string                   $html          HTML fragment.
+	 * @param DOMElement|null          $base_rpr      Base run properties to clone.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @return array<int,DOMElement>
+	 */
+	private static function build_docx_inline_runs_from_html( DOMDocument $doc, $html, $base_rpr = null, &$relationships = null ) {
+		$html = trim( (string) $html );
+		if ( '' === $html ) {
+			return array();
+		}
+
+		$tmp = new DOMDocument();
+		libxml_use_internal_errors( true );
+		$wrapped = '<div>' . $html . '</div>';
+		$loaded  = $tmp->loadHTML( '<?xml encoding="utf-8"?>' . $wrapped, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+		libxml_clear_errors();
 		if ( ! $loaded ) {
 			return array();
 		}
-			$body = $tmp->getElementsByTagName( 'div' )->item( 0 );
+
+		$body = $tmp->getElementsByTagName( 'div' )->item( 0 );
 		if ( ! $body ) {
-				return array();
+			return array();
 		}
-			$runs = array();
-			self::append_html_nodes_to_runs( $doc, $runs, $body->childNodes, $base_rpr, array(), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			self::trim_trailing_break_runs( $runs );
-			return $runs;
+
+		$runs = self::collect_runs_from_children( $doc, $body->childNodes, $base_rpr, array(), $relationships );
+		self::trim_trailing_break_runs( $runs );
+		return $runs;
 	}
 
 	/**
-	 * Recursively append HTML nodes as WordprocessingML runs.
+	 * Convert a list of HTML nodes to WordprocessingML structures.
 	 *
-	 * @param DOMDocument              $doc      Target DOMDocument.
-	 * @param array<int, DOMElement>   $runs Accumulator of run nodes.
-	 * @param DOMNodeList              $nodes    Nodes to append.
-	 * @param DOMElement|null          $base_rpr Base run properties to reuse.
-	 * @param array<string,bool>       $formatting Active formatting flags.
-	 * @param array<string,mixed>|null $relationships  Relationships context, passed by reference.
+	 * @param DOMDocument              $doc                 Target DOMDocument.
+	 * @param DOMNodeList              $nodes               HTML nodes to convert.
+	 * @param DOMElement|null          $base_rpr            Base run properties to clone.
+	 * @param array<string,bool>       $formatting          Active formatting flags.
+	 * @param array<string,mixed>|null $relationships       Relationships context, passed by reference.
+	 * @param bool                     $allow_inline_result Whether inline-only results are allowed.
+	 * @return array{block:bool,nodes:array<int,DOMElement>}
 	 */
-	private static function append_html_nodes_to_runs( DOMDocument $doc, array &$runs, $nodes, $base_rpr, array $formatting, &$relationships = null ) {
+	private static function convert_html_children_to_docx( DOMDocument $doc, $nodes, $base_rpr, array $formatting, &$relationships, $allow_inline_result ) {
+		$result       = array();
+		$current_runs = array();
+		$has_block    = false;
+
 		if ( ! $nodes instanceof DOMNodeList ) {
-				return;
+			return array(
+				'block' => false,
+				'nodes' => array(),
+			);
 		}
+
 		foreach ( $nodes as $node ) {
-			if ( XML_TEXT_NODE === $node->nodeType ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				$text = str_replace( array( "\r\n", "\r" ), "\n", $node->nodeValue ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				$parts = explode( "\n", $text );
-				foreach ( $parts as $index => $part ) {
-					$part = (string) $part;
-					if ( '' !== $part ) {
-											$run = self::create_text_run( $doc, $part, $base_rpr, $formatting );
-						if ( $run ) {
-								$runs[] = $run;
-						}
-					}
-					if ( $index < count( $parts ) - 1 ) {
-							$runs[] = self::create_break_run( $doc, $base_rpr );
-					}
-				}
+			if ( XML_TEXT_NODE === $node->nodeType ) {
+				$current_runs = array_merge( $current_runs, self::collect_runs_from_text( $doc, $node, $base_rpr, $formatting ) );
 				continue;
 			}
+
 			if ( ! $node instanceof DOMElement ) {
 				continue;
 			}
-			$tag = strtolower( $node->nodeName ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			switch ( $tag ) {
-				case 'strong':
-				case 'b':
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'bold', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'em':
-				case 'i':
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'italic', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'u':
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'underline', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'br':
-						$runs[] = self::create_break_run( $doc, $base_rpr );
-					break;
-				case 'h1':
-				case 'h2':
-				case 'h3':
-				case 'h4':
-				case 'h5':
-				case 'h6':
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::with_format_flag( $formatting, 'bold', true ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-						$runs[] = self::create_break_run( $doc, $base_rpr, 2 );
-					break;
-				case 'p':
-				case 'div':
-				case 'section':
-				case 'article':
-				case 'blockquote':
-				case 'address':
-				case 'span':
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, self::extract_span_formatting( $formatting, $node ), $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					if ( 'span' !== $tag ) {
-									$runs[] = self::create_break_run( $doc, $base_rpr );
-					}
-					break;
-				case 'ul':
-				case 'ol':
-						self::append_list_runs( $doc, $runs, $node, $base_rpr, $formatting, 'ol' === $tag, $relationships );
-					break;
-				case 'li':
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					break;
-				case 'a':
-						$href = trim( $node->getAttribute( 'href' ) );
-					if ( '' === $href ) {
-									self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-									break;
-					}
-						$link_runs = array();
-						$link_formatting = self::with_format_flag( $formatting, 'hyperlink', true );
-						$link_formatting = self::with_format_flag( $link_formatting, 'underline', true );
-						self::append_html_nodes_to_runs( $doc, $link_runs, $node->childNodes, $base_rpr, $link_formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-					if ( empty( $link_runs ) ) {
-										$run = self::create_text_run( $doc, $href, $base_rpr, $link_formatting );
-						if ( $run ) {
-							$link_runs[] = $run;
+
+			$tag = strtolower( $node->nodeName );
+			if ( self::is_block_tag( $tag ) ) {
+				if ( ! empty( $current_runs ) ) {
+					$result[]     = self::create_paragraph_from_runs( $doc, $current_runs, $base_rpr );
+					$current_runs = array();
+				}
+
+				switch ( $tag ) {
+					case 'h1':
+					case 'h2':
+					case 'h3':
+					case 'h4':
+					case 'h5':
+					case 'h6':
+						$has_block = true;
+						$result    = array_merge(
+							$result,
+							self::convert_heading_node_to_paragraphs( $doc, $node, $base_rpr, $relationships, $tag )
+						);
+						break;
+					case 'table':
+						$has_block = true;
+						$table     = self::convert_table_node_to_docx( $doc, $node, $base_rpr, $relationships );
+						if ( $table ) {
+							$result[] = $table;
 						}
-					}
-											$hyperlink = self::create_hyperlink_container( $doc, $link_runs, $relationships, $href );
-					if ( $hyperlink ) {
-						$runs[] = $hyperlink;
-					} else {
-						foreach ( $link_runs as $link_run ) {
-												$runs[] = $link_run;
+						break;
+					case 'ul':
+					case 'ol':
+						$has_block = true;
+						$list_paragraphs = self::convert_list_to_paragraphs( $doc, $node, $base_rpr, $formatting, 'ol' === $tag, $relationships );
+						if ( ! empty( $list_paragraphs ) ) {
+							$result = array_merge( $result, $list_paragraphs );
 						}
-					}
-					break;
-				default:
-						self::append_html_nodes_to_runs( $doc, $runs, $node->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+						break;
+					default:
+						$has_block        = true;
+						$paragraph_runs   = self::collect_runs_from_children( $doc, $node->childNodes, $base_rpr, $formatting, $relationships );
+						$block_paragraph  = self::create_paragraph_from_runs( $doc, $paragraph_runs, $base_rpr );
+						$result[]         = $block_paragraph;
+				}
+			} else {
+				$current_runs = array_merge(
+					$current_runs,
+					self::collect_runs_from_element( $doc, $node, $base_rpr, $formatting, $relationships )
+				);
 			}
+		}
+
+		if ( ! empty( $current_runs ) ) {
+			if ( $has_block || ! $allow_inline_result ) {
+				$result[] = self::create_paragraph_from_runs( $doc, $current_runs, $base_rpr );
+				$current_runs = array();
+			}
+		}
+
+		if ( $has_block || ! $allow_inline_result ) {
+			return array(
+				'block' => true,
+				'nodes' => $result,
+			);
+		}
+
+		return array(
+			'block' => false,
+			'nodes' => $current_runs,
+		);
+	}
+
+	/**
+	 * Determine whether a tag should be treated as block-level during conversion.
+	 *
+	 * @param string $tag Lowercase tag name.
+	 * @return bool
+	 */
+	private static function is_block_tag( $tag ) {
+		$block_tags = array( 'p', 'div', 'section', 'article', 'blockquote', 'address', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'table' );
+		return in_array( $tag, $block_tags, true );
+	}
+
+	/**
+	 * Collect runs for all children of a node.
+	 *
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param DOMNodeList              $children      Node list.
+	 * @param DOMElement|null          $base_rpr      Base run properties.
+	 * @param array<string,bool>       $formatting    Active formatting.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @return array<int,DOMElement>
+	 */
+	private static function collect_runs_from_children( DOMDocument $doc, $children, $base_rpr, array $formatting, &$relationships ) {
+		$runs = array();
+		if ( ! $children instanceof DOMNodeList ) {
+			return $runs;
+		}
+
+		foreach ( $children as $child ) {
+			$runs = array_merge( $runs, self::collect_runs_from_node( $doc, $child, $base_rpr, $formatting, $relationships ) );
+		}
+
+		return $runs;
+	}
+
+	/**
+	 * Collect runs from a single DOM node according to formatting flags.
+	 *
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param DOMNode                  $node          Node to convert.
+	 * @param DOMElement|null          $base_rpr      Base run properties.
+	 * @param array<string,bool>       $formatting    Formatting flags.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @return array<int,DOMElement>
+	 */
+	private static function collect_runs_from_node( DOMDocument $doc, $node, $base_rpr, array $formatting, &$relationships ) {
+		if ( XML_TEXT_NODE === $node->nodeType ) {
+			return self::collect_runs_from_text( $doc, $node, $base_rpr, $formatting );
+		}
+
+		if ( ! $node instanceof DOMElement ) {
+			return array();
+		}
+
+		return self::collect_runs_from_element( $doc, $node, $base_rpr, $formatting, $relationships );
+	}
+
+	/**
+	 * Convert a text node into formatted runs.
+	 *
+	 * @param DOMDocument        $doc        Target DOMDocument.
+	 * @param DOMText            $text_node  Text node.
+	 * @param DOMElement|null    $base_rpr   Base run properties to clone.
+	 * @param array<string,bool> $formatting Formatting flags.
+	 * @return array<int,DOMElement>
+	 */
+	private static function collect_runs_from_text( DOMDocument $doc, DOMText $text_node, $base_rpr, array $formatting ) {
+		$text  = str_replace( array( "\r\n", "\r" ), "\n", $text_node->wholeText );
+		$parts = explode( "\n", $text );
+		$runs  = array();
+
+		foreach ( $parts as $index => $part ) {
+			if ( '' !== $part ) {
+				$run = self::create_text_run( $doc, $part, $base_rpr, $formatting );
+				if ( $run ) {
+					$runs[] = $run;
+				}
+			}
+
+			if ( $index < count( $parts ) - 1 ) {
+				$runs[] = self::create_break_run( $doc, $base_rpr );
+			}
+		}
+
+		return $runs;
+	}
+
+	/**
+	 * Convert an element node into formatted runs.
+	 *
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param DOMElement               $element       Element node.
+	 * @param DOMElement|null          $base_rpr      Base run properties to clone.
+	 * @param array<string,bool>       $formatting    Active formatting flags.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @return array<int,DOMElement>
+	 */
+	private static function collect_runs_from_element( DOMDocument $doc, DOMElement $element, $base_rpr, array $formatting, &$relationships ) {
+		$tag = strtolower( $element->nodeName );
+		switch ( $tag ) {
+			case 'strong':
+			case 'b':
+				return self::collect_runs_from_children( $doc, $element->childNodes, $base_rpr, self::with_format_flag( $formatting, 'bold', true ), $relationships );
+			case 'em':
+			case 'i':
+				return self::collect_runs_from_children( $doc, $element->childNodes, $base_rpr, self::with_format_flag( $formatting, 'italic', true ), $relationships );
+			case 'u':
+				return self::collect_runs_from_children( $doc, $element->childNodes, $base_rpr, self::with_format_flag( $formatting, 'underline', true ), $relationships );
+			case 'span':
+				return self::collect_runs_from_children( $doc, $element->childNodes, $base_rpr, self::extract_span_formatting( $formatting, $element ), $relationships );
+			case 'br':
+				return array( self::create_break_run( $doc, $base_rpr ) );
+			case 'a':
+				$href = trim( $element->getAttribute( 'href' ) );
+				$link_formatting = self::with_format_flag( $formatting, 'hyperlink', true );
+				$link_formatting = self::with_format_flag( $link_formatting, 'underline', true );
+				$link_runs       = self::collect_runs_from_children( $doc, $element->childNodes, $base_rpr, $link_formatting, $relationships );
+
+				if ( empty( $link_runs ) && '' !== $href ) {
+					$fallback_run = self::create_text_run( $doc, $href, $base_rpr, $link_formatting );
+					if ( $fallback_run ) {
+						$link_runs[] = $fallback_run;
+					}
+				}
+
+				$hyperlink = self::create_hyperlink_container( $doc, $link_runs, $relationships, $href );
+				if ( $hyperlink ) {
+					return array( $hyperlink );
+				}
+
+				return $link_runs;
+			default:
+				return self::collect_runs_from_children( $doc, $element->childNodes, $base_rpr, $formatting, $relationships );
 		}
 	}
 
 	/**
-	 * Append list items as runs (basic bullet/number rendering).
+	 * Convert a heading element into paragraphs with spacing.
 	 *
-	 * @param DOMDocument              $doc       DOM document.
-	 * @param array<int, DOMElement>   $runs Accumulator.
-	 * @param DOMElement               $list      List element.
-	 * @param DOMElement|null          $base_rpr  Base run properties.
-	 * @param array<string,bool>       $formatting Formatting flags.
-	 * @param bool                     $ordered   Whether list is ordered.
-	 * @param array<string,mixed>|null $relationships  Relationships context, passed by reference.
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param DOMElement               $heading       Heading element.
+	 * @param DOMElement|null          $base_rpr      Base run properties.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @param string                   $tag           Heading tag name.
+	 * @return array<int,DOMElement>
 	 */
-	private static function append_list_runs( DOMDocument $doc, array &$runs, DOMElement $list, $base_rpr, array $formatting, $ordered, &$relationships = null ) {
-			$index = 1;
-		foreach ( $list->childNodes as $item ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			if ( ! $item instanceof DOMElement || 'li' !== strtolower( $item->nodeName ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+	private static function convert_heading_node_to_paragraphs( DOMDocument $doc, DOMElement $heading, $base_rpr, &$relationships, $tag ) {
+		$paragraphs   = array();
+		$paragraphs[] = self::create_blank_paragraph( $doc, $base_rpr );
+
+		$formatting = self::with_format_flag( array(), 'bold', true );
+		$runs       = self::collect_runs_from_children( $doc, $heading->childNodes, $base_rpr, $formatting, $relationships );
+		$heading_p  = self::create_paragraph_from_runs( $doc, $runs, $base_rpr );
+		$paragraphs[] = $heading_p;
+
+		$paragraphs[] = self::create_blank_paragraph( $doc, $base_rpr );
+
+		return $paragraphs;
+	}
+
+	/**
+	 * Convert a HTML list into basic paragraphs with bullet or numeric prefixes.
+	 *
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param DOMElement               $list          List element.
+	 * @param DOMElement|null          $base_rpr      Base run properties.
+	 * @param array<string,bool>       $formatting    Active formatting flags.
+	 * @param bool                     $ordered       Whether ordered list.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @return array<int,DOMElement>
+	 */
+	private static function convert_list_to_paragraphs( DOMDocument $doc, DOMElement $list, $base_rpr, array $formatting, $ordered, &$relationships ) {
+		$paragraphs = array();
+		$index      = 1;
+
+		foreach ( $list->childNodes as $item ) {
+			if ( ! $item instanceof DOMElement || 'li' !== strtolower( $item->nodeName ) ) {
 				continue;
 			}
-				$prefix = $ordered ? $index . '. ' : '• ';
-				$prefix_run = self::create_text_run( $doc, $prefix, $base_rpr, $formatting );
+
+			$prefix = $ordered ? $index . '. ' : '• ';
+			$runs   = array();
+
+			$prefix_run = self::create_text_run( $doc, $prefix, $base_rpr, $formatting );
 			if ( $prefix_run ) {
-					$runs[] = $prefix_run;
+				$runs[] = $prefix_run;
 			}
-				self::append_html_nodes_to_runs( $doc, $runs, $item->childNodes, $base_rpr, $formatting, $relationships ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				$runs[] = self::create_break_run( $doc, $base_rpr );
-				$index++;
+
+			$runs = array_merge( $runs, self::collect_runs_from_children( $doc, $item->childNodes, $base_rpr, $formatting, $relationships ) );
+
+			$paragraphs[] = self::create_paragraph_from_runs( $doc, $runs, $base_rpr );
+			$index++;
 		}
+
+		return $paragraphs;
+	}
+
+	/**
+	 * Convert an HTML table node into a WordprocessingML table.
+	 *
+	 * @param DOMDocument              $doc           Target DOMDocument.
+	 * @param DOMElement               $table         Table element.
+	 * @param DOMElement|null          $base_rpr      Base run properties.
+	 * @param array<string,mixed>|null $relationships Relationships context.
+	 * @return DOMElement|null
+	 */
+	private static function convert_table_node_to_docx( DOMDocument $doc, DOMElement $table, $base_rpr, &$relationships ) {
+		$tbl = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tbl' );
+
+		foreach ( $table->childNodes as $row ) {
+			if ( ! $row instanceof DOMElement || 'tr' !== strtolower( $row->nodeName ) ) {
+				continue;
+			}
+
+			$tr = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tr' );
+
+			foreach ( $row->childNodes as $cell ) {
+				if ( ! $cell instanceof DOMElement ) {
+					continue;
+				}
+
+				$cell_tag = strtolower( $cell->nodeName );
+				if ( 'td' !== $cell_tag && 'th' !== $cell_tag ) {
+					continue;
+				}
+
+				$tc = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tc' );
+
+				$cell_formatting = array();
+				if ( 'th' === $cell_tag ) {
+					$cell_formatting['bold'] = true;
+				}
+
+				$runs = self::collect_runs_from_children( $doc, $cell->childNodes, $base_rpr, $cell_formatting, $relationships );
+				$paragraph = self::create_paragraph_from_runs( $doc, $runs, $base_rpr );
+
+				$tc->appendChild( $paragraph );
+				$tr->appendChild( $tc );
+			}
+
+			if ( $tr->childNodes->length > 0 ) {
+				$tbl->appendChild( $tr );
+			}
+		}
+
+		if ( 0 === $tbl->childNodes->length ) {
+			return null;
+		}
+
+		return $tbl;
+	}
+
+	/**
+	 * Create a paragraph element from a list of runs/hyperlink nodes.
+	 *
+	 * @param DOMDocument           $doc      Target DOMDocument.
+	 * @param array<int,DOMElement> $runs     Runs to append.
+	 * @param DOMElement|null       $base_rpr Base run properties reference.
+	 * @return DOMElement
+	 */
+	private static function create_paragraph_from_runs( DOMDocument $doc, array $runs, $base_rpr ) {
+		$paragraph = $doc->createElementNS( self::WORD_NAMESPACE, 'w:p' );
+
+		if ( empty( $runs ) ) {
+			$paragraph->appendChild( self::create_blank_run( $doc, $base_rpr ) );
+			return $paragraph;
+		}
+
+		foreach ( $runs as $run ) {
+			if ( $run instanceof DOMElement ) {
+				$paragraph->appendChild( $run );
+			}
+		}
+
+		if ( 0 === $paragraph->childNodes->length ) {
+			$paragraph->appendChild( self::create_blank_run( $doc, $base_rpr ) );
+		}
+
+		return $paragraph;
+	}
+
+	/**
+	 * Create a blank Word run preserving whitespace.
+	 *
+	 * @param DOMDocument     $doc      Target DOMDocument.
+	 * @param DOMElement|null $base_rpr Base run properties.
+	 * @return DOMElement
+	 */
+	private static function create_blank_run( DOMDocument $doc, $base_rpr ) {
+		$run = $doc->createElementNS( self::WORD_NAMESPACE, 'w:r' );
+		if ( $base_rpr instanceof DOMElement ) {
+			$run->appendChild( $base_rpr->cloneNode( true ) );
+		}
+
+		$text = $doc->createElementNS( self::WORD_NAMESPACE, 'w:t' );
+		$text->setAttributeNS( 'http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve' );
+		$text->appendChild( $doc->createTextNode( '' ) );
+		$run->appendChild( $text );
+
+		return $run;
+	}
+
+	/**
+	 * Create a blank paragraph.
+	 *
+	 * @param DOMDocument     $doc      Target DOMDocument.
+	 * @param DOMElement|null $base_rpr Base run properties reference.
+	 * @return DOMElement
+	 */
+	private static function create_blank_paragraph( DOMDocument $doc, $base_rpr ) {
+		$paragraph = $doc->createElementNS( self::WORD_NAMESPACE, 'w:p' );
+		$paragraph->appendChild( self::create_blank_run( $doc, $base_rpr ) );
+		return $paragraph;
+	}
+
+	/**
+	 * Check whether a paragraph contains meaningful content other than a specific run.
+	 *
+	 * @param DOMElement $paragraph Paragraph element to inspect.
+	 * @param DOMElement $target_run Run node slated for replacement.
+	 * @return bool
+	 */
+	private static function paragraph_contains_other_content( DOMElement $paragraph, DOMElement $target_run ) {
+		foreach ( $paragraph->childNodes as $child ) {
+			if ( $child === $target_run ) {
+				continue;
+			}
+
+			if ( $child instanceof DOMElement ) {
+				if ( self::WORD_NAMESPACE === $child->namespaceURI && ( 'r' === $child->localName || 'hyperlink' === $child->localName ) ) {
+					return true;
+				}
+
+				if ( self::WORD_NAMESPACE === $child->namespaceURI && 'pPr' === $child->localName ) {
+					continue;
+				}
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
