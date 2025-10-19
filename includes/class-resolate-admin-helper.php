@@ -18,6 +18,30 @@ class Resolate_Admin_Helper {
 	private $document_generator_loaded = false;
 
 	/**
+	 * Get an initialized WP_Filesystem instance.
+	 *
+	 * @return WP_Filesystem_Base|WP_Error Filesystem handler or error on failure.
+	 */
+	private function get_wp_filesystem() {
+		global $wp_filesystem;
+
+		if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+			return $wp_filesystem;
+		}
+
+		// Ensure the Filesystem API is available and attempt to initialize it.
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		if ( ! WP_Filesystem() ) {
+			return new WP_Error( 'resolate_fs_unavailable', __( 'No se pudo inicializar el sistema de archivos de WordPress.', 'resolate' ) );
+		}
+
+		return $wp_filesystem;
+	}
+
+	/**
 	 * Boot hooks.
 	 */
 	public function __construct() {
@@ -333,11 +357,16 @@ class Resolate_Admin_Helper {
 		$upload_dir = wp_upload_dir();
 		$path       = trailingslashit( $upload_dir['basedir'] ) . 'resolate/' . $filename;
 
-		if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
+		$fs = $this->get_wp_filesystem();
+		if ( is_wp_error( $fs ) ) {
+			wp_die( esc_html( $fs->get_error_message() ) );
+		}
+
+		if ( ! $fs->exists( $path ) || ! $fs->is_readable( $path ) ) {
 			wp_die( esc_html__( 'No se pudo acceder al archivo PDF generado.', 'resolate' ) );
 		}
 
-		$filesize       = filesize( $path );
+		$filesize       = (int) $fs->size( $path );
 		$download_name  = wp_basename( $filename );
 		$encoded_name   = rawurlencode( $download_name );
 		$disposition    = 'inline; filename="' . $download_name . '"; filename*=UTF-8\'\'' . $encoded_name;
@@ -350,15 +379,12 @@ class Resolate_Admin_Helper {
 			header( 'Content-Length: ' . $filesize );
 		}
 
-		$handle = fopen( $path, 'rb' );
-		if ( false === $handle ) {
+		$content = $fs->get_contents( $path );
+		if ( false === $content ) {
 			wp_die( esc_html__( 'No se pudo leer el archivo PDF.', 'resolate' ) );
 		}
 
-		while ( ! feof( $handle ) ) {
-			echo fread( $handle, 8192 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming PDF binary data.
-		}
-		fclose( $handle );
+		echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming PDF binary data.
 		exit;
 	}
 
@@ -1134,18 +1160,18 @@ class Resolate_Admin_Helper {
 			return new WP_Error( 'resolate_download_missing', __( 'No se pudo determinar el archivo generado.', 'resolate' ) );
 		}
 
-		if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
-			return new WP_Error( 'resolate_download_unreadable', __( 'No se pudo acceder al archivo generado.', 'resolate' ) );
+		$fs = $this->get_wp_filesystem();
+		if ( is_wp_error( $fs ) ) {
+			return $fs;
 		}
 
-		$handle = fopen( $path, 'rb' );
-		if ( false === $handle ) {
-			return new WP_Error( 'resolate_download_unreadable', __( 'No se pudo leer el archivo generado.', 'resolate' ) );
+		if ( ! $fs->exists( $path ) || ! $fs->is_readable( $path ) ) {
+			return new WP_Error( 'resolate_download_unreadable', __( 'No se pudo acceder al archivo generado.', 'resolate' ) );
 		}
 
 		$download_name = wp_basename( $path );
 		$encoded_name  = rawurlencode( $download_name );
-		$filesize      = filesize( $path );
+		$filesize      = (int) $fs->size( $path );
 
 		while ( ob_get_level() > 0 ) {
 			ob_end_clean();
@@ -1159,10 +1185,12 @@ class Resolate_Admin_Helper {
 			header( 'Content-Length: ' . $filesize );
 		}
 
-		while ( ! feof( $handle ) ) {
-			echo fread( $handle, 8192 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming binary data.
+		$content = $fs->get_contents( $path );
+		if ( false === $content ) {
+			return new WP_Error( 'resolate_download_unreadable', __( 'No se pudo leer el archivo generado.', 'resolate' ) );
 		}
-		fclose( $handle );
+
+		echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming binary data.
 
 		return true;
 	}

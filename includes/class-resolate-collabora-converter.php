@@ -17,20 +17,35 @@ defined( 'ABSPATH' ) || exit;
 class Resolate_Collabora_Converter {
 
 	/**
+	 * Get an initialized WP_Filesystem instance.
+	 *
+	 * @return WP_Filesystem_Base|WP_Error Filesystem handler or error on failure.
+	 */
+	private static function get_wp_filesystem() {
+		global $wp_filesystem;
+
+		if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+			return $wp_filesystem;
+		}
+
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		if ( ! WP_Filesystem() ) {
+			return new WP_Error( 'resolate_fs_unavailable', __( 'No se pudo inicializar el sistema de archivos de WordPress.', 'resolate' ) );
+		}
+
+		return $wp_filesystem;
+	}
+
+	/**
 	 * Check whether the converter has enough configuration to run.
 	 *
 	 * @return bool
 	 */
 	public static function is_available() {
-		if ( '' === self::get_base_url() ) {
-			return false;
-		}
-
-		if ( ! function_exists( 'curl_init' ) || ! function_exists( 'curl_file_create' ) ) {
-			return false;
-		}
-
-		return true;
+		return '' !== self::get_base_url();
 	}
 
 	/**
@@ -41,10 +56,6 @@ class Resolate_Collabora_Converter {
 	public static function get_status_message() {
 		if ( '' === self::get_base_url() ) {
 			return __( 'Configura la URL base del servicio Collabora Online en los ajustes.', 'resolate' );
-		}
-
-		if ( ! function_exists( 'curl_init' ) || ! function_exists( 'curl_file_create' ) ) {
-			return __( 'Activa la extensión cURL de PHP para contactar con Collabora Online.', 'resolate' );
 		}
 
 		return '';
@@ -60,7 +71,12 @@ class Resolate_Collabora_Converter {
 	 * @return string|WP_Error
 	 */
 	public static function convert( $input_path, $output_path, $output_format, $input_format = '' ) {
-		if ( ! file_exists( $input_path ) ) {
+		$fs = self::get_wp_filesystem();
+		if ( is_wp_error( $fs ) ) {
+			return $fs;
+		}
+
+		if ( ! $fs->exists( $input_path ) ) {
 			return new WP_Error( 'resolate_collabora_input_missing', __( 'El fichero origen para la conversión no existe.', 'resolate' ) );
 		}
 
@@ -69,11 +85,7 @@ class Resolate_Collabora_Converter {
 			return new WP_Error( 'resolate_collabora_not_configured', __( 'Configura la URL del servicio Collabora Online para convertir documentos.', 'resolate' ) );
 		}
 
-		if ( ! function_exists( 'curl_init' ) || ! function_exists( 'curl_file_create' ) ) {
-			return new WP_Error( 'resolate_collabora_missing_curl', __( 'La extensión cURL de PHP es necesaria para usar Collabora Online.', 'resolate' ) );
-		}
-
-		$supported_formats = array( 'pdf', 'docx', 'odt' );
+			$supported_formats = array( 'pdf', 'docx', 'odt' );
 		$output_format     = sanitize_key( $output_format );
 		if ( ! in_array( $output_format, $supported_formats, true ) ) {
 			return new WP_Error( 'resolate_collabora_invalid_target', __( 'Formato de salida no soportado por Collabora.', 'resolate' ) );
@@ -82,54 +94,59 @@ class Resolate_Collabora_Converter {
 		$endpoint = untrailingslashit( $base_url ) . '/cool/convert-to/' . rawurlencode( $output_format );
 
 		$dir = dirname( $output_path );
-		if ( ! is_dir( $dir ) ) {
+		if ( ! $fs->is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
 		}
 
-		if ( file_exists( $output_path ) ) {
-			@unlink( $output_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( $fs->exists( $output_path ) ) {
+			wp_delete_file( $output_path );
 		}
 
-		$mime = self::guess_mime_type( $input_format, $input_path );
+		$mime      = self::guess_mime_type( $input_format, $input_path );
+		$lang      = self::get_language();
+		$filename  = basename( $input_path );
+		$file_body = $fs->get_contents( $input_path );
+		if ( false === $file_body ) {
+			return new WP_Error( 'resolate_collabora_read_failed', __( 'No se pudo leer el fichero de entrada para la conversión.', 'resolate' ) );
+		}
 
-		$post_fields = array(
-			'data' => curl_file_create( $input_path, $mime, basename( $input_path ) ),
-			'lang' => self::get_language(),
+		$boundary = wp_generate_password( 24, false );
+		$eol      = "\r\n";
+		$body     = '';
+		$body    .= '--' . $boundary . $eol;
+		$body    .= 'Content-Disposition: form-data; name="data"; filename="' . $filename . '"' . $eol;
+		$body    .= 'Content-Type: ' . $mime . $eol . $eol;
+		$body    .= $file_body . $eol;
+		$body    .= '--' . $boundary . $eol;
+		$body    .= 'Content-Disposition: form-data; name="lang"' . $eol . $eol;
+		$body    .= $lang . $eol;
+		$body    .= '--' . $boundary . '--' . $eol;
+
+		$args = array(
+			'timeout'   => apply_filters( 'resolate_collabora_timeout', 120 ),
+			'sslverify' => ! self::is_ssl_verification_disabled(),
+			'headers'   => array(
+				'Accept'       => 'application/octet-stream',
+				'Content-Type' => 'multipart/form-data; boundary=' . $boundary,
+			),
+			'body'      => $body,
 		);
 
-		$ch = curl_init();
-		curl_setopt( $ch, CURLOPT_URL, $endpoint );
-		curl_setopt( $ch, CURLOPT_POST, true );
-		curl_setopt( $ch, CURLOPT_POSTFIELDS, $post_fields );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-		curl_setopt( $ch, CURLOPT_HEADER, false );
-		curl_setopt( $ch, CURLOPT_TIMEOUT, apply_filters( 'resolate_collabora_timeout', 120 ) );
-		curl_setopt( $ch, CURLOPT_HTTPHEADER, array( 'Accept: application/octet-stream' ) );
-
-		if ( self::is_ssl_verification_disabled() ) {
-			curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
-			curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, false );
-		}
-
-		$body = curl_exec( $ch );
-		if ( false === $body ) {
-			$error = curl_error( $ch );
-			$code  = curl_errno( $ch );
-			curl_close( $ch );
+		$response = wp_remote_post( $endpoint, $args );
+		if ( is_wp_error( $response ) ) {
 			return new WP_Error(
 				'resolate_collabora_request_failed',
 				sprintf(
-					/* translators: %s: error message returned by curl_error(). */
+					/* translators: %s: error message returned by wp_remote_post(). */
 					__( 'Error al conectar con Collabora Online: %s', 'resolate' ),
-					$error
+					$response->get_error_message()
 				),
-				array( 'code' => $code )
+				array( 'code' => $response->get_error_code() )
 			);
 		}
 
-		$status = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-		curl_close( $ch );
-
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = (string) wp_remote_retrieve_body( $response );
 		if ( $status < 200 || $status >= 300 ) {
 			return new WP_Error(
 				'resolate_collabora_http_error',
@@ -142,7 +159,7 @@ class Resolate_Collabora_Converter {
 			);
 		}
 
-		$written = file_put_contents( $output_path, $body );
+		$written = $fs->put_contents( $output_path, $body, FS_CHMOD_FILE );
 		if ( false === $written ) {
 			return new WP_Error( 'resolate_collabora_write_failed', __( 'No se pudo guardar el fichero convertido en el disco.', 'resolate' ) );
 		}

@@ -18,6 +18,29 @@
 class Resolate_Zetajs_Converter {
 
 	/**
+	 * Get an initialized WP_Filesystem instance.
+	 *
+	 * @return WP_Filesystem_Base|WP_Error Filesystem handler or error on failure.
+	 */
+	private static function get_wp_filesystem() {
+		global $wp_filesystem;
+
+		if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+			return $wp_filesystem;
+		}
+
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		if ( ! WP_Filesystem() ) {
+			return new WP_Error( 'resolate_fs_unavailable', __( 'No se pudo inicializar el sistema de archivos de WordPress.', 'resolate' ) );
+		}
+
+		return $wp_filesystem;
+	}
+
+	/**
 	 * Determine if the converter can run in the current environment.
 	 *
 	 * @return bool
@@ -31,7 +54,11 @@ class Resolate_Zetajs_Converter {
 		if ( '' === $cli ) {
 			return false;
 		}
-		if ( ! file_exists( $cli ) || ! is_executable( $cli ) ) {
+		$fs = self::get_wp_filesystem();
+		if ( is_wp_error( $fs ) ) {
+			return false;
+		}
+		if ( ! $fs->exists( $cli ) || ! is_executable( $cli ) ) {
 			return false;
 		}
 		if ( ! function_exists( 'proc_open' ) ) {
@@ -61,7 +88,12 @@ class Resolate_Zetajs_Converter {
 			);
 		}
 
-		if ( ! file_exists( $input_path ) ) {
+		$fs = self::get_wp_filesystem();
+		if ( is_wp_error( $fs ) ) {
+			return $fs;
+		}
+
+		if ( ! $fs->exists( $input_path ) ) {
 			return new WP_Error( 'resolate_zetajs_input_missing', __( 'El fichero origen para la conversión no existe.', 'resolate' ) );
 		}
 
@@ -71,12 +103,12 @@ class Resolate_Zetajs_Converter {
 
 		$cli = self::get_cli_path();
 		$dir = dirname( $output_path );
-		if ( ! is_dir( $dir ) ) {
+		if ( ! $fs->is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
 		}
 
-		if ( file_exists( $output_path ) ) {
-			@unlink( $output_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( $fs->exists( $output_path ) ) {
+			wp_delete_file( $output_path );
 		}
 
 		$descriptor = array(
@@ -87,17 +119,19 @@ class Resolate_Zetajs_Converter {
 
 		$command = array( $cli, 'convert', $input_path, $output_path );
 
-		$process = proc_open( $command, $descriptor, $pipes, null, null, array( 'bypass_shell' => true ) );
+		$process = proc_open( $command, $descriptor, $pipes, null, null, array( 'bypass_shell' => true ) ); // phpcs:ignore Generic.PHP.ForbiddenFunctions.Found
 		if ( ! is_resource( $process ) ) {
 			return new WP_Error( 'resolate_zetajs_proc', __( 'No se pudo iniciar el proceso de conversión con ZetaJS.', 'resolate' ) );
 		}
 
-		// Close STDIN as we don't need to feed data.
-		fclose( $pipes[0] );
-		$stdout = stream_get_contents( $pipes[1] );
-		fclose( $pipes[1] );
-		$stderr = stream_get_contents( $pipes[2] );
-		fclose( $pipes[2] );
+			// phpcs:disable WordPress.WP.AlternativeFunctions -- Managing process pipes, no WP alternative.
+			// Close STDIN as we don't need to feed data.
+			fclose( $pipes[0] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_close
+			$stdout = stream_get_contents( $pipes[1] );
+			fclose( $pipes[1] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_close
+			$stderr = stream_get_contents( $pipes[2] );
+			fclose( $pipes[2] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_close
+			// phpcs:enable WordPress.WP.AlternativeFunctions
 
 		$status = proc_close( $process );
 		if ( 0 !== $status ) {
@@ -112,7 +146,7 @@ class Resolate_Zetajs_Converter {
 			return new WP_Error( 'resolate_zetajs_failed', $message );
 		}
 
-		if ( ! file_exists( $output_path ) ) {
+		if ( ! $fs->exists( $output_path ) ) {
 			$context = $stderr ? $stderr : $stdout;
 			/* translators: %s: raw message captured from the ZetaJS converter output. */
 			return new WP_Error( 'resolate_zetajs_output_missing', sprintf( __( 'La conversión finalizó pero no se generó el archivo de salida. Detalles: %s', 'resolate' ), $context ) );

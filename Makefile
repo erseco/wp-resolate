@@ -52,9 +52,38 @@ destroy:
 	npx wp-env destroy
 
 # Pass the wp plugin-check
-check-plugin: check-docker start-if-not-running
+check-plugin-old: check-docker start-if-not-running
 	npx wp-env run cli wp plugin install plugin-check --activate --color
 	npx wp-env run cli wp plugin check resolate --exclude-directories=tests --exclude-checks=file_type,image_functions --ignore-warnings --color
+
+# Human output + fail if there are errors (parsed from JSON)
+check-plugin: check-docker start-if-not-running
+	# Asegura plugin-check activo (no fallar si ya lo está)
+	npx wp-env run cli wp plugin install plugin-check --activate --color || true
+
+	# 1) Salida legible con colores (lo que quieres ver en pantalla)
+	npx wp-env run cli wp plugin check resolate \
+		--exclude-directories=tests \
+		--exclude-checks=file_type,image_functions \
+		--ignore-warnings \
+		--color
+
+	# 2) Pasada en JSON para contar errores y devolver exit 1 si hay
+	@ERRS=$$(npx wp-env run cli wp plugin check resolate \
+		--exclude-directories=tests \
+		--exclude-checks=file_type,image_functions \
+		--ignore-warnings \
+		--format=json 2>/dev/null \
+		| grep -oi '"type":"error"' | wc -l | tr -d ' '); \
+	if [ "$$ERRS" -gt 0 ]; then \
+		echo ""; \
+		echo "Plugin Check: $$ERRS error(s) found."; \
+		exit 1; \
+	else \
+		echo ""; \
+		echo "Plugin Check: no errors found."; \
+	fi
+
 
 # Combined check for lint, tests, untranslated, and more
 check: fix lint check-plugin test check-untranslated mo
