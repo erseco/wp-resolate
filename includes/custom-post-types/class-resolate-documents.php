@@ -279,7 +279,7 @@ class Resolate_Documents {
 
 
 	/**
-	 * Register the Documents custom post type.
+	 * Register the Documents custom post type and attach core categories.
 	 */
 	public function register_post_type() {
 		$labels = array(
@@ -309,12 +309,14 @@ class Resolate_Documents {
 			'map_meta_cap'       => true,
 			'hierarchical'       => false,
 			'supports'           => array( 'title', 'revisions', 'comments' ),
+			'taxonomies'        => array( 'category' ),
 			'has_archive'        => false,
 			'rewrite'            => false,
 			'show_in_rest'       => false,
 		);
 
 		register_post_type( 'resolate_document', $args );
+		register_taxonomy_for_object_type( 'category', 'resolate_document' );
 	}
 
 	/**
