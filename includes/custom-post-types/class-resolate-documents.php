@@ -1881,25 +1881,25 @@ class Resolate_Documents {
 	 * @param int $post_id Post ID.
 	 * @return void
 	 */
-    private function save_dynamic_fields_meta( $post_id ) {
-        $schema = $this->get_dynamic_fields_schema_for_post( $post_id );
+	private function save_dynamic_fields_meta( $post_id ) {
+		$schema = $this->get_dynamic_fields_schema_for_post( $post_id );
 
-        $post_values = array();
-        if ( isset( $_POST ) && is_array( $_POST ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-            $post_values = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        }
+		$post_values = array();
+		if ( isset( $_POST ) && is_array( $_POST ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$post_values = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		}
 
-        $known_meta_keys     = array();
-        $posted_array_fields = array();
-        if ( isset( $post_values['tpl_fields'] ) && is_array( $post_values['tpl_fields'] ) ) {
-            $posted_array_fields = $post_values['tpl_fields'];
-        }
+		$known_meta_keys     = array();
+		$posted_array_fields = array();
+		if ( isset( $post_values['tpl_fields'] ) && is_array( $post_values['tpl_fields'] ) ) {
+			$posted_array_fields = $post_values['tpl_fields'];
+		}
 
-        // Persist fields defined by the current schema (when available).
-        foreach ( (array) $schema as $definition ) {
-            if ( empty( $definition['slug'] ) ) {
-                continue;
-            }
+		// Persist fields defined by the current schema (when available).
+		foreach ( (array) $schema as $definition ) {
+			if ( empty( $definition['slug'] ) ) {
+				continue;
+			}
 
 			$slug = sanitize_key( $definition['slug'] );
 			if ( '' === $slug ) {
@@ -1949,16 +1949,16 @@ class Resolate_Documents {
 				delete_post_meta( $post_id, $meta_key );
 			} else {
 				update_post_meta( $post_id, $meta_key, $value );
-            }
-        }
+			}
+		}
 
-        // Persist unknown dynamic fields posted that are not part of the schema
-        // (or when no schema is currently available for the post's type).
-        foreach ( $post_values as $key => $value ) {
-            if ( ! is_string( $key ) || 0 !== strpos( $key, 'resolate_field_' ) ) {
-                continue;
-            }
-            if ( isset( $known_meta_keys[ $key ] ) ) {
+		// Persist unknown dynamic fields posted that are not part of the schema
+		// (or when no schema is currently available for the post's type).
+		foreach ( $post_values as $key => $value ) {
+			if ( ! is_string( $key ) || 0 !== strpos( $key, 'resolate_field_' ) ) {
+				continue;
+			}
+			if ( isset( $known_meta_keys[ $key ] ) ) {
 				continue;
 			}
 			if ( is_array( $value ) ) {
