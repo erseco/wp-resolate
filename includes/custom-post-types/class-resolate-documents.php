@@ -1694,11 +1694,14 @@ class Resolate_Documents {
 	 * @return string
 	 */
 	private function sanitize_rich_text_value( $value ) {
-		$value = (string) $value;
+		$value = wp_unslash( (string) $value );
 
 		if ( '' === $value ) {
 			return '';
 		}
+
+		$value = $this->normalize_literal_line_endings( $value );
+		$value = str_replace( array( "\r\n", "\r" ), "\n", $value );
 
 		$patterns = array(
 			'#<script\b[^>]*>.*?</script>#is',
@@ -1711,7 +1714,70 @@ class Resolate_Documents {
 			$clean = $value;
 		}
 
-		return wp_kses_post( $clean );
+		$sanitized = wp_kses_post( $clean );
+
+		$sanitized = $this->normalize_literal_line_endings( $sanitized );
+		$sanitized = str_replace( array( "\r\n", "\r" ), "\n", $sanitized );
+		return $this->remove_linebreak_artifacts( $sanitized );
+	}
+
+	/**
+	 * Normalize literal string newline escape sequences into actual line breaks.
+	 *
+	 * @param string $value Raw string value.
+	 * @return string
+	 */
+	private function normalize_literal_line_endings( $value ) {
+		$value = (string) $value;
+		while ( false !== strpos( $value, '\\\\' ) ) {
+			$normalized = str_replace(
+				array( '\\r\\n', '\\n', '\\r' ),
+				array( "\n", "\n", "\n" ),
+				$value
+			);
+			if ( $normalized === $value ) {
+				break;
+			}
+			$value = $normalized;
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Remove newline artifacts that survived sanitization.
+	 *
+	 * @param string $value Sanitized HTML.
+	 * @return string
+	 */
+	private function remove_linebreak_artifacts( $value ) {
+		$value = (string) $value;
+
+		// 1) Remove paragraphs that only contain stray literal newline markers (n or rn).
+		$value = preg_replace( '#<p(?:[^>]*)>(?:\s|&nbsp;)*(?:rn|n)+(?:\s|&nbsp;)*</p>#i', '', $value );
+		if ( ! is_string( $value ) ) {
+			$value = '';
+		}
+
+		// 2) Remove standalone markers between any two tags: >  n  <  => ><
+		$value = preg_replace( '#>(?:\s|&nbsp;)*(?:rn|n)+(?:\s|&nbsp;)*<#i', '><', $value );
+		if ( ! is_string( $value ) ) {
+			$value = '';
+		}
+
+		// 3) Remove markers right after opening block/list/table tags.
+		$value = preg_replace( '#(<(?:ul|ol|table|thead|tbody|tfoot|tr|td|th|li)[^>]*>)(?:\s|&nbsp;)*(?:rn|n)+#i', '$1', $value );
+		if ( ! is_string( $value ) ) {
+			$value = '';
+		}
+
+		// 4) Remove markers right before closing block/list/table tags.
+		$value = preg_replace( '#(?:\s|&nbsp;)*(?:rn|n)+(?:\s|&nbsp;)*(</(?:ul|ol|table|thead|tbody|tfoot|tr|td|th|li)>)#i', '$1', $value );
+		if ( ! is_string( $value ) ) {
+			$value = '';
+		}
+
+		return $value;
 	}
 
 	/**

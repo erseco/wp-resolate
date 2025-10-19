@@ -25,6 +25,11 @@ class Resolate_OpenTBS {
 	private const ODF_TEXT_NS = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
 
 	/**
+	 * ODF table namespace.
+	 */
+	private const ODF_TABLE_NS = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
+
+	/**
 	 * ODF office namespace.
 	 */
 	private const ODF_OFFICE_NS = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
@@ -382,6 +387,8 @@ class Resolate_OpenTBS {
 			return $xml;
 		}
 
+		$lookup = self::normalize_lookup_line_endings( $lookup );
+
 		$doc = new DOMDocument();
 		$doc->preserveWhiteSpace = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		$doc->formatOutput       = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
@@ -432,7 +439,9 @@ class Resolate_OpenTBS {
 	 * @return bool
 	 */
 	private static function replace_odt_text_node_html( DOMText $text_node, $lookup, array &$style_require ) {
-		$value  = $text_node->wholeText; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$value  = self::normalize_text_newlines( $text_node->wholeText ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		// Decode HTML entities so we can match raw HTML fragments like <table> inside text nodes that contain &lt;table&gt;.
+		$value  = html_entity_decode( $value, ENT_QUOTES | ENT_XML1, 'UTF-8' );
 		$doc    = $text_node->ownerDocument;
 		$parent = $text_node->parentNode; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		if ( ! $doc || ! $parent ) {
@@ -458,7 +467,23 @@ class Resolate_OpenTBS {
 
 			$nodes = self::build_odt_inline_nodes( $doc, $match_html, $style_require );
 			foreach ( $nodes as $node ) {
-				$parent->insertBefore( $node, $text_node );
+				if ( $node instanceof DOMElement && self::ODF_TABLE_NS === $node->namespaceURI && 'table' === $node->localName ) {
+					$target_parent = $parent;
+					$reference     = $text_node;
+
+					if ( $parent instanceof DOMElement && self::ODF_TEXT_NS === $parent->namespaceURI && 'p' === $parent->localName && $parent->parentNode ) {
+						$target_parent = $parent->parentNode;
+						$reference     = $parent->nextSibling;
+					}
+
+					if ( $target_parent instanceof DOMNode ) {
+						$target_parent->insertBefore( $node, $reference );
+					} else {
+						$parent->insertBefore( $node, $text_node );
+					}
+				} else {
+					$parent->insertBefore( $node, $text_node );
+				}
 			}
 
 			$position = $match_pos + strlen( $match_html );
@@ -487,15 +512,28 @@ class Resolate_OpenTBS {
 	private static function find_next_html_match( $text, $lookup, $position ) {
 		$found_pos  = false;
 		$found_html = '';
+
+		// Normalize the search text newlines to match replace_odt_text_node_html() behavior.
+		$normalized_text = self::normalize_text_newlines( $text );
+
 		foreach ( $lookup as $html => $raw ) {
 			unset( $raw );
-			$pos = strpos( $text, $html, $position );
+
+			// Normalize lookup HTML to ensure CRLF/CR mismatches don't prevent matches.
+			$normalized_html = self::normalize_text_newlines( $html );
+
+			$pos = strpos( $normalized_text, $normalized_html, $position );
 			if ( false === $pos ) {
 				continue;
 			}
-			if ( false === $found_pos || $pos < $found_pos || ( $pos === $found_pos && strlen( $html ) > strlen( $found_html ) ) ) {
+
+			if (
+				false === $found_pos
+				|| $pos < $found_pos
+				|| ( $pos === $found_pos && strlen( $normalized_html ) > strlen( $found_html ) )
+			) {
 				$found_pos  = $pos;
-				$found_html = $html;
+				$found_html = $normalized_html;
 			}
 		}
 
@@ -638,43 +676,75 @@ class Resolate_OpenTBS {
 				$result[] = $doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' );
 				return $result;
 			case 'table':
-				$table_element = $doc->createElementNS( self::ODF_TEXT_NS, 'text:table' );
-				foreach ( $node->childNodes as $row ) {
-					if ( ! $row instanceof DOMElement || 'tr' !== strtolower( $row->nodeName ) ) {
-						continue;
-					}
-					$row_element = $doc->createElementNS( self::ODF_TEXT_NS, 'text:table-row' );
+				$row_nodes = self::extract_table_row_nodes( $node );
+				if ( empty( $row_nodes ) ) {
+					return array();
+				}
+
+				$table_element = $doc->createElementNS( self::ODF_TABLE_NS, 'table:table' );
+				$row_elements  = array();
+				$max_columns   = 0;
+
+				foreach ( $row_nodes as $row ) {
+					$row_element = $doc->createElementNS( self::ODF_TABLE_NS, 'table:table-row' );
+					$column_count = 0;
+
 					foreach ( $row->childNodes as $cell ) {
 						if ( ! $cell instanceof DOMElement ) {
 							continue;
 						}
+
 						$cell_tag = strtolower( $cell->nodeName );
 						if ( 'td' !== $cell_tag && 'th' !== $cell_tag ) {
 							continue;
 						}
-						$cell_element = $doc->createElementNS( self::ODF_TEXT_NS, 'text:table-cell' );
-						$paragraph    = $doc->createElementNS( self::ODF_TEXT_NS, 'text:p' );
+
 						$cell_formatting = $formatting;
 						if ( 'th' === $cell_tag ) {
 							$cell_formatting['bold'] = true;
 						}
-						$cell_nodes = self::collect_html_children_as_odt( $doc, $cell, $cell_formatting, $style_require, $list_state );
-						if ( empty( $cell_nodes ) ) {
-							$cell_nodes = array( $doc->createTextNode( '' ) );
+
+						$cell_element = $doc->createElementNS( self::ODF_TABLE_NS, 'table:table-cell' );
+						$paragraph    = $doc->createElementNS( self::ODF_TEXT_NS, 'text:p' );
+						$cell_list_state = array(
+							'unordered' => 0,
+							'ordered'   => array(),
+						);
+						$cell_nodes = self::collect_html_children_as_odt( $doc, $cell, $cell_formatting, $style_require, $cell_list_state );
+						if ( ! empty( $cell_nodes ) ) {
+							self::trim_odt_inline_nodes( $cell_nodes );
+							foreach ( $cell_nodes as $cell_node ) {
+								$paragraph->appendChild( $cell_node );
+							}
+						} else {
+							$paragraph->appendChild( $doc->createTextNode( '' ) );
 						}
-						foreach ( $cell_nodes as $cell_node ) {
-							$paragraph->appendChild( $cell_node );
-						}
+
 						$cell_element->appendChild( $paragraph );
 						$row_element->appendChild( $cell_element );
+						$column_count++;
 					}
-					if ( 0 !== $row_element->childNodes->length ) {
-						$table_element->appendChild( $row_element );
+
+					if ( $column_count > 0 ) {
+						$row_elements[] = $row_element;
+						if ( $column_count > $max_columns ) {
+							$max_columns = $column_count;
+						}
 					}
 				}
-				if ( 0 === $table_element->childNodes->length ) {
+
+				if ( empty( $row_elements ) ) {
 					return array();
 				}
+
+				for ( $i = 0; $i < $max_columns; $i++ ) {
+					$table_element->appendChild( $doc->createElementNS( self::ODF_TABLE_NS, 'table:table-column' ) );
+				}
+
+				foreach ( $row_elements as $row_element ) {
+					$table_element->appendChild( $row_element );
+				}
+
 				return array(
 					$doc->createElementNS( self::ODF_TEXT_NS, 'text:line-break' ),
 					$table_element,
@@ -750,6 +820,68 @@ class Resolate_OpenTBS {
 			}
 		}
 		return $result;
+	}
+
+	/**
+	 * Extract <tr> nodes from table-related containers preserving order.
+	 *
+	 * @param DOMNode $node Table DOM node.
+	 * @return array<int,DOMElement>
+	 */
+	private static function extract_table_row_nodes( DOMNode $node ) {
+		$rows = array();
+		foreach ( $node->childNodes as $child ) {
+			if ( ! $child instanceof DOMElement ) {
+				continue;
+			}
+			$tag = strtolower( $child->nodeName );
+			if ( 'tr' === $tag ) {
+				$rows[] = $child;
+				continue;
+			}
+			if ( in_array( $tag, array( 'thead', 'tbody', 'tfoot' ), true ) ) {
+				$rows = array_merge( $rows, self::extract_table_row_nodes( $child ) );
+			}
+		}
+		return $rows;
+	}
+
+	/**
+	 * Normalize line endings for lookup keys to improve HTML fragment matching.
+	 *
+	 * @param array<string,string> $lookup Original lookup table.
+	 * @return array<string,string>
+	 */
+	private static function normalize_lookup_line_endings( array $lookup ) {
+		$normalized = array();
+		foreach ( $lookup as $html => $raw ) {
+			$normalized_html  = self::normalize_text_newlines( $html );
+			$normalized_value = self::normalize_text_newlines( $raw );
+
+			$normalized[ $normalized_html ] = $normalized_value;
+
+			$encoded = htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 );
+			$encoded = self::normalize_text_newlines( $encoded );
+			if ( $encoded !== $normalized_html ) {
+				$normalized[ $encoded ] = $normalized_value;
+			}
+		}
+		return $normalized;
+	}
+
+	/**
+	 * Normalize literal newline escape sequences and CR characters to LF.
+	 *
+	 * @param string $value Source value.
+	 * @return string
+	 */
+	private static function normalize_text_newlines( $value ) {
+		$value = (string) $value;
+		$value = preg_replace( '/\\\\r\\\\n|\\\\n|\\\\r/', "\n", $value );
+		if ( ! is_string( $value ) ) {
+			$value = '';
+		}
+		return str_replace( array( "\r\n", "\r" ), "\n", $value );
 	}
 
 	/**
@@ -1374,13 +1506,14 @@ class Resolate_OpenTBS {
 	 * @return DOMElement|null
 	 */
 	private static function convert_table_node_to_docx( DOMDocument $doc, DOMElement $table, $base_rpr, &$relationships ) {
+		$rows = self::extract_table_row_nodes( $table );
+		if ( empty( $rows ) ) {
+			return null;
+		}
+
 		$tbl = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tbl' );
 
-		foreach ( $table->childNodes as $row ) {
-			if ( ! $row instanceof DOMElement || 'tr' !== strtolower( $row->nodeName ) ) {
-				continue;
-			}
-
+		foreach ( $rows as $row ) {
 			$tr = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tr' );
 
 			foreach ( $row->childNodes as $cell ) {

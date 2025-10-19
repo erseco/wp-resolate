@@ -47,6 +47,8 @@ down: check-docker
 clean:
 	npx wp-env clean development
 	npx wp-env clean tests
+	npx wp-env run cli wp plugin activate resolate 
+# 	npx wp-env run cli wp plugin install tinymce-advanced --activate
 
 destroy:
 	npx wp-env destroy

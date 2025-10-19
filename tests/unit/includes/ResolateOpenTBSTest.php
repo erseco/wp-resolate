@@ -131,6 +131,60 @@ class ResolateOpenTBSTest extends PHPUnit\Framework\TestCase {
 	}
 
 	/**
+	 * It should convert HTML tables into ODF table markup when processing ODT fragments.
+	 */
+	public function test_convert_odt_part_rich_text_converts_tables() {
+		$html = "<table>\r\n<thead><tr><th>Título</th><th>Descripción</th></tr></thead>\r\n<tbody><tr><td>Dato 1</td><td>Valor 1</td></tr></tbody></table>";
+		$xml  = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+			. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+			. ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">'
+			. '<office:body><office:text><text:p>' . htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 ) . '</text:p></office:text></office:body>'
+			. '</office:document-content>';
+
+		$method = new ReflectionMethod( Resolate_OpenTBS::class, 'convert_odt_part_rich_text' );
+		$method->setAccessible( true );
+
+		$result = (string) $method->invoke( null, $xml, array( $html ) );
+
+		$this->assertStringContainsString( '<table:table', $result );
+		$this->assertStringContainsString( '<table:table-row', $result );
+		$this->assertStringContainsString( '<table:table-cell', $result );
+		$this->assertStringContainsString( '<text:p', $result );
+	}
+
+	/**
+	 * It should keep complex table structures when other inline elements precede it.
+	 */
+	public function test_convert_odt_part_rich_text_handles_complex_fragments_with_table() {
+		$html = '<h3>Encabezado de prueba</h3>'
+			. 'Primer párrafo con texto de ejemplo.'
+			. '<a href="http://lkjlñjlk">Segundo pá</a>rrafo con <strong>negritas</strong>, '
+			. '<a href="https://www.gg.es"><em>cursivas</em></a> y <u>subrayado</u>.'
+			. '<ul><li>Elemento uno</li><li>Elemento dos<ul><li>Subelemento</li><li>subelemento 2</li></ul></li><li>element</li></ul>'
+			. '<table border="1"><tbody><tr><th>Col 1</th><th>Col 2</th></tr>'
+			. '<tr><td>Dato A1</td><td>Dato A2</td></tr><tr><td>Dato B1</td><td>Dato B2</td></tr></tbody></table>';
+
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+			. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+			. ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">'
+			. '<office:body><office:text><text:p>' . htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 ) . '</text:p></office:text></office:body>'
+			. '</office:document-content>';
+
+		$method = new ReflectionMethod( Resolate_OpenTBS::class, 'convert_odt_part_rich_text' );
+		$method->setAccessible( true );
+
+		$result = (string) $method->invoke( null, $xml, array( $html ) );
+
+		$this->assertStringContainsString( '<table:table', $result );
+		$this->assertStringContainsString( '<table:table-row', $result );
+		$this->assertStringContainsString( '<table:table-cell', $result );
+		$this->assertStringContainsString( 'Encabezado de prueba', $result );
+		$this->assertStringContainsString( 'Dato B2', $result );
+	}
+
+	/**
 	 * Load a DOCX XML string into a DOMDocument for assertions.
 	 *
 	 * @param string $xml XML string.
