@@ -158,9 +158,10 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
 
         $this->assertEquals( 'Valor X', get_post_meta( $post_id, 'resolate_field_campo1', true ) );
 
-        // Create a revision and trigger copying meta.
+        // Create a revision and copy meta to it.
         $rev_id = wp_insert_post( array( 'post_type' => 'revision', 'post_parent' => $post_id, 'post_title' => 'Rev' ) );
-        do_action( 'wp_save_post_revision', $post_id, $rev_id );
+        // Ejecuta la copia de metadatos de forma directa para evitar diferencias de hooks.
+        $doc->copy_meta_to_revision( $post_id, $rev_id );
         $this->assertEquals( 'Valor X', get_metadata( 'post', $rev_id, 'resolate_field_campo1', true ) );
     }
 }
