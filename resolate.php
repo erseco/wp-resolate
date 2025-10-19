@@ -222,7 +222,7 @@ function resolate_maybe_seed_default_doc_types() {
 
 	$definitions = array();
 
-	$odt_id = resolate_import_fixture_file( 'template.odt' );	
+	$odt_id = resolate_import_fixture_file( 'plantilla.odt' );	
 	if ( $odt_id > 0 ) {
 		$definitions[] = array(
 			'slug'        => 'resolate-demo-odt',
@@ -234,7 +234,7 @@ function resolate_maybe_seed_default_doc_types() {
 		);
 	}
 
-	$docx_id = resolate_import_fixture_file( 'template.docx' );
+	$docx_id = resolate_import_fixture_file( 'plantilla.docx' );
 	if ( $docx_id > 0 ) {
 		$definitions[] = array(
 			'slug'        => 'resolate-demo-docx',
