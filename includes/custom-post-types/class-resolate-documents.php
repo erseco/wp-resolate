@@ -617,6 +617,7 @@ class Resolate_Documents {
 				if ( 'select' === $input_type ) {
 					$options     = $this->parse_select_options( $raw_field );
 					$placeholder = $this->get_select_placeholder( $raw_field );
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 					echo '<select id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" ' . $attribute_string . '>';
 					if ( '' !== $placeholder ) {
 						echo '<option value="">' . esc_html( $placeholder ) . '</option>';
@@ -631,10 +632,12 @@ class Resolate_Documents {
 					// Hidden field guarantees we persist an explicit "0" when unchecked.
 					echo '<input type="hidden" name="' . esc_attr( $meta_key ) . '" value="0" />';
 					echo '<label class="resolate-checkbox-wrapper">';
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 					echo '<input type="checkbox" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="1" ' . checked( '1', $normalized_value, false ) . ' ' . $attribute_string . ' />';
 					echo '<span class="screen-reader-text">' . esc_html( $label ) . '</span>';
 					echo '</label>';
 				} else {
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 					echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" value="' . esc_attr( $normalized_value ) . '" ' . $attribute_string . ' />';
 				}
 			} elseif ( 'rich' === $type ) {
@@ -667,6 +670,7 @@ class Resolate_Documents {
 				}
 				$attributes['class'] = $this->build_input_class( 'textarea' );
 				$attribute_string    = $this->format_field_attributes( $attributes );
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 				echo '<textarea id="' . esc_attr( $meta_key ) . '" name="' . esc_attr( $meta_key ) . '" ' . $attribute_string . '>' . esc_textarea( $value ) . '</textarea>';
 			}
 
@@ -1495,6 +1499,7 @@ class Resolate_Documents {
 				if ( 'select' === $input_type ) {
 					$options     = $this->parse_select_options( $raw_field );
 					$placeholder = $this->get_select_placeholder( $raw_field );
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 					echo '<select id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" ' . $attribute_string . '>';
 					if ( '' !== $placeholder ) {
 						echo '<option value="">' . esc_html( $placeholder ) . '</option>';
@@ -1508,10 +1513,12 @@ class Resolate_Documents {
 				} elseif ( 'checkbox' === $input_type ) {
 					echo '<input type="hidden" name="' . esc_attr( $field_name ) . '" value="0" />';
 					echo '<label class="resolate-checkbox-wrapper">';
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 					echo '<input type="checkbox" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" value="1" ' . checked( '1', $normalized_value, false ) . ' ' . $attribute_string . ' />';
 					echo '<span class="screen-reader-text">' . esc_html( $label ) . '</span>';
 					echo '</label>';
 				} else {
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 					echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $normalized_value ) . '" ' . $attribute_string . ' />';
 				}
 
@@ -1549,6 +1556,7 @@ class Resolate_Documents {
 				$attributes['class'] = $classes;
 				$attributes['data-editor-initialized'] = 'false';
 				$attribute_string = $this->format_field_attributes( $attributes );
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 				echo '<textarea ' . $attribute_string . ' id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '">' . esc_textarea( $value ) . '</textarea>';
 				if ( '' !== $description ) {
 					echo '<p id="' . esc_attr( $description_id ) . '" class="description">' . esc_html( $description ) . '</p>';
@@ -1580,6 +1588,7 @@ class Resolate_Documents {
 				}
 				$attributes['class'] = $this->build_input_class( 'textarea' );
 				$attribute_string    = $this->format_field_attributes( $attributes );
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
 				echo '<textarea ' . $attribute_string . ' id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '">' . esc_textarea( $value ) . '</textarea>';
 				if ( '' !== $description ) {
 					echo '<p id="' . esc_attr( $description_id ) . '" class="description">' . esc_html( $description ) . '</p>';

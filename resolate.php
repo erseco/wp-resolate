@@ -35,9 +35,9 @@ if ( ! defined( 'RESOLATE_COLLABORA_DEFAULT_URL' ) ) {
 	define( 'RESOLATE_COLLABORA_DEFAULT_URL', 'https://demo.us.collaboraonline.com' );
 }
 
-require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schema-extractor.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schema-storage.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schema-converter.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schemaextractor.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schemastorage.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/doc-type/class-schemaconverter.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-resolate-template-parser.php';
 
 /**

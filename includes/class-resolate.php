@@ -107,9 +107,9 @@ class Resolate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/document/meta/class-document-meta.php';
 
 		// Schema extraction/storage services.
-		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-extractor.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-storage.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schema-converter.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schemaextractor.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schemastorage.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/doc-type/class-schemaconverter.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-resolate-template-parser.php';
 
 		// Document generator and templating helpers.
@@ -145,6 +145,7 @@ class Resolate {
 
 		// Admin UI for document types (taxonomy meta for templates, fields, etc.).
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-doc-types-admin.php';
+		require_once plugin_dir_path( __DIR__ ) . 'admin/class-resolate-doctype-help-notice.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the public-facing
