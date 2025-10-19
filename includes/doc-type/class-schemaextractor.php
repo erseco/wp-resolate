@@ -372,19 +372,39 @@ class SchemaExtractor {
 				continue;
 			}
 
-			$field = $this->build_field_entry( $token );
-			if ( empty( $field ) ) {
-				continue;
-			}
+            $field = $this->build_field_entry( $token );
+            if ( empty( $field ) ) {
+                continue;
+            }
 
-			if ( empty( $stack ) ) {
-				$fields[] = $field;
-			} else {
-				$current_index = end( $stack );
-				if ( isset( $repeaters[ $current_index ] ) ) {
-					$repeaters[ $current_index ]['fields'][] = $field;
-				}
-			}
+            if ( empty( $stack ) ) {
+                $fields[] = $field;
+            } else {
+                // Inside a repeater: strip the repeater base from dotted field names like "anexos.title".
+                $current_index = end( $stack );
+                if ( isset( $repeaters[ $current_index ] ) ) {
+                    $base_name = isset( $repeaters[ $current_index ]['name'] ) ? (string) $repeaters[ $current_index ]['name'] : '';
+                    $base_slug = isset( $repeaters[ $current_index ]['slug'] ) ? (string) $repeaters[ $current_index ]['slug'] : '';
+
+                    $name = isset( $field['name'] ) ? (string) $field['name'] : '';
+                    if ( '' !== $name && false !== strpos( $name, '.' ) ) {
+                        $segments = explode( '.', $name );
+                        $first    = strtolower( (string) $segments[0] );
+                        if ( $first === strtolower( $base_name ) || $first === strtolower( $base_slug ) ) {
+                            array_shift( $segments );
+                            $item_name = implode( '.', $segments );
+                            $item_slug = sanitize_key( str_replace( '.', '_', $item_name ) );
+                            if ( '' !== $item_slug ) {
+                                $field['name'] = $item_name;
+                                $field['slug'] = $item_slug;
+                                // Keep placeholder and labels as-is; UI will humanize from slug/name if needed.
+                            }
+                        }
+                    }
+
+                    $repeaters[ $current_index ]['fields'][] = $field;
+                }
+            }
 		}
 
 		$hash = md5_file( $template_path );
@@ -444,9 +464,10 @@ class SchemaExtractor {
 		if ( '' === $name ) {
 			return array();
 		}
-		if ( preg_match( '/[^\\p{L}\\p{N}_\\- ]/u', $name ) ) {
-			return array();
-		}
+        // Allow dots in field names so dotted placeholders like "anexos.title" are accepted.
+        if ( preg_match( '/[^\\p{L}\\p{N}_\\-. ]/u', $name ) ) {
+            return array();
+        }
 
 		$field_type = $this->determine_field_type( $name, $parameters );
 		$field_type = $this->normalize_field_type_name( $field_type );

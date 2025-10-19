@@ -56,10 +56,10 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 
 		$repeaters = $this->index_repeaters( $schema['repeaters'] );
 		$this->assertArrayHasKey( 'items', $repeaters, 'El bloque repetible items debe existir.' );
-		$this->assertArrayHasKey( 'ttulotem', $repeaters['items'], 'El campo de título del ítem debe existir.' );
-		$this->assertSame( 'text', $repeaters['items']['ttulotem']['type'] );
-		$this->assertArrayHasKey( 'contenidotemhtml', $repeaters['items'], 'El campo HTML del ítem debe existir.' );
-		$this->assertSame( 'html', $repeaters['items']['contenidotemhtml']['type'] );
+		$this->assertArrayHasKey( 'title', $repeaters['items'], 'El campo de título del ítem debe existir.' );
+		$this->assertSame( 'text', $repeaters['items']['title']['type'] );
+		$this->assertArrayHasKey( 'content', $repeaters['items'], 'El campo HTML del ítem debe existir.' );
+		$this->assertSame( 'html', $repeaters['items']['content']['type'] );
 
 		$legacy = SchemaConverter::to_legacy( $schema );
 		$this->assertIsArray( $legacy, 'La conversión a legado debe crear una matriz.' );
@@ -73,8 +73,8 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		}
 		$this->assertNotNull( $legacy_items, 'El bloque repetible debe mantenerse en la conversión legado.' );
 		$this->assertArrayHasKey( 'item_schema', $legacy_items );
-		$this->assertArrayHasKey( 'contenidotemhtml', $legacy_items['item_schema'] );
-		$this->assertSame( 'rich', $legacy_items['item_schema']['contenidotemhtml']['type'] );
+		$this->assertArrayHasKey( 'content', $legacy_items['item_schema'] );
+		$this->assertSame( 'rich', $legacy_items['item_schema']['content']['type'] );
 	}
 
 	/**

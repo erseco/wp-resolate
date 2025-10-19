@@ -125,19 +125,35 @@ class Resolate_OpenTBS {
 			$tbs_engine->Plugin( TBS_INSTALL, OPENTBS_PLUGIN );
 			$tbs_engine->LoadTemplate( $template_path, OPENTBS_ALREADY_UTF8 );
 
-			if ( ! is_array( $fields ) ) {
-				$fields = array();
-			}
+            if ( ! is_array( $fields ) ) {
+                $fields = array();
+            }
 
-			$tbs_engine->ResetVarRef( false );
+            $tbs_engine->ResetVarRef( false );
 
-			foreach ( $fields as $k => $v ) {
-				if ( ! is_string( $k ) || '' === $k ) {
-					continue;
-				}
-				$tbs_engine->SetVarRefItem( $k, $v );
-				$tbs_engine->MergeField( $k, $v );
-			}
+            // First merge repeater blocks (arrays), then scalar fields.
+            foreach ( $fields as $k => $v ) {
+                if ( ! is_string( $k ) || '' === $k ) {
+                    continue;
+                }
+                if ( is_array( $v ) ) {
+                    // Merge repeatable blocks with the same key as the block name.
+                    // TBS expects a sequential array of associative rows.
+                    $tbs_engine->MergeBlock( $k, $v );
+                }
+            }
+
+            foreach ( $fields as $k => $v ) {
+                if ( ! is_string( $k ) || '' === $k ) {
+                    continue;
+                }
+                if ( is_array( $v ) ) {
+                    // Arrays are handled via MergeBlock; avoid printing "Array" by skipping MergeField.
+                    continue;
+                }
+                $tbs_engine->SetVarRefItem( $k, $v );
+                $tbs_engine->MergeField( $k, $v );
+            }
 
 			$tbs_engine->Show( OPENTBS_FILE, $dest_path );
 			return true;
