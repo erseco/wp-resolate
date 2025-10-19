@@ -131,6 +131,23 @@ class ResolateOpenTBSTest extends PHPUnit\Framework\TestCase {
 	}
 
 	/**
+	 * It should add table borders to generated DOCX tables.
+	 */
+	public function test_convert_docx_part_rich_text_adds_table_borders() {
+		$html = '<table><tr><td>A</td><td>B</td></tr></table>';
+		$xml  = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+			. '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+			. '<w:body><w:p><w:r><w:t>' . htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 ) . '</w:t></w:r></w:p></w:body></w:document>';
+
+		$result = Resolate_OpenTBS::convert_docx_part_rich_text( $xml, array( $html ) );
+
+		$this->assertStringContainsString( '<w:tblBorders', $result );
+		$this->assertStringContainsString( '<w:top', $result );
+		$this->assertStringContainsString( '<w:insideH', $result );
+		$this->assertStringContainsString( 'w:color="000000"', $result );
+	}
+
+	/**
 	 * It should convert HTML tables into ODF table markup when processing ODT fragments.
 	 */
 	public function test_convert_odt_part_rich_text_converts_tables() {
@@ -142,15 +159,36 @@ class ResolateOpenTBSTest extends PHPUnit\Framework\TestCase {
 			. '<office:body><office:text><text:p>' . htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 ) . '</text:p></office:text></office:body>'
 			. '</office:document-content>';
 
-		$method = new ReflectionMethod( Resolate_OpenTBS::class, 'convert_odt_part_rich_text' );
-		$method->setAccessible( true );
-
-		$result = (string) $method->invoke( null, $xml, array( $html ) );
+		$result = Resolate_OpenTBS::convert_odt_part_rich_text( $xml, array( $html ) ); // CHANGE: Call the public API directly to avoid reflection.
+		$result = (string) $result; // CHANGE: Maintain string assertions regardless of return type.
 
 		$this->assertStringContainsString( '<table:table', $result );
 		$this->assertStringContainsString( '<table:table-row', $result );
 		$this->assertStringContainsString( '<table:table-cell', $result );
 		$this->assertStringContainsString( '<text:p', $result );
+	}
+
+	/**
+	 * It should apply ODF styles for table and table-cell with borders.
+	 */
+	public function test_convert_odt_part_rich_text_adds_table_border_styles() {
+		$html = '<table><tr><td>X</td><td>Y</td></tr></table>';
+			$xml  = '<?xml version="1.0" encoding="UTF-8"?>'
+				. '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+				. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+				. ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
+				. ' xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"'
+				. ' xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">'
+				. '<office:body><office:text><text:p>' . htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 ) . '</text:p></office:text></office:body>'
+				. '</office:document-content>';
+
+		$result = Resolate_OpenTBS::convert_odt_part_rich_text( $xml, array( $html ) ); // CHANGE: Call the public API directly to avoid reflection.
+		$result = (string) $result; // CHANGE: Maintain string assertions regardless of return type.
+
+		$this->assertStringContainsString( 'table:style-name="ResolateRichTable"', $result );
+		$this->assertStringContainsString( 'style:name="ResolateRichTable"', $result );
+		$this->assertStringContainsString( 'style:table-properties', $result );
+		$this->assertStringContainsString( 'fo:border="0.5pt solid #000000"', $result );
 	}
 
 	/**
@@ -172,10 +210,8 @@ class ResolateOpenTBSTest extends PHPUnit\Framework\TestCase {
 			. '<office:body><office:text><text:p>' . htmlspecialchars( $html, ENT_QUOTES | ENT_XML1 ) . '</text:p></office:text></office:body>'
 			. '</office:document-content>';
 
-		$method = new ReflectionMethod( Resolate_OpenTBS::class, 'convert_odt_part_rich_text' );
-		$method->setAccessible( true );
-
-		$result = (string) $method->invoke( null, $xml, array( $html ) );
+		$result = Resolate_OpenTBS::convert_odt_part_rich_text( $xml, array( $html ) ); // CHANGE: Call the public API directly to avoid reflection.
+		$result = (string) $result; // CHANGE: Maintain string assertions regardless of return type.
 
 		$this->assertStringContainsString( '<table:table', $result );
 		$this->assertStringContainsString( '<table:table-row', $result );

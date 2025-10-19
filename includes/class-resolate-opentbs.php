@@ -382,7 +382,9 @@ class Resolate_OpenTBS {
 	 * @param array<string,string> $lookup Rich text lookup table.
 	 * @return string|WP_Error
 	 */
-	private static function convert_odt_part_rich_text( $xml, $lookup ) {
+	// CHANGE: Expose rich text conversion for direct usage in tests and callers.
+	public static function convert_odt_part_rich_text( $xml, $lookup ) {
+		$lookup = self::prepare_rich_lookup( $lookup ); // CHANGE: Normalize raw lookup values defensively.
 		if ( empty( $lookup ) ) {
 			return $xml;
 		}
@@ -682,6 +684,9 @@ class Resolate_OpenTBS {
 				}
 
 				$table_element = $doc->createElementNS( self::ODF_TABLE_NS, 'table:table' );
+				// Apply default Resolate table style with 1px black borders.
+				$table_element->setAttributeNS( self::ODF_TABLE_NS, 'table:style-name', 'ResolateRichTable' );
+				$style_require['table'] = true;
 				$row_elements  = array();
 				$max_columns   = 0;
 
@@ -705,6 +710,8 @@ class Resolate_OpenTBS {
 						}
 
 						$cell_element = $doc->createElementNS( self::ODF_TABLE_NS, 'table:table-cell' );
+						$cell_element->setAttributeNS( self::ODF_TABLE_NS, 'table:style-name', 'ResolateRichTableCell' );
+						$style_require['table_cell'] = true;
 						$paragraph    = $doc->createElementNS( self::ODF_TEXT_NS, 'text:p' );
 						$cell_list_state = array(
 							'unordered' => 0,
@@ -991,6 +998,7 @@ class Resolate_OpenTBS {
 		$xpath->registerNamespace( 'style', self::ODF_STYLE_NS );
 		$xpath->registerNamespace( 'text', self::ODF_TEXT_NS );
 		$xpath->registerNamespace( 'fo', self::ODF_FO_NS );
+		$xpath->registerNamespace( 'table', self::ODF_TABLE_NS );
 
 		$auto = $xpath->query( '/*/office:automatic-styles' )->item( 0 );
 		if ( ! $auto instanceof DOMElement ) {
@@ -1092,6 +1100,33 @@ class Resolate_OpenTBS {
 					),
 				),
 			),
+			'table'     => array(
+				'name'   => 'ResolateRichTable',
+				'family' => 'table',
+				'props'  => array(
+					array(
+						'ns' => self::ODF_TABLE_NS,
+						'name' => 'table:border-model',
+						'value' => 'collapsing',
+					),
+					array(
+						'ns' => self::ODF_FO_NS,
+						'name' => 'fo:border',
+						'value' => '0.5pt solid #000000',
+					),
+				),
+			),
+			'table_cell' => array(
+				'name'   => 'ResolateRichTableCell',
+				'family' => 'table-cell',
+				'props'  => array(
+					array(
+						'ns' => self::ODF_FO_NS,
+						'name' => 'fo:border',
+						'value' => '0.5pt solid #000000',
+					),
+				),
+			),
 		);
 
 		foreach ( $style_require as $key => $flag ) {
@@ -1106,7 +1141,16 @@ class Resolate_OpenTBS {
 			$style = $doc->createElementNS( self::ODF_STYLE_NS, 'style:style' );
 			$style->setAttributeNS( self::ODF_STYLE_NS, 'style:name', $info['name'] );
 			$style->setAttributeNS( self::ODF_STYLE_NS, 'style:family', $info['family'] );
-			$props = $doc->createElementNS( self::ODF_STYLE_NS, 'style:text-properties' );
+			// Select the correct properties element depending on the family.
+			if ( 'text' === $info['family'] ) {
+				$props = $doc->createElementNS( self::ODF_STYLE_NS, 'style:text-properties' );
+			} elseif ( 'table' === $info['family'] ) {
+				$props = $doc->createElementNS( self::ODF_STYLE_NS, 'style:table-properties' );
+			} elseif ( 'table-cell' === $info['family'] ) {
+				$props = $doc->createElementNS( self::ODF_STYLE_NS, 'style:table-cell-properties' );
+			} else {
+				$props = $doc->createElementNS( self::ODF_STYLE_NS, 'style:text-properties' );
+			}
 			foreach ( $info['props'] as $prop ) {
 				$props->setAttributeNS( $prop['ns'], $prop['name'], $prop['value'] );
 			}
@@ -1512,6 +1556,20 @@ class Resolate_OpenTBS {
 		}
 
 		$tbl = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tbl' );
+		// Add default table borders: 1px black for all edges and inner lines.
+		$tblPr    = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tblPr' );
+		$borders  = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tblBorders' );
+		$edges    = array( 'top', 'left', 'bottom', 'right', 'insideH', 'insideV' );
+		foreach ( $edges as $edge ) {
+			$el = $doc->createElementNS( self::WORD_NAMESPACE, 'w:' . $edge );
+			$el->setAttribute( 'w:val', 'single' );
+			$el->setAttribute( 'w:sz', '8' );
+			$el->setAttribute( 'w:space', '0' );
+			$el->setAttribute( 'w:color', '000000' );
+			$borders->appendChild( $el );
+		}
+		$tblPr->appendChild( $borders );
+		$tbl->appendChild( $tblPr );
 
 		foreach ( $rows as $row ) {
 			$tr = $doc->createElementNS( self::WORD_NAMESPACE, 'w:tr' );

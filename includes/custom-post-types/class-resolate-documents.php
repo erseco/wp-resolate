@@ -734,7 +734,8 @@ class Resolate_Documents {
 						'media_buttons' => false,
 						'teeny'         => false,
 						'tinymce'       => array(
-							'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+							'toolbar1'      => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+							'content_style' => 'table,th,td{border:1px solid #000;border-collapse:collapse}table{border-collapse:collapse}',
 						),
 						'quicktags'     => true,
 						'editor_height' => 220,
@@ -2508,7 +2509,8 @@ class Resolate_Documents {
 					'media_buttons' => false,
 					'teeny'         => false,
 					'tinymce'       => array(
-						'toolbar1' => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+						'toolbar1'      => 'formatselect,bold,italic,underline,link,bullist,numlist,alignleft,aligncenter,alignright,alignjustify,undo,redo,removeformat',
+						'content_style' => 'table,th,td{border:1px solid #000;border-collapse:collapse}table{border-collapse:collapse}',
 					),
 					'quicktags'     => true,
 					'editor_height' => 200,
