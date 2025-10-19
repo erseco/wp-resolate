@@ -616,7 +616,7 @@ class SchemaExtractor {
 		$type = strtolower( trim( (string) $type ) );
 
 		if ( '' === $type ) {
-			return 'textarea';
+			return 'text';
 		}
 
 		$valid = array( 'text', 'number', 'date', 'email', 'url', 'textarea', 'html', 'boolean' );
@@ -625,7 +625,7 @@ class SchemaExtractor {
 			return $type;
 		}
 
-		return 'textarea';
+		return 'text';
 	}
 
 	/**

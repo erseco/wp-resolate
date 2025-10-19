@@ -27,57 +27,6 @@ class Resolate_Admin_Settings {
 	}
 
 	/**
-	 * Handle Clear All Data.
-	 *
-	 * Handles the clearing of all Resolate data.
-	 */
-	public function handle_clear_all_data() {
-		if ( isset( $_POST['resolate_clear_all_data'] ) && check_admin_referer( 'resolate_clear_all_data_action', 'resolate_clear_all_data_nonce' ) ) {
-
-			// Delete all Resolate custom post types and taxonomies.
-			$custom_post_types = array( 'resolate_task' );
-			foreach ( $custom_post_types as $post_type ) {
-				$posts = get_posts(
-					array(
-						'post_type'   => $post_type,
-						'numberposts' => -1,
-						'post_status' => array( 'publish', 'archived' ),
-					)
-				);
-				foreach ( $posts as $post ) {
-					wp_delete_post( $post->ID, true );
-				}
-			}
-
-			// Delete all Resolate taxonomies.
-			$taxonomies = array( 'resolate_board', 'resolate_label' );
-			foreach ( $taxonomies as $taxonomy ) {
-				$terms = get_terms(
-					array(
-						'taxonomy'   => $taxonomy,
-						'hide_empty' => false,
-					)
-				);
-				foreach ( $terms as $term ) {
-					wp_delete_term( $term->term_id, $taxonomy );
-				}
-			}
-
-			// Redirect and terminate execution.
-			$redirect_url = add_query_arg(
-				array(
-					'page'                => 'resolate_settings',
-					'resolate_data_cleared' => 'true',
-				),
-				admin_url( 'options-general.php' )
-			);
-
-			$this->redirect_and_exit( $redirect_url );
-
-		}
-	}
-
-	/**
 	 * Redirect and Exit.
 	 *
 	 * Handles the redirection and termination of execution.
@@ -97,8 +46,6 @@ class Resolate_Admin_Settings {
 	private function define_hooks() {
 		add_action( 'admin_menu', array( $this, 'create_menu' ) );
 		add_action( 'admin_init', array( $this, 'settings_init' ) );
-		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
-		add_action( 'admin_init', array( $this, 'handle_clear_all_data' ) );
 	}
 
 	/**
@@ -156,37 +103,6 @@ class Resolate_Admin_Settings {
 	 */
 	public function settings_section_callback() {
 		echo '<p>' . esc_html__( 'Configura las opciones del plugin Resolate.', 'resolate' ) . '</p>';
-	}
-
-
-
-
-	/**
-	 * Render Clear All Data Button.
-	 *
-	 * Outputs the HTML for the clear_all_data_button field.
-	 */
-	/**
-	 * Render Ignored Users Field.
-	 *
-	 * Outputs the HTML for the ignored_users field.
-	 */
-	public function ignored_users_render() {
-		$options = get_option( 'resolate_settings', array() );
-		$value = isset( $options['ignored_users'] ) ? sanitize_text_field( $options['ignored_users'] ) : '';
-		echo '<input type="text" name="resolate_settings[ignored_users]" class="regular-text" value="' . esc_attr( $value ) . '" pattern="^[0-9]+(,[0-9]+)*$" title="' . esc_attr__( 'Please enter comma-separated user IDs (numbers only)', 'resolate' ) . '">';
-		echo '<p class="description">' . esc_html__( 'Enter comma-separated user IDs to ignore from Resolate functionality.', 'resolate' ) . '</p>';
-	}
-
-	/**
-	 * Render Clear All Data Button.
-	 *
-	 * Outputs the HTML for the clear_all_data_button field.
-	 */
-	public function clear_all_data_button_render() {
-		wp_nonce_field( 'resolate_clear_all_data_action', 'resolate_clear_all_data_nonce', true, true );
-		echo '<input type="submit" name="resolate_clear_all_data" class="button button-secondary" style="background-color: red; color: white;" value="' . esc_attr__( 'Clear All Data', 'resolate' ) . '" onclick="return confirm(\'' . esc_js( __( 'Are you sure you want to delete all Resolate records? This action cannot be undone.', 'resolate' ) ) . '\');">';
-		echo '<p class="description">' . esc_html__( 'Click the button to delete all Resolate labels, tasks, and boards.', 'resolate' ) . '</p>';
 	}
 
 	/**
@@ -265,29 +181,6 @@ class Resolate_Admin_Settings {
 			?>
 		</form>
 		<?php
-	}
-
-	/**
-	 * Admin Notices.
-	 *
-	 * Displays admin notices.
-	 */
-	public function admin_notices() {
-		if ( isset( $_GET['resolate_data_cleared'] ) ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'All Resolate records have been deleted.', 'resolate' ) . '</p></div>';
-		}
-
-		$invalid_user_ids = get_transient( 'resolate_invalid_user_ids' );
-		if ( false !== $invalid_user_ids ) {
-			echo '<div class="notice notice-warning is-dismissible"><p>' .
-				sprintf(
-					// Translators: %s is a list of invalid user IDs that have been removed.
-					esc_html__( 'The following user IDs were invalid and have been removed: %s', 'resolate' ),
-					esc_html( implode( ', ', $invalid_user_ids ) )
-				) .
-				'</p></div>';
-			delete_transient( 'resolate_invalid_user_ids' );
-		}
 	}
 
 	/**

@@ -96,17 +96,16 @@ class ResolateDocumentGeneratorTest extends WP_UnitTestCase {
 
 		$data    = array( 'post_type' => 'resolate_document' );
 		$postarr = array( 'ID' => $post_id );
-		$result  = $doc->filter_post_data_compose_content( $data, $postarr );
-
-		remove_filter( 'wp_insert_post_data', array( $doc, 'filter_post_data_compose_content' ), 10 );
-		$_POST = array();
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => $result['post_content'],
-			)
-		);
-		update_post_meta( $post_id, 'resolate_field_annexes', wp_json_encode( $annex_items ) );
+			$result  = $doc->filter_post_data_compose_content( $data, $postarr );
+			wp_update_post(
+				array(
+					'ID'           => $post_id,
+					'post_content' => $result['post_content'],
+				)
+			);
+			update_post_meta( $post_id, 'resolate_field_annexes', wp_json_encode( $annex_items ) );
+			// Clear POST after saving to avoid interfering filters from rebuilding content.
+			$_POST = array();
 
 		$ref     = new ReflectionClass( Resolate_Document_Generator::class );
 		$method  = $ref->getMethod( 'build_merge_fields' );

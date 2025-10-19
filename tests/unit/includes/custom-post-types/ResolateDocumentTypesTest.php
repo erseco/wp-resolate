@@ -66,7 +66,8 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         $this->assertCount( 2, $schema_v2['fields'], 'Se esperaban dos campos en la plantilla de prueba.' );
         $fields = array_column( $schema_v2['fields'], null, 'slug' );
         $this->assertArrayHasKey( 'campo_1', $fields );
-		$this->assertSame( 'textarea', $fields['campo_1']['type'] );
+		// Campo_1 sin parámetros específicos debe inferirse como 'text'.
+		$this->assertSame( 'text', $fields['campo_1']['type'] );
         $this->assertArrayHasKey( 'campo2', $fields );
         $this->assertSame( 'text', $fields['campo2']['type'] );
 
@@ -89,6 +90,11 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         $this->assertNotWPError( $post_id );
 
         $doc = new Resolate_Documents();
+        // Asegura que hooks del CPT estén registrados (capabilities/meta).
+        do_action( 'init' );
+        // Asegura capacidades para salvar meta boxes.
+        $user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+        wp_set_current_user( $user_id );
         $_POST['resolate_sections_nonce'] = wp_create_nonce( 'resolate_sections_nonce' );
         $_POST['resolate_type_nonce']     = wp_create_nonce( 'resolate_type_nonce' );
         $_POST['resolate_doc_type']       = (string) $tidA;
@@ -141,6 +147,11 @@ class ResolateDocumentTypesTest extends WP_UnitTestCase {
         wp_set_post_terms( $post_id, array( $tid ), 'resolate_doc_type', false );
 
         $doc = new Resolate_Documents();
+        // Asegura que hooks del CPT estén registrados (capabilities/meta).
+        do_action( 'init' );
+        // Asegura capacidades para salvar meta boxes.
+        $user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+        wp_set_current_user( $user_id );
         $_POST['resolate_sections_nonce'] = wp_create_nonce( 'resolate_sections_nonce' );
         $_POST['resolate_field_campo1']   = 'Valor X';
         $doc->save_meta_boxes( $post_id );

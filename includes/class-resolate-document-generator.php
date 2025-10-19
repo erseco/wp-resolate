@@ -481,31 +481,35 @@ class Resolate_Document_Generator {
 		 * @return array<int, array<string, string>>
 		 */
 	private static function get_array_field_items_for_merge( $structured, $slug, $post_id ) {
-			$slug  = sanitize_key( $slug );
-			$value = '';
-
-		if ( '' !== $slug && isset( $structured[ $slug ] ) && is_array( $structured[ $slug ] ) && isset( $structured[ $slug ]['value'] ) ) {
-				$value = (string) $structured[ $slug ]['value'];
+		$slug = sanitize_key( $slug );
+		if ( '' === $slug ) {
+			return array();
 		}
 
-		if ( '' === $value && '' !== $slug ) {
-				$meta_value = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
+		$items = array();
+
+		if ( isset( $structured[ $slug ] ) && is_array( $structured[ $slug ] ) && isset( $structured[ $slug ]['value'] ) ) {
+			$items = Resolate_Documents::decode_array_field_value( (string) $structured[ $slug ]['value'] );
+		}
+
+		if ( empty( $items ) ) {
+			$meta_value = get_post_meta( $post_id, 'resolate_field_' . $slug, true );
 			if ( '' !== $meta_value ) {
-					$value = (string) $meta_value;
+				$items = Resolate_Documents::decode_array_field_value( (string) $meta_value );
 			}
 		}
 
-		if ( '' === $value && '' !== $slug ) {
-				$legacy = get_post_meta( $post_id, 'resolate_' . $slug, true );
+		if ( empty( $items ) ) {
+			$legacy = get_post_meta( $post_id, 'resolate_' . $slug, true );
 			if ( empty( $legacy ) && 'annexes' === $slug ) {
-					$legacy = get_post_meta( $post_id, 'resolate_annexes', true );
+				$legacy = get_post_meta( $post_id, 'resolate_annexes', true );
 			}
 			if ( is_array( $legacy ) && ! empty( $legacy ) ) {
-					$value = wp_json_encode( $legacy );
+				$items = Resolate_Documents::decode_array_field_value( wp_json_encode( $legacy ) );
 			}
 		}
 
-			return Resolate_Documents::decode_array_field_value( $value );
+		return $items;
 	}
 
 	/**

@@ -65,10 +65,71 @@ class Resolate_Documents {
 		// Ensure a revision is created even if only meta fields change.
 		add_filter( 'wp_save_post_revision_post_has_changed', array( $this, 'force_revision_on_meta' ), 10, 3 );
 
+		/**
+		 * Lock document type after the first assignment.
+		 * Reapplies the original term if an attempt to change it is detected.
+		 */
+		add_action( 'set_object_terms', array( $this, 'enforce_locked_doc_type' ), 10, 6 );
+
 		add_action( 'admin_head-post.php', array( $this, 'hide_submit_box_controls' ) );
 		add_action( 'admin_head-post-new.php', array( $this, 'hide_submit_box_controls' ) );
 
 		$this->register_revision_ui();
+	}
+
+	/**
+	 * Enforce that a document's type cannot change after it is first set.
+	 *
+	 * @param int    $object_id  Object (post) ID.
+	 * @param array  $terms      Term IDs or slugs being set.
+	 * @param array  $tt_ids     Term taxonomy IDs being set.
+	 * @param string $taxonomy   Taxonomy slug.
+	 * @param bool   $append     Whether terms are being appended.
+	 * @param array  $old_tt_ids Previous term taxonomy IDs.
+	 * @return void
+	 */
+	public function enforce_locked_doc_type( $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids ) {
+		unset( $terms, $tt_ids, $append );
+		$taxonomy = (string) $taxonomy;
+		if ( 'resolate_doc_type' !== $taxonomy ) {
+			return;
+		}
+
+		$post = get_post( $object_id );
+		if ( ! $post || 'resolate_document' !== $post->post_type ) {
+			return;
+		}
+
+		static $lock_guard = false;
+		if ( $lock_guard ) {
+			return;
+		}
+
+		$locked = intval( get_post_meta( $object_id, 'resolate_locked_doc_type', true ) );
+
+		// If not yet locked, lock to the current assigned term (if any) on first set.
+		if ( $locked <= 0 ) {
+			$assigned = wp_get_post_terms( $object_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+			if ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) {
+				update_post_meta( $object_id, 'resolate_locked_doc_type', intval( $assigned[0] ) );
+			}
+			return;
+		}
+
+		// Already locked: ensure the post keeps the locked term.
+		$current = wp_get_post_terms( $object_id, 'resolate_doc_type', array( 'fields' => 'ids' ) );
+		if ( is_wp_error( $current ) ) {
+			return;
+		}
+		$current_one = ( ! empty( $current ) ) ? intval( $current[0] ) : 0;
+		if ( $current_one === $locked && count( $current ) === 1 ) {
+			return;
+		}
+
+		// If old assignment existed, or current differs, reapply the locked term.
+		$lock_guard = true;
+		wp_set_post_terms( $object_id, array( $locked ), 'resolate_doc_type', false );
+		$lock_guard = false;
 	}
 
 	/**
@@ -79,24 +140,40 @@ class Resolate_Documents {
 	 */
 	private function get_meta_fields_for_post( $post_id ) {
 		$fields = array();
+		$known  = array();
 
-		if ( $post_id <= 0 ) {
-			return $fields;
-		}
-
-		$all_meta = get_post_meta( $post_id );
-		if ( empty( $all_meta ) ) {
-			return $fields;
-		}
-
-		foreach ( $all_meta as $meta_key => $values ) {
-			unset( $values );
-			if ( 0 === strpos( $meta_key, 'resolate_field_' ) ) {
-				$fields[] = $meta_key;
+		$dynamic = $this->get_dynamic_fields_schema_for_post( $post_id );
+		if ( ! empty( $dynamic ) ) {
+			foreach ( $dynamic as $def ) {
+				if ( empty( $def['slug'] ) ) {
+					continue;
+				}
+				$key = 'resolate_field_' . sanitize_key( $def['slug'] );
+				if ( '' === $key ) {
+					continue;
+				}
+				$fields[]    = $key;
+				$known[ $key ] = true;
 			}
 		}
 
-		return array_unique( $fields );
+		if ( $post_id > 0 ) {
+			$all_meta = get_post_meta( $post_id );
+			if ( ! empty( $all_meta ) ) {
+				foreach ( $all_meta as $meta_key => $values ) {
+					unset( $values );
+					if ( 0 !== strpos( $meta_key, 'resolate_field_' ) ) {
+						continue;
+					}
+					if ( isset( $known[ $meta_key ] ) ) {
+						continue;
+					}
+					$fields[] = $meta_key;
+				}
+			}
+		}
+
+		return array_values( array_unique( $fields ) );
 	}
 
 	/**
