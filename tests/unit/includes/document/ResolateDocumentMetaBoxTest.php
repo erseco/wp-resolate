@@ -93,9 +93,11 @@ class ResolateDocumentMetaBoxTest extends Resolate_Test_Base {
 		$this->meta_box->render( $post );
 		$html = ob_get_clean();
 
-		$this->assertStringContainsString( 'value="Documento Demo"', $html, 'El titulo debe mostrarse.' );
-		$this->assertStringContainsString( 'name="resolate_document_meta_subject"', $html, 'Debe mostrarse el campo Asunto.' );
-		$this->assertStringContainsString( 'value="Asunto previo"', $html, 'El asunto almacenado debe aparecer.' );
+		$this->assertStringContainsString( 'Documento Demo', $html, 'El titulo debe mostrarse como texto.' );
+		$this->assertStringContainsString( 'El asunto se deriva del titulo de la entrada.', $html, 'Debe mostrarse la ayuda del asunto.' );
+		$this->assertStringNotContainsString( 'name="resolate_document_meta_subject"', $html, 'El campo Asunto no debe renderizarse como entrada.' );
+		$this->assertStringContainsString( 'id="resolate_document_meta_author" name="resolate_document_meta_author" class="widefat"', $html, 'El campo Autoria debe ocupar el ancho completo.' );
+		$this->assertStringContainsString( 'id="resolate_document_meta_keywords" name="resolate_document_meta_keywords" class="widefat"', $html, 'El campo Palabras clave debe ocupar el ancho completo.' );
 		$this->assertStringContainsString( 'value="Autor previo"', $html, 'El autor almacenado debe aparecer.' );
 		$this->assertStringContainsString( 'value="uno, dos"', $html, 'Las palabras clave almacenadas deben aparecer.' );
 	}
@@ -104,13 +106,17 @@ class ResolateDocumentMetaBoxTest extends Resolate_Test_Base {
 	 * Verify that saving persists metadata with sanitization applied.
 	 */
 	public function test_save_updates_metadata_with_sanitization() {
-		$post_id = self::factory()->document->create( array() );
+		$long_title = str_repeat( 'S', 260 ) . "\x07";
+		$post_id    = self::factory()->document->create(
+			array(
+				'post_title' => $long_title,
+			)
+		);
 
 		$_POST = array(
-			Document_Meta_Box::NONCE_NAME           => wp_create_nonce( Document_Meta_Box::NONCE_ACTION ),
-			'resolate_document_meta_subject'        => str_repeat( 'S', 260 ) . "\x07",
-			'resolate_document_meta_author'         => " Autor con tab\t",
-			'resolate_document_meta_keywords'       => "  uno ,  dos, , tres  \n",
+			Document_Meta_Box::NONCE_NAME     => wp_create_nonce( Document_Meta_Box::NONCE_ACTION ),
+			'resolate_document_meta_author'   => " Autor con tab\t",
+			'resolate_document_meta_keywords' => "  uno ,  dos, , tres  \n",
 		);
 
 		$this->meta_box->save( $post_id );
@@ -132,7 +138,7 @@ class ResolateDocumentMetaBoxTest extends Resolate_Test_Base {
 
 		$meta = Document_Meta::get( $post_id );
 		$this->assertSame( get_the_title( $post_id ), $meta['title'], 'El titulo debe provenir del post.' );
-		$this->assertSame( $subject, $meta['subject'], 'El asunto debe recuperarse del meta.' );
+		$this->assertSame( $subject, $meta['subject'], 'El asunto debe derivarse del titulo del post.' );
 		$this->assertSame( 'Autor con tab', $meta['author'], 'El autor debe recuperarse del meta.' );
 		$this->assertSame( $keywords, $meta['keywords'], 'Las palabras clave deben recuperarse del meta.' );
 	}

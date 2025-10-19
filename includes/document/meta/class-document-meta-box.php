@@ -59,22 +59,19 @@ class Document_Meta_Box {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
 		$title    = get_the_title( $post->ID );
-		$subject  = get_post_meta( $post->ID, self::META_KEY_SUBJECT, true );
 		$author   = get_post_meta( $post->ID, self::META_KEY_AUTHOR, true );
 		$keywords = get_post_meta( $post->ID, self::META_KEY_KEYWORDS, true );
 
-		echo '<p><label for="resolate_document_meta_title"><strong>' . esc_html__( 'Titulo', 'resolate' ) . '</strong></label></p>';
-		echo '<p><input type="text" id="resolate_document_meta_title" class="regular-text" value="' . esc_attr( $title ) . '" disabled="disabled" readonly="readonly" /></p>';
-		echo '<p class="description">' . esc_html__( 'El titulo procede del titulo de la entrada.', 'resolate' ) . '</p>';
-
-		echo '<p><label for="resolate_document_meta_subject">' . esc_html__( 'Asunto', 'resolate' ) . '</label></p>';
-		echo '<p><input type="text" id="resolate_document_meta_subject" name="resolate_document_meta_subject" class="regular-text" maxlength="255" value="' . esc_attr( $subject ) . '" /></p>';
+		echo '<p><strong>' . esc_html__( 'Titulo', 'resolate' ) . '</strong></p>';
+		echo '<p class="description">' . esc_html( $title ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Asunto', 'resolate' ) . '</strong></p>';
+		echo '<p class="description">' . esc_html__( 'El asunto se deriva del titulo de la entrada.', 'resolate' ) . '</p>';
 
 		echo '<p><label for="resolate_document_meta_author">' . esc_html__( 'Autoria', 'resolate' ) . '</label></p>';
-		echo '<p><input type="text" id="resolate_document_meta_author" name="resolate_document_meta_author" class="regular-text" maxlength="255" value="' . esc_attr( $author ) . '" /></p>';
+		echo '<p><input type="text" id="resolate_document_meta_author" name="resolate_document_meta_author" class="widefat" maxlength="255" value="' . esc_attr( $author ) . '" /></p>';
 
 		echo '<p><label for="resolate_document_meta_keywords">' . esc_html__( 'Palabras clave', 'resolate' ) . '</label></p>';
-		echo '<p><input type="text" id="resolate_document_meta_keywords" name="resolate_document_meta_keywords" class="regular-text" maxlength="512" placeholder="' . esc_attr__( 'palabra1, palabra2', 'resolate' ) . '" value="' . esc_attr( $keywords ) . '" /></p>';
+		echo '<p><input type="text" id="resolate_document_meta_keywords" name="resolate_document_meta_keywords" class="widefat" maxlength="512" placeholder="' . esc_attr__( 'palabra1, palabra2', 'resolate' ) . '" value="' . esc_attr( $keywords ) . '" /></p>';
 		echo '<p class="description">' . esc_html__( 'Lista separada por comas.', 'resolate' ) . '</p>';
 	}
 
@@ -110,9 +107,12 @@ class Document_Meta_Box {
 			return;
 		}
 
-		$subject  = isset( $_POST['resolate_document_meta_subject'] ) ? $this->sanitize_limited_text( wp_unslash( $_POST['resolate_document_meta_subject'] ), 255 ) : '';
-		$author   = isset( $_POST['resolate_document_meta_author'] ) ? $this->sanitize_limited_text( wp_unslash( $_POST['resolate_document_meta_author'] ), 255 ) : '';
-		$keywords = isset( $_POST['resolate_document_meta_keywords'] ) ? $this->sanitize_keywords( wp_unslash( $_POST['resolate_document_meta_keywords'] ) ) : '';
+		$title_raw    = sanitize_text_field( (string) get_the_title( $post_id ) );
+		$subject      = $this->sanitize_limited_text( $title_raw, 255 );
+		$author_input = isset( $_POST['resolate_document_meta_author'] ) ? sanitize_text_field( wp_unslash( $_POST['resolate_document_meta_author'] ) ) : '';
+		$author       = $this->sanitize_limited_text( $author_input, 255 );
+		$keywords_raw = isset( $_POST['resolate_document_meta_keywords'] ) ? sanitize_text_field( wp_unslash( $_POST['resolate_document_meta_keywords'] ) ) : '';
+		$keywords     = $this->sanitize_keywords( $keywords_raw );
 
 		$this->persist_meta( $post_id, self::META_KEY_SUBJECT, $subject );
 		$this->persist_meta( $post_id, self::META_KEY_AUTHOR, $author );
@@ -145,7 +145,6 @@ class Document_Meta_Box {
 	 */
 	private function sanitize_limited_text( $value, $max_length ) {
 		$value = is_string( $value ) ? $value : '';
-		$value = sanitize_text_field( $value );
 		$value = $this->strip_control_chars( $value );
 
 		return $this->truncate( $value, $max_length );
@@ -162,7 +161,6 @@ class Document_Meta_Box {
 			return '';
 		}
 
-		$value = sanitize_text_field( $value );
 		$value = $this->strip_control_chars( $value );
 
 		$parts = array_map( 'trim', explode( ',', $value ) );
