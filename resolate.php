@@ -53,6 +53,7 @@ function activate_resolate() {
 
 	update_option( 'resolate_flush_rewrites', true );
 	update_option( 'resolate_version', RESOLATE_VERSION );
+	update_option( 'resolate_seed_demo_documents', true );
 
 	// Ensure default fixtures (templates) are available in Media Library and settings.
 	resolate_ensure_default_media();
@@ -350,6 +351,411 @@ function resolate_maybe_seed_default_doc_types() {
 }
 
 /**
+ * Maybe seed demo documents after activation.
+ *
+ * @return void
+ */
+function resolate_maybe_seed_demo_documents() {
+	if ( ! post_type_exists( 'resolate_document' ) || ! taxonomy_exists( 'resolate_doc_type' ) ) {
+		return;
+	}
+
+	$should_seed = (bool) get_option( 'resolate_seed_demo_documents', false );
+	if ( ! $should_seed ) {
+		return;
+	}
+
+	resolate_maybe_seed_default_doc_types();
+
+	$terms = get_terms(
+		array(
+			'taxonomy'   => 'resolate_doc_type',
+			'hide_empty' => false,
+		)
+	);
+
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		delete_option( 'resolate_seed_demo_documents' );
+		return;
+	}
+
+	foreach ( $terms as $term ) {
+		if ( resolate_demo_document_exists( $term->term_id ) ) {
+			continue;
+		}
+
+		resolate_create_demo_document_for_type( $term );
+	}
+
+	delete_option( 'resolate_seed_demo_documents' );
+}
+
+/**
+ * Check whether a demo document already exists for the given document type.
+ *
+ * @param int $term_id Term ID.
+ * @return bool
+ */
+function resolate_demo_document_exists( $term_id ) {
+	$term_id = absint( $term_id );
+	if ( $term_id <= 0 ) {
+		return true;
+	}
+
+	$existing = get_posts(
+		array(
+			'post_type'      => 'resolate_document',
+			'post_status'    => 'any',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'meta_key'       => '_resolate_demo_type_id',
+			'meta_value'     => (string) $term_id,
+		)
+	);
+
+	return ! empty( $existing );
+}
+
+/**
+ * Create a demo document for a specific document type.
+ *
+ * @param WP_Term $term Document type term.
+ * @return bool
+ */
+function resolate_create_demo_document_for_type( $term ) {
+	if ( ! $term instanceof WP_Term ) {
+		return false;
+	}
+
+	$term_id = absint( $term->term_id );
+	if ( $term_id <= 0 ) {
+		return false;
+	}
+
+	$schema = Resolate_Documents::get_term_schema( $term_id );
+	if ( empty( $schema ) || ! is_array( $schema ) ) {
+		return false;
+	}
+
+	/* translators: %s: document type name. */
+	$title = sprintf( __( 'Documento de prueba – %s', 'resolate' ), $term->name );
+	$author = __( 'Equipo de demostración', 'resolate' );
+	$keywords = __( 'lorem, ipsum, demostración', 'resolate' );
+
+	$post_id = wp_insert_post(
+		array(
+			'post_type'    => 'resolate_document',
+			'post_title'   => $title,
+			'post_status'  => 'private',
+			'post_content' => '',
+			'post_author'  => get_current_user_id(),
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) || 0 === $post_id ) {
+		return false;
+	}
+
+	wp_set_post_terms( $post_id, array( $term_id ), 'resolate_doc_type', false );
+
+	$structured_fields = array();
+	foreach ( $schema as $definition ) {
+		if ( empty( $definition['slug'] ) ) {
+			continue;
+		}
+
+		$slug      = sanitize_key( $definition['slug'] );
+		$type      = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
+		$data_type = isset( $definition['data_type'] ) ? sanitize_key( $definition['data_type'] ) : 'text';
+
+		if ( '' === $slug ) {
+			continue;
+		}
+
+		if ( 'array' === $type ) {
+			$item_schema = isset( $definition['item_schema'] ) && is_array( $definition['item_schema'] ) ? $definition['item_schema'] : array();
+			$items       = resolate_generate_demo_array_items(
+				$slug,
+				$item_schema,
+				array(
+					'document_title' => $title,
+				)
+			);
+
+			if ( empty( $items ) ) {
+				continue;
+			}
+
+			$encoded = wp_json_encode( $items );
+			update_post_meta( $post_id, 'resolate_field_' . $slug, $encoded );
+
+			$structured_fields[ $slug ] = array(
+				'type'  => 'array',
+				'value' => $encoded,
+			);
+			continue;
+		}
+
+		if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+			$type = 'textarea';
+		}
+
+		$value = resolate_generate_demo_scalar_value(
+			$slug,
+			$type,
+			$data_type,
+			1,
+			array(
+				'document_title' => $title,
+			)
+		);
+
+		if ( 'rich' === $type ) {
+			$value = wp_kses_post( $value );
+		} elseif ( 'single' === $type ) {
+			$value = sanitize_text_field( $value );
+		} else {
+			$value = sanitize_textarea_field( $value );
+		}
+
+		update_post_meta( $post_id, 'resolate_field_' . $slug, $value );
+
+		$structured_fields[ $slug ] = array(
+			'type'  => $type,
+			'value' => $value,
+		);
+	}
+
+	update_post_meta( $post_id, '_resolate_demo_type_id', (string) $term_id );
+	update_post_meta( $post_id, \Resolate\Document\Meta\Document_Meta_Box::META_KEY_SUBJECT, sanitize_text_field( $title ) );
+	update_post_meta( $post_id, \Resolate\Document\Meta\Document_Meta_Box::META_KEY_AUTHOR, sanitize_text_field( $author ) );
+	update_post_meta( $post_id, \Resolate\Document\Meta\Document_Meta_Box::META_KEY_KEYWORDS, sanitize_text_field( $keywords ) );
+
+	$content = resolate_build_structured_demo_content( $structured_fields );
+	if ( '' !== $content ) {
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => $content,
+			)
+		);
+	}
+
+	return true;
+}
+
+/**
+ * Generate demo values for array fields.
+ *
+ * @param string $slug        Repeater slug.
+ * @param array  $item_schema Item schema definition.
+ * @param array  $context     Additional context.
+ * @return array<int, array<string, string>>
+ */
+function resolate_generate_demo_array_items( $slug, $item_schema, $context = array() ) {
+	$slug        = sanitize_key( $slug );
+	$item_schema = is_array( $item_schema ) ? $item_schema : array();
+
+	if ( empty( $item_schema ) ) {
+		$value = resolate_generate_demo_scalar_value(
+			'contenido',
+			'textarea',
+			'text',
+			1,
+			$context
+		);
+
+		return array(
+			array(
+				'contenido' => sanitize_textarea_field( $value ),
+			),
+		);
+	}
+
+	$items = array();
+
+	for ( $index = 1; $index <= 2; $index++ ) {
+		$item = array();
+
+		foreach ( $item_schema as $item_slug => $definition ) {
+			$item_slug = sanitize_key( $item_slug );
+			if ( '' === $item_slug ) {
+				continue;
+			}
+
+			$type      = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
+			$data_type = isset( $definition['data_type'] ) ? sanitize_key( $definition['data_type'] ) : 'text';
+
+			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
+				$type = 'textarea';
+			}
+
+			$value = resolate_generate_demo_scalar_value(
+				$item_slug,
+				$type,
+				$data_type,
+				$index,
+				array_merge(
+					$context,
+					array(
+						'index'       => $index,
+						'parent_slug' => $slug,
+					)
+				)
+			);
+
+			if ( 'rich' === $type ) {
+				$value = wp_kses_post( $value );
+			} elseif ( 'single' === $type ) {
+				$value = sanitize_text_field( $value );
+			} else {
+				$value = sanitize_textarea_field( $value );
+			}
+
+			$item[ $item_slug ] = $value;
+		}
+
+		if ( ! empty( $item ) ) {
+			$items[] = $item;
+		}
+	}
+
+	return $items;
+}
+
+/**
+ * Generate a demo scalar value given a schema definition.
+ *
+ * @param string $slug      Field slug.
+ * @param string $type      Field type.
+ * @param string $data_type Field data type.
+ * @param int    $index     Optional index for repeaters.
+ * @param array  $context   Additional context.
+ * @return string
+ */
+function resolate_generate_demo_scalar_value( $slug, $type, $data_type, $index = 1, $context = array() ) {
+	$slug      = strtolower( (string) $slug );
+	$type      = sanitize_key( $type );
+	$data_type = sanitize_key( $data_type );
+	$index     = max( 1, absint( $index ) );
+
+	$document_title = isset( $context['document_title'] ) ? (string) $context['document_title'] : __( 'Resolución demostrativa', 'resolate' );
+	$number_value   = (string) ( 1 + $index );
+
+	if ( 'date' === $data_type ) {
+		$month = max( 1, min( 12, $index ) );
+		$day   = max( 1, min( 28, 10 + $index ) );
+		return sprintf( '2025-%02d-%02d', $month, $day );
+	}
+
+	if ( 'number' === $data_type ) {
+		return $number_value;
+	}
+
+	if ( 'boolean' === $data_type ) {
+		return ( $index % 2 ) ? '1' : '0';
+	}
+
+	if ( false !== strpos( $slug, 'email' ) ) {
+		return 'demo' . $index . '@ejemplo.es';
+	}
+
+	if ( false !== strpos( $slug, 'phone' ) || false !== strpos( $slug, 'tel' ) ) {
+		return '+3460000000' . $index;
+	}
+
+	if ( false !== strpos( $slug, 'dni' ) ) {
+		return '1234567' . $index . 'A';
+	}
+
+	if ( false !== strpos( $slug, 'url' ) || false !== strpos( $slug, 'sitio' ) || false !== strpos( $slug, 'web' ) ) {
+		return 'https://ejemplo.es/recurso-' . $index;
+	}
+
+	if ( false !== strpos( $slug, 'nombre' ) || false !== strpos( $slug, 'name' ) ) {
+		return ( 1 === $index ) ? 'María García Pérez' : 'Juan Carlos López';
+	}
+
+	if ( false !== strpos( $slug, 'title' ) || false !== strpos( $slug, 'titulo' ) || 'post_title' === $slug ) {
+		if ( 'post_title' === $slug ) {
+			return $document_title;
+		}
+
+		/* translators: %d: item sequence number. */
+		return sprintf( __( 'Elemento demostrativo %d', 'resolate' ), $index );
+	}
+
+	if ( false !== strpos( $slug, 'summary' ) || false !== strpos( $slug, 'resumen' ) ) {
+		/* translators: %d: item sequence number. */
+		return sprintf( __( 'Resumen demostrativo %d con información breve.', 'resolate' ), $index );
+	}
+
+	if ( false !== strpos( $slug, 'objeto' ) ) {
+		return __( 'Objeto de la resolución de ejemplo para ilustrar el flujo.', 'resolate' );
+	}
+
+	if ( false !== strpos( $slug, 'antecedentes' ) ) {
+		return __( 'Antecedentes de hecho redactados con contenido de prueba.', 'resolate' );
+	}
+
+	if ( false !== strpos( $slug, 'fundamentos' ) ) {
+		return __( 'Fundamentos jurídicos de prueba con referencias genéricas.', 'resolate' );
+	}
+
+	if ( false !== strpos( $slug, 'resuelv' ) ) {
+		return '<p>' . __( 'Primero. Aprobar la actuación demostrativa.', 'resolate' ) . '</p><p>' . __( 'Segundo. Notificar a las personas interesadas.', 'resolate' ) . '</p>';
+	}
+
+	if ( false !== strpos( $slug, 'observaciones' ) ) {
+		return __( 'Observaciones adicionales de ejemplo para completar la plantilla.', 'resolate' );
+	}
+
+	if ( false !== strpos( $slug, 'body' ) || false !== strpos( $slug, 'cuerpo' ) ) {
+		return '<p>' . __( 'Este es un contenido HTML de ejemplo con formato en párrafos.', 'resolate' ) . '</p>';
+	}
+
+	if ( false !== strpos( $slug, 'keywords' ) || false !== strpos( $slug, 'palabras' ) ) {
+		return __( 'palabras, clave, demostración', 'resolate' );
+	}
+
+	return __( 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', 'resolate' );
+}
+
+/**
+ * Compose structured content fragments for seeded demo documents.
+ *
+ * @param array<string, array{type:string,value:string}> $fields Structured fields.
+ * @return string
+ */
+function resolate_build_structured_demo_content( $fields ) {
+	if ( empty( $fields ) || ! is_array( $fields ) ) {
+		return '';
+	}
+
+	$fragments = array();
+
+	foreach ( $fields as $slug => $info ) {
+		$slug = sanitize_key( $slug );
+		if ( '' === $slug ) {
+			continue;
+		}
+
+		$type  = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : '';
+		$value = isset( $info['value'] ) ? (string) $info['value'] : '';
+
+		$attributes = 'slug="' . esc_attr( $slug ) . '"';
+		if ( '' !== $type && in_array( $type, array( 'single', 'textarea', 'rich', 'array' ), true ) ) {
+			$attributes .= ' type="' . esc_attr( $type ) . '"';
+		}
+
+		$fragments[] = '<!-- resolate-field ' . $attributes . " -->\n" . $value . "\n<!-- /resolate-field -->";
+	}
+
+	return implode( "\n\n", $fragments );
+}
+
+/**
  * Convert slug into a human readable label.
  *
  * @param string $slug Slug.
@@ -372,6 +778,7 @@ function resolate_humanize_slug( $slug ) {
 }
 
 add_action( 'init', 'resolate_maybe_seed_default_doc_types', 40 );
+add_action( 'init', 'resolate_maybe_seed_demo_documents', 60 );
 
 
 /**

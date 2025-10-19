@@ -17,6 +17,8 @@ resolate*/
 *.back
 *.tmp
 *~
+~$*
+.~lock.*
 .DS_Store
 Thumbs.db
 sftp-config.json
