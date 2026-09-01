@@ -460,6 +460,140 @@ msgstr "Error en la conversión."
 msgid "Error"
 msgstr "Error"
 
+msgid "Document"
+msgstr "Documento"
+
+msgid "This document does not exist or is outside your scope."
+msgstr "Este documento no existe o está fuera de tu ámbito."
+
+#. translators: 1: document type name, 2: last modified date
+#, php-format
+msgid "%1$s · updated on %2$s"
+msgstr "%1$s · actualizado el %2$s"
+
+msgid "This document has no fields yet."
+msgstr "Este documento aún no tiene campos."
+
+#. translators: %d: number of rows in a repeating field
+#, php-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] "%d elemento"
+msgstr[1] "%d elementos"
+
+msgid "Open in the editor"
+msgstr "Abrir en el editor"
+
+msgid "Back to the list"
+msgstr "Volver a la lista"
+
+msgid "Draft"
+msgstr "Borrador"
+
+msgid "In Review"
+msgstr "En revisión"
+
+msgid "Approved"
+msgstr "Aprobado"
+
+msgid "Archived"
+msgstr "Archivado"
+
+msgid "All documents"
+msgstr "Todos los documentos"
+
+msgid "My documents"
+msgstr "Mis documentos"
+
+msgid "Every area, every status."
+msgstr "Todas las áreas, todos los estados."
+
+msgid "The documents of your area, with their status."
+msgstr "Los documentos de tu área, con su estado."
+
+msgid "Your user has no scope category assigned. Contact an administrator."
+msgstr "Tu usuario no tiene una categoría de ámbito asignada. Contacta con una persona administradora."
+
+msgid "All"
+msgstr "Todos"
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid "Updated"
+msgstr "Actualizado"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "No documents yet. Create the first one from “New document”."
+msgstr "Aún no hay documentos. Crea el primero desde «Nuevo documento»."
+
+msgid "Continue"
+msgstr "Continuar"
+
+msgid "View"
+msgstr "Ver"
+
+msgid "Administration"
+msgstr "Administración"
+
+#. translators: %s: scope category name
+#, php-format
+msgid "Area · %s"
+msgstr "Área · %s"
+
+msgid "Editing"
+msgstr "Edición"
+
+msgid "New document"
+msgstr "Nuevo documento"
+
+msgid "Sections"
+msgstr "Secciones"
+
+msgid "Home"
+msgstr "Inicio"
+
+msgid "Security check failed."
+msgstr "La comprobación de seguridad ha fallado."
+
+msgid "Sign in to work with your documents."
+msgstr "Inicia sesión para trabajar con tus documentos."
+
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+msgid "Your user cannot edit documents. Contact an administrator."
+msgstr "Tu usuario no puede editar documentos. Contacta con una persona administradora."
+
+msgid "Choose the type and give it a name; the type cannot be changed later."
+msgstr "Elige el tipo y ponle un nombre; el tipo no puede cambiarse después."
+
+msgid "The document could not be created. Check the name and the type."
+msgstr "No se pudo crear el documento. Revisa el nombre y el tipo."
+
+msgid "No document types defined. Create one in Document Types."
+msgstr "No hay tipos de documento definidos. Crea uno en Tipos de documento."
+
+msgid "Document type"
+msgstr "Tipo de documento"
+
+msgid "Select a type…"
+msgstr "Selecciona un tipo…"
+
+msgid "Document name"
+msgstr "Nombre del documento"
+
+msgid "Short: it is what you will see in lists and searches."
+msgstr "Corto: es el que verás en las listas y el buscador."
+
+msgid "Create draft"
+msgstr "Crear borrador"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
 msgid "Could not initialize the WordPress filesystem."
 msgstr "No se pudo inicializar el sistema de archivos de WordPress."
 
@@ -599,9 +733,6 @@ msgstr "Guardar y firmar"
 
 msgid "Use saved version"
 msgstr "Usar versión guardada"
-
-msgid "Cancel"
-msgstr "Cancelar"
 
 msgid "Saving changes..."
 msgstr "Guardando cambios..."
@@ -1044,26 +1175,11 @@ msgstr "Gestión del documento"
 msgid "Save"
 msgstr "Guardar"
 
-msgid "No document types defined. Create one in Document Types."
-msgstr "No hay tipos de documento definidos. Crea uno en Tipos de documento."
-
 msgid "Choose the type when creating the document. It cannot be changed later."
 msgstr "Elige el tipo al crear el documento. No se puede cambiar después."
 
 msgid "Selected type:"
 msgstr "Tipo seleccionado:"
-
-msgid "Select a type…"
-msgstr "Selecciona un tipo…"
-
-msgid "Draft"
-msgstr "Borrador"
-
-msgid "In Review"
-msgstr "En revisión"
-
-msgid "Approved"
-msgstr "Aprobado"
 
 msgid "No document type selected. Must assign a type before publishing."
 msgstr "No hay tipo de documento seleccionado. Debes asignar un tipo antes de publicar."
@@ -1144,9 +1260,6 @@ msgstr "Todos los tipos de documento"
 msgid "All categories"
 msgstr "Todas las categorías"
 
-msgid "Archived"
-msgstr "Archivado"
-
 msgid "All authors"
 msgstr "Todos los autores"
 
@@ -1220,9 +1333,6 @@ msgstr "Lista separada por comas."
 
 msgid "Documents"
 msgstr "Documentos"
-
-msgid "Document"
-msgstr "Documento"
 
 msgid "Add New"
 msgstr "Añadir nuevo"

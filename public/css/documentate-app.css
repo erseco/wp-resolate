@@ -1,0 +1,604 @@
+/**
+ * Documentate app shell: header, tabs, sheet, cards, list and footer.
+ *
+ * Same visual vocabulary as the Registro de Visitas application (shield blue
+ * as primary, tonal chips, pill buttons, 12px radii) so both tools read as one
+ * family. Colors and measures live in the custom properties below.
+ */
+
+:root {
+	--dcta-pri: #1b4f8a;
+	--dcta-pri-cont: #e3ecf7;
+	--dcta-sup: #fff;
+	--dcta-sup-2: #f4f6f9;
+	--dcta-fondo: #f7f8fa;
+	--dcta-texto: #1c2024;
+	--dcta-texto-2: #5a6672;
+	--dcta-linea: #e4e7eb;
+	--dcta-ok: #1f6b45;
+	--dcta-ok-cont: #e4f0e8;
+	--dcta-esp: #8a5a12;
+	--dcta-esp-cont: #f9efe0;
+	--dcta-mal: #a8342c;
+	--dcta-mal-cont: #fae9e7;
+	--dcta-e1: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .07);
+	--dcta-e2: 0 2px 4px rgba(16, 24, 40, .05), 0 4px 12px rgba(16, 24, 40, .09);
+	--dcta-r: 12px;
+	--dcta-ancho: 1128px;
+}
+
+/* --- flat page: the theme chrome steps aside on app pages ---------------- */
+
+body.documentate-app #main-header,
+body.documentate-app #top-header,
+body.documentate-app #main-footer,
+body.documentate-app .site-header,
+body.documentate-app .site-footer,
+body.documentate-app header.wp-block-template-part,
+body.documentate-app footer.wp-block-template-part,
+body.documentate-app .et_pb_title_container,
+body.documentate-app .entry-title,
+body.documentate-app .page-title,
+body.documentate-app .wp-block-post-title {
+	display: none;
+}
+
+body.documentate-app {
+	background: var(--dcta-fondo);
+	color: var(--dcta-texto);
+	font-family: 'Open Sans', system-ui, -apple-system, sans-serif;
+	font-size: 15px;
+	line-height: 1.55;
+}
+
+body.documentate-app #page-container {
+	padding-top: 0;
+}
+
+/* --- header -------------------------------------------------------------- */
+
+.dcta-top {
+	background: var(--dcta-sup);
+	border-bottom: 1px solid var(--dcta-linea);
+}
+
+.dcta-top-fila {
+	max-width: var(--dcta-ancho);
+	margin: 0 auto;
+	padding: 14px 24px;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.dcta-escudo {
+	width: 30px;
+	height: 38px;
+	border-radius: 3px 3px 12px 12px;
+	background: var(--dcta-pri);
+	position: relative;
+	flex: 0 0 auto;
+}
+
+.dcta-escudo::after {
+	content: '';
+	position: absolute;
+	left: 5px;
+	right: 5px;
+	top: 6px;
+	height: 9px;
+	border-radius: 2px;
+	background: rgba(255, 255, 255, .72);
+}
+
+.dcta-marca small {
+	display: block;
+	font-size: 11.5px;
+	color: var(--dcta-texto-2);
+	max-width: 34ch;
+	line-height: 1.25;
+}
+
+.dcta-marca-app {
+	margin-left: 12px;
+	padding-left: 14px;
+	border-left: 1px solid var(--dcta-linea);
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: -.02em;
+	color: var(--dcta-pri);
+	text-decoration: none;
+}
+
+.dcta-marca-app:hover {
+	color: #123a68;
+	text-decoration: none;
+}
+
+.dcta-top-derecha {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.dcta-rol {
+	padding: .34em .8em;
+	border-radius: 999px;
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+	font-size: 12.5px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* --- tabs ---------------------------------------------------------------- */
+
+.dcta-tabs {
+	background: var(--dcta-sup);
+	border-bottom: 1px solid var(--dcta-linea);
+}
+
+.dcta-tabs-fila {
+	max-width: var(--dcta-ancho);
+	margin: 0 auto;
+	padding: 0 24px;
+	display: flex;
+	gap: 4px;
+}
+
+.dcta-tab {
+	display: flex;
+	align-items: center;
+	min-height: 48px;
+	padding: 0 16px;
+	font-size: 14.5px;
+	color: var(--dcta-texto-2);
+	border-bottom: 3px solid transparent;
+	white-space: nowrap;
+	gap: 8px;
+	text-decoration: none;
+}
+
+.dcta-tab:hover {
+	color: var(--dcta-pri);
+	text-decoration: none;
+}
+
+.dcta-tab-on {
+	color: var(--dcta-pri);
+	font-weight: 700;
+	border-bottom-color: var(--dcta-pri);
+}
+
+.dcta-tab-n {
+	padding: .05em .5em;
+	border-radius: 999px;
+	background: var(--dcta-esp-cont);
+	color: var(--dcta-esp);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+/* --- sheet --------------------------------------------------------------- */
+
+.dcta-hoja {
+	max-width: var(--dcta-ancho);
+	margin: 0 auto;
+	padding: 28px 24px 44px;
+}
+
+.dcta-h1 {
+	font-size: 27px;
+	font-weight: 700;
+	letter-spacing: -.02em;
+	margin: 0 0 4px;
+}
+
+.dcta-sub {
+	margin: 0 0 22px;
+	color: var(--dcta-texto-2);
+	font-size: 14.5px;
+}
+
+.dcta-h2 {
+	font-size: 14px;
+	font-weight: 700;
+	margin: 26px 0 12px;
+	letter-spacing: .01em;
+	color: var(--dcta-texto-2);
+	text-transform: uppercase;
+}
+
+/* --- buttons ------------------------------------------------------------- */
+
+.dcta-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 9px;
+	min-height: 44px;
+	padding: 0 22px;
+	border-radius: 999px;
+	border: 0;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+	font-family: inherit;
+	text-decoration: none;
+}
+
+.dcta-btn:hover {
+	text-decoration: none;
+}
+
+.dcta-btn-pri {
+	background: var(--dcta-pri);
+	color: #fff;
+	box-shadow: var(--dcta-e1);
+}
+
+.dcta-btn-pri:hover {
+	background: #123a68;
+	color: #fff;
+}
+
+.dcta-btn-ton {
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+}
+
+.dcta-btn-ton:hover {
+	color: #123a68;
+}
+
+/* --- cards, stats and alerts --------------------------------------------- */
+
+.dcta-card {
+	background: var(--dcta-sup);
+	border-radius: var(--dcta-r);
+	box-shadow: var(--dcta-e1);
+}
+
+.dcta-cifras {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+	gap: 14px;
+	margin: 0 0 20px;
+}
+
+.dcta-cifra {
+	background: var(--dcta-sup);
+	border-radius: var(--dcta-r);
+	box-shadow: var(--dcta-e1);
+	padding: 16px 18px;
+}
+
+.dcta-cifra b {
+	display: block;
+	font-size: 32px;
+	font-weight: 700;
+	line-height: 1.05;
+	letter-spacing: -.03em;
+	font-variant-numeric: tabular-nums;
+}
+
+.dcta-cifra span {
+	display: block;
+	margin-top: 3px;
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-cifra-acento b {
+	color: var(--dcta-pri);
+}
+
+.dcta-aviso {
+	display: flex;
+	gap: 13px;
+	align-items: flex-start;
+	padding: 15px 18px;
+	border-radius: var(--dcta-r);
+	margin: 0 0 22px;
+	font-size: 14.5px;
+	line-height: 1.55;
+	background: var(--dcta-pri-cont);
+	color: #14406f;
+}
+
+/* --- state chips ---------------------------------------------------------- */
+
+.dcta-estado {
+	display: inline-block;
+	padding: .3em .72em;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.dcta-estado-borrador {
+	background: var(--dcta-sup-2);
+	color: var(--dcta-texto-2);
+}
+
+.dcta-estado-pendiente {
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+}
+
+.dcta-estado-aprobado {
+	background: var(--dcta-ok-cont);
+	color: var(--dcta-ok);
+}
+
+.dcta-estado-archivado {
+	background: var(--dcta-esp-cont);
+	color: var(--dcta-esp);
+}
+
+/* --- filter chips --------------------------------------------------------- */
+
+.dcta-filtros {
+	display: flex;
+	gap: 9px;
+	flex-wrap: wrap;
+	margin: 0 0 16px;
+}
+
+.dcta-fchip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	padding: 0 16px;
+	border-radius: 999px;
+	background: var(--dcta-sup);
+	box-shadow: var(--dcta-e1);
+	font-size: 13.5px;
+	color: var(--dcta-texto);
+	text-decoration: none;
+}
+
+.dcta-fchip:hover {
+	color: var(--dcta-pri);
+	text-decoration: none;
+}
+
+.dcta-fchip-on {
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+	font-weight: 700;
+	box-shadow: none;
+}
+
+/* --- document list -------------------------------------------------------- */
+
+.dcta-tabla {
+	border-radius: var(--dcta-r);
+	overflow: hidden;
+	background: var(--dcta-sup);
+	box-shadow: var(--dcta-e1);
+}
+
+.dcta-fila {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 170px 110px 130px 110px;
+	gap: 16px;
+	align-items: center;
+	padding: 15px 18px;
+	border-top: 1px solid var(--dcta-linea);
+}
+
+.dcta-fila-cab {
+	border-top: 0;
+	background: var(--dcta-sup-2);
+	font-size: 11.5px;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: var(--dcta-texto-2);
+	padding: 9px 18px;
+}
+
+.dcta-doc-nombre {
+	font-size: 14.5px;
+	font-weight: 600;
+	min-width: 0;
+}
+
+.dcta-doc-nombre a {
+	color: var(--dcta-texto);
+	text-decoration: none;
+}
+
+.dcta-doc-nombre a:hover {
+	color: var(--dcta-pri);
+}
+
+.dcta-doc-nombre small {
+	display: block;
+	font-weight: 400;
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dcta-doc-tipo {
+	font-size: 13.5px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-doc-fecha {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	font-size: 14px;
+}
+
+.dcta-mini {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 40px;
+	padding: 0 16px;
+	border-radius: 999px;
+	font-size: 13.5px;
+	font-weight: 600;
+	white-space: nowrap;
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+	text-decoration: none;
+	justify-self: end;
+}
+
+.dcta-mini:hover {
+	color: #123a68;
+	text-decoration: none;
+}
+
+.dcta-vacio {
+	padding: 34px 18px;
+	text-align: center;
+	color: var(--dcta-texto-2);
+}
+
+/* --- forms ---------------------------------------------------------------- */
+
+.dcta-form {
+	max-width: 640px;
+}
+
+.dcta-campo {
+	margin: 0 0 18px;
+}
+
+.dcta-campo label {
+	display: block;
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.dcta-campo input[type='text'],
+.dcta-campo select,
+.dcta-campo textarea {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px 13px;
+	font-size: 15px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: var(--dcta-r);
+	background: var(--dcta-sup);
+	font-family: inherit;
+	color: var(--dcta-texto);
+}
+
+.dcta-campo input:focus-visible,
+.dcta-campo select:focus-visible,
+.dcta-campo textarea:focus-visible {
+	outline: 2px solid var(--dcta-pri);
+	outline-offset: 2px;
+}
+
+.dcta-ayuda {
+	margin: 6px 0 0;
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
+}
+
+/* --- detail --------------------------------------------------------------- */
+
+.dcta-detalle {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 330px;
+	gap: 24px;
+	align-items: start;
+}
+
+.dcta-ficha {
+	padding: 20px 24px;
+}
+
+.dcta-ficha dt {
+	font-size: 11.5px;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: var(--dcta-texto-2);
+	font-weight: 600;
+	margin: 14px 0 3px;
+}
+
+.dcta-ficha dt:first-child {
+	margin-top: 0;
+}
+
+.dcta-ficha dd {
+	margin: 0;
+	font-size: 14.5px;
+	line-height: 1.6;
+}
+
+.dcta-lado {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.dcta-lado .dcta-card {
+	padding: 16px 18px;
+}
+
+.dcta-lado .dcta-btn {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* --- footer --------------------------------------------------------------- */
+
+.dcta-pie {
+	border-top: 1px solid var(--dcta-linea);
+	background: var(--dcta-sup);
+	margin-top: 8px;
+}
+
+.dcta-pie > div {
+	max-width: var(--dcta-ancho);
+	margin: 0 auto;
+	padding: 18px 24px;
+	display: flex;
+	gap: 18px;
+	flex-wrap: wrap;
+	font-size: 13px;
+	color: var(--dcta-texto-2);
+	justify-content: space-between;
+}
+
+.dcta-pie a {
+	color: var(--dcta-texto-2);
+	text-decoration: underline;
+}
+
+/* --- small screens --------------------------------------------------------- */
+
+@media (max-width: 782px) {
+	.dcta-fila {
+		grid-template-columns: minmax(0, 1fr) 110px;
+	}
+
+	.dcta-fila-cab,
+	.dcta-doc-tipo,
+	.dcta-doc-fecha {
+		display: none;
+	}
+
+	.dcta-detalle {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.dcta-marca small {
+		display: none;
+	}
+}

@@ -459,6 +459,140 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
+msgid "Document"
+msgstr ""
+
+msgid "This document does not exist or is outside your scope."
+msgstr ""
+
+#. translators: 1: document type name, 2: last modified date
+#, php-format
+msgid "%1$s · updated on %2$s"
+msgstr ""
+
+msgid "This document has no fields yet."
+msgstr ""
+
+#. translators: %d: number of rows in a repeating field
+#, php-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Open in the editor"
+msgstr ""
+
+msgid "Back to the list"
+msgstr ""
+
+msgid "Draft"
+msgstr ""
+
+msgid "In Review"
+msgstr ""
+
+msgid "Approved"
+msgstr ""
+
+msgid "Archived"
+msgstr ""
+
+msgid "All documents"
+msgstr ""
+
+msgid "My documents"
+msgstr ""
+
+msgid "Every area, every status."
+msgstr ""
+
+msgid "The documents of your area, with their status."
+msgstr ""
+
+msgid "Your user has no scope category assigned. Contact an administrator."
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Updated"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "No documents yet. Create the first one from “New document”."
+msgstr ""
+
+msgid "Continue"
+msgstr ""
+
+msgid "View"
+msgstr ""
+
+msgid "Administration"
+msgstr ""
+
+#. translators: %s: scope category name
+#, php-format
+msgid "Area · %s"
+msgstr ""
+
+msgid "Editing"
+msgstr ""
+
+msgid "New document"
+msgstr ""
+
+msgid "Sections"
+msgstr ""
+
+msgid "Home"
+msgstr ""
+
+msgid "Security check failed."
+msgstr ""
+
+msgid "Sign in to work with your documents."
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Your user cannot edit documents. Contact an administrator."
+msgstr ""
+
+msgid "Choose the type and give it a name; the type cannot be changed later."
+msgstr ""
+
+msgid "The document could not be created. Check the name and the type."
+msgstr ""
+
+msgid "No document types defined. Create one in Document Types."
+msgstr ""
+
+msgid "Document type"
+msgstr ""
+
+msgid "Select a type…"
+msgstr ""
+
+msgid "Document name"
+msgstr ""
+
+msgid "Short: it is what you will see in lists and searches."
+msgstr ""
+
+msgid "Create draft"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
 msgid "Could not initialize the WordPress filesystem."
 msgstr ""
 
@@ -597,9 +731,6 @@ msgid "Save and sign"
 msgstr ""
 
 msgid "Use saved version"
-msgstr ""
-
-msgid "Cancel"
 msgstr ""
 
 msgid "Saving changes..."
@@ -1043,25 +1174,10 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-msgid "No document types defined. Create one in Document Types."
-msgstr ""
-
 msgid "Choose the type when creating the document. It cannot be changed later."
 msgstr ""
 
 msgid "Selected type:"
-msgstr ""
-
-msgid "Select a type…"
-msgstr ""
-
-msgid "Draft"
-msgstr ""
-
-msgid "In Review"
-msgstr ""
-
-msgid "Approved"
 msgstr ""
 
 msgid "No document type selected. Must assign a type before publishing."
@@ -1143,9 +1259,6 @@ msgstr ""
 msgid "All categories"
 msgstr ""
 
-msgid "Archived"
-msgstr ""
-
 msgid "All authors"
 msgstr ""
 
@@ -1218,9 +1331,6 @@ msgid "Comma-separated list."
 msgstr ""
 
 msgid "Documents"
-msgstr ""
-
-msgid "Document"
 msgstr ""
 
 msgid "Add New"

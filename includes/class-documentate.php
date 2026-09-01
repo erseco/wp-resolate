@@ -210,6 +210,13 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-workflow.php';
 		new Documentate_Workflow();
 
+		// Front-end application under /documentate/ (shell, list, detail, new).
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-shell.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lista.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detalle.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app.php';
+		( new Documentate_App() )->register();
+
 		$this->loader = new Documentate_Loader();
 	}
 
