@@ -16,6 +16,14 @@ Try it in the browser with WordPress Playground (includes sample data; changes a
 
 [<kbd> <br> Preview in WordPress Playground <br> </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ateeducacion/wp-documentate/refs/heads/main/blueprint.json)
 
+It opens the front-end application at `/documentate/` signed in as `admin`. The
+**Probar como…** menu in the admin bar (User Switching) jumps to the demo accounts
+`editor1`, `author1` and `subscriber1` (password `password`), each with its own
+scope, so every role can be tried without signing out. The same menu and a
+click-to-fill account list on `wp-login.php` are available in the local wp-env
+site; both come from the dev-only mu-plugin `scripts/mu-plugins/documentate-dev-tools.php`,
+which never ships in the release ZIP.
+
 ## Features
 
 - Document types (templates) defined as a custom taxonomy with schema-driven fields
@@ -64,12 +72,15 @@ Reusable procedures ship as agent skills in `.agents/skills/` and
 | `wp-project-triage` | Inspect what kind of WordPress repo this is before changing tooling |
 | `wp-plugin-security` | Input, output, AJAX/REST, capabilities, files |
 | `security-audit` | Vulnerability hunting and finding validation |
+| `testing` | PHPUnit tests: structure, mocking, data providers, coverage (≥ 90 % here) |
 
 The WordPress ones come from [`WordPress/agent-skills`](https://github.com/WordPress/agent-skills)
 (GPL-2.0-or-later), `wp-plugin-security` from
 [`fernandotellado/ai-skills`](https://github.com/fernandotellado/ai-skills),
 `security-audit` from
-[`cloudflare/security-audit-skill`](https://github.com/cloudflare/security-audit-skill).
+[`cloudflare/security-audit-skill`](https://github.com/cloudflare/security-audit-skill),
+`testing` from
+[`dr-robert-li/cowork-wordpress-expert`](https://github.com/dr-robert-li/cowork-wordpress-expert) (MIT).
 All are vendored verbatim — do not reformat or patch them locally. Add or refresh
 with `gh skill add` / `gh skill update --all` (see `AGENTS.md`).
 

@@ -471,6 +471,9 @@ msgstr "Este documento no existe o está fuera de tu ámbito."
 msgid "%1$s · updated on %2$s"
 msgstr "%1$s · actualizado el %2$s"
 
+msgid "Sent for review. An administrator will approve it or return it to you."
+msgstr "Enviado a revisión. Una persona administradora lo aprobará o te lo devolverá."
+
 msgid "This document has no fields yet."
 msgstr "Este documento aún no tiene campos."
 
@@ -481,11 +484,55 @@ msgid_plural "%d items"
 msgstr[0] "%d elemento"
 msgstr[1] "%d elementos"
 
-msgid "Open in the editor"
-msgstr "Abrir en el editor"
+msgid "Edit"
+msgstr "Editar"
 
 msgid "Back to the list"
 msgstr "Volver a la lista"
+
+msgid "Open in wp-admin"
+msgstr "Abrir en wp-admin"
+
+msgid "This document is locked in its current status and cannot be edited."
+msgstr "Este documento está bloqueado en su estado actual y no se puede editar."
+
+msgid "View the document"
+msgstr "Ver el documento"
+
+#. translators: %s: document type name
+#, php-format
+msgid "%s · fill in the fields and save, or send it for review when it is ready."
+msgstr "%s · rellena los campos y guarda, o envíalo a revisión cuando esté listo."
+
+msgid "Document name"
+msgstr "Nombre del documento"
+
+msgid "Changes saved."
+msgstr "Cambios guardados."
+
+msgid "The document needs a name."
+msgstr "El documento necesita un nombre."
+
+msgid "The document could not be saved. Try again."
+msgstr "No se ha podido guardar el documento. Inténtalo de nuevo."
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid "Updated"
+msgstr "Actualizado"
+
+msgid "Save draft"
+msgstr "Guardar borrador"
+
+msgid "Send for review"
+msgstr "Enviar a revisión"
+
+msgid "Once sent, only administrators can change it."
+msgstr "Una vez enviado, solo las personas administradoras podrán cambiarlo."
+
+msgid "Save changes"
+msgstr "Guardar cambios"
 
 msgid "Draft"
 msgstr "Borrador"
@@ -516,12 +563,6 @@ msgstr "Tu usuario no tiene una categoría de ámbito asignada. Contacta con una
 
 msgid "All"
 msgstr "Todos"
-
-msgid "Type"
-msgstr "Tipo"
-
-msgid "Updated"
-msgstr "Actualizado"
 
 msgid "Status"
 msgstr "Estado"
@@ -555,6 +596,9 @@ msgstr "Secciones"
 msgid "Home"
 msgstr "Inicio"
 
+msgid "Open the Documentate application"
+msgstr "Abrir la aplicación Documentate"
+
 msgid "Security check failed."
 msgstr "La comprobación de seguridad ha fallado."
 
@@ -581,9 +625,6 @@ msgstr "Tipo de documento"
 
 msgid "Select a type…"
 msgstr "Selecciona un tipo…"
-
-msgid "Document name"
-msgstr "Nombre del documento"
 
 msgid "Short: it is what you will see in lists and searches."
 msgstr "Corto: es el que verás en las listas y el buscador."

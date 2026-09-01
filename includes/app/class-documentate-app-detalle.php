@@ -2,8 +2,8 @@
 /**
  * Read-only document view of the front-end application.
  *
- * Shows what the document carries and where it stands in the workflow; editing
- * still happens in the wp-admin editor until the app grows its own form.
+ * Shows what the document carries and where it stands in the workflow, and
+ * leads to the in-app edit form when the workflow allows changes.
  *
  * @package Documentate
  * @subpackage App
@@ -51,6 +51,13 @@ class Documentate_App_Detalle {
 			/* translators: 1: document type name, 2: last modified date */
 			sprintf( __( '%1$s · updated on %2$s', 'documentate' ), $tipo, get_the_modified_date( '', $post ) )
 		);
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flag on a redirect.
+		if ( isset( $_GET['enviado'] ) && '1' === $_GET['enviado'] ) {
+			$html .= '<div class="dcta-aviso dcta-aviso-ok">'
+				. esc_html__( 'Sent for review. An administrator will approve it or return it to you.', 'documentate' )
+				. '</div>';
+		}
 
 		$html .= '<div class="dcta-detalle">';
 		$html .= self::render_ficha( $post );
@@ -137,15 +144,20 @@ class Documentate_App_Detalle {
 
 		$html .= '<div class="dcta-card">';
 
-		// Capability was checked on entry; the link is built directly so it does
-		// not depend on the post type object registered by the current request.
-		$edit_url = admin_url( 'post.php?post=' . $post->ID . '&action=edit' );
-		$html .= '<a class="dcta-btn dcta-btn-pri" href="' . esc_url( $edit_url ) . '">'
-			. esc_html__( 'Open in the editor', 'documentate' ) . '</a>';
+		if ( Documentate_App_Editar::puede_editar( $post ) ) {
+			$html .= '<a class="dcta-btn dcta-btn-pri" href="' . esc_url( Documentate_App_Editar::url( $post->ID ) ) . '">'
+				. esc_html__( 'Edit', 'documentate' ) . '</a>';
+		}
 
-		$html .= '<a class="dcta-btn dcta-btn-ton" style="margin-top:10px" href="'
+		$html .= '<a class="dcta-btn dcta-btn-ton" href="'
 			. esc_url( Documentate_App_Shell::page_url() ) . '">'
 			. esc_html__( 'Back to the list', 'documentate' ) . '</a>';
+
+		// Export, signature and approval still live in wp-admin. The link is
+		// built directly so it does not depend on the post type object
+		// registered by the current request.
+		$html .= '<a class="dcta-editor-volver" href="' . esc_url( admin_url( 'post.php?post=' . $post->ID . '&action=edit' ) ) . '">'
+			. esc_html__( 'Open in wp-admin', 'documentate' ) . '</a>';
 
 		$html .= '</div></div>';
 

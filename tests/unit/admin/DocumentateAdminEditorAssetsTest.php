@@ -121,6 +121,29 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 	}
 
 	/**
+	 * The front-end application renders the same rich text fields, so it gets
+	 * the same TinyMCE plugins and restrictions; other front-end pages do not.
+	 */
+	public function test_tinymce_wiring_applies_to_the_app_page() {
+		( new Documentate_App() )->ensure_page();
+		set_current_screen( 'front' );
+
+		$this->go_to( home_url( '/' ) );
+		$this->assertFalse( is_admin() );
+		$this->assertSame( array( 'existing' => 'keep.js' ), $this->admin->add_tinymce_table_plugin( array( 'existing' => 'keep.js' ) ) );
+		$this->assertSame( array( 'existing' => 'value' ), $this->admin->configure_tinymce_table_options( array( 'existing' => 'value' ) ) );
+
+		$this->go_to( Documentate_App_Shell::page_url() );
+		$plugins = $this->admin->add_tinymce_table_plugin( array( 'existing' => 'keep.js' ) );
+		$init = $this->admin->configure_tinymce_table_options( array( 'existing' => 'value' ) );
+
+		$this->assertArrayHasKey( 'table', $plugins );
+		$this->assertArrayHasKey( 'searchreplace', $plugins );
+		$this->assertTrue( $init['table_advtab'] );
+		$this->assertStringContainsString( 'script', $init['invalid_elements'] );
+	}
+
+	/**
 	 * The editor is locked down to the tags the ODT/DOCX renderer understands.
 	 */
 	public function test_tinymce_is_restricted_to_renderable_markup() {

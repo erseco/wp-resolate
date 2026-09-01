@@ -10,10 +10,12 @@
         "WPLANG": "es_ES"
     },
     "mappings": {
-        "wp-content/plugins/documentate": "./"
+        "wp-content/plugins/documentate": "./",
+        "wp-content/mu-plugins": "./scripts/mu-plugins"
     },
     "plugins": [
         "https://downloads.wordpress.org/plugins/tinymce-advanced.zip",
-        "https://downloads.wordpress.org/plugins/sql-buddy.zip"
+        "https://downloads.wordpress.org/plugins/sql-buddy.zip",
+        "https://downloads.wordpress.org/plugins/user-switching.zip"
     ]
 }

@@ -470,6 +470,9 @@ msgstr ""
 msgid "%1$s · updated on %2$s"
 msgstr ""
 
+msgid "Sent for review. An administrator will approve it or return it to you."
+msgstr ""
+
 msgid "This document has no fields yet."
 msgstr ""
 
@@ -480,10 +483,54 @@ msgid_plural "%d items"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Open in the editor"
+msgid "Edit"
 msgstr ""
 
 msgid "Back to the list"
+msgstr ""
+
+msgid "Open in wp-admin"
+msgstr ""
+
+msgid "This document is locked in its current status and cannot be edited."
+msgstr ""
+
+msgid "View the document"
+msgstr ""
+
+#. translators: %s: document type name
+#, php-format
+msgid "%s · fill in the fields and save, or send it for review when it is ready."
+msgstr ""
+
+msgid "Document name"
+msgstr ""
+
+msgid "Changes saved."
+msgstr ""
+
+msgid "The document needs a name."
+msgstr ""
+
+msgid "The document could not be saved. Try again."
+msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Updated"
+msgstr ""
+
+msgid "Save draft"
+msgstr ""
+
+msgid "Send for review"
+msgstr ""
+
+msgid "Once sent, only administrators can change it."
+msgstr ""
+
+msgid "Save changes"
 msgstr ""
 
 msgid "Draft"
@@ -514,12 +561,6 @@ msgid "Your user has no scope category assigned. Contact an administrator."
 msgstr ""
 
 msgid "All"
-msgstr ""
-
-msgid "Type"
-msgstr ""
-
-msgid "Updated"
 msgstr ""
 
 msgid "Status"
@@ -554,6 +595,9 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
+msgid "Open the Documentate application"
+msgstr ""
+
 msgid "Security check failed."
 msgstr ""
 
@@ -579,9 +623,6 @@ msgid "Document type"
 msgstr ""
 
 msgid "Select a type…"
-msgstr ""
-
-msgid "Document name"
 msgstr ""
 
 msgid "Short: it is what you will see in lists and searches."

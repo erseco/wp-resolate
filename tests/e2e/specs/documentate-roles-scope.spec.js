@@ -184,7 +184,7 @@ function createDocument( { title, categoryId, status = 'draft', authorId, docTyp
 
 	if ( docTypeId ) {
 		runWpCmd(
-			`post term set ${ postId } documentate_doc_type ${ docTypeId }`
+			`post term set ${ postId } documentate_doc_type ${ docTypeId } --by=id`
 		);
 		runWpCmd(
 			`post meta update ${ postId } documentate_locked_doc_type ${ docTypeId }`

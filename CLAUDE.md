@@ -25,8 +25,13 @@ its area — `wp-plugin-development` (hooks, Settings API, packaging),
 `wp-rest-api` (routes, permission callbacks, schema),
 `wp-plugin-directory-guidelines` (`readme.txt`, licensing, what
 `make check-plugin` enforces), `blueprint` (`blueprint.json`, Playground),
-`wp-performance`, `wp-project-triage`, `wp-plugin-security`, `security-audit`.
+`wp-performance`, `wp-project-triage`, `wp-plugin-security`, `security-audit`,
+`testing` (PHPUnit structure, mocking, coverage).
 Never reformat or edit a skill in place. Details in `AGENTS.md`.
+
+Coverage must stay **≥ 90 %** (project and patch) with real tests — no
+`@codeCoverageIgnore`, no hiding files from `codecov.yml`/`phpunit.xml.dist`,
+no assertion-free tests. See *Tests* in `AGENTS.md`.
 
 ---
 

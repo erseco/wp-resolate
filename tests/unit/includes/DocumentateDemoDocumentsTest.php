@@ -110,5 +110,68 @@ class DocumentateDemoDocumentsTest extends WP_UnitTestCase {
 			$this->assertCount( 1, $posts, "Demo document with key '{$demo_key}' must exist." );
 		}
 	}
+
+	/**
+	 * Seeding with no logged-in user (WP-CLI, Playground blueprint steps) must
+	 * still give every demo document a scope category and an author, and must
+	 * not seed twice.
+	 */
+	public function test_demo_documents_get_scope_and_author_without_a_logged_in_user() {
+		wp_set_current_user( 0 );
+		delete_option( 'documentate_seed_demo_documents' );
+		update_option( 'documentate_seed_demo_documents', true );
+
+		Documentate_Demo_Data::ensure_default_media();
+		Documentate_Demo_Data::maybe_seed_default_doc_types();
+		Documentate_Demo_Data::maybe_seed_demo_categories();
+		Documentate_Demo_Data::maybe_seed_demo_users();
+		Documentate_Demo_Data::maybe_seed_demo_documents();
+
+		wp_set_current_user( $this->admin_user_id );
+
+		$ids = get_posts(
+			array(
+				'post_type'      => 'documentate_document',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'meta_key'       => '_documentate_demo_type_id',
+			)
+		);
+		$this->assertNotEmpty( $ids );
+
+		$root = get_term_by( 'name', 'Organización', 'category' );
+		$this->assertInstanceOf( WP_Term::class, $root );
+		$scope_ids = get_term_children( $root->term_id, 'category' );
+
+		$authors = array();
+		foreach ( $ids as $post_id ) {
+			$categories = wp_get_post_terms( $post_id, 'category', array( 'fields' => 'ids' ) );
+			$this->assertNotEmpty( array_intersect( $categories, $scope_ids ), "Demo document {$post_id} must belong to a scope category." );
+			$authors[] = (int) get_post_field( 'post_author', $post_id );
+		}
+		$this->assertNotContains( 0, $authors, 'Every demo document must have an author.' );
+		$this->assertContains( get_user_by( 'login', 'editor1' )->ID, $authors );
+		$this->assertContains( get_user_by( 'login', 'author1' )->ID, $authors );
+
+		// A second seeding pass in the same anonymous context must detect the
+		// existing demo documents instead of duplicating them.
+		wp_set_current_user( 0 );
+		update_option( 'documentate_seed_demo_documents', true );
+		Documentate_Demo_Data::maybe_seed_demo_documents();
+		wp_set_current_user( $this->admin_user_id );
+
+		$again = get_posts(
+			array(
+				'post_type'      => 'documentate_document',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'meta_key'       => '_documentate_demo_type_id',
+			)
+		);
+		$this->assertCount( count( $ids ), $again );
+		$this->assertFalse( get_option( 'documentate_seed_demo_documents', false ) );
+	}
 }
 

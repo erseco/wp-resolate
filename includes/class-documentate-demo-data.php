@@ -514,27 +514,36 @@ class Documentate_Demo_Data {
 	 * @return bool
 	 */
 	private static function demo_documents_already_seeded() {
-		$existing_demos = get_posts(
-			array(
-				'post_type' => 'documentate_document',
-				'post_status' => 'any',
-				'posts_per_page' => 1,
-				'fields' => 'ids',
-				'meta_query' => array(
-					'relation' => 'OR',
-					array(
-						'key' => '_documentate_demo_key',
-						'compare' => 'EXISTS',
-					),
-					array(
-						'key' => '_documentate_demo_type_id',
-						'compare' => 'EXISTS',
-					),
-				),
+		return ! empty( self::get_demo_document_ids() );
+	}
+
+	/**
+	 * IDs of every seeded demo document, oldest first.
+	 *
+	 * Seeding runs on init in contexts with no user (WP-CLI, the first
+	 * anonymous request, Playground blueprint steps), where the document
+	 * access protection hides every document from WP_Query. The lookup goes
+	 * straight to the database so those contexts still find the demo posts.
+	 *
+	 * @return int[]
+	 */
+	private static function get_demo_document_ids() {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-off lookup during demo seeding; WP_Query is filtered by the access protection when no user is logged in.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT p.ID FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+				WHERE p.post_type = %s AND pm.meta_key IN ( %s, %s )
+				ORDER BY p.ID ASC",
+				'documentate_document',
+				'_documentate_demo_key',
+				'_documentate_demo_type_id'
 			)
 		);
 
-		return ! empty( $existing_demos );
+		return array_map( 'intval', (array) $ids );
 	}
 
 	/**
@@ -766,33 +775,28 @@ class Documentate_Demo_Data {
 			return;
 		}
 
-		// Get all demo documents.
-		$demo_docs = get_posts(
-			array(
-				'post_type' => 'documentate_document',
-				'post_status' => 'any',
-				'posts_per_page' => -1,
-				'fields' => 'ids',
-				'meta_query' => array(
-					'relation' => 'OR',
-					array(
-						'key' => '_documentate_demo_key',
-						'compare' => 'EXISTS',
-					),
-					array(
-						'key' => '_documentate_demo_type_id',
-						'compare' => 'EXISTS',
-					),
-				),
-			)
-		);
+		$demo_docs = self::get_demo_document_ids();
 
 		if ( empty( $demo_docs ) ) {
 			return;
 		}
 
 		// Build list of authors to round-robin: admin + editor1 + author1.
-		$author_ids = array( get_current_user_id() );
+		// Without a logged-in user (WP-CLI, blueprint steps) fall back to the
+		// first administrator so no demo document is left without an author.
+		$admin_id = get_current_user_id();
+		if ( 0 === $admin_id ) {
+			$admins = get_users(
+				array(
+					'role' => 'administrator',
+					'number' => 1,
+					'orderby' => 'ID',
+					'fields' => 'ID',
+				)
+			);
+			$admin_id = ! empty( $admins ) ? (int) $admins[0] : 0;
+		}
+		$author_ids = array( $admin_id );
 		$editor_user = get_user_by( 'login', 'editor1' );
 		$author_user = get_user_by( 'login', 'author1' );
 		if ( $editor_user ) {

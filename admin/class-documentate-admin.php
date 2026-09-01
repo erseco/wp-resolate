@@ -632,14 +632,31 @@ class Documentate_Admin {
 	}
 
 	/**
+	 * Whether the request renders document editors: the wp-admin document
+	 * screen or the front-end application page. `get_current_screen()` does
+	 * not exist on the front end, so it must not be assumed.
+	 *
+	 * @return bool
+	 */
+	private function is_document_editor_context() {
+		if ( function_exists( 'get_current_screen' ) ) {
+			$screen = get_current_screen();
+			if ( $screen && 'documentate_document' === $screen->post_type ) {
+				return true;
+			}
+		}
+
+		return class_exists( 'Documentate_App_Shell' ) && Documentate_App_Shell::is_app_page();
+	}
+
+	/**
 	 * Register TinyMCE table and searchreplace plugins for document editors.
 	 *
 	 * @param array<string,string> $plugins Array of external TinyMCE plugins.
 	 * @return array<string,string> Modified array of plugins.
 	 */
 	public function add_tinymce_table_plugin( $plugins ) {
-		$screen = get_current_screen();
-		if ( $screen && 'documentate_document' === $screen->post_type ) {
+		if ( $this->is_document_editor_context() ) {
 			$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 			$plugins['table'] = plugin_dir_url( __FILE__ ) . 'mce/table/plugin' . $suffix . '.js';
 			$plugins['searchreplace'] = plugin_dir_url( __FILE__ ) . 'mce/searchreplace/plugin' . $suffix . '.js';
@@ -654,8 +671,7 @@ class Documentate_Admin {
 	 * @return array<string,mixed> Modified init settings.
 	 */
 	public function configure_tinymce_table_options( $init ) {
-		$screen = get_current_screen();
-		if ( $screen && 'documentate_document' === $screen->post_type ) {
+		if ( $this->is_document_editor_context() ) {
 			$init['table_toolbar'] = false;
 			$init['table_responsive_width'] = true;
 			$init['table_resize_bars'] = true;

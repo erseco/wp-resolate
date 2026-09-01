@@ -44,7 +44,35 @@ class Documentate_App {
 		add_filter( 'body_class', array( 'Documentate_App_Shell', 'body_class' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'ensure_page' ) );
+		add_action( 'admin_bar_menu', array( $this, 'admin_bar_node' ), 100 );
 		add_action( 'template_redirect', array( $this, 'handle_create_document' ) );
+		add_action( 'template_redirect', array( $this, 'handle_save_document' ) );
+	}
+
+	/**
+	 * Add a shortcut to the application in the admin bar.
+	 *
+	 * @param WP_Admin_Bar $wp_admin_bar Admin bar instance.
+	 * @return void
+	 */
+	public function admin_bar_node( $wp_admin_bar ) {
+		if ( ! self::current_user_can_use_app() ) {
+			return;
+		}
+
+		$url = Documentate_App_Shell::page_url();
+		if ( '' === $url ) {
+			return;
+		}
+
+		$wp_admin_bar->add_node(
+			array(
+				'id' => 'documentate-app',
+				'title' => 'Documentate',
+				'href' => $url,
+				'meta' => array( 'title' => __( 'Open the Documentate application', 'documentate' ) ),
+			)
+		);
 	}
 
 	/**
@@ -84,7 +112,10 @@ class Documentate_App {
 	}
 
 	/**
-	 * Enqueue the application stylesheet on the application page only.
+	 * Enqueue the application assets on the application page only.
+	 *
+	 * The edit view reuses the wp-admin field controls, so it also needs the
+	 * classic editor (rich fields) and the repeater script.
 	 *
 	 * @return void
 	 */
@@ -99,6 +130,41 @@ class Documentate_App {
 			array(),
 			DOCUMENTATE_VERSION,
 		);
+
+		if ( ! self::is_edit_view_request() ) {
+			return;
+		}
+
+		wp_enqueue_editor();
+		wp_enqueue_script(
+			'documentate-annexes',
+			plugins_url( 'admin/js/documentate-annexes.js', DOCUMENTATE_PLUGIN_FILE ),
+			array( 'editor' ),
+			DOCUMENTATE_VERSION,
+			true,
+		);
+		$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+		wp_localize_script(
+			'documentate-annexes',
+			'documentateTable',
+			array(
+				'pluginUrl' => plugins_url( 'admin/mce/table/plugin' . $suffix . '.js', DOCUMENTATE_PLUGIN_FILE ),
+			)
+		);
+	}
+
+	/**
+	 * Whether the request asks for the edit view of a document.
+	 *
+	 * @return bool
+	 */
+	private static function is_edit_view_request() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
+		$vista = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
+		$doc = isset( $_GET['doc'] ) ? absint( $_GET['doc'] ) : 0;
+
+		return 'editar' === $vista && $doc > 0;
 	}
 
 	/**
@@ -111,6 +177,72 @@ class Documentate_App {
 	}
 
 	/**
+	 * Whether the request posts the given application action.
+	 *
+	 * @param string $accion Action name carried by the form.
+	 * @return bool
+	 */
+	private static function es_accion( $accion ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller verifies the nonce next.
+		return isset( $_POST['documentate_app_accion'] ) && $accion === $_POST['documentate_app_accion'];
+	}
+
+	/**
+	 * Stop the request unless the form carries a valid nonce for the action.
+	 *
+	 * @param string $accion Nonce action.
+	 * @return void
+	 */
+	private static function exigir_nonce( $accion ) {
+		$nonce = isset( $_POST['documentate_app_nonce'] ) ? sanitize_key( wp_unslash( $_POST['documentate_app_nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, $accion ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'documentate' ), '', array( 'response' => 403 ) );
+		}
+	}
+
+	/**
+	 * Stop the request with a 403.
+	 *
+	 * @return void
+	 */
+	private static function denegar() {
+		wp_die( esc_html__( 'Insufficient permissions.', 'documentate' ), '', array( 'response' => 403 ) );
+	}
+
+	/**
+	 * Title posted by the form, sanitised.
+	 *
+	 * @return string
+	 */
+	private static function titulo_enviado() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller has verified the nonce.
+		return isset( $_POST['documentate_app_titulo'] ) ? sanitize_text_field( wp_unslash( $_POST['documentate_app_titulo'] ) ) : '';
+	}
+
+	/**
+	 * Non-negative integer posted by the form (an ID), 0 when absent.
+	 *
+	 * @param string $campo Field name.
+	 * @return int
+	 */
+	private static function entero_enviado( $campo ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Callers verify the nonce around this read.
+		return isset( $_POST[ $campo ] ) ? absint( $_POST[ $campo ] ) : 0;
+	}
+
+	/**
+	 * Redirect inside the application and stop.
+	 *
+	 * @param string               $url  Destination.
+	 * @param array<string,string> $args Query arguments to add (feedback flags).
+	 * @return void
+	 */
+	private static function redirigir( $url, array $args = array() ) {
+		wp_safe_redirect( add_query_arg( $args, $url ) );
+		exit;
+	}
+
+	/**
 	 * Create a draft document from the "new document" form and redirect.
 	 *
 	 * Runs on template_redirect so the redirect happens before any output.
@@ -118,32 +250,22 @@ class Documentate_App {
 	 * @return void
 	 */
 	public function handle_create_document() {
-		if ( ! isset( $_POST['documentate_app_accion'] ) || 'crear_documento' !== $_POST['documentate_app_accion'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified below.
+		if ( ! self::es_accion( 'crear_documento' ) ) {
 			return;
 		}
 
-		if (
-			! isset( $_POST['documentate_app_nonce'] )
-			|| ! wp_verify_nonce(
-				sanitize_key( wp_unslash( $_POST['documentate_app_nonce'] ) ),
-				'documentate_app_crear'
-			)
-		) {
-			wp_die( esc_html__( 'Security check failed.', 'documentate' ), '', array( 'response' => 403 ) );
-		}
+		self::exigir_nonce( 'documentate_app_crear' );
 
 		if ( ! self::current_user_can_use_app() ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'documentate' ), '', array( 'response' => 403 ) );
+			self::denegar();
 		}
 
-		$titulo = isset( $_POST['documentate_app_titulo'] )
-			? sanitize_text_field( wp_unslash( $_POST['documentate_app_titulo'] ) )
-			: '';
-		$tipo = isset( $_POST['documentate_app_tipo'] ) ? absint( $_POST['documentate_app_tipo'] ) : 0;
+		$nuevo_url = Documentate_App_Shell::page_url( array( 'vista' => 'nuevo' ) );
+		$titulo = self::titulo_enviado();
+		$tipo = self::entero_enviado( 'documentate_app_tipo' );
 
-		if ( '' === $titulo || $tipo <= 0 || ! term_exists( $tipo, 'documentate_doc_type' ) ) {
-			wp_safe_redirect( add_query_arg( 'error', 'datos', Documentate_App_Shell::page_url( array( 'vista' => 'nuevo' ) ) ) );
-			exit;
+		if ( '' === $titulo || 0 === $tipo || ! term_exists( $tipo, 'documentate_doc_type' ) ) {
+			self::redirigir( $nuevo_url, array( 'error' => 'datos' ) );
 		}
 
 		$post_id = wp_insert_post(
@@ -155,17 +277,106 @@ class Documentate_App {
 			true
 		);
 
-		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
-			wp_safe_redirect( add_query_arg( 'error', 'crear', Documentate_App_Shell::page_url( array( 'vista' => 'nuevo' ) ) ) );
-			exit;
+		if ( is_wp_error( $post_id ) ) {
+			self::redirigir( $nuevo_url, array( 'error' => 'crear' ) );
 		}
 
 		wp_set_post_terms( $post_id, array( $tipo ), 'documentate_doc_type', false );
 		update_post_meta( $post_id, 'documentate_locked_doc_type', $tipo );
 
-		// The fields editor still lives in wp-admin; the app takes over as views land.
-		wp_safe_redirect( admin_url( 'post.php?post=' . $post_id . '&action=edit' ) );
-		exit;
+		self::redirigir( Documentate_App_Editar::url( $post_id ) );
+	}
+
+	/**
+	 * Persist the edit form and redirect.
+	 *
+	 * The form carries the sections-metabox nonce and field names, so
+	 * wp_update_post() drives the same filters and save_post handlers as the
+	 * wp-admin editor: the workflow decides the final status, the content
+	 * writer composes post_content and the meta saver stores the fields.
+	 *
+	 * @return void
+	 */
+	public function handle_save_document() {
+		if ( ! self::es_accion( 'guardar_documento' ) ) {
+			return;
+		}
+
+		$doc_id = self::entero_enviado( 'documentate_app_doc' );
+		self::exigir_nonce( 'documentate_app_guardar_' . $doc_id );
+
+		$post = self::documento_editable_por_el_usuario( $doc_id );
+		if ( ! $post ) {
+			self::denegar();
+		}
+
+		$editar_url = Documentate_App_Editar::url( $post->ID );
+
+		if ( ! Documentate_App_Editar::puede_editar( $post ) ) {
+			self::redirigir( $editar_url, array( 'error' => 'bloqueado' ) );
+		}
+
+		$titulo = self::titulo_enviado();
+		if ( '' === $titulo ) {
+			self::redirigir( $editar_url, array( 'error' => 'titulo' ) );
+		}
+
+		// Saving keeps the stored status; only a draft can be sent for review.
+		// Approval and archiving stay in wp-admin.
+		$enviar = self::se_envia_a_revision( $post );
+
+		$result = wp_update_post(
+			array(
+				'ID' => $post->ID,
+				'post_title' => $titulo,
+				'post_status' => $enviar ? 'pending' : $post->post_status,
+			),
+			true
+		);
+
+		if ( is_wp_error( $result ) ) {
+			self::redirigir( $editar_url, array( 'error' => 'guardar' ) );
+		}
+
+		// The workflow may have kept the document in draft (for instance when
+		// it has no type); only leave the editor when it really moved on.
+		if ( $enviar && 'pending' === get_post_status( $post->ID ) ) {
+			self::redirigir( Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) ), array( 'enviado' => '1' ) );
+		}
+
+		self::redirigir( $editar_url, array( 'guardado' => '1' ) );
+	}
+
+	/**
+	 * The document the current user may save through the application.
+	 *
+	 * @param int $doc_id Document ID from the form.
+	 * @return WP_Post|null Null when it is not a document the user can edit.
+	 */
+	private static function documento_editable_por_el_usuario( $doc_id ) {
+		if ( ! self::current_user_can_use_app() ) {
+			return null;
+		}
+
+		$post = get_post( $doc_id );
+		if ( ! $post instanceof WP_Post || 'documentate_document' !== $post->post_type ) {
+			return null;
+		}
+
+		return current_user_can( 'edit_post', $post->ID ) ? $post : null;
+	}
+
+	/**
+	 * Whether the form asks to send a draft for review.
+	 *
+	 * @param WP_Post $post Document being saved.
+	 * @return bool
+	 */
+	private static function se_envia_a_revision( $post ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller has verified the nonce.
+		$estado = isset( $_POST['documentate_app_estado'] ) ? sanitize_key( wp_unslash( $_POST['documentate_app_estado'] ) ) : '';
+
+		return 'enviar' === $estado && 'draft' === $post->post_status;
 	}
 
 	/**
@@ -198,7 +409,9 @@ class Documentate_App {
 		$vista = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
 
 		if ( $doc > 0 ) {
-			return Documentate_App_Detalle::render( $doc );
+			return 'editar' === $vista
+				? Documentate_App_Editar::render( $doc )
+				: Documentate_App_Detalle::render( $doc );
 		}
 
 		if ( 'nuevo' === $vista ) {

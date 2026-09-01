@@ -252,9 +252,38 @@ A task is **not complete** if any of the following remain:
 
 ### Tests
 
-- Write tests for new behaviour (TDD preferred).
+- Write tests for new behaviour (TDD preferred). Read the `testing` skill
+  before writing them (AAA pattern, one behaviour per test, data providers,
+  mocking `pre_http_request`, WordPress factories).
 - Tests live in `tests/unit/`; use factory classes from `tests/includes/`.
-- Run `make test` to execute the PHPUnit suite inside wp-env.
+- Run `make test` to execute the PHPUnit suite inside wp-env;
+  `make test-coverage` produces the same report CI sends to Codecov.
+
+#### Coverage: 90 % minimum, no tricks
+
+- Line coverage must stay **at or above 90 %**, both for the whole plugin
+  (`project`) and for the lines touched by a PR (`patch`). Codecov enforces
+  both thresholds from `codecov.yml`; a PR that drops either below 90 % is
+  not ready.
+- The number must reflect real tests of real behaviour. **Never** raise it
+  by gaming the measurement:
+  - no `@codeCoverageIgnore`, `@codeCoverageIgnoreStart/End` or
+    `// @codeCoverageIgnore` annotations;
+  - no adding files or directories to the `ignore:` list of `codecov.yml` or
+    to the `<exclude>` filter of `phpunit.xml.dist` to hide untested code
+    (only vendored third-party sources and generated assets belong there);
+  - no lowering the thresholds, disabling the Codecov status checks or
+    marking them informational;
+  - no assertion-free tests, tests that only instantiate a class, or tests
+    that mirror the implementation line by line without checking an
+    observable outcome (return value, stored data, hook side effect,
+    rendered output, thrown exception);
+  - no `@covers` annotations pointing at code the test does not exercise.
+- If a branch is hard to reach, refactor the code so it becomes testable
+  (extract the pure part, inject the dependency) instead of excluding it.
+- Untestable-by-design code (`exit`, `wp_die` with output, external
+  processes) is a narrow exception: keep it in the thinnest possible wrapper
+  and test everything around it.
 
 ---
 
@@ -264,7 +293,8 @@ A change is ready when **all** of the following are true:
 
 1. `make lint` passes with no errors.
 2. `make check-plugin` passes with no errors.
-3. `make test` passes with no failures.
+3. `make test` passes with no failures, and coverage stays at or above 90 %
+   (project and patch) without any of the tricks listed under *Tests*.
 4. `make check-untranslated` passes with no empty Spanish translations
    (**always** before push/PR — not optional “if you remember strings”).
 5. `make test-e2e` passes for the affected flows (if UI/browser behaviour changed).
@@ -321,6 +351,7 @@ in the plugin's supported version range.
 | `wp-project-triage` | Inspecting what kind of WordPress repo this is before changing tooling or layout | idem |
 | `wp-plugin-security` | Writing or reviewing code that handles input, output, AJAX/REST, capabilities or files | [`fernandotellado/ai-skills`](https://github.com/fernandotellado/ai-skills), GPL-2.0-or-later |
 | `security-audit` | Hunting vulnerabilities and validating findings | [`cloudflare/security-audit-skill`](https://github.com/cloudflare/security-audit-skill) |
+| `testing` | Writing or reviewing PHPUnit tests: structure, naming, data providers, mocking, coverage targets | [`dr-robert-li/cowork-wordpress-expert`](https://github.com/dr-robert-li/cowork-wordpress-expert), MIT |
 
 All of them are **third party and vendored verbatim**. Do not reformat or edit
 them: diverging from upstream makes `gh skill update` harder. Fix the problem

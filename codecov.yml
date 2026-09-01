@@ -1,3 +1,16 @@
+coverage:
+  # AGENTS.md: coverage never drops below 90 %, for the whole plugin and for
+  # the lines a PR touches. Do not lower these or make them informational.
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 0%
+    patch:
+      default:
+        target: 90%
+        threshold: 0%
+
 ignore:
   # Third-party sources are copied into the distributable plugin during the
   # Composer build. Their coverage belongs to the upstream packages.

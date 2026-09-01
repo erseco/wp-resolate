@@ -13,18 +13,6 @@
       "language": "es_ES"
     },
     {
-      "step": "runPHP",
-      "code": "<?php require_once('/wordpress/wp-load.php'); wp_insert_user(array('user_login' => 'editor1', 'user_email' => 'editor1@example.com', 'user_pass' => 'password', 'role' => 'editor', 'display_name' => 'María García', 'first_name' => 'María', 'last_name' => 'García')); ?>"
-    },
-    {
-      "step": "runPHP",
-      "code": "<?php require_once('/wordpress/wp-load.php'); wp_insert_user(array('user_login' => 'author1', 'user_email' => 'author1@example.com', 'user_pass' => 'password', 'role' => 'author', 'display_name' => 'Carlos López', 'first_name' => 'Carlos', 'last_name' => 'López')); ?>"
-    },
-    {
-      "step": "runPHP",
-      "code": "<?php require_once('/wordpress/wp-load.php'); wp_insert_user(array('user_login' => 'subscriber1', 'user_email' => 'subscriber1@example.com', 'user_pass' => 'password', 'role' => 'subscriber', 'display_name' => 'Ana Martínez', 'first_name' => 'Ana', 'last_name' => 'Martínez')); ?>"
-    },
-    {
       "step": "installPlugin",
       "pluginData": {
         "resource": "wordpress.org/plugins",
@@ -56,6 +44,10 @@
     },
     {
       "step": "runPHP",
+      "code": "<?php require_once('/wordpress/wp-load.php'); $src = glob(WP_PLUGIN_DIR . '/*/scripts/mu-plugins/documentate-dev-tools.php'); if ($src) { if (!is_dir(WPMU_PLUGIN_DIR)) { mkdir(WPMU_PLUGIN_DIR, 0755, true); } copy($src[0], WPMU_PLUGIN_DIR . '/documentate-dev-tools.php'); } ?>"
+    },
+    {
+      "step": "runPHP",
       "code": "<?php require_once('/wordpress/wp-load.php'); update_option('documentate_settings', array('conversion_engine' => 'collabora', 'collabora_base_url' => 'https://documentate-collabora-proxy.erseco.workers.dev')); ?>"
     }
   ],
@@ -63,5 +55,5 @@
     "networking": true
   },
   "login": true,
-  "landingPage": "/wp-admin/edit.php?post_type=documentate_document"
+  "landingPage": "/documentate/"
 }

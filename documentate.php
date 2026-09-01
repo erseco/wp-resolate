@@ -85,6 +85,13 @@ function documentate_activate_plugin() {
 
 	// Ensure default fixtures (templates) are available in Media Library and settings.
 	Documentate_Demo_Data::ensure_default_media();
+
+	// The application page must exist before the first front-end request:
+	// Playground lands on /documentate/ right after activation, with no
+	// admin_init in between.
+	if ( class_exists( 'Documentate_App' ) ) {
+		( new Documentate_App() )->ensure_page();
+	}
 }
 
 /**

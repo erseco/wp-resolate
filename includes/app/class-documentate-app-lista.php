@@ -251,9 +251,7 @@ class Documentate_App_Lista {
 		$detalle_url = Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) );
 
 		$editable = 'draft' === $post->post_status && current_user_can( 'edit_post', $post->ID );
-		$accion_url = $editable
-			? admin_url( 'post.php?post=' . $post->ID . '&action=edit' )
-			: $detalle_url;
+		$accion_url = $editable ? Documentate_App_Editar::url( $post->ID ) : $detalle_url;
 		$accion = $editable ? __( 'Continue', 'documentate' ) : __( 'View', 'documentate' );
 
 		return '<div class="dcta-fila">'
