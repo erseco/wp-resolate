@@ -464,8 +464,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->helper->render_actions_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Preview', $output );
-		$this->assertStringContainsString( 'Download PDF', $output );
+		$this->assertStringContainsString( 'Previsualizar PDF', $output );
+		$this->assertStringContainsString( 'Descargar PDF', $output );
 		$this->assertStringContainsString( 'DOCX', $output );
 		$this->assertStringContainsString( 'ODT', $output );
 	}
@@ -701,7 +701,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->helper->render_actions_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Preview', $output );
+		$this->assertStringContainsString( 'Previsualizar PDF', $output );
 	}
 
 	/**
@@ -1941,7 +1941,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-actions-primary', $output );
-		$this->assertStringNotContainsString( 'Editable download:', $output );
+		$this->assertStringNotContainsString( 'Otros formatos de descarga:', $output );
 		$this->assertStringNotContainsString( 'documentate-actions-secondary', $output );
 	}
 
@@ -2210,5 +2210,81 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 
 		// Download actions should still be available for archived documents.
 		$this->assertStringContainsString( 'DOCX', $output );
+	}
+
+	/**
+	 * The export block of the front-end application carries the anchor lists link to.
+	 */
+	public function test_render_actions_for_post_wraps_the_export_anchor() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		ob_start();
+		$this->helper->render_actions_for_post( $post );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'id="exportar"', $output );
+		$this->assertStringContainsString( 'dcta-exportar', $output );
+		$this->assertStringContainsString( 'Descargar PDF', $output );
+		$this->assertStringContainsString( 'DOCX', $output );
+		$this->assertStringNotContainsString(
+			'documentate-unsaved-indicator',
+			$output,
+			'The application shows its own unsaved state.'
+		);
+	}
+
+	/**
+	 * The export block is not drawn for whoever cannot edit the document.
+	 */
+	public function test_render_actions_for_post_refuses_a_stranger() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+		wp_set_current_user( 0 );
+
+		ob_start();
+		$this->helper->render_actions_for_post( $post );
+
+		$this->assertSame( '', ob_get_clean() );
+	}
+
+	/**
+	 * The string helper the application views use returns the same markup.
+	 */
+	public function test_bloque_exportar_returns_the_markup() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		$html = Documentate_Admin_Helper::bloque_exportar( $post );
+
+		$this->assertStringContainsString( 'id="exportar"', $html );
+		$this->assertInstanceOf( Documentate_Admin_Helper::class, Documentate_Admin_Helper::instancia() );
+	}
+
+	/**
+	 * The application tells the unsaved-changes guard which form to watch.
+	 */
+	public function test_enqueue_actions_assets_for_post_takes_a_form_selector() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		$this->helper->enqueue_actions_assets_for_post( $post->ID, 'form.dcta-editor' );
+
+		$this->assertTrue( wp_style_is( 'documentate-actions', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-actions', 'enqueued' ) );
+
+		$datos = wp_scripts()->get_data( 'documentate-unsaved-changes', 'data' );
+		$this->assertStringContainsString( '"formSelector":"form.dcta-editor"', (string) $datos );
+		// wp_localize_script() casts every scalar to a string.
+		$this->assertStringContainsString( '"postId":"' . $post->ID . '"', (string) $datos );
+	}
+
+	/**
+	 * Without a document there is nothing to enqueue.
+	 */
+	public function test_enqueue_actions_assets_for_post_ignores_an_empty_document() {
+		wp_dequeue_style( 'documentate-actions' );
+		wp_dequeue_script( 'documentate-actions' );
+
+		$this->helper->enqueue_actions_assets_for_post( 0 );
+
+		$this->assertFalse( wp_style_is( 'documentate-actions', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'documentate-actions', 'enqueued' ) );
 	}
 }

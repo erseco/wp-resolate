@@ -152,6 +152,45 @@ describe( 'row and provider totals', () => {
 		expect( input( 'tpl_fields[suministros][0][total]' ).value ).toBe( '' );
 	} );
 
+	it( 'keeps a row whose total was typed by hand and adds it to the bruto', () => {
+		document.body.innerHTML = `
+			<form id="post">
+				${ repetidor( 'expertos', [
+					proveedor( 'expertos', 0, { proveedor: 'Ponente', igic: '', irpf: '' }, [
+						{ concepto: 'Ponencia', total: '300' },
+					] ),
+				] ) }
+				${ GASTO }
+			</form>`;
+		cargar();
+
+		const total = input( 'tpl_fields[expertos][0][conceptos][0][total]' );
+		expect( total.value ).toBe( '300' );
+		expect( total.readOnly ).toBe( false );
+		expect( total.hasAttribute( 'data-calculado' ) ).toBe( false );
+		expect( input( 'tpl_fields[expertos][0][bruto]' ).value ).toBe( '300.00' );
+		expect( input( 'tpl_fields[expertos][0][total]' ).value ).toBe( '300.00' );
+		expect( input( 'documentate_field_gasto_numero' ).value ).toBe( '300.00' );
+	} );
+
+	it( 'gives a computed total back to the user when its row is emptied', () => {
+		cargar();
+
+		const cantidad = input( 'tpl_fields[servicios][0][conceptos][0][cantidad]' );
+		const unitario = input( 'tpl_fields[servicios][0][conceptos][0][unitario]' );
+		expect( input( 'tpl_fields[servicios][0][conceptos][0][total]' ).readOnly ).toBe( true );
+
+		cantidad.value = '';
+		unitario.value = '';
+		unitario.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+
+		const total = input( 'tpl_fields[servicios][0][conceptos][0][total]' );
+		expect( total.readOnly ).toBe( false );
+		expect( total.value ).toBe( '21.00' );
+		// The amount left in the row still counts, so nothing is lost.
+		expect( input( 'tpl_fields[servicios][0][bruto]' ).value ).toBe( '1021.00' );
+	} );
+
 	it( 'writes a summary line on every provider card in es-ES', () => {
 		cargar();
 
@@ -223,13 +262,34 @@ describe( 'summary card and gasto_numero', () => {
 		expect( document.querySelector( '.dcta-resumen' ).textContent ).toContain( '1028,00 €' );
 	} );
 
-	it( 'clears gasto_numero when no provider has conceptos', () => {
+	it( 'keeps a hand-typed gasto_numero editable when no provider has conceptos', () => {
 		document.body.innerHTML = `<form>${ repetidor( 'servicios', [ proveedor( 'servicios', 0, {}, [ {} ] ) ] ) }${ GASTO }</form>`;
 		input( 'documentate_field_gasto_numero' ).value = '99';
 		cargar();
 
-		expect( input( 'documentate_field_gasto_numero' ).value ).toBe( '' );
+		const gasto = input( 'documentate_field_gasto_numero' );
+		expect( gasto.value ).toBe( '99' );
+		expect( gasto.readOnly ).toBe( false );
+		expect( gasto.hasAttribute( 'data-calculado' ) ).toBe( false );
 		expect( document.querySelector( '.documentate-resumen' ).textContent ).toContain( 'Servicios (0)' );
+	} );
+
+	it( 'takes gasto_numero over again as soon as a concepto row is filled', () => {
+		document.body.innerHTML = `<form>${ repetidor( 'servicios', [ proveedor( 'servicios', 0, {}, [ {} ] ) ] ) }${ GASTO }</form>`;
+		input( 'documentate_field_gasto_numero' ).value = '99';
+		cargar();
+
+		const cantidad = input( 'tpl_fields[servicios][0][conceptos][0][cantidad]' );
+		cantidad.value = '2';
+		cantidad.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+		const unitario = input( 'tpl_fields[servicios][0][conceptos][0][unitario]' );
+		unitario.value = '10';
+		unitario.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+
+		const gasto = input( 'documentate_field_gasto_numero' );
+		expect( gasto.value ).toBe( '20.00' );
+		expect( gasto.readOnly ).toBe( true );
+		expect( gasto.getAttribute( 'data-calculado' ) ).toBe( '1' );
 	} );
 
 	it( 'does nothing when the document has no provider repeaters', () => {

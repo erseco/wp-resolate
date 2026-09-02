@@ -305,4 +305,67 @@ class SchemaConverterTest extends WP_UnitTestCase {
 		$this->assertSame( 'area', $rows['anexos']['rol'] );
 		$this->assertSame( 'area', $rows['anexos']['item_schema']['code']['rol'] );
 	}
+
+	/**
+	 * The rol is read the same way everywhere: alias, case and spacing included.
+	 *
+	 * A schema written by hand, by an older version or by a test does not go
+	 * through the extractor's normalisation, so the converter must not be
+	 * stricter than Documentate_Campos_Rol::rol_del_campo().
+	 */
+	public function test_to_legacy_normalises_the_rol_like_the_single_normaliser() {
+		$schema = array(
+			'version' => 2,
+			'fields' => array(
+				array( 'slug' => 'mayusculas', 'type' => 'text', 'rol' => ' GESTIÓN ' ),
+				array( 'slug' => 'alias', 'type' => 'text', 'role' => 'gestion' ),
+			),
+		);
+
+		$rows = array();
+		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {
+			$rows[ $row['slug'] ] = $row;
+		}
+
+		$this->assertSame( 'gestion', $rows['mayusculas']['rol'] );
+		$this->assertSame( 'gestion', $rows['alias']['rol'] );
+	}
+
+	/**
+	 * The entries of a block inherit its rol when they declare none.
+	 */
+	public function test_to_legacy_inherits_the_block_rol_in_the_item_schema() {
+		$schema = array(
+			'version' => 2,
+			'repeaters' => array(
+				array(
+					'slug' => 'servicios',
+					'name' => 'servicios',
+					'rol' => 'gestion',
+					'fields' => array(
+						array( 'slug' => 'proveedor', 'type' => 'text' ),
+						array( 'slug' => 'nota', 'type' => 'text', 'rol' => 'area' ),
+						array(
+							'slug' => 'conceptos',
+							'type' => 'array',
+							'fields' => array(
+								array( 'slug' => 'total', 'type' => 'number' ),
+							),
+						),
+					),
+				),
+			),
+		);
+
+		$rows = array();
+		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {
+			$rows[ $row['slug'] ] = $row;
+		}
+		$items = $rows['servicios']['item_schema'];
+
+		$this->assertSame( 'gestion', $items['proveedor']['rol'], 'Inherited from the block.' );
+		$this->assertSame( 'area', $items['nota']['rol'], 'Its own rol wins.' );
+		$this->assertSame( 'gestion', $items['conceptos']['rol'] );
+		$this->assertSame( 'gestion', $items['conceptos']['item_schema']['total']['rol'], 'Inherited down the nesting.' );
+	}
 }

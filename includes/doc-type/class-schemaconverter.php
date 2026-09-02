@@ -86,11 +86,21 @@ class SchemaConverter {
 	/**
 	 * Rol of a schema record: who fills the field in.
 	 *
-	 * @param array $record Field, repeater or item definition.
-	 * @return string "gestion" when declared so, "area" otherwise.
+	 * Normalisation (alias `role`, case, whitespace) lives in a single place,
+	 * Documentate_Campos_Rol::rol_del_campo(), so a hand-edited or older
+	 * schema is read exactly like the extractor writes it. A record that
+	 * declares no rol at all inherits the one of the block it belongs to.
+	 *
+	 * @param array  $record  Field, repeater or item definition.
+	 * @param string $default Rol inherited when the record declares none.
+	 * @return string "gestion" or "area".
 	 */
-	private static function resolve_rol( $record ) {
-		return isset( $record['rol'] ) && 'gestion' === $record['rol'] ? 'gestion' : 'area';
+	private static function resolve_rol( $record, $default = \Documentate_Campos_Rol::ROL_AREA ) {
+		if ( ! is_array( $record ) || ( ! isset( $record['rol'] ) && ! isset( $record['role'] ) ) ) {
+			return $default;
+		}
+
+		return \Documentate_Campos_Rol::rol_del_campo( $record );
 	}
 
 	/**
@@ -112,7 +122,8 @@ class SchemaConverter {
 		$label = self::resolve_label( $repeater, $slug );
 		// Preserve the base block name used in the template (e.g., "items").
 		$tbs_name = self::sanitize_tbs_name( $repeater, $slug );
-		$item_schema = self::map_item_schema( $repeater );
+		$rol = self::resolve_rol( $repeater );
+		$item_schema = self::map_item_schema( $repeater, $rol );
 
 		return array(
 			'slug' => $slug,
@@ -123,7 +134,7 @@ class SchemaConverter {
 			'name' => $tbs_name,
 			'data_type' => 'array',
 			'item_schema' => $item_schema,
-			'rol' => self::resolve_rol( $repeater ),
+			'rol' => $rol,
 		);
 	}
 
@@ -134,10 +145,12 @@ class SchemaConverter {
 	 * "array" carrying its own item_schema, so the editor can render the rows
 	 * of each parent record.
 	 *
-	 * @param array $repeater Repeater (or nested array field) definition.
+	 * @param array  $repeater   Repeater (or nested array field) definition.
+	 * @param string $parent_rol Rol of the block, inherited by every entry
+	 *                           that does not declare one of its own.
 	 * @return array<string,array>
 	 */
-	private static function map_item_schema( $repeater ) {
+	private static function map_item_schema( $repeater, $parent_rol = \Documentate_Campos_Rol::ROL_AREA ) {
 		$fields = isset( $repeater['fields'] ) && is_array( $repeater['fields'] ) ? $repeater['fields'] : array();
 		$item_schema = array();
 
@@ -158,13 +171,14 @@ class SchemaConverter {
 			}
 
 			if ( 'array' === $item_type && isset( $field['fields'] ) ) {
+				$nested_rol = self::resolve_rol( $field, $parent_rol );
 				$item_schema[ $item_slug ] = array(
 					'label' => $item_label,
 					'type' => 'array',
 					'data_type' => 'array',
 					'case' => '',
-					'rol' => self::resolve_rol( $field ),
-					'item_schema' => self::map_item_schema( $field ),
+					'rol' => $nested_rol,
+					'item_schema' => self::map_item_schema( $field, $nested_rol ),
 				);
 				continue;
 			}
@@ -176,7 +190,7 @@ class SchemaConverter {
 				'type' => self::guess_array_item_control_type( $item_type, $item_slug, $item_label ),
 				'data_type' => self::map_data_type( $item_type ),
 				'case' => $item_case,
-				'rol' => self::resolve_rol( $field ),
+				'rol' => self::resolve_rol( $field, $parent_rol ),
 			);
 		}
 

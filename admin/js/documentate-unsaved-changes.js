@@ -107,13 +107,25 @@
 	}
 
 	/**
+	 * Selector of the form being watched.
+	 *
+	 * wp-admin edits documents in #post; the front-end application posts its
+	 * own form and passes its selector in the config.
+	 *
+	 * @return {string} CSS selector.
+	 */
+	function formSelector() {
+		return config.formSelector || '#post';
+	}
+
+	/**
 	 * Bind the change sources that make the document dirty.
 	 *
 	 * Everything is delegated on the form so repeater rows added after load are
 	 * covered without rebinding.
 	 */
 	function bindDirtySources() {
-		var $form = $('#post');
+		var $form = $(formSelector());
 		if (!$form.length) {
 			return;
 		}
@@ -450,7 +462,7 @@
 	 * @param {string} format Document format, when the action has one.
 	 */
 	function saveAndResume(action, format) {
-		var $form = $('#post');
+		var $form = $(formSelector());
 		if (!$form.length) {
 			closeModal();
 			return;

@@ -182,7 +182,10 @@ class Documentate_Document_Meta_Saver {
 			// Absent from the request means "not submitted", which must not
 			// clear rows the document already has.
 			if ( isset( $posted_array_fields[ $slug ] ) ) {
-				$items = Documentate_Document_Content_Writer::sanitize_array_field_items( $posted_array_fields[ $slug ], $definition );
+				// The stored rows are handed over so the columns gestión
+				// documental owns survive a save by the área.
+				$stored = Documents_Meta_Handler::decode_array_field_value( get_post_meta( $post_id, $meta_key, true ) );
+				$items = Documentate_Document_Content_Writer::sanitize_array_field_items( $posted_array_fields[ $slug ], $definition, $stored );
 				$this->write_or_delete_meta( $post_id, $meta_key, Documentate_Document_Content_Writer::encode_array_field_items( $items ) );
 			}
 			return;

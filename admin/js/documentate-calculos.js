@@ -86,31 +86,44 @@
 		return null;
 	}
 
-	// Writes a computed amount (null clears it) and locks the control.
+	// Writes a computed amount and locks the control.
 	function fijar(input, valor) {
 		if (!input) {
 			return;
 		}
 		input.readOnly = true;
 		input.setAttribute('data-calculado', '1');
-		var texto = valor === null ? '' : valor.toFixed(2);
+		var texto = valor.toFixed(2);
 		if (input.value !== texto) {
 			input.value = texto;
 		}
 	}
 
-	// Row total = cantidad × unitario. Null when the row is not a concepto
-	// row; blank rows get an empty total so they are not saved.
+	// Gives the control back to the user: there is nothing to compute, so
+	// whatever was typed stays and stays editable.
+	function liberar(input) {
+		if (!input) {
+			return;
+		}
+		input.readOnly = false;
+		input.removeAttribute('data-calculado');
+	}
+
+	// Row total = cantidad × unitario. Null when the row has no total at all
+	// (not a concepto row); a row without cantidad and unitario keeps the
+	// amount typed by hand and still counts towards the bruto.
 	function calcularFila(fila) {
 		var cantidad = control(fila, 'cantidad', true);
 		var unitario = control(fila, 'unitario', true);
 		var total = control(fila, 'total', true);
-		if (!cantidad || !unitario || !total) {
+		if (!total) {
 			return null;
 		}
-		if (cantidad.value.trim() === '' && unitario.value.trim() === '') {
-			fijar(total, null);
-			return { total: 0, vacia: true };
+		var manual = !cantidad || !unitario
+			|| (cantidad.value.trim() === '' && unitario.value.trim() === '');
+		if (manual) {
+			liberar(total);
+			return { total: numero(total.value), vacia: total.value.trim() === '' };
 		}
 		var importe = redondear(numero(cantidad.value) * numero(unitario.value));
 		fijar(total, importe);
@@ -140,7 +153,7 @@
 	}
 
 	// Provider: bruto = Σ row totals; total = bruto + igic − irpf. Null when
-	// the card has no concepto rows (not a provider repeater).
+	// the card carries no concepto row at all (not a provider repeater).
 	function calcularProveedor(item, slug, indice) {
 		var filas = item.querySelectorAll('.documentate-subarray-item');
 		var bruto = 0;
@@ -166,9 +179,18 @@
 		var vacio = conceptos === 0;
 		bruto = redondear(bruto);
 		var total = vacio ? 0 : redondear(bruto + numero(igic && igic.value) - numero(irpf && irpf.value));
+		var campoBruto = control(item, 'bruto', false);
+		var campoTotal = control(item, 'total', false);
 
-		fijar(control(item, 'bruto', false), vacio ? null : bruto);
-		fijar(control(item, 'total', false), vacio ? null : total);
+		// With no concepto to add up there is nothing to own: the amounts
+		// stay as the user left them, and editable.
+		if (vacio) {
+			liberar(campoBruto);
+			liberar(campoTotal);
+		} else {
+			fijar(campoBruto, bruto);
+			fijar(campoTotal, total);
+		}
 		resumenProveedor(item, slug, indice, conceptos, total);
 
 		return { total: total, conceptos: conceptos };
@@ -201,7 +223,12 @@
 			contenedor.innerHTML = html;
 		}
 		if (gasto) {
-			fijar(gasto, proveedores > 0 ? suma : null);
+			if (proveedores > 0) {
+				fijar(gasto, suma);
+			} else {
+				// Nothing itemised: gestión may still type the total by hand.
+				liberar(gasto);
+			}
 		}
 	}
 

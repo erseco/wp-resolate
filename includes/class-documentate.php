@@ -127,6 +127,7 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-field-help.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-scalar-field.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-repeater-field.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-save-context.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-content-writer.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-meta-boxes.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-meta-saver.php';
@@ -224,6 +225,8 @@ class Documentate {
 		new Documentate_Workflow();
 
 		// Front-end application under /documentate/ (shell, list, detail, edit, new).
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-adjuntos.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-acciones.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-shell.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lista.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detalle.php';

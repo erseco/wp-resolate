@@ -129,12 +129,53 @@ class DocumentateDocTypesRolTest extends Documentate_Test_Base {
 	public function test_save_term_accepts_the_add_tag_nonce() {
 		$_POST = array(
 			'_wpnonce_add-tag' => wp_create_nonce( 'add-tag' ),
+			'taxonomy' => 'documentate_doc_type',
 			'documentate_type_prefijo' => 'hc',
 			'documentate_type_con_gestion' => '1',
 		);
 		$this->campos->save_term( $this->term_id );
 
 		$this->assertSame( 'HC', get_term_meta( $this->term_id, 'documentate_type_prefijo', true ) );
+		$this->assertSame( '1', get_term_meta( $this->term_id, 'documentate_type_con_gestion', true ) );
+	}
+
+	/**
+	 * The generic add-term nonce of another taxonomy is not enough.
+	 */
+	public function test_save_term_ignores_the_add_tag_nonce_of_another_taxonomy() {
+		update_term_meta( $this->term_id, 'documentate_type_prefijo', 'RES' );
+		update_term_meta( $this->term_id, 'documentate_type_con_gestion', '1' );
+
+		$_POST = array(
+			'_wpnonce_add-tag' => wp_create_nonce( 'add-tag' ),
+			'taxonomy' => 'category',
+			'documentate_type_prefijo' => 'XX',
+		);
+		$this->campos->save_term( $this->term_id );
+
+		$this->assertSame( 'RES', get_term_meta( $this->term_id, 'documentate_type_prefijo', true ) );
+		$this->assertSame( '1', get_term_meta( $this->term_id, 'documentate_type_con_gestion', true ) );
+	}
+
+	/**
+	 * A user without the taxonomy capability writes nothing, nonce or not.
+	 *
+	 * An editor holds a valid "add-tag" nonce from the Categories screen, so
+	 * the nonce alone is not an authorisation signal for this taxonomy.
+	 */
+	public function test_save_term_ignores_users_without_the_taxonomy_capability() {
+		update_term_meta( $this->term_id, 'documentate_type_prefijo', 'RES' );
+		update_term_meta( $this->term_id, 'documentate_type_con_gestion', '1' );
+
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'editor' ) ) );
+		$_POST = array(
+			'_wpnonce_add-tag' => wp_create_nonce( 'add-tag' ),
+			'taxonomy' => 'documentate_doc_type',
+			'documentate_type_prefijo' => 'XX',
+		);
+		$this->campos->save_term( $this->term_id );
+
+		$this->assertSame( 'RES', get_term_meta( $this->term_id, 'documentate_type_prefijo', true ) );
 		$this->assertSame( '1', get_term_meta( $this->term_id, 'documentate_type_con_gestion', true ) );
 	}
 

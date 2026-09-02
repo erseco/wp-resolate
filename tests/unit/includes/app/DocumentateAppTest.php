@@ -197,20 +197,25 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	/**
 	 * Fill the save form request for a document as the current user would post it.
 	 *
-	 * @param int    $doc_id Document ID.
-	 * @param string $titulo Title to post.
-	 * @param string $estado Button pressed: guardar or enviar.
+	 * @param int    $doc_id     Document ID.
+	 * @param string $titulo     Title (and internal name) to post.
+	 * @param string $transicion Transition key posted by the button, when any.
 	 * @return void
 	 */
-	private function preparar_guardado( $doc_id, $titulo, $estado = 'guardar' ) {
+	private function preparar_guardado( $doc_id, $titulo, $transicion = '' ) {
 		$_POST = array(
 			'documentate_app_accion' => 'guardar_documento',
 			'documentate_app_doc' => (string) $doc_id,
 			'documentate_app_nonce' => wp_create_nonce( 'documentate_app_guardar_' . $doc_id ),
+			'documentate_app_nombre' => $titulo,
 			'documentate_app_titulo' => $titulo,
-			'documentate_app_estado' => $estado,
+			'documentate_app_estado' => 'guardar',
 			'documentate_sections_nonce' => wp_create_nonce( 'documentate_sections_nonce' ),
 		);
+
+		if ( '' !== $transicion ) {
+			$_POST['documentate_app_transicion'] = $transicion;
+		}
 	}
 
 	/**
@@ -357,7 +362,11 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$_GET['doc'] = (string) $dentro;
 		$html = $this->app->render();
 		$this->assertStringContainsString( 'Documento dentro', $html );
-		$this->assertStringContainsString( 'post.php', $html );
+		$this->assertStringNotContainsString( 'post.php', $html, 'Only administración is sent to wp-admin.' );
+
+		wp_set_current_user( $this->admin_id );
+		$this->assertStringContainsString( 'post.php', $this->app->render() );
+		wp_set_current_user( $this->editor_id );
 
 		$_GET['doc'] = (string) $fuera;
 		$html = $this->app->render();
@@ -411,7 +420,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Material para las aulas', $html );
 		$this->assertStringContainsString( '…', $html );
-		$this->assertStringContainsString( '3 items', $html );
+		$this->assertStringContainsString( '3 elementos', $html );
 	}
 
 	/**
@@ -464,6 +473,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$_POST['documentate_app_accion'] = 'crear_documento';
 		$_POST['documentate_app_nonce'] = wp_create_nonce( 'documentate_app_crear' );
 		$_POST['documentate_app_titulo'] = 'PG · Material aulas';
+		$_POST['documentate_app_nombre'] = 'Material aulas';
 		$_POST['documentate_app_tipo'] = (string) $this->tipo_id;
 
 		$destino = $this->capturar_redireccion( array( $this->app, 'handle_create_document' ) );
@@ -484,6 +494,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$tipos = wp_get_post_terms( $doc->ID, 'documentate_doc_type', array( 'fields' => 'ids' ) );
 		$this->assertContains( $this->tipo_id, $tipos );
 		$this->assertSame( $this->tipo_id, absint( get_post_meta( $doc->ID, 'documentate_locked_doc_type', true ) ) );
+		$this->assertSame( 'Material aulas', Documentate_Documento::nombre_interno( $doc->ID ) );
 
 		// The scope fallback files the new document under the editor's scope.
 		$cats = wp_get_post_terms( $doc->ID, 'category', array( 'fields' => 'ids' ) );
@@ -536,7 +547,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="documentate_app_titulo"', $html );
 		$this->assertStringContainsString( 'documentate_field_asunto', $html );
 		$this->assertStringContainsString( 'tpl_fields[anexos]', $html );
-		$this->assertStringContainsString( 'value="enviar"', $html );
+		$this->assertStringContainsString( 'name="documentate_app_nombre"', $html );
+		$this->assertStringContainsString( 'value="enviar_revision"', $html );
 		$this->assertStringContainsString( 'Propuesta App', $html );
 	}
 
@@ -552,7 +564,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$html = $this->app->render();
 
 		$this->assertStringContainsString( 'documentate_sections_nonce', $html );
-		$this->assertStringNotContainsString( 'value="enviar"', $html );
+		$this->assertStringNotContainsString( 'value="enviar_revision"', $html );
+		$this->assertStringContainsString( 'value="aprobar"', $html );
 
 		$this->preparar_guardado( $doc, 'Pendiente admin corregido' );
 		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
@@ -651,7 +664,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$doc = $this->crear_documento( 'Propuesta enviar', $this->cat_scope, 'draft', $this->tipo_esquema_id );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, 'Propuesta enviada', 'enviar' );
+		$this->preparar_guardado( $doc, 'Propuesta enviada', 'enviar_revision' );
 
 		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
 

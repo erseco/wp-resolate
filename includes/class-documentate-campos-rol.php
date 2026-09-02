@@ -39,6 +39,17 @@ class Documentate_Campos_Rol {
 	const ROL_GESTION = 'gestion';
 
 	/**
+	 * Whether the stored schema of a type declares a gestión field, by term ID.
+	 *
+	 * Walking the whole schema on every call is wasteful: the answer is asked
+	 * for once per row of every list. It only changes when the schema is
+	 * stored again, which calls olvidar_tipo().
+	 *
+	 * @var array<int,bool>
+	 */
+	private static $cache_esquema_gestion = array();
+
+	/**
 	 * Rol of a field, from a legacy schema row or a raw placeholder record.
 	 *
 	 * Reads `rol` (alias `role`); anything but "gestion" counts as área.
@@ -73,6 +84,33 @@ class Documentate_Campos_Rol {
 		}
 
 		return Documentate_Roles::es_gestion( $user_id );
+	}
+
+	/**
+	 * Drop the columns of a repeater item schema the current user cannot see.
+	 *
+	 * Recurses into nested repeaters, so a gestión column inside an área
+	 * block is neither drawn nor accepted from the request.
+	 *
+	 * @param array $schema Normalized item schema.
+	 * @return array<string,array>
+	 */
+	public static function filtrar_item_schema( array $schema ) {
+		$visibles = array();
+
+		foreach ( $schema as $clave => $ajustes ) {
+			if ( ! is_array( $ajustes ) || ! self::puede_ver( $ajustes ) ) {
+				continue;
+			}
+
+			if ( isset( $ajustes['item_schema'] ) && is_array( $ajustes['item_schema'] ) ) {
+				$ajustes['item_schema'] = self::filtrar_item_schema( $ajustes['item_schema'] );
+			}
+
+			$visibles[ $clave ] = $ajustes;
+		}
+
+		return $visibles;
 	}
 
 	/**
@@ -115,6 +153,39 @@ class Documentate_Campos_Rol {
 			return true;
 		}
 
+		if ( ! isset( self::$cache_esquema_gestion[ $term_id ] ) ) {
+			self::$cache_esquema_gestion[ $term_id ] = self::esquema_declara_gestion( $term_id );
+		}
+
+		return self::$cache_esquema_gestion[ $term_id ];
+	}
+
+	/**
+	 * Forget the memoised answer of a type, or of every type.
+	 *
+	 * Called when a schema is stored or removed, which is the only thing that
+	 * can change it within a request.
+	 *
+	 * @param int $term_id Document type term ID, or 0 for all of them.
+	 * @return void
+	 */
+	public static function olvidar_tipo( $term_id = 0 ) {
+		$term_id = (int) $term_id;
+		if ( $term_id <= 0 ) {
+			self::$cache_esquema_gestion = array();
+			return;
+		}
+
+		unset( self::$cache_esquema_gestion[ $term_id ] );
+	}
+
+	/**
+	 * Whether the stored schema of a type declares any gestión field.
+	 *
+	 * @param int $term_id Document type term ID.
+	 * @return bool
+	 */
+	private static function esquema_declara_gestion( $term_id ) {
 		$schema = ( new SchemaStorage() )->get_schema( $term_id );
 		if ( ! is_array( $schema ) ) {
 			return false;

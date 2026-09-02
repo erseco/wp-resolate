@@ -204,6 +204,57 @@ class DocumentateCamposRolTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The schema answer is memoised per type; the type flag is always fresh.
+	 */
+	public function test_tipo_con_gestion_memoiza_el_esquema_hasta_olvidar_el_tipo() {
+		$term = wp_insert_term( 'Tipo memo ' . uniqid(), 'documentate_doc_type' );
+		$term_id = (int) $term['term_id'];
+
+		( new SchemaStorage() )->save_schema( $term_id, $this->schema( array( 'rol' => 'gestion' ), array(), array() ) );
+		$this->assertTrue( Documentate_Campos_Rol::tipo_con_gestion( $term_id ) );
+
+		// Removing the schema behind the storage class leaves the answer memoised.
+		delete_term_meta( $term_id, '_documentate_schema_v2' );
+		$this->assertTrue( Documentate_Campos_Rol::tipo_con_gestion( $term_id ), 'The schema is walked once per request.' );
+
+		Documentate_Campos_Rol::olvidar_tipo( $term_id );
+		$this->assertFalse( Documentate_Campos_Rol::tipo_con_gestion( $term_id ) );
+
+		// The type flag is read on every call, memoised schema or not.
+		update_term_meta( $term_id, 'documentate_type_con_gestion', '1' );
+		$this->assertTrue( Documentate_Campos_Rol::tipo_con_gestion( $term_id ) );
+
+		Documentate_Campos_Rol::olvidar_tipo();
+		delete_term_meta( $term_id, 'documentate_type_con_gestion' );
+		$this->assertFalse( Documentate_Campos_Rol::tipo_con_gestion( $term_id ), 'Forgetting every type re-reads the schema.' );
+	}
+
+	/**
+	 * A block hides the columns of its item schema the user may not see.
+	 */
+	public function test_filtrar_item_schema_quita_las_columnas_de_gestion() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+
+		$filtrado = Documentate_Campos_Rol::filtrar_item_schema(
+			array(
+				'code' => array( 'type' => 'single' ),
+				'importe' => array( 'type' => 'single', 'rol' => 'gestion' ),
+				'conceptos' => array(
+					'type' => 'array',
+					'item_schema' => array(
+						'concepto' => array( 'type' => 'single' ),
+						'total' => array( 'type' => 'single', 'rol' => 'gestion' ),
+					),
+				),
+				'suelto' => 'no es un array',
+			)
+		);
+
+		$this->assertSame( array( 'code', 'conceptos' ), array_keys( $filtrado ) );
+		$this->assertSame( array( 'concepto' ), array_keys( $filtrado['conceptos']['item_schema'] ) );
+	}
+
+	/**
 	 * Build a v2 schema with one field, one repeater and one repeater field.
 	 *
 	 * @param array $field_extra    Extra keys of the scalar field.

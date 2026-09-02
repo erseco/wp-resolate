@@ -48,6 +48,17 @@ class Documentate_Admin_Helper {
 	private $document_generator_loaded = false;
 
 	/**
+	 * The instance created when this file is loaded.
+	 *
+	 * The front-end application renders the export block and enqueues its
+	 * assets through it: building a second instance would register every hook
+	 * of the constructor twice.
+	 *
+	 * @var Documentate_Admin_Helper|null
+	 */
+	private static $instancia = null;
+
+	/**
 	 * Format to generator method mapping.
 	 *
 	 * @var array<string, string>
@@ -92,6 +103,8 @@ class Documentate_Admin_Helper {
 	 * Boot hooks.
 	 */
 	public function __construct() {
+		self::$instancia = $this;
+
 		// Initialize export handlers.
 		$this->docx_handler = new Export_DOCX_Handler();
 		$this->odt_handler = new Export_ODT_Handler();
@@ -712,6 +725,59 @@ class Documentate_Admin_Helper {
 	}
 
 	/**
+	 * The helper instance created when this file was loaded.
+	 *
+	 * @return Documentate_Admin_Helper|null
+	 */
+	public static function instancia() {
+		return self::$instancia;
+	}
+
+	/**
+	 * Render the export controls of a document outside the metabox.
+	 *
+	 * Same buttons as the metabox minus the "unsaved changes" indicator (the
+	 * application shows its own), wrapped in the anchor lists link to.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return void
+	 */
+	public function render_actions_for_post( WP_Post $post ) {
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return;
+		}
+
+		$state = $this->build_actions_state( $post->ID );
+
+		echo '<div id="exportar" class="documentate-actions dcta-exportar">';
+		$this->render_primary_actions( $state );
+		$this->render_secondary_actions( $state );
+		echo '</div>';
+	}
+
+	/**
+	 * The export block of a document, as a string.
+	 *
+	 * Convenience for the front-end application views, which build their
+	 * markup as strings; returns nothing when the plugin was loaded without
+	 * building the helper.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string
+	 */
+	public static function bloque_exportar( WP_Post $post ) {
+		$helper = self::instancia();
+		if ( ! $helper instanceof self ) {
+			return '';
+		}
+
+		ob_start();
+		$helper->render_actions_for_post( $post );
+
+		return (string) ob_get_clean();
+	}
+
+	/**
 	 * Render the passive "unsaved changes" indicator.
 	 *
 	 * Always present but hidden; documentate-unsaved-changes.js toggles it as the
@@ -934,7 +1000,7 @@ class Documentate_Admin_Helper {
 			echo '<button type="button" class="button documentate-action-btn--preview" disabled title="'
 					. esc_attr( $state['preview_message'] )
 					. '"><span class="dashicons dashicons-visibility"></span> '
-					. esc_html__( 'Preview', 'documentate' )
+					. esc_html( 'Previsualizar PDF' )
 					. '</button>';
 			return;
 		}
@@ -953,7 +1019,7 @@ class Documentate_Admin_Helper {
 		echo '<a '
 				. $this->build_action_attributes( $attrs ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				. '><span class="dashicons dashicons-visibility"></span> '
-				. esc_html__( 'Preview', 'documentate' )
+				. esc_html( 'Previsualizar PDF' )
 				. '</a>';
 	}
 
@@ -968,7 +1034,7 @@ class Documentate_Admin_Helper {
 			echo '<button type="button" class="button button-primary documentate-action-btn--pdf" disabled title="'
 					. esc_attr( $state['pdf_message'] )
 					. '"><span class="dashicons dashicons-pdf"></span> '
-					. esc_html__( 'Download PDF', 'documentate' )
+					. esc_html( 'Descargar PDF' )
 					. '</button>';
 			return;
 		}
@@ -987,7 +1053,7 @@ class Documentate_Admin_Helper {
 		echo '<a '
 				. $this->build_action_attributes( $attrs ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				. '><span class="dashicons dashicons-pdf"></span> '
-				. esc_html__( 'Download PDF', 'documentate' )
+				. esc_html( 'Descargar PDF' )
 				. '</a>';
 	}
 
@@ -1012,7 +1078,7 @@ class Documentate_Admin_Helper {
 		echo '<a '
 				. $this->build_action_attributes( $attrs ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				. '><span class="dashicons dashicons-lock"></span> '
-				. esc_html__( 'Sign and Download', 'documentate' )
+				. esc_html( 'Firmar y descargar' )
 				. '</a>';
 	}
 
@@ -1029,7 +1095,7 @@ class Documentate_Admin_Helper {
 
 		echo '<div class="documentate-actions-secondary">';
 		echo '<span class="documentate-actions-secondary__label">'
-				. esc_html__( 'Editable download:', 'documentate' )
+				. esc_html( 'Otros formatos de descarga:' )
 				. '</span>';
 		echo '<span class="documentate-actions-secondary__buttons">';
 
@@ -1186,6 +1252,25 @@ class Documentate_Admin_Helper {
 			return;
 		}
 
+		$this->enqueue_actions_assets_for_post( $post_id );
+	}
+
+	/**
+	 * Enqueue the export controls of one document, wherever they are shown.
+	 *
+	 * The front-end application passes its own form selector so the unsaved
+	 * changes script watches the right form and saves it before exporting.
+	 *
+	 * @param int    $post_id       Document post ID.
+	 * @param string $form_selector Selector of the form the document is edited in.
+	 * @return void
+	 */
+	public function enqueue_actions_assets_for_post( $post_id, $form_selector = '#post' ) {
+		$post_id = (int) $post_id;
+		if ( $post_id <= 0 ) {
+			return;
+		}
+
 		wp_enqueue_style(
 			'documentate-actions',
 			plugins_url( 'admin/css/documentate-actions.css', DOCUMENTATE_PLUGIN_FILE ),
@@ -1209,6 +1294,7 @@ class Documentate_Admin_Helper {
 			'documentateUnsavedChangesConfig',
 			array(
 				'postId' => $post_id,
+				'formSelector' => $form_selector,
 				'strings' => $this->get_unsaved_changes_script_strings(),
 			)
 		);

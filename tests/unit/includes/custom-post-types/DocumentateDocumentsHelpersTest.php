@@ -275,6 +275,65 @@ class DocumentateDocumentsHelpersTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Each control type gets its sanitizer, and unknown types the textarea one.
+	 *
+	 * "single" is deliberately single-line: sanitize_text_field() collapses
+	 * newlines, which is what a single-line control can carry. The meta saver
+	 * and the content writer share this method so both store the same value.
+	 *
+	 * @dataProvider sanitizer_provider
+	 *
+	 * @param string $raw      Submitted value.
+	 * @param string $type     Control type.
+	 * @param string $expected Stored value.
+	 */
+	public function test_sanitize_field_by_type_per_control_type( $raw, $type, $expected ) {
+		$this->assertSame( $expected, Documentate_Document_Content_Writer::sanitize_field_by_type( $raw, $type ) );
+	}
+
+	/**
+	 * Values, types and what each one stores.
+	 *
+	 * @return array<string,array{0:string,1:string,2:string}>
+	 */
+	public function sanitizer_provider() {
+		return array(
+			'single collapses newlines' => array( "a\nb", 'single', 'a b' ),
+			'textarea keeps them' => array( "a\nb", 'textarea', "a\nb" ),
+			'unknown types fall back to textarea' => array( "a\nb", 'number', "a\nb" ),
+			'non scalar values are dropped' => array( array( 'x' ), 'single', '' ),
+		);
+	}
+
+	/**
+	 * Rich values only lose the dangerous elements.
+	 */
+	public function test_sanitize_field_by_type_keeps_rich_markup() {
+		$clean = Documentate_Document_Content_Writer::sanitize_field_by_type( '<script>x</script><p>y</p>', 'rich' );
+
+		$this->assertStringNotContainsString( '<script>', $clean );
+		$this->assertStringContainsString( '<p>y</p>', $clean );
+	}
+
+	/**
+	 * A repeater column of type single is single-line too, end to end.
+	 */
+	public function test_sanitize_array_field_items_collapses_newlines_in_single_columns() {
+		$items = Documentate_Document_Content_Writer::sanitize_array_field_items(
+			array( array( 'titulo' => "Uno\ndos", 'cuerpo' => "Uno\ndos" ) ),
+			array(
+				'item_schema' => array(
+					'titulo' => array( 'label' => 'Título', 'type' => 'single' ),
+					'cuerpo' => array( 'label' => 'Cuerpo', 'type' => 'textarea' ),
+				),
+			)
+		);
+
+		$this->assertSame( 'Uno dos', $items[0]['titulo'] );
+		$this->assertSame( "Uno\ndos", $items[0]['cuerpo'] );
+	}
+
+	/**
 	 * A filter with no options renders nothing at all.
 	 */
 	public function test_filter_select_renders_nothing_when_empty() {

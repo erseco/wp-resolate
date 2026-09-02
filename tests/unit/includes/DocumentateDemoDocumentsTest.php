@@ -108,7 +108,50 @@ class DocumentateDemoDocumentsTest extends WP_UnitTestCase {
 			);
 
 			$this->assertCount( 1, $posts, "Demo document with key '{$demo_key}' must exist." );
+
+			// The template prints the official data of the resolución between
+			// the objeto and the antecedentes, so the demo must fill it in.
+			$this->assertNotEmpty(
+				get_post_meta( $posts[0], 'documentate_field_numero_resolucion', true ),
+				"Demo document '{$demo_key}' must carry a resolution number."
+			);
+			$this->assertNotEmpty( get_post_meta( $posts[0], 'documentate_field_fecha_resolucion', true ) );
+			$this->assertNotEmpty( get_post_meta( $posts[0], 'documentate_field_expediente', true ) );
+			$this->assertNotEmpty( get_post_meta( $posts[0], 'documentate_field_organo_firmante', true ) );
 		}
+	}
+
+	/**
+	 * The generated demo documents fill the official data in too.
+	 *
+	 * A document built from the schema (instead of from the fixed demo data)
+	 * would otherwise print "Resolución n.º , de ." in the ODT.
+	 *
+	 * @dataProvider gestion_slug_provider
+	 *
+	 * @param string $slug  Field slug.
+	 * @param string $type  Control type.
+	 * @param string $datat Data type.
+	 */
+	public function test_generated_demo_values_cover_the_official_resolucion_fields( $slug, $type, $datat ) {
+		$value = Documentate_Demo_Data::generate_demo_scalar_value( $slug, $type, $datat );
+
+		$this->assertNotSame( '', trim( $value ) );
+		$this->assertStringNotContainsString( 'Lorem ipsum', $value );
+	}
+
+	/**
+	 * Official fields of the resolución template.
+	 *
+	 * @return array<string,array{0:string,1:string,2:string}>
+	 */
+	public function gestion_slug_provider() {
+		return array(
+			'número' => array( 'numero_resolucion', 'single', 'text' ),
+			'fecha' => array( 'fecha_resolucion', 'single', 'date' ),
+			'expediente' => array( 'expediente', 'single', 'text' ),
+			'órgano' => array( 'organo_firmante', 'single', 'text' ),
+		);
 	}
 
 	/**

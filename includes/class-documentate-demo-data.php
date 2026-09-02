@@ -856,8 +856,10 @@ class Documentate_Demo_Data {
 		}
 
 		$demo_documents = self::get_resolucion_demo_data();
+		$indice = 0;
 
 		foreach ( $demo_documents as $demo_key => $demo_data ) {
+			++$indice;
 			// Check if this specific demo document already exists.
 			$existing = get_posts(
 				array(
@@ -891,8 +893,11 @@ class Documentate_Demo_Data {
 
 			wp_set_post_terms( $post_id, array( $term_id ), 'documentate_doc_type', false );
 
-			// Save field values.
-			$structured_fields = self::save_demo_fields( $post_id, $demo_data['fields'] );
+			// Save field values, official data included.
+			$structured_fields = self::save_demo_fields(
+				$post_id,
+				array_merge( self::datos_oficiales_resolucion( $indice ), $demo_data['fields'] )
+			);
 
 			update_post_meta( $post_id, '_documentate_demo_type_id', (string) $term_id );
 			update_post_meta( $post_id, '_documentate_demo_key', $demo_key );
@@ -1006,6 +1011,38 @@ class Documentate_Demo_Data {
 				);
 			}
 		}
+	}
+
+	/**
+	 * Official data of a resolución: what gestión documental completes.
+	 *
+	 * The template prints "Resolución n.º …, de …. Expediente …." right above
+	 * the antecedentes, so every demo resolución has to carry it.
+	 *
+	 * @param int $index Sequence number of the demo document.
+	 * @return array<string,array{type:string,value:string}>
+	 */
+	private static function datos_oficiales_resolucion( $index ) {
+		$index = absint( $index );
+
+		return array(
+			'numero_resolucion' => array(
+				'type' => 'single',
+				'value' => sprintf( '%d/2026', 117 + $index ),
+			),
+			'fecha_resolucion' => array(
+				'type' => 'single',
+				'value' => sprintf( '2025-%02d-15', 8 + $index ),
+			),
+			'expediente' => array(
+				'type' => 'single',
+				'value' => sprintf( 'EXP-2026-%04d', 117 + $index ),
+			),
+			'organo_firmante' => array(
+				'type' => 'single',
+				'value' => 'Dirección General de Ordenación de las Enseñanzas, Inclusión e Innovación',
+			),
+		);
 	}
 
 	/**
@@ -2168,6 +2205,11 @@ class Documentate_Demo_Data {
 	 * @return string|null
 	 */
 	private static function demo_value_for_special_slug( $slug, $index, $document_title ) {
+		$oficiales = self::datos_oficiales_resolucion( $index );
+		if ( isset( $oficiales[ $slug ] ) ) {
+			return $oficiales[ $slug ]['value'];
+		}
+
 		if ( 'cif' === $slug ) {
 			return 1 === $index ? 'B12345678' : 'A87654321';
 		}

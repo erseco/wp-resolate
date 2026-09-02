@@ -119,11 +119,18 @@ class Documentate_Documento {
 	 */
 	public static function prefijo_tipo( $post ) {
 		$tipo = self::tipo( $post );
-		if ( ! $tipo ) {
-			return '';
-		}
 
-		$prefijo = (string) get_term_meta( $tipo->term_id, self::TERM_META_PREFIJO, true );
+		return $tipo ? self::prefijo_de_tipo( $tipo->term_id ) : '';
+	}
+
+	/**
+	 * Prefix of a document type ("RES"), upper-cased and capped at 6 characters.
+	 *
+	 * @param int $term_id Document type term ID.
+	 * @return string
+	 */
+	public static function prefijo_de_tipo( $term_id ) {
+		$prefijo = (string) get_term_meta( (int) $term_id, self::TERM_META_PREFIJO, true );
 
 		return mb_strtoupper( mb_substr( trim( $prefijo ), 0, 6 ) );
 	}

@@ -55,6 +55,80 @@ body.documentate-app #page-container {
 	padding-top: 0;
 }
 
+/*
+ * The app spans the viewport even when the theme wraps the content in a
+ * column: every band breaks out of it and the inner rows keep the measure.
+ */
+
+body.documentate-app {
+	overflow-x: hidden;
+}
+
+body.documentate-app .wp-site-blocks,
+body.documentate-app .wp-site-blocks > main,
+body.documentate-app main.wp-block-group,
+body.documentate-app .site-main,
+body.documentate-app #content,
+body.documentate-app #main-content {
+	padding: 0;
+	margin: 0;
+}
+
+body.documentate-app .entry-content,
+body.documentate-app .site-content,
+body.documentate-app .et_pb_row,
+body.documentate-app .et_pb_section,
+body.documentate-app #et-main-area {
+	max-width: none;
+	padding: 0;
+	margin: 0;
+}
+
+/*
+ * Block themes wrap the content in groups with a global padding; that padding
+ * is what pushed the full-width bands past the viewport and left the page
+ * scrolling sideways.
+ */
+
+body.documentate-app .wp-block-group,
+body.documentate-app .wp-block-post-content,
+body.documentate-app .is-layout-constrained,
+body.documentate-app .alignfull,
+body.documentate-app .alignwide {
+	max-width: none;
+	width: auto;
+	margin-left: 0;
+	margin-right: 0;
+	padding-left: 0;
+	padding-right: 0;
+}
+
+/*
+ * Block themes carry the vertical rhythm of the page in inline styles on the
+ * wrappers (main, the content group), and an inline style beats any selector:
+ * flattening them for the application page needs !important.
+ */
+
+body.documentate-app .wp-site-blocks > *,
+body.documentate-app main.wp-block-group,
+body.documentate-app .wp-block-group.has-global-padding,
+body.documentate-app .wp-block-post-content {
+	margin-block: 0 !important;
+	padding-block: 0 !important;
+}
+
+.dcta-top,
+.dcta-tabs,
+.dcta-hoja,
+.dcta-pie {
+	position: relative;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100vw;
+	max-width: 100vw;
+	box-sizing: border-box;
+}
+
 /* --- header -------------------------------------------------------------- */
 
 .dcta-top {
@@ -183,9 +257,7 @@ body.documentate-app #page-container {
 /* --- sheet --------------------------------------------------------------- */
 
 .dcta-hoja {
-	max-width: var(--dcta-ancho);
-	margin: 0 auto;
-	padding: 28px 24px 44px;
+	padding: 28px max(24px, calc(50% - var(--dcta-ancho) / 2)) 44px;
 }
 
 .dcta-h1 {
@@ -570,6 +642,15 @@ body.documentate-app #page-container {
 	margin-top: 10px;
 }
 
+/* The transitions live in their own form, so they are not siblings of "Editar". */
+
+.dcta-lado .dcta-acciones {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 10px;
+}
+
 .dcta-editor-volver {
 	display: block;
 	margin-top: 14px;
@@ -804,6 +885,110 @@ body.documentate-app #page-container {
 	min-height: 120px;
 }
 
+/*
+ * Fields by role and automatic totals. The metabox prints documentate-* class
+ * names and documentate-calculos.js writes documentate-resumen; the dcta-*
+ * aliases keep the app vocabulary of the spec working on the same rules.
+ */
+
+.dcta-editor .documentate-seccion-rol,
+.dcta-editor .dcta-seccion-rol {
+	margin: 26px 0 12px;
+	padding: 8px 14px;
+	border-left: 4px solid var(--dcta-pri);
+	border-radius: 0 var(--dcta-r) var(--dcta-r) 0;
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+/*
+ * Gestión documental comes to complete the official data, so the área rows
+ * fold away into a section of their own; the summary reads like a rol heading.
+ */
+
+.dcta-editor .dcta-seccion-area {
+	margin: 18px 0 6px;
+	border-bottom: 1px solid var(--dcta-linea);
+}
+
+.dcta-editor .dcta-seccion-area > summary {
+	cursor: pointer;
+	padding: 8px 0;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: .01em;
+	text-transform: uppercase;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-lado .dcta-h2 {
+	margin-top: 0;
+}
+
+.dcta-editor .documentate-campo-gestion > th,
+.dcta-editor .dcta-campo-gestion > th {
+	color: var(--dcta-pri);
+}
+
+.dcta-field-rol,
+.documentate-field-rol {
+	margin-left: 4px;
+	color: var(--dcta-pri);
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.dcta-resumen,
+.documentate-resumen {
+	margin: 0 0 14px;
+	padding: 12px 16px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: var(--dcta-r);
+	background: var(--dcta-sup-2);
+}
+
+.dcta-resumen dl,
+.documentate-resumen dl {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 2px 16px;
+	margin: 0;
+}
+
+.dcta-resumen dt,
+.documentate-resumen dt {
+	color: var(--dcta-texto-2);
+	font-size: 13.5px;
+}
+
+.dcta-resumen dd,
+.documentate-resumen dd {
+	margin: 0;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.dcta-resumen .documentate-resumen-total,
+.documentate-resumen .documentate-resumen-total {
+	color: var(--dcta-texto);
+	font-weight: 700;
+}
+
+.dcta-editor .documentate-proveedor-resumen,
+.dcta-editor .dcta-proveedor-resumen {
+	margin: -4px 0 12px;
+	color: var(--dcta-texto-2);
+	font-size: 13px;
+}
+
+.dcta-editor .documentate-sections input[data-calculado] {
+	background: var(--dcta-sup-2);
+	color: var(--dcta-texto-2);
+}
+
 /* --- footer --------------------------------------------------------------- */
 
 .dcta-pie {
@@ -827,6 +1012,459 @@ body.documentate-app #page-container {
 .dcta-pie a {
 	color: var(--dcta-texto-2);
 	text-decoration: underline;
+}
+
+/* --- status chips added by the workflow ------------------------------------ */
+
+.dcta-estado-gestion {
+	background: var(--dcta-pri-cont);
+	color: var(--dcta-pri);
+}
+
+.dcta-estado-devuelto {
+	background: var(--dcta-esp-cont);
+	color: var(--dcta-esp);
+}
+
+/* --- notices --------------------------------------------------------------- */
+
+.dcta-aviso-info {
+	background: var(--dcta-pri-cont);
+	border-color: var(--dcta-pri);
+	color: var(--dcta-texto);
+}
+
+.dcta-aviso-devuelto {
+	background: var(--dcta-esp-cont);
+	border-color: var(--dcta-esp);
+	color: var(--dcta-texto);
+}
+
+/* --- list rows ------------------------------------------------------------- */
+
+.dcta-doc-sub,
+.dcta-doc-motivo {
+	display: block;
+	font-weight: 400;
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dcta-doc-motivo {
+	color: var(--dcta-esp);
+}
+
+.dcta-doc-adjunto {
+	margin-left: 6px;
+	font-size: 15px;
+	width: 15px;
+	height: 15px;
+	color: var(--dcta-texto-2);
+	vertical-align: -2px;
+}
+
+.dcta-fila-devuelta {
+	background: var(--dcta-esp-cont);
+}
+
+.dcta-tabla-pie {
+	padding: 12px 18px;
+	border-top: 1px solid var(--dcta-linea);
+	background: var(--dcta-sup-2);
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-areas {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0 0 18px;
+	font-size: 13.5px;
+	color: var(--dcta-texto-2);
+	flex-wrap: wrap;
+}
+
+.dcta-areas select {
+	min-height: 40px;
+	padding: 0 10px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: 10px;
+	background: var(--dcta-sup);
+	color: var(--dcta-texto);
+	max-width: 100%;
+}
+
+/* --- detail and editor bodies ---------------------------------------------- */
+
+.dcta-detalle-cuerpo,
+.dcta-editor-cuerpo {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+
+.dcta-form-oculto {
+	display: contents;
+}
+
+/* --- internal name prefix --------------------------------------------------- */
+
+.dcta-prefijo-grupo {
+	display: flex;
+	align-items: stretch;
+	gap: 0;
+}
+
+.dcta-prefijo {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 12px;
+	border: 1px solid var(--dcta-linea);
+	border-right: 0;
+	border-radius: 10px 0 0 10px;
+	background: var(--dcta-sup-2);
+	color: var(--dcta-texto-2);
+	font-weight: 700;
+	font-size: 13px;
+	letter-spacing: .04em;
+	white-space: nowrap;
+}
+
+.dcta-prefijo-grupo input[type='text'] {
+	flex: 1 1 auto;
+	min-width: 0;
+	border-radius: 0 10px 10px 0;
+}
+
+.dcta-prefijo[hidden] + input[type='text'],
+.dcta-prefijo-grupo > input[type='text']:first-child {
+	border-radius: 10px;
+}
+
+/* --- workflow stepper ------------------------------------------------------- */
+
+.dcta-stepper {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-top: 14px;
+}
+
+.dcta-paso {
+	display: grid;
+	grid-template-columns: 18px minmax(0, 1fr);
+	grid-template-rows: auto auto;
+	column-gap: 10px;
+	padding: 6px 0;
+}
+
+.dcta-paso-punto {
+	grid-row: 1 / span 2;
+	width: 12px;
+	height: 12px;
+	margin-top: 4px;
+	border-radius: 50%;
+	background: var(--dcta-linea);
+}
+
+.dcta-paso-t {
+	font-size: 14px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-paso-sub {
+	font-size: 12px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-paso-hecho .dcta-paso-punto {
+	background: var(--dcta-ok);
+}
+
+.dcta-paso-hecho .dcta-paso-t {
+	color: var(--dcta-texto);
+}
+
+.dcta-paso-actual .dcta-paso-punto {
+	background: var(--dcta-pri);
+	box-shadow: 0 0 0 4px var(--dcta-pri-cont);
+}
+
+.dcta-paso-actual .dcta-paso-t {
+	color: var(--dcta-pri);
+	font-weight: 700;
+}
+
+/* --- activity --------------------------------------------------------------- */
+
+.dcta-actividad-lista {
+	list-style: none;
+	margin: 0 0 16px;
+	padding: 0;
+}
+
+.dcta-actividad-item {
+	padding: 9px 0;
+	border-bottom: 1px solid var(--dcta-linea);
+	font-size: 14px;
+}
+
+.dcta-actividad-item:last-child {
+	border-bottom: 0;
+}
+
+.dcta-actividad-item small {
+	color: var(--dcta-texto-2);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.dcta-actividad-comentario {
+	padding-left: 10px;
+	border-left: 3px solid var(--dcta-pri-cont);
+}
+
+.dcta-comentar textarea {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.dcta-comentar .dcta-btn {
+	margin-top: 10px;
+}
+
+/* --- document file ---------------------------------------------------------- */
+
+.dcta-adjunto-fila {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0 0 10px;
+	font-size: 14px;
+	flex-wrap: wrap;
+}
+
+.dcta-adjunto-nombre {
+	font-weight: 600;
+	word-break: break-all;
+}
+
+.dcta-adjunto-peso {
+	color: var(--dcta-texto-2);
+	font-size: 12.5px;
+}
+
+.dcta-adjunto-quitar {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+	font-size: 13.5px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-dropzone {
+	padding: 22px;
+	border: 2px dashed var(--dcta-linea);
+	border-radius: var(--dcta-r);
+	background: var(--dcta-sup-2);
+	text-align: center;
+}
+
+.dcta-dropzone-on {
+	border-color: var(--dcta-pri);
+	background: var(--dcta-pri-cont);
+}
+
+.dcta-dropzone-texto {
+	margin: 0 0 4px;
+	font-weight: 600;
+}
+
+.dcta-dropzone .dcta-btn {
+	margin-top: 10px;
+}
+
+.dcta-dropzone-elegido {
+	margin: 12px 0 0;
+	font-size: 13.5px;
+	font-weight: 600;
+}
+
+.dcta-dropzone-error {
+	margin: 12px 0 0;
+	font-size: 13.5px;
+	color: var(--dcta-mal);
+}
+
+.dcta-oculto-visual {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* --- dialogs ---------------------------------------------------------------- */
+
+.dcta-dialogo {
+	width: min(520px, calc(100vw - 32px));
+	padding: 22px 24px;
+	border: 0;
+	border-radius: var(--dcta-r);
+	box-shadow: var(--dcta-e2);
+	color: var(--dcta-texto);
+	background: var(--dcta-sup);
+}
+
+.dcta-dialogo::backdrop {
+	background: rgba(16, 24, 40, .45);
+}
+
+.dcta-dialogo-titulo {
+	margin: 0 0 12px;
+	font-size: 19px;
+	font-weight: 700;
+}
+
+.dcta-dialogo-texto {
+	margin: 0 0 16px;
+}
+
+.dcta-dialogo-etiqueta {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.dcta-dialogo-destinos {
+	margin-bottom: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 14px;
+}
+
+.dcta-dialogo textarea {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px 12px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: 10px;
+	font: inherit;
+}
+
+.dcta-dialogo-pie {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 18px;
+}
+
+.dcta-motivo-fallback {
+	margin-top: 12px;
+	font-size: 13.5px;
+}
+
+.dcta-motivo-fallback textarea {
+	width: 100%;
+	box-sizing: border-box;
+	margin-top: 6px;
+	padding: 8px 10px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: 10px;
+	font: inherit;
+}
+
+/* --- export block ------------------------------------------------------------ */
+
+.dcta-exportar {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid var(--dcta-linea);
+}
+
+.dcta-exportar .documentate-actions-primary {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.dcta-exportar .documentate-actions-secondary {
+	margin-top: 12px;
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-exportar .documentate-actions-secondary__buttons {
+	display: inline-flex;
+	gap: 8px;
+	margin-top: 6px;
+	flex-wrap: wrap;
+}
+
+/* wp-admin button styles are not loaded on the front end. */
+
+.dcta-exportar .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 40px;
+	padding: 0 16px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: 999px;
+	background: var(--dcta-sup);
+	color: var(--dcta-pri);
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.dcta-exportar .button:hover {
+	border-color: var(--dcta-pri);
+	text-decoration: none;
+}
+
+.dcta-exportar .button-primary {
+	border-color: var(--dcta-pri);
+	background: var(--dcta-pri);
+	color: #fff;
+}
+
+.dcta-exportar .button-small {
+	min-height: 34px;
+	padding: 0 12px;
+	font-size: 12.5px;
+}
+
+.dcta-exportar .button[disabled] {
+	opacity: .55;
+	cursor: not-allowed;
+}
+
+.dcta-exportar .dashicons {
+	width: 17px;
+	height: 17px;
+	font-size: 17px;
+}
+
+body.documentate-app .documentate-loading-modal__content {
+	font-family: 'Open Sans', system-ui, -apple-system, sans-serif;
+	font-size: 15px;
+	color: var(--dcta-texto);
 }
 
 /* --- small screens --------------------------------------------------------- */
@@ -853,5 +1491,38 @@ body.documentate-app #page-container {
 
 	.dcta-marca small {
 		display: none;
+	}
+
+	.dcta-rol {
+		max-width: 45vw;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.dcta-tabs-fila {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.dcta-cifras {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.dcta-editor .documentate-sections .form-table,
+	.dcta-editor .documentate-array-field,
+	.dcta-editor .documentate-subarray-field {
+		overflow-x: auto;
+	}
+
+	.dcta-editor-acciones {
+		position: sticky;
+		bottom: 0;
+		z-index: 5;
+		border-radius: var(--dcta-r) var(--dcta-r) 0 0;
+		box-shadow: var(--dcta-e2);
+	}
+
+	.dcta-hoja {
+		padding: 20px 16px 44px;
 	}
 }

@@ -97,9 +97,25 @@ class Documentate_Document_Meta_Boxes {
 	/**
 	 * Render the sections meta box (dynamic by document type, with legacy fallback).
 	 *
-	 * @param WP_Post $post Current post.
+	 * The front-end application reuses this renderer and needs its own layout
+	 * around the rol groups: the área rows folded into a <details> and its
+	 * "Anotaciones internas" box inside the gestión section. It passes that
+	 * markup in $envoltorios; wp-admin passes nothing (WordPress hands the
+	 * metabox definition to the callback, and none of its keys is read) and
+	 * gets the flat layout it has always had.
+	 *
+	 * @param WP_Post $post        Current post.
+	 * @param array   $envoltorios Markup printed around a group that has visible
+	 *                             rows: area_abrir, area_cerrar, gestion_cerrar.
+	 * @return void
 	 */
-	public function render_sections_metabox( $post ) {
+	public function render_sections_metabox( $post, array $envoltorios = array() ) {
+		$envoltorios += array(
+			'area_abrir' => '',
+			'area_cerrar' => '',
+			'gestion_cerrar' => '',
+		);
+
 		wp_nonce_field( 'documentate_sections_nonce', 'documentate_sections_nonce' );
 
 		$schema = Documents_Meta_Handler::get_dynamic_fields_schema_for_post( $post->ID );
@@ -127,8 +143,8 @@ class Documentate_Document_Meta_Boxes {
 
 		echo '<div class="documentate-sections">';
 		$known_meta_keys = array_merge(
-			$this->render_rows_by_rol( $grupos['area'], $context, '' ),
-			$this->render_rows_by_rol( $grupos['gestion'], $context, 'Datos oficiales · los completa gestión documental' )
+			$this->render_rows_by_rol( $grupos['area'], $context, '', $envoltorios['area_abrir'], $envoltorios['area_cerrar'] ),
+			$this->render_rows_by_rol( $grupos['gestion'], $context, 'Datos oficiales · los completa gestión documental', '', $envoltorios['gestion_cerrar'] )
 		);
 
 		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
@@ -144,9 +160,11 @@ class Documentate_Document_Meta_Boxes {
 	 * @param array  $rows    Schema rows of the group.
 	 * @param array  $context Post, raw schema, raw fields and stored values.
 	 * @param string $heading Heading drawn above the group, or '' for none.
+	 * @param string $abrir   Markup printed before the group, already escaped.
+	 * @param string $cerrar  Markup printed after the group, already escaped.
 	 * @return string[] Meta keys claimed by the group.
 	 */
-	private function render_rows_by_rol( array $rows, array $context, $heading ) {
+	private function render_rows_by_rol( array $rows, array $context, $heading, $abrir = '', $cerrar = '' ) {
 		$known_meta_keys = array();
 		$visible = array();
 
@@ -162,6 +180,9 @@ class Documentate_Document_Meta_Boxes {
 			return $known_meta_keys;
 		}
 
+		// The wrappers come from the application and are already escaped.
+		echo $abrir; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
 		if ( '' !== $heading ) {
 			echo '<h3 class="documentate-seccion-rol">' . esc_html( $heading ) . '</h3>';
 		}
@@ -174,6 +195,8 @@ class Documentate_Document_Meta_Boxes {
 			}
 		}
 		echo '</tbody></table>';
+
+		echo $cerrar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		return $known_meta_keys;
 	}

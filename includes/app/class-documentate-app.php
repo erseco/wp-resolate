@@ -3,9 +3,9 @@
  * Front-end application of Documentate, served under /documentate/.
  *
  * One WordPress page carries the [documentate_app] shortcode; the views are
- * resolved from query arguments (vista, doc) so the whole application lives
- * under a single URL. Access is capability-gated: the app is for logged-in
- * users who can edit documents.
+ * resolved from query arguments (vista, doc, bandeja, estado, area) so the
+ * whole application lives under a single URL. Access is capability-gated: the
+ * app is for logged-in users who can edit documents.
  *
  * @package Documentate
  * @subpackage App
@@ -45,8 +45,10 @@ class Documentate_App {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'ensure_page' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_node' ), 100 );
-		add_action( 'template_redirect', array( $this, 'handle_create_document' ) );
-		add_action( 'template_redirect', array( $this, 'handle_save_document' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_create_document' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_save_document' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_transition' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_comment' ) );
 	}
 
 	/**
@@ -70,7 +72,7 @@ class Documentate_App {
 				'id' => 'documentate-app',
 				'title' => 'Documentate',
 				'href' => $url,
-				'meta' => array( 'title' => __( 'Open the Documentate application', 'documentate' ) ),
+				'meta' => array( 'title' => 'Abrir la aplicación Documentate' ),
 			)
 		);
 	}
@@ -114,8 +116,10 @@ class Documentate_App {
 	/**
 	 * Enqueue the application assets on the application page only.
 	 *
-	 * The edit view reuses the wp-admin field controls, so it also needs the
-	 * classic editor (rich fields) and the repeater script.
+	 * Every view gets the stylesheet, the dashicons the chips and cards use
+	 * and the small progressive-enhancement script. A document view also gets
+	 * the export controls of wp-admin, and the edit view the classic editor
+	 * (rich fields), the repeater script and the automatic totals.
 	 *
 	 * @return void
 	 */
@@ -127,9 +131,36 @@ class Documentate_App {
 		wp_enqueue_style(
 			'documentate-app',
 			plugins_url( 'public/css/documentate-app.css', DOCUMENTATE_PLUGIN_FILE ),
-			array(),
+			array( 'dashicons' ),
 			DOCUMENTATE_VERSION,
 		);
+
+		wp_enqueue_script(
+			'documentate-app',
+			plugins_url( 'public/js/documentate-app.js', DOCUMENTATE_PLUGIN_FILE ),
+			array(),
+			DOCUMENTATE_VERSION,
+			true,
+		);
+
+		$this->enqueue_document_assets();
+	}
+
+	/**
+	 * Enqueue what the document views need on top of the shell assets.
+	 *
+	 * @return void
+	 */
+	private function enqueue_document_assets() {
+		$doc = self::documento_solicitado();
+		if ( $doc <= 0 || ! current_user_can( 'edit_post', $doc ) ) {
+			return;
+		}
+
+		$helper = Documentate_Admin_Helper::instancia();
+		if ( $helper instanceof Documentate_Admin_Helper ) {
+			$helper->enqueue_actions_assets_for_post( $doc, 'form.dcta-editor' );
+		}
 
 		if ( ! self::is_edit_view_request() ) {
 			return;
@@ -162,6 +193,16 @@ class Documentate_App {
 	}
 
 	/**
+	 * Document ID the request asks for, 0 when the view carries none.
+	 *
+	 * @return int
+	 */
+	private static function documento_solicitado() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
+		return isset( $_GET['doc'] ) ? absint( $_GET['doc'] ) : 0;
+	}
+
+	/**
 	 * Whether the request asks for the edit view of a document.
 	 *
 	 * @return bool
@@ -169,10 +210,8 @@ class Documentate_App {
 	private static function is_edit_view_request() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
 		$vista = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-		$doc = isset( $_GET['doc'] ) ? absint( $_GET['doc'] ) : 0;
 
-		return 'editar' === $vista && $doc > 0;
+		return 'editar' === $vista && self::documento_solicitado() > 0;
 	}
 
 	/**
@@ -185,210 +224,25 @@ class Documentate_App {
 	}
 
 	/**
-	 * Whether the request posts the given application action.
-	 *
-	 * @param string $accion Action name carried by the form.
-	 * @return bool
-	 */
-	private static function es_accion( $accion ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller verifies the nonce next.
-		return isset( $_POST['documentate_app_accion'] ) && $accion === $_POST['documentate_app_accion'];
-	}
-
-	/**
-	 * Stop the request unless the form carries a valid nonce for the action.
-	 *
-	 * @param string $accion Nonce action.
-	 * @return void
-	 */
-	private static function exigir_nonce( $accion ) {
-		$nonce = isset( $_POST['documentate_app_nonce'] ) ? sanitize_key( wp_unslash( $_POST['documentate_app_nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, $accion ) ) {
-			wp_die( esc_html__( 'Security check failed.', 'documentate' ), '', array( 'response' => 403 ) );
-		}
-	}
-
-	/**
-	 * Stop the request with a 403.
-	 *
-	 * @return void
-	 */
-	private static function denegar() {
-		wp_die( esc_html__( 'Insufficient permissions.', 'documentate' ), '', array( 'response' => 403 ) );
-	}
-
-	/**
-	 * Title posted by the form, sanitised.
-	 *
-	 * @return string
-	 */
-	private static function titulo_enviado() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller has verified the nonce.
-		return isset( $_POST['documentate_app_titulo'] ) ? sanitize_text_field( wp_unslash( $_POST['documentate_app_titulo'] ) ) : '';
-	}
-
-	/**
-	 * Non-negative integer posted by the form (an ID), 0 when absent.
-	 *
-	 * @param string $campo Field name.
-	 * @return int
-	 */
-	private static function entero_enviado( $campo ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Callers verify the nonce around this read.
-		return isset( $_POST[ $campo ] ) ? absint( $_POST[ $campo ] ) : 0;
-	}
-
-	/**
-	 * Redirect inside the application and stop.
-	 *
-	 * @param string               $url  Destination.
-	 * @param array<string,string> $args Query arguments to add (feedback flags).
-	 * @return void
-	 */
-	private static function redirigir( $url, array $args = array() ) {
-		wp_safe_redirect( add_query_arg( $args, $url ) );
-		exit;
-	}
-
-	/**
 	 * Create a draft document from the "new document" form and redirect.
 	 *
-	 * Runs on template_redirect so the redirect happens before any output.
+	 * Thin delegate: the handlers live in Documentate_App_Acciones.
 	 *
 	 * @return void
 	 */
 	public function handle_create_document() {
-		if ( ! self::es_accion( 'crear_documento' ) ) {
-			return;
-		}
-
-		self::exigir_nonce( 'documentate_app_crear' );
-
-		if ( ! self::current_user_can_use_app() ) {
-			self::denegar();
-		}
-
-		$nuevo_url = Documentate_App_Shell::page_url( array( 'vista' => 'nuevo' ) );
-		$titulo = self::titulo_enviado();
-		$tipo = self::entero_enviado( 'documentate_app_tipo' );
-
-		if ( '' === $titulo || 0 === $tipo || ! term_exists( $tipo, 'documentate_doc_type' ) ) {
-			self::redirigir( $nuevo_url, array( 'error' => 'datos' ) );
-		}
-
-		$post_id = wp_insert_post(
-			array(
-				'post_type' => 'documentate_document',
-				'post_status' => 'draft',
-				'post_title' => $titulo,
-			),
-			true
-		);
-
-		if ( is_wp_error( $post_id ) ) {
-			self::redirigir( $nuevo_url, array( 'error' => 'crear' ) );
-		}
-
-		wp_set_post_terms( $post_id, array( $tipo ), 'documentate_doc_type', false );
-		update_post_meta( $post_id, 'documentate_locked_doc_type', $tipo );
-		Documentate_Actividad::registrar_evento( $post_id, 'creó el borrador' );
-
-		self::redirigir( Documentate_App_Editar::url( $post_id ) );
+		Documentate_App_Acciones::handle_create_document();
 	}
 
 	/**
 	 * Persist the edit form and redirect.
 	 *
-	 * The form carries the sections-metabox nonce and field names, so
-	 * wp_update_post() drives the same filters and save_post handlers as the
-	 * wp-admin editor: the workflow decides the final status, the content
-	 * writer composes post_content and the meta saver stores the fields.
+	 * Thin delegate: the handlers live in Documentate_App_Acciones.
 	 *
 	 * @return void
 	 */
 	public function handle_save_document() {
-		if ( ! self::es_accion( 'guardar_documento' ) ) {
-			return;
-		}
-
-		$doc_id = self::entero_enviado( 'documentate_app_doc' );
-		self::exigir_nonce( 'documentate_app_guardar_' . $doc_id );
-
-		$post = self::documento_editable_por_el_usuario( $doc_id );
-		if ( ! $post ) {
-			self::denegar();
-		}
-
-		$editar_url = Documentate_App_Editar::url( $post->ID );
-
-		if ( ! Documentate_App_Editar::puede_editar( $post ) ) {
-			self::redirigir( $editar_url, array( 'error' => 'bloqueado' ) );
-		}
-
-		$titulo = self::titulo_enviado();
-		if ( '' === $titulo ) {
-			self::redirigir( $editar_url, array( 'error' => 'titulo' ) );
-		}
-
-		// Saving keeps the stored status: the fields are persisted first and
-		// the transition, when asked for, runs afterwards through the engine.
-		$enviar = self::se_envia_a_revision( $post );
-
-		$result = wp_update_post(
-			array(
-				'ID' => $post->ID,
-				'post_title' => $titulo,
-			),
-			true
-		);
-
-		if ( is_wp_error( $result ) ) {
-			self::redirigir( $editar_url, array( 'error' => 'guardar' ) );
-		}
-
-		// The engine refuses the transition when the workflow keeps the
-		// document in draft (for instance when it has no type); only leave
-		// the editor when it really moved on.
-		if ( $enviar ) {
-			$clave = Documentate_Documento::con_gestion( $post ) ? 'enviar_gestion' : 'enviar_revision';
-			if ( true === Documentate_Transiciones::aplicar( $post->ID, $clave ) ) {
-				self::redirigir( Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) ), array( 'enviado' => '1' ) );
-			}
-		}
-
-		self::redirigir( $editar_url, array( 'guardado' => '1' ) );
-	}
-
-	/**
-	 * The document the current user may save through the application.
-	 *
-	 * @param int $doc_id Document ID from the form.
-	 * @return WP_Post|null Null when it is not a document the user can edit.
-	 */
-	private static function documento_editable_por_el_usuario( $doc_id ) {
-		if ( ! self::current_user_can_use_app() ) {
-			return null;
-		}
-
-		$post = get_post( $doc_id );
-		if ( ! $post instanceof WP_Post || 'documentate_document' !== $post->post_type ) {
-			return null;
-		}
-
-		return current_user_can( 'edit_post', $post->ID ) ? $post : null;
-	}
-
-	/**
-	 * Whether the form asks to send a draft for review.
-	 *
-	 * @param WP_Post $post Document being saved.
-	 * @return bool
-	 */
-	private static function se_envia_a_revision( $post ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller has verified the nonce.
-		$estado = isset( $_POST['documentate_app_estado'] ) ? sanitize_key( wp_unslash( $_POST['documentate_app_estado'] ) ) : '';
-
-		return 'enviar' === $estado && 'draft' === $post->post_status;
+		Documentate_App_Acciones::handle_save_document();
 	}
 
 	/**
@@ -399,24 +253,19 @@ class Documentate_App {
 	public function render() {
 		if ( ! is_user_logged_in() ) {
 			return Documentate_App_Shell::abrir( '', 'Documentate', '' )
-				. '<div class="dcta-aviso">'
-				. esc_html__( 'Sign in to work with your documents.', 'documentate' )
-				. ' <a href="' . esc_url( wp_login_url( Documentate_App_Shell::page_url() ) ) . '">'
-				. esc_html__( 'Sign in', 'documentate' )
-				. '</a></div>'
+				. '<div class="dcta-aviso">Inicia sesión para trabajar con tus documentos.'
+				. ' <a href="' . esc_url( wp_login_url( Documentate_App_Shell::page_url() ) ) . '">Iniciar sesión</a>'
+				. '</div>'
 				. Documentate_App_Shell::cerrar();
 		}
 
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			return Documentate_App_Shell::abrir( '', 'Documentate', '' )
-				. '<div class="dcta-aviso">'
-				. esc_html__( 'Your user cannot edit documents. Contact an administrator.', 'documentate' )
-				. '</div>'
+				. '<div class="dcta-aviso">Tu usuario no puede editar documentos. Contacta con administración.</div>'
 				. Documentate_App_Shell::cerrar();
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-		$doc = isset( $_GET['doc'] ) ? absint( $_GET['doc'] ) : 0;
+		$doc = self::documento_solicitado();
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
 		$vista = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
 
@@ -452,24 +301,30 @@ class Documentate_App {
 
 		$html = Documentate_App_Shell::abrir(
 			'nuevo',
-			__( 'New document', 'documentate' ),
-			__( 'Choose the type and give it a name; the type cannot be changed later.', 'documentate' )
+			'Nuevo documento',
+			'Elige el tipo y ponle nombre; el tipo no se puede cambiar después.'
 		);
 
 		if ( '' !== $error ) {
-			$html .= '<div class="dcta-aviso">'
-				. esc_html__( 'The document could not be created. Check the name and the type.', 'documentate' )
-				. '</div>';
+			$html .= '<div class="dcta-aviso dcta-aviso-mal">No se pudo crear el documento. Revisa el tipo, el nombre y el título.</div>';
 		}
 
 		if ( empty( $tipos ) ) {
 			return $html
-				. '<div class="dcta-aviso">'
-				. esc_html__( 'No document types defined. Create one in Document Types.', 'documentate' )
-				. '</div>'
+				. '<div class="dcta-aviso">No hay tipos de documento definidos. Créalos en Tipos y plantillas.</div>'
 				. Documentate_App_Shell::cerrar();
 		}
 
+		return $html . $this->form_nuevo( $tipos ) . Documentate_App_Shell::cerrar();
+	}
+
+	/**
+	 * The "new document" form itself.
+	 *
+	 * @param WP_Term[] $tipos Document types.
+	 * @return string
+	 */
+	private function form_nuevo( array $tipos ) {
 		ob_start();
 		?>
 		<form class="dcta-form" method="post" action="">
@@ -477,27 +332,37 @@ class Documentate_App {
 			<input type="hidden" name="documentate_app_accion" value="crear_documento" />
 
 			<div class="dcta-campo">
-				<label for="documentate-app-tipo"><?php esc_html_e( 'Document type', 'documentate' ); ?></label>
+				<label for="documentate-app-tipo">Tipo de documento</label>
 				<select id="documentate-app-tipo" name="documentate_app_tipo" required>
-					<option value=""><?php esc_html_e( 'Select a type…', 'documentate' ); ?></option>
+					<option value="">Elige un tipo…</option>
 					<?php foreach ( $tipos as $tipo ) : ?>
-						<option value="<?php echo esc_attr( (string) $tipo->term_id ); ?>"><?php echo esc_html( $tipo->name ); ?></option>
+						<option value="<?php echo esc_attr( (string) $tipo->term_id ); ?>"
+							data-prefijo="<?php echo esc_attr( Documentate_Documento::prefijo_de_tipo( $tipo->term_id ) ); ?>"
+							data-gestion="<?php echo esc_attr( Documentate_Documento::tipo_con_gestion( $tipo->term_id ) ? '1' : '' ); ?>"><?php echo esc_html( $tipo->name ); ?></option>
 					<?php endforeach; ?>
 				</select>
+				<p class="dcta-ayuda" id="documentate-app-tipo-nota"></p>
 			</div>
 
 			<div class="dcta-campo">
-				<label for="documentate-app-titulo"><?php esc_html_e( 'Document name', 'documentate' ); ?></label>
-				<input type="text" id="documentate-app-titulo" name="documentate_app_titulo" required maxlength="200" />
-				<p class="dcta-ayuda"><?php esc_html_e( 'Short: it is what you will see in lists and searches.', 'documentate' ); ?></p>
+				<label for="documentate-app-nombre">Nombre interno</label>
+				<span class="dcta-prefijo-grupo">
+					<span class="dcta-prefijo" id="documentate-app-prefijo" hidden></span>
+					<input type="text" id="documentate-app-nombre" name="documentate_app_nombre" required maxlength="80" />
+				</span>
+				<p class="dcta-ayuda">Corto: es el que verás en las listas. El prefijo lo pone el tipo; no aparece en el documento.</p>
 			</div>
 
-			<button type="submit" class="dcta-btn dcta-btn-pri"><?php esc_html_e( 'Create draft', 'documentate' ); ?></button>
-			<a class="dcta-btn dcta-btn-ton" href="<?php echo esc_url( Documentate_App_Shell::page_url() ); ?>"><?php esc_html_e( 'Cancel', 'documentate' ); ?></a>
+			<div class="dcta-campo">
+				<label for="documentate-app-titulo">Título oficial</label>
+				<textarea id="documentate-app-titulo" name="documentate_app_titulo" rows="2" required maxlength="500"></textarea>
+				<p class="dcta-ayuda">El título completo tal y como saldrá en el documento.</p>
+			</div>
+
+			<button type="submit" class="dcta-btn dcta-btn-pri">Crear borrador</button>
+			<a class="dcta-btn dcta-btn-ton" href="<?php echo esc_url( Documentate_App_Shell::page_url() ); ?>">Cancelar</a>
 		</form>
 		<?php
-		$html .= (string) ob_get_clean();
-
-		return $html . Documentate_App_Shell::cerrar();
+		return (string) ob_get_clean();
 	}
 }

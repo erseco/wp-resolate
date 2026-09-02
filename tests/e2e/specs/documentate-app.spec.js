@@ -25,6 +25,11 @@ const TITLES = {
 	created: `App Created ${ RUN }`,
 };
 
+// The internal name is what the lists show; the title is the official one.
+const NAMES = {
+	created: `Nombre ${ RUN }`,
+};
+
 const APP_PATH = '/documentate/';
 
 /**
@@ -48,11 +53,37 @@ function createDocument( { title, categoryId, docTypeId, authorId, status = 'dra
 	runWpCmd( `post term set ${ postId } documentate_doc_type ${ docTypeId } --by=id` );
 	runWpCmd( `post meta update ${ postId } documentate_locked_doc_type ${ docTypeId }` );
 
+	// A type that goes through gestión documental cannot jump from draft to
+	// "en revisión": the workflow refuses the transition, so the fixture walks
+	// the same path a person would. The intermediate step is refused (and
+	// harmless) for types that go straight to administración.
+	if ( 'pending' === status ) {
+		runWpCmd( `post update ${ postId } --post_status=en_gestion --user=1` );
+	}
+
 	if ( 'draft' !== status ) {
 		runWpCmd( `post update ${ postId } --post_status=${ status } --user=1` );
 	}
 
 	return postId;
+}
+
+/**
+ * Read one term meta, or an empty string when the term does not carry it.
+ *
+ * `wp term meta get` exits with an error when the key is absent, which is a
+ * perfectly normal answer here.
+ *
+ * @param {number} termId Term ID.
+ * @param {string} key    Meta key.
+ * @return {string} Stored value, or an empty string.
+ */
+function readTermMeta( termId, key ) {
+	try {
+		return runWpCmd( `term meta get ${ termId } ${ key }` ).trim();
+	} catch ( error ) {
+		return '';
+	}
 }
 
 /**
@@ -66,7 +97,13 @@ function createDocument( { title, categoryId, docTypeId, authorId, status = 'dra
 async function fillRequiredFields( page, value ) {
 	const form = page.locator( 'form.dcta-editor' );
 
-	for ( const control of await form.locator( 'input[required]:not([type="hidden"]):not(#documentate-app-titulo), textarea[required]' ).all() ) {
+	// Amounts documentate-calculos.js owns are readonly, and Playwright
+	// refuses to fill those; they already carry the computed value. The two
+	// fields of "Datos básicos" are filled by the test itself.
+	const basicos = ':not(#documentate-app-titulo):not(#documentate-app-nombre)';
+	const editables = `input[required]:not([type="hidden"]):not([readonly]):not([data-calculado])${ basicos }, textarea[required]:not([readonly])${ basicos }`;
+
+	for ( const control of await form.locator( editables ).all() ) {
 		const type = await control.getAttribute( 'type' );
 		if ( 'checkbox' === type ) {
 			await control.check();
@@ -90,7 +127,7 @@ async function fillRequiredFields( page, value ) {
 }
 
 test.describe( 'Documentate app', () => {
-	let scopeCatId, otherCatId, docTypeId, editorId;
+	let scopeCatId, otherCatId, docTypeId, editorId, conGestionPrevia;
 	let createdDocType = false;
 	const docs = {};
 	const docIds = [];
@@ -124,6 +161,13 @@ test.describe( 'Documentate app', () => {
 			),
 			10
 		);
+		// The application step this spec exercises is "goes through gestión
+		// documental", which the type declares with a term meta. The dev site
+		// may carry an older schema for the seeded type, so the flag is set
+		// explicitly and restored afterwards.
+		conGestionPrevia = readTermMeta( docTypeId, 'documentate_type_con_gestion' );
+		runWpCmd( `term meta update ${ docTypeId } documentate_type_con_gestion 1` );
+
 		runWpCmd( `user meta update ${ editorId } documentate_scope_term_id ${ scopeCatId }` );
 		runWpCmd(
 			`user create ${ SUBSCRIBER_LOGIN } ${ SUBSCRIBER_LOGIN }@example.com --role=subscriber --user_pass=${ PASSWORD }`
@@ -160,6 +204,12 @@ test.describe( 'Documentate app', () => {
 		runWpCmdSafe( `term delete category ${ scopeCatId } ${ otherCatId }` );
 		if ( createdDocType ) {
 			runWpCmdSafe( `term delete documentate_doc_type ${ docTypeId }` );
+		} else if ( conGestionPrevia ) {
+			runWpCmdSafe(
+				`term meta update ${ docTypeId } documentate_type_con_gestion ${ conGestionPrevia }`
+			);
+		} else {
+			runWpCmdSafe( `term meta delete ${ docTypeId } documentate_type_con_gestion` );
 		}
 	} );
 
@@ -180,6 +230,7 @@ test.describe( 'Documentate app', () => {
 		await page.goto( `${ APP_PATH }?vista=nuevo` );
 
 		await page.selectOption( '#documentate-app-tipo', String( docTypeId ) );
+		await page.fill( '#documentate-app-nombre', NAMES.created );
 		await page.fill( '#documentate-app-titulo', TITLES.created );
 		await Promise.all( [
 			page.waitForURL( /vista=editar/ ),
@@ -191,6 +242,7 @@ test.describe( 'Documentate app', () => {
 		docIds.push( createdId );
 
 		await expect( page.locator( '#documentate-app-titulo' ) ).toHaveValue( TITLES.created );
+		await expect( page.locator( '#documentate-app-nombre' ) ).toHaveValue( NAMES.created );
 		await expect( page.locator( 'form.dcta-editor input[name="documentate_sections_nonce"]' ) ).toHaveCount( 1 );
 
 		const value = `Valor ${ RUN }`;
@@ -214,12 +266,28 @@ test.describe( 'Documentate app', () => {
 			await expect( rich ).toHaveValue( new RegExp( value ) );
 		}
 
+		// Sending asks for confirmation in a native dialog first.
+		await page.getByRole( 'button', { name: 'Enviar a gestión' } ).click();
+		const confirmacion = page.getByRole( 'dialog' );
+		await expect( confirmacion ).toBeVisible();
+		await expect( confirmacion ).toContainText( /Ya no podrás modificarlo/ );
+
 		await Promise.all( [
 			page.waitForURL( /enviado=1/ ),
-			page.getByRole( 'button', { name: /Enviar a revisión|Send for review/ } ).click(),
+			confirmacion.getByRole( 'button', { name: 'Enviar a gestión' } ).click(),
 		] );
-		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Enviado a revisión|Sent for review/ );
-		await expect( page.locator( '.dcta-lado .dcta-estado' ) ).toHaveText( /En revisión|In Review/ );
+		// The type goes through gestión documental, so it stops there before
+		// reaching administración.
+		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Documento enviado a gestión documental/ );
+		await expect( page.locator( '.dcta-lado .dcta-estado' ) ).toHaveText( /En gestión/ );
+		await expect( page.locator( '.dcta-h1' ) ).toContainText( NAMES.created );
+
+		// Gestión documental completes it: the área can no longer edit it, and
+		// the document is waiting in the review tray.
+		await page.goto( `${ APP_PATH }?bandeja=revisar&estado=en_gestion` );
+		await expect(
+			page.locator( '.dcta-doc-nombre', { hasText: NAMES.created } )
+		).toBeVisible();
 	} );
 
 	test( 'editor only works with in-scope documents', async ( { browser, baseURL } ) => {
@@ -241,6 +309,7 @@ test.describe( 'Documentate app', () => {
 			await page.goto( `${ APP_PATH }?doc=${ docs.inScope }&vista=editar` );
 			const renamed = `${ TITLES.inScope } editado`;
 			await page.fill( '#documentate-app-titulo', renamed );
+			await page.fill( '#documentate-app-nombre', `Corto ${ RUN }` );
 			await fillRequiredFields( page, `Editor ${ RUN }` );
 			await Promise.all( [
 				page.waitForURL( /guardado=1/ ),
@@ -248,6 +317,13 @@ test.describe( 'Documentate app', () => {
 			] );
 			await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Cambios guardados|Changes saved/ );
 			await expect( page.locator( '#documentate-app-titulo' ) ).toHaveValue( renamed );
+			await expect( page.locator( '#documentate-app-nombre' ) ).toHaveValue( `Corto ${ RUN }` );
+
+			// The list shows the internal name, not the official title.
+			await page.goto( APP_PATH );
+			await expect(
+				page.locator( '.dcta-doc-nombre', { hasText: `Corto ${ RUN }` } )
+			).toBeVisible();
 		} finally {
 			await context.close();
 		}

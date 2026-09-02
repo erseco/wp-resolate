@@ -74,7 +74,9 @@ class Documentate_Document_Repeater_Field {
 		$label = sanitize_text_field( $label );
 		$field_id = 'documentate-array-' . $slug;
 		$items = is_array( $items ) ? $items : array();
-		$item_schema = is_array( $item_schema ) ? $item_schema : array();
+		// Columns gestión documental owns are not drawn for the área, exactly
+		// like the top-level fields of the sections metabox.
+		$item_schema = Documentate_Campos_Rol::filtrar_item_schema( is_array( $item_schema ) ? $item_schema : array() );
 		$raw_fields = isset( $raw_repeater['fields'] ) && is_array( $raw_repeater['fields'] )
 			? $raw_repeater['fields']
 			: array();

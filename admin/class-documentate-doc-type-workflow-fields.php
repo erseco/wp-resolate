@@ -81,7 +81,7 @@ class Documentate_Doc_Type_Workflow_Fields {
 			. esc_attr( $prefijo )
 			. '" maxlength="' . esc_attr( (string) self::PREFIJO_MAX ) . '" class="documentate-prefijo-field" style="text-transform:uppercase;width:8em" autocomplete="off" />';
 		echo '<p class="description">'
-			. esc_html( 'Hasta 6 letras en mayúsculas. Precede al nombre interno en las listas (RES · Bases del programa); no aparece en el documento.' )
+			. esc_html( 'Hasta 6 letras o números en mayúsculas. Precede al nombre interno en las listas (RES · Bases del programa); no aparece en el documento.' )
 			. '</p>';
 	}
 
@@ -123,7 +123,7 @@ class Documentate_Doc_Type_Workflow_Fields {
 	 */
 	public function save_term( $term_id ) {
 		$term_id = absint( $term_id );
-		if ( ! $this->verify_term_save_nonce( $term_id ) ) {
+		if ( ! $this->verify_term_save_nonce( $term_id ) || ! $this->current_user_can_edit_types() ) {
 			return;
 		}
 
@@ -141,6 +141,10 @@ class Documentate_Doc_Type_Workflow_Fields {
 	/**
 	 * Verify the core taxonomy nonce of a term save.
 	 *
+	 * The "add-tag" action is generic across taxonomies, so a nonce minted on
+	 * another taxonomy's Add term screen only counts when the request is
+	 * actually adding a document type.
+	 *
 	 * @param int $term_id Term ID.
 	 * @return bool
 	 */
@@ -148,11 +152,29 @@ class Documentate_Doc_Type_Workflow_Fields {
 		if ( isset( $_POST['_wpnonce'] ) ) {
 			return (bool) wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ), 'update-tag_' . $term_id );
 		}
-		if ( isset( $_POST['_wpnonce_add-tag'] ) ) {
-			return (bool) wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpnonce_add-tag'] ) ), 'add-tag' );
+		if ( ! isset( $_POST['_wpnonce_add-tag'] ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce is what this method verifies.
+		if ( 'documentate_doc_type' !== sanitize_key( wp_unslash( $_POST['taxonomy'] ?? '' ) ) ) {
+			return false;
 		}
 
-		return false;
+		return (bool) wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpnonce_add-tag'] ) ), 'add-tag' );
+	}
+
+	/**
+	 * Whether the current user may edit document types.
+	 *
+	 * The taxonomy caps (manage_options) are what actually keeps non-admins
+	 * out of these screens; the handler asserts it instead of inheriting it.
+	 *
+	 * @return bool
+	 */
+	private function current_user_can_edit_types() {
+		$taxonomy = get_taxonomy( 'documentate_doc_type' );
+
+		return $taxonomy instanceof WP_Taxonomy && current_user_can( $taxonomy->cap->edit_terms );
 	}
 
 	/**
