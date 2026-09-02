@@ -285,7 +285,7 @@ class Documentate_Documento {
 	 * Whether the document type goes through gestión documental.
 	 *
 	 * True when the type is flagged, or when its template has any field with
-	 * rol = gestion (resolved by Documentate_Campos_Rol once it exists).
+	 * rol = gestion (resolved by Documentate_Campos_Rol).
 	 *
 	 * @param int|WP_Post $post Post ID or object.
 	 * @return bool
@@ -331,15 +331,14 @@ class Documentate_Documento {
 	/**
 	 * Whether a document type goes through gestión documental.
 	 *
+	 * Resolved by Documentate_Campos_Rol: the type is flagged, or its schema
+	 * has any field with rol = gestion.
+	 *
 	 * @param int $term_id Document type term ID.
 	 * @return bool
 	 */
 	public static function tipo_con_gestion( $term_id ) {
-		if ( '1' === (string) get_term_meta( (int) $term_id, self::TERM_META_CON_GESTION, true ) ) {
-			return true;
-		}
-
-		return class_exists( 'Documentate_Campos_Rol' ) && Documentate_Campos_Rol::tipo_con_gestion( (int) $term_id );
+		return Documentate_Campos_Rol::tipo_con_gestion( (int) $term_id );
 	}
 
 	/**

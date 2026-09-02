@@ -20,6 +20,17 @@ use Documentate\Documents\Documents_Meta_Handler;
 class Documentate_Document_Content_Writer {
 
 	/**
+	 * Sanitizers by control type; any other type is sanitized as a textarea.
+	 *
+	 * @var array<string,callable>
+	 */
+	private static $sanitizer_map = array(
+		'single' => 'sanitize_text_field',
+		'rich' => array( __CLASS__, 'sanitize_rich_text_value' ),
+		'textarea' => 'sanitize_textarea_field',
+	);
+
+	/**
 	 * Encode repeater rows for storage.
 	 *
 	 * Uses the JSON_HEX flags so quotes and other special characters become
@@ -80,16 +91,9 @@ class Documentate_Document_Content_Writer {
 	 */
 	public static function sanitize_field_by_type( $raw_value, $type ) {
 		$raw_value = is_scalar( $raw_value ) ? (string) $raw_value : '';
+		$sanitizer = isset( self::$sanitizer_map[ $type ] ) ? self::$sanitizer_map[ $type ] : 'sanitize_textarea_field';
 
-		if ( isset( self::$sanitizer_map[ $type ] ) ) {
-			return call_user_func( self::$sanitizer_map[ $type ], $raw_value );
-		}
-
-		if ( 'rich' === $type ) {
-			return self::sanitize_rich_text_value( $raw_value );
-		}
-
-		return sanitize_textarea_field( $raw_value );
+		return call_user_func( $sanitizer, $raw_value );
 	}
 	/**
 	 * Sanitize rich text content by stripping dangerous elements only.
@@ -325,6 +329,10 @@ class Documentate_Document_Content_Writer {
 	/**
 	 * Build the field entries declared by the document type schema.
 	 *
+	 * A field the current user cannot see (rol = gestion for an área user) is
+	 * treated as not posted: whatever the request carries for it is ignored
+	 * and the stored value is kept.
+	 *
 	 * @param array $schema              Schema rows.
 	 * @param array $existing_structured Values already stored in post_content.
 	 * @param array $known_slugs         Filled with the slugs the schema owns.
@@ -342,9 +350,10 @@ class Documentate_Document_Content_Writer {
 
 			$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
 			$known_slugs[ $slug ] = true;
+			$visible = Documentate_Campos_Rol::puede_ver( (array) $row );
 
 			if ( 'array' === $type ) {
-				$fields[ $slug ] = self::compose_array_field( $slug, $row, $existing_structured, $posted_array_fields );
+				$fields[ $slug ] = self::compose_array_field( $slug, $row, $existing_structured, $visible ? $posted_array_fields : array() );
 				continue;
 			}
 
@@ -356,7 +365,8 @@ class Documentate_Document_Content_Writer {
 				$slug,
 				$type,
 				'documentate_field_' . $slug,
-				$existing_structured
+				$existing_structured,
+				$visible
 			);
 		}
 
@@ -446,12 +456,14 @@ class Documentate_Document_Content_Writer {
 	 * @param string              $type     Field type.
 	 * @param string              $meta_key Meta key.
 	 * @param array<string,array> $existing Existing structured fields.
+	 * @param bool                $posted   Whether the request may carry the field;
+	 *                                      false keeps the stored value.
 	 * @return array{type:string,value:string}
 	 */
-	private static function process_posted_field_value( $slug, $type, $meta_key, $existing ) {
+	private static function process_posted_field_value( $slug, $type, $meta_key, $existing, $posted = true ) {
 		$value = '';
 
-		if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( $posted && isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			$raw_input = wp_unslash( $_POST[ $meta_key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			$raw_input = is_scalar( $raw_input ) ? (string) $raw_input : '';
 
@@ -459,13 +471,7 @@ class Documentate_Document_Content_Writer {
 				$type = 'rich';
 			}
 
-			if ( 'single' === $type ) {
-				$value = sanitize_text_field( $raw_input );
-			} elseif ( 'rich' === $type ) {
-				$value = self::sanitize_rich_text_value( $raw_input );
-			} else {
-				$value = sanitize_textarea_field( $raw_input );
-			}
+			$value = self::sanitize_field_by_type( $raw_input, $type );
 		} elseif ( isset( $existing[ $slug ] ) ) {
 			$value = (string) $existing[ $slug ]['value'];
 		}

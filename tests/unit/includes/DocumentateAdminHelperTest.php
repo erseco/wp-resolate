@@ -224,6 +224,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertTrue( wp_style_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-calculos', 'enqueued' ) );
+		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculos']->deps );
 	}
 
 	/**
@@ -1729,6 +1731,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		// Verify scripts are enqueued.
 		$this->assertTrue( wp_script_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-calculos', 'enqueued' ) );
+		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculos']->deps );
 	}
 
 	/**

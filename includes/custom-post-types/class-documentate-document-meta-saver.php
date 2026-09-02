@@ -159,6 +159,10 @@ class Documentate_Document_Meta_Saver {
 	/**
 	 * Persist one field declared by the document type schema.
 	 *
+	 * A field the current user cannot see (rol = gestion for an área user) is
+	 * treated as not posted, so the stored value survives whatever the request
+	 * carries for it.
+	 *
 	 * @param int    $post_id             Post ID.
 	 * @param array  $definition          Schema field definition.
 	 * @param string $slug                Sanitized field slug.
@@ -168,6 +172,10 @@ class Documentate_Document_Meta_Saver {
 	 * @return void
 	 */
 	private function save_schema_field( $post_id, $definition, $slug, $meta_key, array $post_values, array $posted_array_fields ) {
+		if ( ! Documentate_Campos_Rol::puede_ver( (array) $definition ) ) {
+			return;
+		}
+
 		$type = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
 
 		if ( 'array' === $type ) {

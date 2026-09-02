@@ -249,4 +249,60 @@ class SchemaConverterTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $result );
 		$this->assertNotNull( $this->find_field_by_slug( $result, 'valid' ) );
 	}
+
+	/**
+	 * The rol of fields, blocks and block items reaches the legacy rows (default area).
+	 */
+	public function test_to_legacy_passes_rol_through() {
+		$schema = array(
+			'version' => 2,
+			'fields' => array(
+				array( 'slug' => 'objeto', 'type' => 'textarea' ),
+				array( 'slug' => 'numero', 'type' => 'text', 'rol' => 'gestion' ),
+				array( 'slug' => 'raro', 'type' => 'text', 'rol' => 'otro' ),
+			),
+			'repeaters' => array(
+				array(
+					'slug' => 'servicios',
+					'name' => 'servicios',
+					'rol' => 'gestion',
+					'fields' => array(
+						array( 'slug' => 'proveedor', 'type' => 'text', 'rol' => 'gestion' ),
+						array(
+							'slug' => 'conceptos',
+							'type' => 'array',
+							'rol' => 'gestion',
+							'fields' => array(
+								array( 'slug' => 'total', 'type' => 'number', 'rol' => 'gestion' ),
+							),
+						),
+					),
+				),
+				array(
+					'slug' => 'anexos',
+					'name' => 'anexos',
+					'fields' => array(
+						array( 'slug' => 'code', 'type' => 'text' ),
+					),
+				),
+			),
+		);
+
+		$rows = array();
+		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {
+			$rows[ $row['slug'] ] = $row;
+		}
+
+		$this->assertSame( 'area', $rows['objeto']['rol'] );
+		$this->assertSame( 'gestion', $rows['numero']['rol'] );
+		$this->assertSame( 'area', $rows['raro']['rol'], 'Unknown values fall back to area.' );
+
+		$this->assertSame( 'gestion', $rows['servicios']['rol'] );
+		$this->assertSame( 'gestion', $rows['servicios']['item_schema']['proveedor']['rol'] );
+		$this->assertSame( 'gestion', $rows['servicios']['item_schema']['conceptos']['rol'] );
+		$this->assertSame( 'gestion', $rows['servicios']['item_schema']['conceptos']['item_schema']['total']['rol'] );
+
+		$this->assertSame( 'area', $rows['anexos']['rol'] );
+		$this->assertSame( 'area', $rows['anexos']['item_schema']['code']['rol'] );
+	}
 }

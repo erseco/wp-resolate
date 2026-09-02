@@ -103,9 +103,6 @@ class Documentate_Document_Meta_Boxes {
 		wp_nonce_field( 'documentate_sections_nonce', 'documentate_sections_nonce' );
 
 		$schema = Documents_Meta_Handler::get_dynamic_fields_schema_for_post( $post->ID );
-		$raw_schema = $this->get_raw_schema_for_post( $post->ID );
-		$raw_fields = isset( $raw_schema['fields'] ) && is_array( $raw_schema['fields'] ) ? $raw_schema['fields'] : array();
-		// Load the raw schema so we can expose placeholders, constraints and help text.
 
 		if ( empty( $schema ) ) {
 			echo '<div class="documentate-sections">';
@@ -118,24 +115,76 @@ class Documentate_Document_Meta_Boxes {
 			return;
 		}
 
-		$stored_fields = Documents_Meta_Handler::get_structured_field_values( $post->ID );
-		$known_meta_keys = array();
+		// The raw schema exposes placeholders, constraints and help text.
+		$raw_schema = $this->get_raw_schema_for_post( $post->ID );
+		$context = array(
+			'post' => $post,
+			'raw_schema' => $raw_schema,
+			'raw_fields' => isset( $raw_schema['fields'] ) && is_array( $raw_schema['fields'] ) ? $raw_schema['fields'] : array(),
+			'stored_fields' => Documents_Meta_Handler::get_structured_field_values( $post->ID ),
+		);
+		$grupos = Documentate_Campos_Rol::agrupar( $schema );
 
 		echo '<div class="documentate-sections">';
-		echo '<table class="form-table"><tbody>';
-
-		foreach ( $schema as $row ) {
-			$meta_key = $this->render_schema_row( $post, $row, $raw_schema, $raw_fields, $stored_fields );
-			if ( '' !== $meta_key ) {
-				$known_meta_keys[] = $meta_key;
-			}
-		}
-
-		echo '</tbody></table>';
+		$known_meta_keys = array_merge(
+			$this->render_rows_by_rol( $grupos['area'], $context, '' ),
+			$this->render_rows_by_rol( $grupos['gestion'], $context, 'Datos oficiales · los completa gestión documental' )
+		);
 
 		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
 		$this->render_unknown_dynamic_fields_ui( $unknown );
 		echo '</div>';
+	}
+	/**
+	 * Render the rows of one rol group the current user may see.
+	 *
+	 * Rows the user cannot see are not drawn, but their meta keys are still
+	 * claimed so their stored values never surface as unknown fields.
+	 *
+	 * @param array  $rows    Schema rows of the group.
+	 * @param array  $context Post, raw schema, raw fields and stored values.
+	 * @param string $heading Heading drawn above the group, or '' for none.
+	 * @return string[] Meta keys claimed by the group.
+	 */
+	private function render_rows_by_rol( array $rows, array $context, $heading ) {
+		$known_meta_keys = array();
+		$visible = array();
+
+		foreach ( $rows as $row ) {
+			if ( Documentate_Campos_Rol::puede_ver( $row ) ) {
+				$visible[] = $row;
+			} elseif ( ! empty( $row['slug'] ) ) {
+				$known_meta_keys[] = 'documentate_field_' . sanitize_key( $row['slug'] );
+			}
+		}
+
+		if ( empty( $visible ) ) {
+			return $known_meta_keys;
+		}
+
+		if ( '' !== $heading ) {
+			echo '<h3 class="documentate-seccion-rol">' . esc_html( $heading ) . '</h3>';
+		}
+
+		echo '<table class="form-table"><tbody>';
+		foreach ( $visible as $row ) {
+			$meta_key = $this->render_schema_row( $context['post'], $row, $context['raw_schema'], $context['raw_fields'], $context['stored_fields'] );
+			if ( '' !== $meta_key ) {
+				$known_meta_keys[] = $meta_key;
+			}
+		}
+		echo '</tbody></table>';
+
+		return $known_meta_keys;
+	}
+	/**
+	 * CSS class marking a row gestión documental fills in.
+	 *
+	 * @param array $field Prepared field from prepare_schema_row().
+	 * @return string Leading-space class, or '' for área rows.
+	 */
+	private function rol_css_class( array $field ) {
+		return isset( $field['rol'] ) && Documentate_Campos_Rol::ROL_GESTION === $field['rol'] ? ' documentate-campo-gestion' : '';
 	}
 	/**
 	 * Collect meta values whose keys start with documentate_field_ but are not part of the schema.
@@ -345,6 +394,7 @@ class Documentate_Document_Meta_Boxes {
 				'slug' => $slug,
 				'field_type' => \Documentate\Documents\Documents_Field_Validator::extract_raw_type( $raw_field ),
 				'data_type' => isset( $row['data_type'] ) ? sanitize_key( $row['data_type'] ) : '',
+				'rol' => Documentate_Campos_Rol::rol_del_campo( $row ),
 			)
 		);
 	}
@@ -373,7 +423,7 @@ class Documentate_Document_Meta_Boxes {
 		$items = $this->get_repeater_rows( $slug, $stored_fields );
 		$help = Documentate_Document_Field_Help::build_field_help_context( $meta_key, $slug, $field['raw_field'] );
 
-		echo '<tr class="documentate-field documentate-field-array documentate-field-' . esc_attr( $slug ) . '">';
+		echo '<tr class="documentate-field documentate-field-array documentate-field-' . esc_attr( $slug . $this->rol_css_class( $field ) ) . '">';
 		echo '<th scope="row"><label';
 		if ( '' !== $title_attribute ) {
 			echo ' title="' . esc_attr( $title_attribute ) . '"';
@@ -454,7 +504,7 @@ class Documentate_Document_Meta_Boxes {
 		echo '<tr class="documentate-field documentate-field-'
 				. esc_attr( $slug )
 				. ' documentate-field-control-'
-				. esc_attr( $type )
+				. esc_attr( $type . $this->rol_css_class( $field ) )
 				. '">';
 		echo '<th scope="row"><label for="' . esc_attr( $meta_key ) . '"';
 		if ( '' !== $field['title_attribute'] ) {

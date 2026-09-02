@@ -204,12 +204,14 @@ class Documentate {
 		// Admin UI for document types (taxonomy meta for templates, fields, etc.).
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doc-type-pdf-layout-field.php';
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doc-types-admin.php';
+		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doc-type-workflow-fields.php';
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doctype-help-notice.php';
 
 		// Workflow foundation: roles, statuses, document helpers, activity and transitions.
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-roles.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-estados.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-documento.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-campos-rol.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-actividad.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-transiciones.php';
 		Documentate_Roles::init();

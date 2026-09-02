@@ -151,6 +151,14 @@ class Documentate_App {
 				'pluginUrl' => plugins_url( 'admin/mce/table/plugin' . $suffix . '.js', DOCUMENTATE_PLUGIN_FILE ),
 			)
 		);
+		// Automatic totals for the provider repeaters (propuesta de gasto).
+		wp_enqueue_script(
+			'documentate-calculos',
+			plugins_url( 'admin/js/documentate-calculos.js', DOCUMENTATE_PLUGIN_FILE ),
+			array( 'documentate-annexes' ),
+			DOCUMENTATE_VERSION,
+			true,
+		);
 	}
 
 	/**

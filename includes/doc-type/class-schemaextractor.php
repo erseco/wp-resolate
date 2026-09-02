@@ -46,6 +46,7 @@ class SchemaExtractor {
 		'minvalue' => false,
 		'maxvalue' => false,
 		'length' => false,
+		'rol' => true,
 	);
 
 	/**
@@ -64,8 +65,16 @@ class SchemaExtractor {
 		'minvalue' => '',
 		'maxvalue' => '',
 		'length' => '',
+		'rol' => '',
 		'case' => '',
 	);
+
+	/**
+	 * Values the "rol" placeholder attribute may take.
+	 *
+	 * @var string[]
+	 */
+	const ROLES = array( 'area', 'gestion' );
 
 	/**
 	 * Default validation patterns by field type.
@@ -600,19 +609,25 @@ class SchemaExtractor {
 		}
 
 		// A sub-block ("<name>_subN") nests inside its parent repeater as an
-		// array field named after the data key its rows come from.
+		// array field named after the data key its rows come from. It takes
+		// the parent block's rol unless its own row declares one.
 		if ( isset( $state['sub_blocks'][ $base_name ] ) ) {
 			$sub = $state['sub_blocks'][ $base_name ];
 			if ( isset( $state['repeaters'][ $sub['parent'] ] ) ) {
+				$parent = $state['repeaters'][ $sub['parent'] ];
 				$entry = $this->build_tbs_repeater_entry( $base_name, $state['tbs_repeaters'][ $base_name ] );
-				$state['repeaters'][ $sub['parent'] ]['fields'][] = array(
-					'name' => $sub['key'],
-					'slug' => sanitize_key( $sub['key'] ),
-					'title' => '',
-					'description' => '',
-					'type' => 'array',
-					'parameters' => array( 'tbs_sub_block' => $base_name ),
-					'fields' => $entry['fields'],
+				$state['repeaters'][ $sub['parent'] ]['fields'][] = $this->inherit_rol(
+					array(
+						'name' => $sub['key'],
+						'slug' => sanitize_key( $sub['key'] ),
+						'title' => '',
+						'description' => '',
+						'type' => 'array',
+						'rol' => $entry['rol'],
+						'parameters' => array( 'tbs_sub_block' => $base_name ),
+						'fields' => $entry['fields'],
+					),
+					isset( $parent['rol'] ) ? (string) $parent['rol'] : ''
 				);
 				$state['added_tbs_repeaters'][ $base_name ] = true;
 				return;
@@ -686,11 +701,68 @@ class SchemaExtractor {
 
 		$repeater = $state['repeaters'][ $current_index ];
 
-		$state['repeaters'][ $current_index ]['fields'][] = $this->strip_repeater_prefix(
+		$field = $this->strip_repeater_prefix(
 			$field,
 			isset( $repeater['name'] ) ? (string) $repeater['name'] : '',
 			isset( $repeater['slug'] ) ? (string) $repeater['slug'] : ''
 		);
+
+		$state['repeaters'][ $current_index ]['fields'][] = $this->inherit_rol(
+			$field,
+			isset( $repeater['rol'] ) ? (string) $repeater['rol'] : ''
+		);
+	}
+
+	/**
+	 * Give a field the rol of the block it belongs to, unless it declares one.
+	 *
+	 * Applies recursively to the fields of a nested repeater, so a block-level
+	 * rol reaches its sub-repeater rows as well.
+	 *
+	 * @param array<string,mixed> $field Field (or nested repeater) entry.
+	 * @param string              $rol   Rol declared by the enclosing block.
+	 * @return array<string,mixed>
+	 */
+	private function inherit_rol( array $field, $rol ) {
+		if ( '' === $rol ) {
+			return $field;
+		}
+
+		if ( empty( $field['rol'] ) ) {
+			$field['rol'] = $rol;
+		}
+
+		if ( isset( $field['fields'] ) && is_array( $field['fields'] ) ) {
+			foreach ( $field['fields'] as $index => $sub_field ) {
+				if ( is_array( $sub_field ) ) {
+					$field['fields'][ $index ] = $this->inherit_rol( $sub_field, $rol );
+				}
+			}
+		}
+
+		return $field;
+	}
+
+	/**
+	 * Normalise the "rol" attribute (alias "role") of a placeholder.
+	 *
+	 * @param array<string,mixed> $parameters Placeholder parameters.
+	 * @return string "area", "gestion", or an empty string when not declared.
+	 */
+	private function normalize_rol( $parameters ) {
+		$parameters = is_array( $parameters ) ? $parameters : array();
+		$raw = '';
+
+		foreach ( array( 'rol', 'role' ) as $key ) {
+			if ( isset( $parameters[ $key ] ) && is_string( $parameters[ $key ] ) ) {
+				$raw = $parameters[ $key ];
+				break;
+			}
+		}
+
+		$rol = strtolower( trim( remove_accents( $raw ) ) );
+
+		return in_array( $rol, self::ROLES, true ) ? $rol : '';
 	}
 
 	/**
@@ -761,6 +833,7 @@ class SchemaExtractor {
 			'slug' => sanitize_key( $name ),
 			'title' => $title,
 			'description' => $description,
+			'rol' => $this->normalize_rol( $parameters ),
 			'parameters' => $clean_parameters,
 			'fields' => array(),
 		);
@@ -829,6 +902,7 @@ class SchemaExtractor {
 				: (string) $parameters[ $key ];
 		}
 
+		$attributes['rol'] = $this->normalize_rol( $parameters );
 		$attributes['case'] = $this->normalize_case( $parameters );
 
 		return $attributes;
@@ -1144,10 +1218,12 @@ class SchemaExtractor {
 
 		$block_mode = isset( $parameters['block'] ) ? strtolower( (string) $parameters['block'] ) : '';
 
-		// Look for patterns like [a.field;block=tbs:row].
+		// Look for patterns like [a.field;block=tbs:row]. The rol declared on
+		// the block token applies to the whole repeater.
 		if ( preg_match( '/^tbs:(row|cell|p|page)/', $block_mode ) ) {
 			$repeaters[ $base_name ] = array(
 				'fields' => array(),
+				'rol' => $this->normalize_rol( $parameters ),
 			);
 		}
 	}
@@ -1218,10 +1294,11 @@ class SchemaExtractor {
 	 */
 	private function build_tbs_repeater_entry( $base_name, $info ) {
 		$fields = array();
+		$rol = isset( $info['rol'] ) ? (string) $info['rol'] : '';
 
 		$collected = isset( $info['fields'] ) && is_array( $info['fields'] ) ? $info['fields'] : array();
 		foreach ( $collected as $field_name => $field_info ) {
-			$fields[] = $this->build_tbs_repeater_field( $field_name, $field_info );
+			$fields[] = $this->inherit_rol( $this->build_tbs_repeater_field( $field_name, $field_info ), $rol );
 		}
 
 		return array(
@@ -1229,6 +1306,7 @@ class SchemaExtractor {
 			'slug' => sanitize_key( $base_name ),
 			'title' => '',
 			'description' => '',
+			'rol' => $rol,
 			'parameters' => array(),
 			'fields' => $fields,
 		);

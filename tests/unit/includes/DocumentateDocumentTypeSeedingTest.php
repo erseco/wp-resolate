@@ -35,7 +35,35 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $resolucion_schema = $storage->get_schema( $resolucion->term_id );
         $this->assertIsArray( $resolucion_schema );
         $this->assertSame( 2, $resolucion_schema['version'], 'Resolution schema must be version 2.' );
-        $this->assertSchemaHasFields( $resolucion_schema, array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title' ) );
+        $this->assertSchemaHasFields(
+            $resolucion_schema,
+            array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante' )
+        );
+        $this->assertSchemaFieldMatches( $resolucion_schema, 'numero_resolucion', array( 'type' => 'text', 'rol' => 'gestion' ) );
+        $this->assertSchemaFieldMatches( $resolucion_schema, 'antecedentes', array( 'type' => 'html', 'rol' => 'gestion' ) );
+        $this->assertSchemaFieldMatches( $resolucion_schema, 'objeto', array( 'rol' => '' ) );
+
+        // Prefixes and the gestión flag of the seeded types.
+        $prefijos = array(
+            'resolucion-administrativa' => 'RES',
+            'propuesta-gasto' => 'PG',
+            'convocatoria-reunion' => 'CONV',
+            'hace-constar' => 'HC',
+            'autorizacion-viaje' => 'AV',
+            'gastos-suplidos' => 'GS',
+            'memoria-pago' => 'MP',
+            'respuesta-escrito' => 'RE',
+            'modelo-informe' => 'INF',
+            'documentate-demo-wp-documentate-odt' => '',
+        );
+        foreach ( $prefijos as $slug => $prefijo ) {
+            $term = get_term_by( 'slug', $slug, 'documentate_doc_type' );
+            $this->assertInstanceOf( WP_Term::class, $term, $slug );
+            $this->assertSame( $prefijo, get_term_meta( $term->term_id, 'documentate_type_prefijo', true ), $slug );
+            $con_gestion = in_array( $slug, array( 'resolucion-administrativa', 'propuesta-gasto' ), true );
+            $this->assertSame( $con_gestion ? '1' : '', get_term_meta( $term->term_id, 'documentate_type_con_gestion', true ), $slug );
+            $this->assertSame( $con_gestion, Documentate_Documento::tipo_con_gestion( $term->term_id ), $slug );
+        }
 
         $advanced_odt = get_term_by( 'slug', 'documentate-demo-wp-documentate-odt', 'documentate_doc_type' );
         $this->assertInstanceOf( WP_Term::class, $advanced_odt );

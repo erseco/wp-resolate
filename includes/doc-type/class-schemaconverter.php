@@ -79,7 +79,18 @@ class SchemaConverter {
 			'name' => $tbs_name,
 			'data_type' => self::map_data_type( $type ),
 			'case' => $case,
+			'rol' => self::resolve_rol( $field ),
 		);
+	}
+
+	/**
+	 * Rol of a schema record: who fills the field in.
+	 *
+	 * @param array $record Field, repeater or item definition.
+	 * @return string "gestion" when declared so, "area" otherwise.
+	 */
+	private static function resolve_rol( $record ) {
+		return isset( $record['rol'] ) && 'gestion' === $record['rol'] ? 'gestion' : 'area';
 	}
 
 	/**
@@ -112,6 +123,7 @@ class SchemaConverter {
 			'name' => $tbs_name,
 			'data_type' => 'array',
 			'item_schema' => $item_schema,
+			'rol' => self::resolve_rol( $repeater ),
 		);
 	}
 
@@ -151,6 +163,7 @@ class SchemaConverter {
 					'type' => 'array',
 					'data_type' => 'array',
 					'case' => '',
+					'rol' => self::resolve_rol( $field ),
 					'item_schema' => self::map_item_schema( $field ),
 				);
 				continue;
@@ -163,6 +176,7 @@ class SchemaConverter {
 				'type' => self::guess_array_item_control_type( $item_type, $item_slug, $item_label ),
 				'data_type' => self::map_data_type( $item_type ),
 				'case' => $item_case,
+				'rol' => self::resolve_rol( $field ),
 			);
 		}
 

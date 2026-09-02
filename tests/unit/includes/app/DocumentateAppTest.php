@@ -135,6 +135,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 		$_POST = array();
 		$_GET = array();
+		wp_dequeue_script( 'documentate-calculos' );
 		wp_dequeue_script( 'documentate-annexes' );
 		wp_dequeue_style( 'documentate-app' );
 		parent::tear_down();
@@ -762,10 +763,12 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->app->enqueue_assets();
 		$this->assertTrue( wp_style_is( 'documentate-app', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'documentate-annexes', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'documentate-calculos', 'enqueued' ) );
 
 		$this->go_to( Documentate_App_Editar::url( $doc ) );
 		$this->app->enqueue_assets();
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-calculos', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'editor', 'enqueued' ) );
 	}
 

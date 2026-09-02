@@ -560,6 +560,7 @@ class Documentate_Doc_Types_Admin {
 
 		echo '<li>' . esc_html( $label );
 		$this->render_schema_preview_type_badge( $type );
+		Documentate_Doc_Type_Workflow_Fields::render_rol_badge( $entry );
 		echo '</li>';
 	}
 
@@ -571,7 +572,9 @@ class Documentate_Doc_Types_Admin {
 	 * @return void
 	 */
 	private function render_schema_preview_array_entry( $label, $entry ) {
-		echo '<li><strong>' . esc_html( $label ) . '</strong></li>';
+		echo '<li><strong>' . esc_html( $label ) . '</strong>';
+		Documentate_Doc_Type_Workflow_Fields::render_rol_badge( $entry );
+		echo '</li>';
 
 		if ( empty( $entry['item_schema'] ) || ! is_array( $entry['item_schema'] ) ) {
 			return;
@@ -583,6 +586,7 @@ class Documentate_Doc_Types_Admin {
 			$item_type  = isset( $item['type'] ) ? (string) $item['type'] : '';
 			echo '<li>' . esc_html( $item_label );
 			$this->render_schema_preview_type_badge( $item_type );
+			Documentate_Doc_Type_Workflow_Fields::render_rol_badge( (array) $item );
 			echo '</li>';
 		}
 		echo '</ul>';
