@@ -33,7 +33,6 @@
 - Place admin-specific functionality in the `admin` directory, including classes, assets, and templates.
 - Place shared functions, utilities, and custom post types in the `includes` directory.
 - Place public-facing functionality in the `public` directory.
-- Store translation files in the `languages` directory.
 - Place tests in the `tests` directory.
 
 ## Constants and Configuration
@@ -44,11 +43,10 @@
 - Validate all user inputs and sanitize outputs using WordPress functions like `sanitize_text_field()` and `esc_html()`.
 - Use WordPress nonces for form submissions and AJAX requests to prevent CSRF attacks.
 
-## Localization
+## Interface language
 
-- Use the plugin's slug as the text domain (e.g., `documentate`).
-- Wrap all user-facing text in translation functions like `__()`.
-- Use WordPress translation functions like `__()`, `esc_html_e()`, `_n()`, and `_x()` for all user-facing strings.
+- La interfaz está en español directamente en el código; no hay i18n ni ficheros de traducción.
+- Escape the literals on output (`esc_html()`, `esc_attr()`, `esc_url()`); code, comments and docblocks stay in English.
 
 ## Code Documentation
 - Ensure that all classes, methods, and functions are well-documented with PHPDoc.

@@ -100,7 +100,7 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 		$this->settings->settings_section_callback();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Configure', $output );
+		$this->assertStringContainsString( 'Configura', $output );
 	}
 
 	/**
@@ -174,7 +174,7 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 		unset( $_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] );
 
 		$this->assertStringContainsString( "disabled='disabled'", $output );
-		$this->assertStringContainsString( 'not available in WordPress Playground', $output );
+		$this->assertStringContainsString( 'no disponible en WordPress Playground', $output );
 	}
 
 	/**

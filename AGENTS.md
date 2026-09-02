@@ -52,7 +52,7 @@ make clean       # Reset WordPress environment
 ### Full local verification (preferred when Docker is available)
 
 ```bash
-make check       # Runs: lint -> check-plugin -> test -> check-untranslated -> mo
+make check       # Runs: lint -> check-plugin -> test
                  # (verification only; does not modify source files)
 ```
 
@@ -69,7 +69,6 @@ make check       # Runs: lint -> check-plugin -> test -> check-untranslated -> m
 | `make test-coverage`     | PHPUnit with Xdebug coverage (needs `--xdebug=coverage`) |
 | `make test-e2e`          | Run Playwright E2E tests against wp-env                  |
 | `make test-e2e-visual`   | Playwright with interactive UI                           |
-| `make check-untranslated`| Check all Spanish strings are translated                 |
 
 Targeted test runs:
 
@@ -86,29 +85,12 @@ make test FILE=tests/unit/Foo.php # run a specific test file
 |-----------------------------------------------------|----------------------------------------------|
 | Any PHP change                                      | `make fix`, `make lint`, `make test`         |
 | Any PHP change merged to main                       | also `make check-plugin`                     |
-| New or changed user-facing strings                  | also `make check-untranslated`               |
 | UI, admin flows, editor flows, or browser behaviour | also `make test-e2e`                         |
 | Full pre-merge verification                         | `make check` (covers all of the above)       |
-| **Before every `git push` / opening a PR**          | at least `make lint`, `make test`, and **`make check-untranslated`** |
+| **Before every `git push` / opening a PR**          | at least `make lint` and `make test`         |
 
 If Docker / wp-env is unavailable, still write code that is designed to pass all
 checks, and state clearly which checks could not be run locally.
-
-### Pre-push gate (agents — mandatory)
-
-**Never push or open a PR without verifying translations.** CI runs
-`make check-untranslated` and **fails the job** if any Spanish `msgstr` is empty.
-
-Before `git push` or `gh pr create`:
-
-1. Search the diff for new/changed `__()` / `_e()` / `_n()` / `_x()` strings.
-2. Update `languages/documentate-es_ES.po` in the **same commit** (Spanish
-   `msgstr` filled in — not left blank).
-3. Run **`make check-untranslated`** and confirm it exits 0.
-4. If it fails, fix the empty `msgstr` entries (and re-run) before pushing.
-
-Do not treat “tests passed” as enough for a push: PHPUnit does not catch missing
-`.po` entries. Untranslated strings are a **CI blocker**, same as lint failures.
 
 ---
 
@@ -118,7 +100,6 @@ A task is **not complete** if any of the following remain:
 
 - Lint errors reported by `make lint`
 - Plugin-check errors reported by `make check-plugin`
-- Untranslated string failures from `make check-untranslated`
 - Failing PHPUnit tests (`make test`)
 - Failing E2E tests relevant to the change (`make test-e2e`)
 - Warnings or errors that would break CI (see `.github/workflows/ci.yml`)
@@ -178,36 +159,8 @@ A task is **not complete** if any of the following remain:
 
 ### Translations
 
-- All user-facing text must be in **Spanish**, wrapped in i18n functions
-  (`__()`, `_e()`, `_n()`, `_x()`).
-- Text domain: `documentate`. Strings reused verbatim from WordPress core
-  (e.g. `__('Comments', 'default')`) may use the `default` domain.
-- **Required (CI fails otherwise):** any `__()`/`_e()`/`_n()`/`_x()` call
-  whose string contains placeholders (`%s`, `%d`, `%1$s`, …) must have a
-  `/* translators: */` comment on the line directly above, naming each
-  placeholder. Plugin-check / WPCS reports this as
-  `WordPress.WP.I18n.MissingTranslatorsComment` and treats it as an error.
-
-  ```php
-  /* translators: %1$s: old status, %2$s: new status. */
-  sprintf(__('Cambio de estado: %1$s → %2$s', 'documentate'), $old, $new);
-  ```
-
-- **Required:** every time you add, change, or remove a translatable string,
-  update `languages/documentate-es_ES.po` (and any other `.po` files present)
-  in the same commit. A change that touches `__()`/`_e()`/`_n()`/`_x()` and
-  ships without a `.po` update is incomplete.
-- **Required before push/PR:** run `make check-untranslated` and ensure it
-  passes. Empty `msgstr ""` entries after a new `msgid` are CI failures —
-  fill the Spanish translation, do not leave placeholders empty.
-- Practical workflow when adding a string:
-
-  ```bash
-  # After adding/changing __() strings in PHP:
-  make check-untranslated   # regenerates pot/po and lists untranslated
-  # Edit languages/documentate-es_ES.po: fill msgstr for each new msgid
-  make check-untranslated   # must exit 0 before git push
-  ```
+La interfaz está en español directamente en el código; no hay i18n ni ficheros
+de traducción.
 
 ### PHPDoc
 
@@ -295,12 +248,9 @@ A change is ready when **all** of the following are true:
 2. `make check-plugin` passes with no errors.
 3. `make test` passes with no failures, and coverage stays at or above 90 %
    (project and patch) without any of the tricks listed under *Tests*.
-4. `make check-untranslated` passes with no empty Spanish translations
-   (**always** before push/PR — not optional “if you remember strings”).
-5. `make test-e2e` passes for the affected flows (if UI/browser behaviour changed).
-6. PHPDoc is updated for any modified functions or classes.
-7. No unrelated files, classes, or hooks were renamed or removed.
-8. No push/PR is opened while `make check-untranslated` is red.
+4. `make test-e2e` passes for the affected flows (if UI/browser behaviour changed).
+5. PHPDoc is updated for any modified functions or classes.
+6. No unrelated files, classes, or hooks were renamed or removed.
 
 ---
 

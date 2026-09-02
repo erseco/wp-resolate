@@ -67,10 +67,5 @@ artifacts/
 test-results/
 .omc/
 
-# Generated runtime translation files. Built from the committed .po sources
-# by `make package` and shipped in the release ZIP; never committed.
-languages/*.mo
-languages/*.l10n.php
-
 # Capturas generadas por «make capturas» (se regeneran, no se versionan)
 /capturas/

@@ -94,7 +94,7 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-template-select', $output );
-		$this->assertStringContainsString( 'Select template', $output );
+		$this->assertStringContainsString( 'Seleccionar plantilla', $output );
 	}
 
 	/**
@@ -137,7 +137,7 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		$this->admin->edit_fields( $term_obj, 'documentate_doc_type' );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Re-parse template', $output );
+		$this->assertStringContainsString( 'Reanalizar plantilla', $output );
 		$this->assertStringContainsString( 'documentate_reparse_schema', $output );
 	}
 
@@ -313,7 +313,7 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		$method->invoke( $this->admin, array() );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'No fields found', $output );
+		$this->assertStringContainsString( 'No se encontraron campos', $output );
 	}
 
 	/**
@@ -813,7 +813,7 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		wp_set_current_user( $subscriber_id );
 
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Insufficient permissions.' );
+		$this->expectExceptionMessage( 'Permisos insuficientes.' );
 
 		$this->admin->handle_reparse_schema();
 	}
@@ -825,7 +825,7 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		$_GET['term_id'] = 0;
 
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Invalid document type ID.' );
+		$this->expectExceptionMessage( 'ID de tipo de documento no válido.' );
 
 		$this->admin->handle_reparse_schema();
 	}
@@ -837,7 +837,7 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		$_GET['term_id'] = -5;
 
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Invalid document type ID.' );
+		$this->expectExceptionMessage( 'ID de tipo de documento no válido.' );
 
 		$this->admin->handle_reparse_schema();
 	}

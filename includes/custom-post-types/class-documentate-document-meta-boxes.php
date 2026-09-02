@@ -28,7 +28,7 @@ class Documentate_Document_Meta_Boxes {
 	public function register_meta_boxes() {
 		add_meta_box(
 			'documentate_sections',
-			__( 'Document Sections', 'documentate' ),
+			'Secciones del documento',
 			array( $this, 'render_sections_metabox' ),
 			'documentate_document',
 			'normal',
@@ -36,12 +36,12 @@ class Documentate_Document_Meta_Boxes {
 		);
 
 		if ( post_type_supports( 'documentate_document', 'comments' ) ) {
-			add_meta_box( 'commentsdiv', __( 'Comments', 'default' ), 'post_comment_meta_box', 'documentate_document', 'normal', 'core' );
+			add_meta_box( 'commentsdiv', 'Comentarios', 'post_comment_meta_box', 'documentate_document', 'normal', 'core' );
 		}
 
 		// Move author metabox to side with low priority.
 		remove_meta_box( 'authordiv', 'documentate_document', 'normal' );
-		add_meta_box( 'authordiv', __( 'Author', 'documentate' ), 'post_author_meta_box', 'documentate_document', 'side', 'low' );
+		add_meta_box( 'authordiv', 'Autor', 'post_author_meta_box', 'documentate_document', 'side', 'low' );
 	}
 	/**
 	 * Render the document type selector metabox.
@@ -63,25 +63,25 @@ class Documentate_Document_Meta_Boxes {
 		);
 
 		if ( ! $terms || is_wp_error( $terms ) ) {
-			echo '<p>' . esc_html__( 'No document types defined. Create one in Document Types.', 'documentate' ) . '</p>';
+			echo '<p>' . esc_html( 'No hay tipos de documento definidos. Crea uno en Tipos de documento.' ) . '</p>';
 			return;
 		}
 
 		$locked = $current > 0 && 'auto-draft' !== $post->post_status;
 		echo '<p class="description">'
-				. esc_html__( 'Choose the type when creating the document. It cannot be changed later.', 'documentate' )
+				. esc_html( 'Elige el tipo al crear el documento. No se puede cambiar después.' )
 				. '</p>';
 		if ( $locked ) {
 			$term = get_term( $current, 'documentate_doc_type' );
 			echo '<p><strong>'
-					. esc_html__( 'Selected type:', 'documentate' )
+					. esc_html( 'Tipo seleccionado:' )
 					. '</strong> '
 					. esc_html( $term ? $term->name : '' )
 					. '</p>';
 			echo '<input type="hidden" name="documentate_doc_type" value="' . esc_attr( (string) $current ) . '" />';
 		} else {
 			echo '<select name="documentate_doc_type" class="widefat">';
-			echo '<option value="">' . esc_html__( 'Select a type…', 'documentate' ) . '</option>';
+			echo '<option value="">' . esc_html( 'Selecciona un tipo…' ) . '</option>';
 			foreach ( $terms as $t ) {
 				echo '<option value="'
 						. esc_attr( (string) $t->term_id )
@@ -123,7 +123,7 @@ class Documentate_Document_Meta_Boxes {
 		if ( empty( $schema ) ) {
 			echo '<div class="documentate-sections">';
 			echo '<p class="description">'
-					. esc_html__( 'Configure a document type with fields to edit its content.', 'documentate' )
+					. esc_html( 'Configura un tipo de documento con campos para editar su contenido.' )
 					. '</p>';
 			$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
 			$this->render_unknown_dynamic_fields_ui( $unknown );
@@ -589,9 +589,8 @@ class Documentate_Document_Meta_Boxes {
 
 		echo '<div class="documentate-unknown-dynamic" style="margin-top:24px;">';
 		echo '<div class="notice notice-warning inline" style="margin:0 0 12px;">'
-				. esc_html__(
-					'The document contains additional fields that do not belong to the selected type. Review their content before saving.',
-					'documentate',
+				. esc_html(
+					'El documento contiene campos adicionales que no pertenecen al tipo seleccionado. Revisa su contenido antes de guardar.',
 				)
 				. '</div>';
 
@@ -602,15 +601,14 @@ class Documentate_Document_Meta_Boxes {
 				$value = wp_kses_post( $data['value'] );
 			}
 			echo '<div class="documentate-field documentate-field-warning" style="margin-bottom:16px;border:1px solid #dba617;padding:12px;background:#fffbea;">';
-			/* translators: %s: detected dynamic field key. */
-			$additional_field_label = sprintf( __( 'Additional field: %s', 'documentate' ), $label );
+			$additional_field_label = sprintf( 'Campo adicional: %s', $label );
 			echo '<label for="'
 					. esc_attr( $meta_key )
 					. '" style="font-weight:600;display:block;margin-bottom:4px;">'
 					. esc_html( $additional_field_label )
 					. '</label>';
 			echo '<p class="description" style="margin-top:0;margin-bottom:8px;">'
-					. esc_html__( 'This field is not defined in the current document type taxonomy.', 'documentate' )
+					. esc_html( 'Este campo no está definido en la taxonomía de tipo de documento actual.' )
 					. '</p>';
 			$tinymce_config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles escaping.

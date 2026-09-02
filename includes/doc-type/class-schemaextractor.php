@@ -103,7 +103,7 @@ class SchemaExtractor {
 
 		// Handle translatable messages at runtime.
 		if ( 'email' === $field_type && '' === $config['message'] ) {
-			$config['message'] = __( 'Enter a valid email (user@domain.tld)', 'documentate' );
+			$config['message'] = 'Introduce un email válido (usuario@dominio.tld)';
 		}
 
 		return $config;
@@ -121,10 +121,7 @@ class SchemaExtractor {
 		if ( '' === $template_path || ! file_exists( $template_path ) || ! is_readable( $template_path ) ) {
 			return new WP_Error(
 				'documentate_schema_template_missing',
-				__(
-					'The selected template file is not accessible.',
-					'documentate',
-				)
+				'El archivo de plantilla seleccionado no es accesible.'
 			);
 		}
 
@@ -132,10 +129,7 @@ class SchemaExtractor {
 		if ( '' === $template_type ) {
 			return new WP_Error(
 				'documentate_schema_template_type',
-				__(
-					'The template must be a DOCX or ODT file.',
-					'documentate',
-				)
+				'La plantilla debe ser un archivo DOCX u ODT.'
 			);
 		}
 
@@ -176,7 +170,7 @@ class SchemaExtractor {
 	private function collect_placeholders( $template_path, $template_type ) {
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $template_path ) ) {
-			return new WP_Error( 'documentate_schema_template_open', __( 'The template file could not be opened.', 'documentate' ) );
+			return new WP_Error( 'documentate_schema_template_open', 'No se pudo abrir el archivo de plantilla.' );
 		}
 
 		$targets = array();

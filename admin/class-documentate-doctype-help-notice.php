@@ -60,73 +60,72 @@ class Documentate_Doctype_Help_Notice {
 	 */
 	private function get_notice_content() {
 		$markup = '';
-		$markup .= '<p><strong>' . esc_html__( 'Templates for ODT/DOCX:', 'documentate' ) . '</strong> ';
+		$markup .= '<p><strong>' . esc_html( 'Plantillas para ODT/DOCX:' ) . '</strong> ';
 		$markup .=
-			esc_html__(
-				'wp-documentate can read the following fields defined in the template and generate the final document.',
-				'documentate',
+			esc_html(
+				'wp-documentate puede leer los siguientes campos definidos en la plantilla y generar el documento final.',
 			) . '</p>';
 
-		$markup .= '<p><strong>' . esc_html__( 'Fields:', 'documentate' ) . '</strong> ';
-		$markup .= esc_html__( 'write markers like this:', 'documentate' ) . ' <code>';
+		$markup .= '<p><strong>' . esc_html( 'Campos:' ) . '</strong> ';
+		$markup .= esc_html( 'escribe marcadores así:' ) . ' <code>';
 		$markup .= esc_html( "[name;type='...';title='...';placeholder='...';description='...']" );
 		$markup .= '</code>.</p>';
 
 		$markup .= '<ul style="margin-left:1.2em;list-style:disc;">';
-		$markup .= '<li><strong>' . esc_html__( 'Types', 'documentate' ) . '</strong>: ';
+		$markup .= '<li><strong>' . esc_html( 'Tipos' ) . '</strong>: ';
 		$markup .=
-			esc_html__( 'if you omit', 'documentate' )
+			esc_html( 'si no pones' )
 			. ' <code>type</code> &rarr; <em>'
-			. esc_html__( 'textarea', 'documentate' )
+			. esc_html( 'textarea' )
 			. '</em>. ';
-		$markup .= esc_html__( 'Supported:', 'documentate' ) . ' <code>text</code>, <code>textarea</code>, <code>html</code> ';
+		$markup .= esc_html( 'Soportados:' ) . ' <code>text</code>, <code>textarea</code>, <code>html</code> ';
 		$markup .=
 			'('
-			. esc_html__( 'TinyMCE', 'documentate' )
+			. esc_html( 'TinyMCE' )
 			. '), <code>number</code>, <code>date</code>, <code>email</code>, <code>url</code>, <code>select</code>.</li>';
 
-		$markup .= '<li><strong>' . esc_html__( 'Validation', 'documentate' ) . '</strong>: ';
-		$markup .= '<code>required</code> ' . esc_html__( '(mandatory field)', 'documentate' ) . ', ';
-		$markup .= '<code>pattern</code> ' . esc_html__( '(regex) and', 'documentate' ) . ' <code>patternmsg</code>. ';
-		$markup .= esc_html__( 'Limits with', 'documentate' ) . ' <code>minvalue</code>/<code>maxvalue</code>. ';
-		$markup .= esc_html__( 'Length with', 'documentate' ) . ' <code>length</code>.</li>';
+		$markup .= '<li><strong>' . esc_html( 'Validación' ) . '</strong>: ';
+		$markup .= '<code>required</code> ' . esc_html( '(campo obligatorio)' ) . ', ';
+		$markup .= '<code>pattern</code> ' . esc_html( '(regex) y' ) . ' <code>patternmsg</code>. ';
+		$markup .= esc_html( 'Límites con' ) . ' <code>minvalue</code>/<code>maxvalue</code>. ';
+		$markup .= esc_html( 'Longitud con' ) . ' <code>length</code>.</li>';
 
-		$markup .= '<li><strong>' . esc_html__( 'UI Help', 'documentate' ) . '</strong>: <code>title</code> ';
-		$markup .= '(' . esc_html__( 'label', 'documentate' ) . '), <code>placeholder</code>, <code>description</code> ';
-		$markup .= '(' . esc_html__( 'help text', 'documentate' ) . ').</li>';
+		$markup .= '<li><strong>' . esc_html( 'Ayuda UI' ) . '</strong>: <code>title</code> ';
+		$markup .= '(' . esc_html( 'etiqueta' ) . '), <code>placeholder</code>, <code>description</code> ';
+		$markup .= '(' . esc_html( 'texto de ayuda' ) . ').</li>';
 
-		$markup .= '<li><strong>' . esc_html__( 'Case', 'documentate' ) . '</strong>: <code>ope</code> ';
+		$markup .= '<li><strong>' . esc_html( 'Capitalización' ) . '</strong>: <code>ope</code> ';
 		$markup .= '(<code>upper</code>, <code>lower</code>, <code>upperw</code>). ';
-		$markup .= esc_html__( 'Text case transformation inline.', 'documentate' ) . ' ';
+		$markup .= esc_html( 'Transformación de mayúsculas/minúsculas en línea.' ) . ' ';
 		$markup .=
-			esc_html__( 'Use', 'documentate' ) . ' <code>utf8</code> ' . esc_html__( 'before for accents/ñ.', 'documentate' ) . ' ';
-		$markup .= esc_html__( 'Example:', 'documentate' ) . ' <code>[name;ope=utf8,upper]</code>.</li>';
+			esc_html( 'Usa' ) . ' <code>utf8</code> ' . esc_html( 'antes para acentos/ñ.' ) . ' ';
+		$markup .= esc_html( 'Ejemplo:' ) . ' <code>[name;ope=utf8,upper]</code>.</li>';
 
-		$markup .= '<li><strong>' . esc_html__( 'Date format', 'documentate' ) . '</strong>: <code>frm</code> ';
-		$markup .= esc_html__( 'for date fields.', 'documentate' ) . ' ';
+		$markup .= '<li><strong>' . esc_html( 'Formato de fecha' ) . '</strong>: <code>frm</code> ';
+		$markup .= esc_html( 'para campos de fecha.' ) . ' ';
 		$markup .=
-			esc_html__( 'Example:', 'documentate' )
+			esc_html( 'Ejemplo:' )
 			. ' <code>[fecha;frm=\'dd/mm/yyyy\']</code>, <code>[fecha;frm=\'d mmmm yyyy\']</code>.</li>';
 
-		$markup .= '<li><strong>' . esc_html__( 'More info', 'documentate' ) . '</strong>: ';
+		$markup .= '<li><strong>' . esc_html( 'Más información' ) . '</strong>: ';
 		$markup .=
 			'<a href="https://www.tinybutstrong.com/manual.php" target="_blank" rel="noopener">'
-			. esc_html__( 'TBS Manual', 'documentate' )
+			. esc_html( 'Manual TBS' )
 			. '</a> ';
-		$markup .= '(' . esc_html__( 'frm, ope, conditions, etc.', 'documentate' ) . ').</li>';
+		$markup .= '(' . esc_html( 'frm, ope, condiciones, etc.' ) . ').</li>';
 		$markup .= '</ul>';
 
-		$markup .= '<p><strong>' . esc_html__( 'Repeater (lists):', 'documentate' ) . '</strong> ';
+		$markup .= '<p><strong>' . esc_html( 'Repetidor (listas):' ) . '</strong> ';
 		$markup .=
-			esc_html__( 'use blocks with', 'documentate' )
+			esc_html( 'usa bloques con' )
 			. ' <code>[items;block=begin]</code> &hellip; <code>[items;block=end]</code> ';
-		$markup .= esc_html__( 'and define the fields for each item inside.', 'documentate' ) . '</p>';
+		$markup .= esc_html( 'y define dentro los campos de cada elemento.' ) . '</p>';
 
-		$markup .= '<p><strong>' . esc_html__( 'Repeater in tables:', 'documentate' ) . '</strong> ';
-		$markup .= esc_html__( 'to repeat table rows, use', 'documentate' ) . ' <code>block=tbs:row</code> ';
-		$markup .= esc_html__( 'in the first field of the row instead of block=begin/end.', 'documentate' ) . '</p>';
+		$markup .= '<p><strong>' . esc_html( 'Repetidor en tablas:' ) . '</strong> ';
+		$markup .= esc_html( 'para repetir filas de tabla, usa' ) . ' <code>block=tbs:row</code> ';
+		$markup .= esc_html( 'en el primer campo de la fila en lugar de block=begin/end.' ) . '</p>';
 
-		$markup .= '<p><strong>' . esc_html__( 'Quick examples:', 'documentate' ) . '</strong></p>';
+		$markup .= '<p><strong>' . esc_html( 'Ejemplos rápidos:' ) . '</strong></p>';
 
 		$markup .= '<pre style="white-space:pre-wrap;">';
 		$markup .= esc_html( "[nombre;type='text';required='true';title='Nombre completo']\n" );
@@ -136,36 +135,34 @@ class Documentate_Doctype_Help_Notice {
 			"[persona;type='select';values='COORDINADOR|PROVEEDOR/A|EMPRESA';description='Elegir un tipo de persona']\n",
 		);
 		$markup .= esc_html( "[items;block=begin][items.title;type='text'] [items.content;type='html'][items;block=end]\n" );
-		$markup .= esc_html__( '-- Table row:', 'documentate' ) . "\n";
+		$markup .= esc_html( '-- Fila de tabla:' ) . "\n";
 		$markup .= esc_html( "| [items.name;block=tbs:row;type='text'] | [items.qty;type='number'] |" );
 		$markup .= '</pre>';
 
-		$markup .= '<p><strong>' . esc_html__( 'Digital signature (AutoFirma):', 'documentate' ) . '</strong> ';
+		$markup .= '<p><strong>' . esc_html( 'Firma digital (AutoFirma):' ) . '</strong> ';
 		$markup .=
-			esc_html__(
-				'add [sign] to enable the "Sign and Download" button. Optional parameters x and y set the signature position in PDF points from the bottom-left corner of the page. Use page to specify the page number (-1 = last page).',
-				'documentate',
+			esc_html(
+				'añade [sign] para activar el botón "Firmar y descargar". Los parámetros opcionales x e y definen la posición de la firma en puntos PDF desde la esquina inferior izquierda de la página. Usa page para indicar el número de página (-1 = última página).',
 			) . '</p>';
 
 		$markup .= '<pre style="white-space:pre-wrap;">';
 		$markup .=
 			esc_html( '[sign]                          -- ' )
-			. esc_html__( 'default position (bottom-left, last page)', 'documentate' )
+			. esc_html( 'posición por defecto (abajo-izquierda, última página)' )
 			. "\n";
 		$markup .=
-			esc_html( '[sign;x=100;y=200]             -- ' ) . esc_html__( 'custom position on last page', 'documentate' ) . "\n";
-		$markup .= esc_html( '[sign;x=50;y=80;page=2]        -- ' ) . esc_html__( 'custom position on page 2', 'documentate' );
+			esc_html( '[sign;x=100;y=200]             -- ' ) . esc_html( 'posición personalizada en la última página' ) . "\n";
+		$markup .= esc_html( '[sign;x=50;y=80;page=2]        -- ' ) . esc_html( 'posición personalizada en la página 2' );
 		$markup .= '</pre>';
 
 		$markup .=
 			'<p>'
-			. esc_html__( 'Tip: in ODT/DOCX the text can be fragmented internally. To ensure each marker', 'documentate' )
+			. esc_html( 'Consejo: en ODT/DOCX el texto puede fragmentarse internamente. Para asegurar que cada marcador' )
 			. ' ';
 		$markup .=
 			'<code>[...]</code> '
-			. esc_html__(
-				'remains intact, write it in a plain text editor, then copy and paste without formatting.',
-				'documentate',
+			. esc_html(
+				'quede íntegro, escríbelo en un editor de texto plano y luego copia y pega sin formato.',
 			)
 			. '</p>';
 

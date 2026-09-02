@@ -49,11 +49,7 @@ install-requirements:
 
 # ─── Docker (port 8989, requires Docker) ─────────────────────────────────────
 
-# The runtime translation files are generated rather than committed, and the
-# wp-env configs run WordPress in Spanish, so they have to exist before the
-# environment serves the plugin. Otherwise the site silently falls back to
-# English and any test or manual check that reads translated UI is misleading.
-start-docker-if-not-running: check-docker package-translations
+start-docker-if-not-running: check-docker
 	@if [ "$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$(DOCKER_PORT))" = "000" ]; then \
 		echo "Docker env is NOT running. Starting..."; \
 		$(WP_ENV) start $(DOCKER_CONFIG) --update; \
@@ -81,8 +77,6 @@ clean: check-docker
 	$(WP_ENV) reset $(DOCKER_CONFIG) development
 	$(WP_ENV) reset $(DOCKER_CONFIG) tests
 	$(WP_CLI) plugin activate documentate
-	$(WP_CLI) language core install es_ES --activate
-	$(WP_CLI) site switch-language es_ES
 
 destroy:
 	$(WP_ENV) destroy
@@ -150,8 +144,6 @@ setup-e2e-env:
 		--admin_password=password \
 		--admin_email=admin@example.com \
 		--skip-email 2>/dev/null || true
-	@$(WP_CLI) language core install es_ES --activate 2>/dev/null || true
-	@$(WP_CLI) site switch-language es_ES 2>/dev/null || true
 	@$(WP_CLI) plugin activate documentate 2>/dev/null || true
 	@$(WP_CLI) rewrite structure '/%postname%/' --hard 2>/dev/null || true
 
@@ -246,9 +238,9 @@ check-plugin: check-docker start-docker-if-not-running
 
 # ─── Linting & Code Quality ──────────────────────────────────────────────────
 
-# Combined check for lint, tests, untranslated, and more.
+# Combined check for lint, tests, and more.
 # Verification targets do not modify source files.
-check: lint check-plugin test check-untranslated mo
+check: lint check-plugin test
 
 check-all: check
 
@@ -291,57 +283,12 @@ mago-format: require-mago
 phpmd:
 	phpmd . text cleancode,codesize,controversial,design,naming,unusedcode --exclude vendor,node_modules,tests
 
-# ─── Composer / Translations / Packaging ─────────────────────────────────────
+# ─── Composer / Packaging ─────────────────────────────────────────────────────
 
 # Update Composer dependencies
 update: check-docker
 	composer update --no-cache --with-all-dependencies
 	npm update
-
-# Generate a .pot file for translations
-pot:
-	composer make-pot
-
-# Update .po files from .pot file
-po:
-	composer update-po
-
-# Generate .mo files from .po files
-mo:
-	composer make-mo
-
-# Generate .l10n.php files from .po files.
-# WordPress 6.5+ loads these instead of the .mo when both are present; the .mo
-# stays as the fallback for the 6.1-6.4 range declared in readme.txt.
-l10n-php:
-	composer make-php
-
-# Build and validate the runtime translation files that ship in the package.
-# They are generated from the committed .po sources and deliberately kept out
-# of the repository, so packaging must never assume they are already present.
-package-translations: mo l10n-php
-	@set -e; \
-	found=0; \
-	for po in languages/documentate-*.po; do \
-		if [ ! -e "$$po" ]; then continue; fi; \
-		found=1; \
-		mo="$${po%.po}.mo"; \
-		l10n="$${po%.po}.l10n.php"; \
-		for f in "$$mo" "$$l10n"; do \
-			if [ ! -s "$$f" ]; then \
-				echo "Error: Missing or empty generated translation file: $$f" >&2; \
-				exit 1; \
-			fi; \
-		done; \
-	done; \
-	if [ "$$found" -eq 0 ]; then \
-		echo "Error: No translation source files found under languages/." >&2; \
-		exit 1; \
-	fi
-
-# Check the untranslated strings
-check-untranslated:
-	composer check-untranslated
 
 # Generate the LibreOffice WASM glue that the plugin ships but does not track.
 # `wp dist-archive` packages the working tree and ignores .gitignore, so these
@@ -363,7 +310,6 @@ package:
 		exit 1; \
 	fi
 	$(MAKE) package-assets
-	$(MAKE) package-translations
 
 	# Update the version in documentate.php & readme.txt
 	$(SED_INPLACE) "s/^ \* Version:.*/ * Version:           $(VERSION)/" documentate.php
@@ -372,8 +318,8 @@ package:
 
 	@# Create the ZIP package with proper folder structure.
 	@# `wp dist-archive` reads .distignore straight from the working tree, so the
-	@# generated files that .gitignore keeps out of the repository (the WASM glue,
-	@# the runtime translations) are packaged like any other file.
+	@# generated files that .gitignore keeps out of the repository (the WASM
+	@# glue) are packaged like any other file.
 	@# --plugin-dirname is what makes the archive extract as documentate/. Without
 	@# it WordPress names the plugin folder after the ZIP file and every release
 	@# lands in a new directory.
@@ -414,8 +360,7 @@ help:
 	@echo "  mago-lint          - Optional secondary Mago lint"
 	@echo "  mago-format        - Optional secondary Mago formatter"
 	@echo "  check-plugin       - Run WordPress plugin-check (Docker)"
-	@echo "  check-untranslated - Check for untranslated strings"
-	@echo "  check              - Run lint, plugin-check, tests, untranslated, and mo"
+	@echo "  check              - Run lint, plugin-check, and tests"
 	@echo "  check-all          - Alias for check"
 	@echo ""
 	@echo "Testing:"
@@ -429,11 +374,6 @@ help:
 	@echo "  test-e2e-visual    - Run E2E tests with visual UI (Docker)"
 	@echo "  capturas           - Walk the whole cycle and write capturas/informe.html"
 	@echo "                       SOLO=escritorio|movil (one screen size only)"
-	@echo ""
-	@echo "Translations:"
-	@echo "  pot                - Generate a .pot file for translations"
-	@echo "  po                 - Update .po files from .pot file"
-	@echo "  mo                 - Generate .mo files from .po files"
 	@echo ""
 	@echo "Packaging & Updates:"
 	@echo "  update             - Update Composer dependencies"

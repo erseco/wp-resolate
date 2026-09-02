@@ -30,7 +30,7 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'email', $fields, 'Email field must exist.' );
 		$this->assertSame( 'email', $fields['email']['type'] );
 		$this->assertSame(
-			'Enter a valid email (user@domain.tld)',
+			'Introduce un email válido (usuario@dominio.tld)',
 			$fields['email']['patternmsg']
 		);
 
@@ -99,7 +99,7 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'email', $fields, 'Email field must exist.' );
 		$this->assertSame( 'email', $fields['email']['type'] );
 		$this->assertSame(
-			'Enter a valid email (user@domain.tld)',
+			'Introduce un email válido (usuario@dominio.tld)',
 			$fields['email']['patternmsg']
 		);
 

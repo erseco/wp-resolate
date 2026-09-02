@@ -51,7 +51,7 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 	 */
 	public function test_validate_request_dies_when_post_id_is_zero() {
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Insufficient permissions.' );
+		$this->expectExceptionMessage( 'Permisos insuficientes.' );
 
 		$handler = new Export_DOCX_Handler();
 		$method  = new ReflectionMethod( $handler, 'validate_request' );
@@ -65,7 +65,7 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 	 */
 	public function test_validate_request_dies_when_no_permission() {
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Insufficient permissions.' );
+		$this->expectExceptionMessage( 'Permisos insuficientes.' );
 
 		// Create a subscriber user (no edit permissions).
 		$subscriber_id = $this->factory->user->create( array( 'role' => 'subscriber' ) );
@@ -91,7 +91,7 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 	 */
 	public function test_validate_request_dies_when_nonce_missing() {
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Invalid nonce.' );
+		$this->expectExceptionMessage( 'Nonce no válido.' );
 
 		$admin_id = $this->factory->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
@@ -118,7 +118,7 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 	 */
 	public function test_validate_request_dies_when_nonce_invalid() {
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Invalid nonce.' );
+		$this->expectExceptionMessage( 'Nonce no válido.' );
 
 		$admin_id = $this->factory->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
@@ -331,7 +331,7 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 		$_GET['_wpnonce'] = 'some_nonce';
 
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Insufficient permissions.' );
+		$this->expectExceptionMessage( 'Permisos insuficientes.' );
 
 		$handler = new Export_DOCX_Handler();
 		$method  = new ReflectionMethod( $handler, 'validate_request' );
@@ -369,7 +369,7 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 	 */
 	public function test_validate_request_with_wrong_nonce_action() {
 		$this->expectException( WPDieException::class );
-		$this->expectExceptionMessage( 'Invalid nonce.' );
+		$this->expectExceptionMessage( 'Nonce no válido.' );
 
 		$admin_id = $this->factory->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );

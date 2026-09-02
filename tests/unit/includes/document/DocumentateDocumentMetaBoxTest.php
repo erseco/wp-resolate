@@ -100,7 +100,7 @@ class DocumentateDocumentMetaBoxTest extends Documentate_Test_Base {
 		$html = ob_get_clean();
 
 		$this->assertStringContainsString( 'Documento Demo', $html, 'Title must be displayed as text.' );
-		$this->assertStringContainsString( 'The subject is derived from the post title.', $html, 'Subject help text must be displayed.' );
+		$this->assertStringContainsString( 'El asunto se obtiene del título del artículo.', $html, 'Subject help text must be displayed.' );
 		$this->assertStringNotContainsString( 'name="documentate_document_meta_subject"', $html, 'Subject field must not be rendered as input.' );
 		$this->assertStringContainsString( 'id="documentate_document_meta_author" name="documentate_document_meta_author" class="widefat"', $html, 'Author field must span full width.' );
 		$this->assertStringContainsString( 'id="documentate_document_meta_keywords" name="documentate_document_meta_keywords" class="widefat"', $html, 'Keywords field must span full width.' );
@@ -315,7 +315,7 @@ class DocumentateDocumentMetaBoxTest extends Documentate_Test_Base {
 		$this->meta_box->render( $post );
 		$html = ob_get_clean();
 
-		$this->assertStringContainsString( 'Title', $html, 'Title label must be displayed.' );
+		$this->assertStringContainsString( 'Título', $html, 'Title label must be displayed.' );
 	}
 
 	/**

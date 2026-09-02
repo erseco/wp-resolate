@@ -207,7 +207,7 @@ class DocumentateDocTypesReparseSchemaTest extends Documentate_Test_Base {
 		$flash = $this->get_flash();
 
 		$this->assertSame( 'error', $flash['type'] );
-		$this->assertStringContainsString( 'No template associated', $flash['message'] );
+		$this->assertStringContainsString( 'No hay plantilla asociada', $flash['message'] );
 	}
 
 	/**
@@ -220,7 +220,7 @@ class DocumentateDocTypesReparseSchemaTest extends Documentate_Test_Base {
 		$flash = $this->get_flash();
 
 		$this->assertSame( 'error', $flash['type'] );
-		$this->assertStringContainsString( 'Template file not found', $flash['message'] );
+		$this->assertStringContainsString( 'Archivo de plantilla no encontrado', $flash['message'] );
 	}
 
 	/**
@@ -245,7 +245,7 @@ class DocumentateDocTypesReparseSchemaTest extends Documentate_Test_Base {
 		$this->request_reparse_of( $term_id );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
 
-		$this->assertStringContainsString( 'Insufficient permissions', $this->capture_die() );
+		$this->assertStringContainsString( 'Permisos insuficientes', $this->capture_die() );
 		$this->assertEmpty( ( new SchemaStorage() )->get_schema( $term_id ) );
 	}
 
@@ -253,7 +253,7 @@ class DocumentateDocTypesReparseSchemaTest extends Documentate_Test_Base {
 	 * Reparsing requires a term ID.
 	 */
 	public function test_reparse_requires_a_term_id() {
-		$this->assertStringContainsString( 'Invalid document type ID', $this->capture_die() );
+		$this->assertStringContainsString( 'ID de tipo de documento no válido', $this->capture_die() );
 	}
 
 	/**

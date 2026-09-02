@@ -113,7 +113,7 @@ class DocumentateDoctypeHelpNoticeTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'notice-info', $output );
 		$this->assertStringContainsString( 'documentate-doctype-help', $output );
-		$this->assertStringContainsString( 'Templates', $output );
+		$this->assertStringContainsString( 'Plantillas', $output );
 	}
 
 	/**

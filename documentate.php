@@ -17,8 +17,6 @@
  * Author URI:        https://www3.gobiernodecanarias.org/medusa/ecoescuela/ate/
  * License:           GPL-3.0+
  * License URI:       https://www.gnu.org/licenses/gpl-3.0-standalone.html
- * Text Domain:       documentate
- * Domain Path:       /languages
  */
 
 // If this file is called directly, abort.

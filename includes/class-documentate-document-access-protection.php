@@ -100,8 +100,8 @@ class Documentate_Document_Access_Protection {
 
 		// Fallback if no 404 template.
 		wp_die(
-			esc_html__( 'You are not authorized to access this resource.', 'documentate' ),
-			esc_html__( 'Access Denied', 'documentate' ),
+			esc_html( 'No estás autorizado para acceder a este recurso.' ),
+			esc_html( 'Acceso denegado' ),
 			array( 'response' => 404 ),
 		);
 	}
@@ -181,7 +181,7 @@ class Documentate_Document_Access_Protection {
 		if ( preg_match( '#^/wp/v2/' . self::POST_TYPE . '(?:/|$)#', $route ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You are not authorized to access this resource.', 'documentate' ),
+				'No estás autorizado para acceder a este recurso.',
 				array( 'status' => rest_authorization_required_code() ),
 			);
 		}
@@ -192,7 +192,7 @@ class Documentate_Document_Access_Protection {
 			if ( get_post_type( $post_id ) === self::POST_TYPE ) {
 				return new WP_Error(
 					'rest_forbidden',
-					__( 'You are not authorized to access this resource.', 'documentate' ),
+					'No estás autorizado para acceder a este recurso.',
 					array( 'status' => rest_authorization_required_code() ),
 				);
 			}

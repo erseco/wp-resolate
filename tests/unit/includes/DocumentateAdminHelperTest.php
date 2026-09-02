@@ -100,7 +100,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$result = $this->helper->add_row_actions( $actions, $post );
 
 		$this->assertArrayHasKey( 'documentate_export_docx', $result );
-		$this->assertStringContainsString( 'Export DOCX', $result['documentate_export_docx'] );
+		$this->assertStringContainsString( 'Exportar DOCX', $result['documentate_export_docx'] );
 		$this->assertStringContainsString( 'documentate_export_docx', $result['documentate_export_docx'] );
 	}
 
@@ -481,7 +481,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->helper->render_actions_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Insufficient permissions', $output );
+		$this->assertStringContainsString( 'Permisos insuficientes', $output );
 	}
 
 	/**
@@ -1746,7 +1746,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertArrayHasKey( 'documentate_actions', $wp_meta_boxes['documentate_document']['side']['high'] );
 
 		$metabox = $wp_meta_boxes['documentate_document']['side']['high']['documentate_actions'];
-		$this->assertSame( __( 'Document Actions', 'documentate' ), $metabox['title'] );
+		$this->assertSame( 'Acciones del documento', $metabox['title'] );
 	}
 
 	/**

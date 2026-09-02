@@ -45,7 +45,7 @@ class Document_Attachments_Meta_Box {
 
 		add_meta_box(
 			'documentate_document_attachments',
-			__( 'Attachments', 'documentate' ),
+			'Adjuntos',
 			array( $this, 'render' ),
 			'documentate_document',
 			'normal',
@@ -77,7 +77,7 @@ class Document_Attachments_Meta_Box {
 				. '" />';
 		echo '<p>';
 		echo '<button type="button" class="button" id="documentate-attachments-add">'
-				. esc_html__( 'Add files', 'documentate' )
+				. esc_html( 'Añadir archivos' )
 				. '</button>';
 		echo '</p>';
 		echo '</div>';
@@ -104,7 +104,7 @@ class Document_Attachments_Meta_Box {
 				. esc_html( $filename )
 				. '</a>';
 		echo '<button type="button" class="button-link documentate-attachment-remove" title="'
-				. esc_attr__( 'Remove', 'documentate' )
+				. esc_attr( 'Eliminar' )
 				. '">';
 		echo '<span class="dashicons dashicons-no-alt"></span>';
 		echo '</button>';

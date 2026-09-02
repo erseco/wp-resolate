@@ -61,12 +61,6 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist
 
-      - name: Install gettext
-        run: sudo apt-get install -y gettext
-
-      - name: Check untranslated strings
-        run: make check-untranslated
-
       - name: Run WordPress Coding Standards
         run: make lint
 
@@ -180,8 +174,6 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # `make test-e2e` builds the runtime translation files before starting the
-      # environment, which needs the WP-CLI i18n command from require-dev.
       # --no-scripts on purpose: post-install-cmd overwrites the committed
       # runtime vendor trees under admin/vendor and includes/vendor, and the
       # suite must exercise those exactly as they ship.

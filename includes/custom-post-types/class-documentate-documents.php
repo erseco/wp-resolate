@@ -391,7 +391,7 @@ class Documentate_Documents {
 	 */
 	public function title_placeholder( $placeholder, $post ) {
 		if ( 'documentate_document' === $post->post_type ) {
-			return __( 'Enter document title', 'documentate' );
+			return 'Introduce el título del documento';
 		}
 		return $placeholder;
 	}

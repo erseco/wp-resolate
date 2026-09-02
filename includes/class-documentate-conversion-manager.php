@@ -51,9 +51,9 @@ class Documentate_Conversion_Manager {
 		}
 
 		$labels = array(
-			self::ENGINE_FPDF => __( 'Native PDF rendering', 'documentate' ),
-			self::ENGINE_WASM => __( 'LibreOffice WASM in browser (experimental)', 'documentate' ),
-			self::ENGINE_COLLABORA => __( 'Collabora Online', 'documentate' ),
+			self::ENGINE_FPDF => 'PDF nativo (FPDF)',
+			self::ENGINE_WASM => 'LibreOffice WASM en navegador (experimental)',
+			self::ENGINE_COLLABORA => 'Collabora Online',
 		);
 
 		return isset( $labels[ $engine ] ) ? $labels[ $engine ] : $labels[ self::ENGINE_FPDF ];
@@ -145,15 +145,12 @@ class Documentate_Conversion_Manager {
 			if ( '' !== $status ) {
 				return $status . $context;
 			}
-			return __( 'Collabora Online is not available to convert documents.', 'documentate' ) . $context;
+			return 'Collabora Online no está disponible para convertir documentos.' . $context;
 		}
 
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';
 		if ( Documentate_Collabora_Converter::is_playground() ) {
-			return __(
-				'In-browser LibreOffice WASM conversion is not available in WordPress Playground. Use Collabora Online instead.',
-				'documentate',
-			) . $context;
+			return 'La conversión LibreOffice WASM en el navegador no está disponible en WordPress Playground. Usa Collabora Online en su lugar.' . $context;
 		}
 
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-libreoffice-wasm-converter.php';
@@ -178,8 +175,7 @@ class Documentate_Conversion_Manager {
 		if ( '' !== $source_format && '' !== $target_format ) {
 			return ' '
 			. sprintf(
-				/* translators: 1: source extension, 2: target extension. */
-				__( 'Required to convert %1$s to %2$s.', 'documentate' ),
+				'Requerido para convertir %1$s a %2$s.',
 				strtoupper( $source_format ),
 				strtoupper( $target_format ),
 			);
@@ -188,8 +184,7 @@ class Documentate_Conversion_Manager {
 		if ( '' !== $target_format ) {
 			return ' '
 			. sprintf(
-				/* translators: %s: target extension. */
-				__( 'Required to generate %s.', 'documentate' ),
+				'Requerido para generar %s.',
 				strtoupper( $target_format ),
 			);
 		}

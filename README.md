@@ -50,7 +50,7 @@ Requires Docker (wp-env).
 ```bash
 make up             # Start Docker wp-env (http://localhost:8989, admin / password)
 make down           # Stop containers
-make check          # lint + plugin-check + tests + translations (no auto-fix)
+make check          # lint + plugin-check + tests (no auto-fix)
 ```
 
 See `AGENTS.md` for the full agent/developer instructions and `ARCHITECTURE.md` for system design.

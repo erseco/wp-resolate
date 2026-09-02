@@ -44,7 +44,7 @@ class Document_Meta_Box {
 
 		add_meta_box(
 			'documentate_document_meta',
-			__( 'Document Metadata', 'documentate' ),
+			'Metadatos del documento',
 			array( $this, 'render' ),
 			'documentate_document',
 			'side',
@@ -69,23 +69,23 @@ class Document_Meta_Box {
 		$author = get_post_meta( $post->ID, self::META_KEY_AUTHOR, true );
 		$keywords = get_post_meta( $post->ID, self::META_KEY_KEYWORDS, true );
 
-		echo '<p><strong>' . esc_html__( 'Title', 'documentate' ) . '</strong></p>';
+		echo '<p><strong>' . esc_html( 'Título' ) . '</strong></p>';
 		echo '<p class="description">' . esc_html( $title ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Subject', 'documentate' ) . '</strong></p>';
-		echo '<p class="description">' . esc_html__( 'The subject is derived from the post title.', 'documentate' ) . '</p>';
+		echo '<p><strong>' . esc_html( 'Asunto' ) . '</strong></p>';
+		echo '<p class="description">' . esc_html( 'El asunto se obtiene del título del artículo.' ) . '</p>';
 
-		echo '<p><label for="documentate_document_meta_author">' . esc_html__( 'Author', 'documentate' ) . '</label></p>';
+		echo '<p><label for="documentate_document_meta_author">' . esc_html( 'Autor' ) . '</label></p>';
 		echo '<p><input type="text" id="documentate_document_meta_author" name="documentate_document_meta_author" class="widefat" maxlength="255" value="'
 				. esc_attr( $author )
 				. '" /></p>';
 
-		echo '<p><label for="documentate_document_meta_keywords">' . esc_html__( 'Keywords', 'documentate' ) . '</label></p>';
+		echo '<p><label for="documentate_document_meta_keywords">' . esc_html( 'Palabras clave' ) . '</label></p>';
 		echo '<p><input type="text" id="documentate_document_meta_keywords" name="documentate_document_meta_keywords" class="widefat" maxlength="512" placeholder="'
-				. esc_attr__( 'keyword1, keyword2', 'documentate' )
+				. esc_attr( 'palabra1, palabra2' )
 				. '" value="'
 				. esc_attr( $keywords )
 				. '" /></p>';
-		echo '<p class="description">' . esc_html__( 'Comma-separated list.', 'documentate' ) . '</p>';
+		echo '<p class="description">' . esc_html( 'Lista separada por comas.' ) . '</p>';
 	}
 
 	/**

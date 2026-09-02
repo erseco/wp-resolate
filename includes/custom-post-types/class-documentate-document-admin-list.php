@@ -51,12 +51,12 @@ class Documentate_Document_Admin_List {
 			// Insert doc_type and nombre_interno columns after title.
 			if ( 'title' === $key ) {
 				$new_columns['nombre_interno'] = 'Nombre interno';
-				$new_columns['doc_type'] = __( 'Document Type', 'documentate' );
+				$new_columns['doc_type'] = 'Tipo de documento';
 			}
 
 			// Insert category column after author.
 			if ( 'author' === $key ) {
-				$new_columns['doc_category'] = __( 'Category', 'documentate' );
+				$new_columns['doc_category'] = 'Categoría';
 			}
 		}
 
@@ -81,7 +81,7 @@ class Documentate_Document_Admin_List {
 				'taxonomy' => 'documentate_doc_type',
 				'name' => 'documentate_doc_type',
 				'id' => 'filter-by-doc-type',
-				'all_label' => __( 'All document types', 'documentate' ),
+				'all_label' => 'Todos los tipos de documento',
 			)
 		);
 
@@ -92,7 +92,7 @@ class Documentate_Document_Admin_List {
 				'taxonomy' => 'category',
 				'name' => 'category_name',
 				'id' => 'filter-by-category',
-				'all_label' => __( 'All categories', 'documentate' ),
+				'all_label' => 'Todas las categorías',
 				'number' => 200,
 			)
 		);
@@ -188,7 +188,7 @@ class Documentate_Document_Admin_List {
 					)
 				),
 				$current,
-				esc_html__( 'Archived', 'documentate' ),
+				esc_html( 'Archivado' ),
 				$archived_count,
 			);
 		}
@@ -404,7 +404,7 @@ class Documentate_Document_Admin_List {
 			array(
 				'name' => 'author',
 				'id' => 'filter-by-author',
-				'all_label' => __( 'All authors', 'documentate' ),
+				'all_label' => 'Todos los autores',
 				'current' => isset( $_GET['author'] ) ? absint( $_GET['author'] ) : 0,
 				'options' => $options,
 			)

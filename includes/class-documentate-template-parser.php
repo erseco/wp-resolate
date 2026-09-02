@@ -67,7 +67,7 @@ class Documentate_Template_Parser {
 
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $template_path ) ) {
-			return new WP_Error( 'documentate_template_unzip', __( 'Could not open the template for analysis.', 'documentate' ) );
+			return new WP_Error( 'documentate_template_unzip', 'No se pudo abrir la plantilla para su análisis.' );
 		}
 
 		$placeholders = self::collect_placeholders( $zip, self::locate_target_parts( $zip, $extension ) );
@@ -90,16 +90,16 @@ class Documentate_Template_Parser {
 	 */
 	private static function validate_template( $template_path ) {
 		if ( empty( $template_path ) || ! file_exists( $template_path ) ) {
-			return new WP_Error( 'documentate_template_missing', __( 'The selected template was not found.', 'documentate' ) );
+			return new WP_Error( 'documentate_template_missing', 'La plantilla seleccionada no se encuentra.' );
 		}
 
 		$extension = strtolower( pathinfo( $template_path, PATHINFO_EXTENSION ) );
 		if ( ! in_array( $extension, array( 'docx', 'odt' ), true ) ) {
-			return new WP_Error( 'documentate_template_invalid', __( 'The file must be a DOCX or ODT.', 'documentate' ) );
+			return new WP_Error( 'documentate_template_invalid', 'El archivo debe ser un DOCX u ODT.' );
 		}
 
 		if ( ! class_exists( 'ZipArchive' ) ) {
-			return new WP_Error( 'documentate_zip_missing', __( 'ZipArchive is not available on the server.', 'documentate' ) );
+			return new WP_Error( 'documentate_zip_missing', 'ZipArchive no está disponible en el servidor.' );
 		}
 
 		return $extension;

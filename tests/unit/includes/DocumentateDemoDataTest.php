@@ -63,8 +63,8 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 		$options = get_option( 'documentate_settings', array() );
 
 		$this->assertSame( 'danger', $options['alert_color'] );
-		$this->assertStringContainsString( 'Warning', $options['alert_message'] );
-		$this->assertStringContainsString( 'demo data', $options['alert_message'] );
+		$this->assertStringContainsString( 'Advertencia', $options['alert_message'] );
+		$this->assertStringContainsString( 'datos de demostración', $options['alert_message'] );
 	}
 
 	/**

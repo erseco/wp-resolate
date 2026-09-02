@@ -447,7 +447,7 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 
 		$labels = $this->revision_field_labels();
 
-		$this->assertSame( __( 'Subject', 'documentate' ), $labels['asunto'] );
+		$this->assertSame( 'Asunto', $labels['asunto'] );
 	}
 
 	/**
@@ -533,7 +533,7 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 
 		$labels = $this->revision_field_labels();
 
-		$this->assertSame( __( 'Subject', 'documentate' ), $labels['asunto'] );
+		$this->assertSame( 'Asunto', $labels['asunto'] );
 	}
 
 	/**

@@ -180,7 +180,7 @@ class ExportHandlerFlowTest extends Documentate_Test_Base {
 
 		$message = $this->capture_die( $handler );
 
-		$this->assertStringContainsString( 'Generated file not found', $message );
+		$this->assertStringContainsString( 'Fichero generado no encontrado', $message );
 	}
 
 	/**
@@ -192,7 +192,7 @@ class ExportHandlerFlowTest extends Documentate_Test_Base {
 
 		$message = $this->capture_die( $handler );
 
-		$this->assertStringContainsString( 'Insufficient permissions', $message );
+		$this->assertStringContainsString( 'Permisos insuficientes', $message );
 	}
 
 	/**
@@ -204,7 +204,7 @@ class ExportHandlerFlowTest extends Documentate_Test_Base {
 
 		$message = $this->capture_die( $handler );
 
-		$this->assertStringContainsString( 'Invalid nonce', $message );
+		$this->assertStringContainsString( 'Nonce no válido', $message );
 	}
 
 	/**
@@ -216,6 +216,6 @@ class ExportHandlerFlowTest extends Documentate_Test_Base {
 
 		$message = $this->capture_die( $handler );
 
-		$this->assertStringContainsString( 'Insufficient permissions', $message );
+		$this->assertStringContainsString( 'Permisos insuficientes', $message );
 	}
 }

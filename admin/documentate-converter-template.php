@@ -50,7 +50,7 @@ $documentate_converter_config = array_merge(
 <html>
 <head>
 	<meta charset="utf-8">
-	<title><?php esc_html_e( 'Documentate Converter', 'documentate' ); ?></title>
+	<title><?php echo esc_html( 'Conversor de Documentate' ); ?></title>
 	<style>
 		body {
 			margin: 0;
@@ -101,8 +101,8 @@ $documentate_converter_config = array_merge(
 <body>
 	<div class="status" id="status">
 		<div class="spinner" id="spinner"></div>
-		<h2 id="status-title"><?php esc_html_e( 'Starting...', 'documentate' ); ?></h2>
-		<p id="status-message"><?php esc_html_e( 'Preparing document converter.', 'documentate' ); ?></p>
+		<h2 id="status-title"><?php echo esc_html( 'Iniciando...' ); ?></h2>
+		<p id="status-message"><?php echo esc_html( 'Preparando el conversor de documentos.' ); ?></p>
 	</div>
 
 	<script type="module">

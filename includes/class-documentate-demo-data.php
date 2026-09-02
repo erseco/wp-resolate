@@ -404,21 +404,15 @@ class Documentate_Demo_Data {
 			),
 			'demo-wp-documentate.odt' => array(
 				'slug' => 'documentate-demo-wp-documentate-odt',
-				'name' => __( 'Advanced test document type (ODT)', 'documentate' ),
-				'description' => __(
-					'Example automatically created with the included demo-wp-documentate.odt template.',
-					'documentate',
-				),
+				'name' => 'Tipo de documento de prueba avanzado (ODT)',
+				'description' => 'Ejemplo creado automáticamente con la plantilla demo-wp-documentate.odt incluida.',
 				'color' => '#6c5ce7',
 				'pdf_layout' => 'generic',
 			),
 			'demo-wp-documentate.docx' => array(
 				'slug' => 'documentate-demo-wp-documentate-docx',
-				'name' => __( 'Advanced test document type (DOCX)', 'documentate' ),
-				'description' => __(
-					'Example automatically created with the included demo-wp-documentate.docx template.',
-					'documentate',
-				),
+				'name' => 'Tipo de documento de prueba avanzado (DOCX)',
+				'description' => 'Ejemplo creado automáticamente con la plantilla demo-wp-documentate.docx incluida.',
 				'color' => '#0f9d58',
 				'pdf_layout' => 'generic',
 			),
@@ -1888,10 +1882,9 @@ class Documentate_Demo_Data {
 			return false;
 		}
 
-		/* translators: %s: document type name. */
-		$title    = sprintf( __( 'Test document – %s', 'documentate' ), $term->name );
-		$author   = __( 'Demo team', 'documentate' );
-		$keywords = __( 'lorem, ipsum, demo', 'documentate' );
+		$title    = sprintf( 'Documento de prueba – %s', $term->name );
+		$author   = 'Equipo de demostración';
+		$keywords = 'lorem, ipsum, demo';
 
 		$post_id = wp_insert_post(
 			array(
@@ -2138,7 +2131,7 @@ class Documentate_Demo_Data {
 
 		$document_title = isset( $context['document_title'] )
 			? (string) $context['document_title']
-			: __( 'Demo resolution', 'documentate' );
+			: 'Resolución de demostración';
 
 		$by_data_type = self::demo_value_for_data_type( $data_type, $index );
 		if ( null !== $by_data_type ) {
@@ -2150,7 +2143,7 @@ class Documentate_Demo_Data {
 			return $by_slug;
 		}
 
-		return __( 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', 'documentate' );
+		return 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
 	}
 
 	/**
@@ -2220,8 +2213,7 @@ class Documentate_Demo_Data {
 			if ( 'post_title' === $slug ) {
 				return $document_title;
 			}
-			/* translators: %d: item sequence number. */
-			return sprintf( __( 'Demo item %d', 'documentate' ), $index );
+			return sprintf( 'Elemento de demo %d', $index );
 		}
 
 		if ( self::slug_contains_any( $slug, array( 'body', 'cuerpo', 'content', 'contenido', 'html' ) ) ) {
@@ -2273,26 +2265,25 @@ class Documentate_Demo_Data {
 			array(
 				array( 'summary', 'resumen' ),
 				static function ( $i ) {
-					/* translators: %d: item sequence number. */
-					return sprintf( __( 'Demo summary %d with brief information.', 'documentate' ), $i );
+					return sprintf( 'Resumen de demo %d con información breve.', $i );
 				},
 			),
 			array(
 				array( 'objeto' ),
 				static function () {
-					return __( 'Subject of the example resolution to illustrate the workflow.', 'documentate' );
+					return 'Asunto de la resolución de ejemplo para ilustrar el flujo de trabajo.';
 				},
 			),
 			array(
 				array( 'antecedentes' ),
 				static function () {
-					return __( 'Background facts written with test content.', 'documentate' );
+					return 'Hechos de antecedentes escritos con contenido de prueba.';
 				},
 			),
 			array(
 				array( 'fundamentos' ),
 				static function () {
-					return __( 'Legal grounds for testing with generic references.', 'documentate' );
+					return 'Fundamentos legales para pruebas con referencias genéricas.';
 				},
 			),
 			array(
@@ -2300,9 +2291,9 @@ class Documentate_Demo_Data {
 				static function () {
 					return (
 						'<p>'
-						. __( 'First. Approve the demo action.', 'documentate' )
+						. 'Primero. Aprobar la acción de demostración.'
 						. '</p><p>'
-						. __( 'Second. Notify interested parties.', 'documentate' )
+						. 'Segundo. Notificar a los interesados.'
 						. '</p>'
 					);
 				},
@@ -2310,7 +2301,7 @@ class Documentate_Demo_Data {
 			array(
 				array( 'observaciones' ),
 				static function () {
-					return __( 'Additional observations to complete the template.', 'documentate' );
+					return 'Observaciones adicionales para completar la plantilla.';
 				},
 			),
 			array(
@@ -2382,7 +2373,7 @@ class Documentate_Demo_Data {
 			array(
 				array( 'keywords', 'palabras' ),
 				static function () {
-					return __( 'keywords, tags, demo', 'documentate' );
+					return 'palabras clave, etiquetas, demo';
 				},
 			),
 		);
@@ -2410,32 +2401,31 @@ class Documentate_Demo_Data {
 	 * @return string
 	 */
 	private static function build_rich_demo_html() {
-		$rich  = '<h3>' . __( 'Test heading', 'documentate' ) . '</h3>';
-		$rich .= '<p>' . __( 'First paragraph with example text.', 'documentate' ) . '</p>';
+		$rich  = '<h3>Encabezado de prueba</h3>';
+		$rich .= '<p>Primer párrafo con texto de ejemplo.</p>';
 		$rich .=
 			'<p>'
 			. sprintf(
-				/* translators: 1: bold text label, 2: italic text label, 3: underline text label. */
-				__( 'Second paragraph with %1$s, %2$s and %3$s.', 'documentate' ),
-				'<strong>' . __( 'bold', 'documentate' ) . '</strong>',
-				'<em>' . __( 'italics', 'documentate' ) . '</em>',
-				'<u>' . __( 'underline', 'documentate' ) . '</u>'
+				'Segundo párrafo con %1$s, %2$s y %3$s.',
+				'<strong>negrita</strong>',
+				'<em>cursiva</em>',
+				'<u>subrayado</u>'
 			)
 			. '</p>';
-		$rich .= '<ul><li>' . __( 'Item one', 'documentate' ) . '</li><li>' . __( 'Item two', 'documentate' ) . '</li></ul>';
+		$rich .= '<ul><li>Elemento uno</li><li>Elemento dos</li></ul>';
 		$rich .=
 			'<table><tr><th>'
-			. __( 'Col 1', 'documentate' )
+			. 'Col 1'
 			. '</th><th>'
-			. __( 'Col 2', 'documentate' )
+			. 'Col 2'
 			. '</th></tr><tr><td>'
-			. __( 'Data A1', 'documentate' )
+			. 'Dato A1'
 			. '</td><td>'
-			. __( 'Data A2', 'documentate' )
+			. 'Dato A2'
 			. '</td></tr><tr><td>'
-			. __( 'Data B1', 'documentate' )
+			. 'Dato B1'
 			. '</td><td>'
-			. __( 'Data B2', 'documentate' )
+			. 'Dato B2'
 			. '</td></tr></table>';
 		return $rich;
 	}
@@ -2511,9 +2501,9 @@ class Documentate_Demo_Data {
 		$options['alert_color'] = 'danger';
 		$options['alert_message'] =
 			'<strong>'
-			. __( 'Warning', 'documentate' )
+			. 'Advertencia'
 			. ':</strong> '
-			. __( 'You are running this site with demo data.', 'documentate' );
+			. 'Estás ejecutando este sitio con datos de demostración.';
 		update_option( 'documentate_settings', $options );
 
 		// Restore original user.

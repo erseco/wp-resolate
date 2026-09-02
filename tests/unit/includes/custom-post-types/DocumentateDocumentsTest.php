@@ -243,7 +243,7 @@ class DocumentateDocumentsTest extends Documentate_Test_Base {
 		$this->documents->render_type_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'No document types defined', $output );
+		$this->assertStringContainsString( 'No hay tipos de documento definidos', $output );
 	}
 
 	/**
@@ -286,7 +286,7 @@ class DocumentateDocumentsTest extends Documentate_Test_Base {
 		$this->documents->render_type_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Selected type:', $output );
+		$this->assertStringContainsString( 'Tipo seleccionado:', $output );
 		$this->assertStringContainsString( 'Locked Type Test', $output );
 		$this->assertStringContainsString( 'type="hidden"', $output );
 	}
@@ -301,7 +301,7 @@ class DocumentateDocumentsTest extends Documentate_Test_Base {
 		$this->documents->render_sections_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Configure a document type with fields', $output );
+		$this->assertStringContainsString( 'Configura un tipo de documento con campos', $output );
 	}
 
 	/**
@@ -2098,7 +2098,7 @@ HTML;
 		$this->documents->render_type_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'No document types defined', $output );
+		$this->assertStringContainsString( 'No hay tipos de documento definidos', $output );
 	}
 
 	/**
@@ -2120,7 +2120,7 @@ HTML;
 		$this->documents->render_type_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Selected type:', $output );
+		$this->assertStringContainsString( 'Tipo seleccionado:', $output );
 	}
 
 	/**
@@ -2133,7 +2133,7 @@ HTML;
 		$this->documents->render_sections_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Configure a document type', $output );
+		$this->assertStringContainsString( 'Configura un tipo de documento', $output );
 	}
 
 	/**
@@ -2941,7 +2941,7 @@ HTML;
 		$result = $this->admin_list->add_archived_view( $views );
 
 		$this->assertArrayHasKey( 'archived', $result );
-		$this->assertStringContainsString( 'Archived', $result['archived'] );
+		$this->assertStringContainsString( 'Archivado', $result['archived'] );
 		$this->assertStringContainsString( 'post_status=archived', $result['archived'] );
 	}
 

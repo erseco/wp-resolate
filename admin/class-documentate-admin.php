@@ -62,7 +62,7 @@ class Documentate_Admin {
 			'<a href="'
 			. admin_url( 'options-general.php?page=documentate_settings' )
 			. '">'
-			. __( 'Settings', 'documentate' )
+			. 'Ajustes'
 			. '</a>';
 		array_unshift( $links, $settings_link );
 		return $links;
@@ -269,7 +269,7 @@ class Documentate_Admin {
 
 		add_meta_box(
 			'documentate_collaborative_status',
-			__( 'Collaborative Mode', 'documentate' ),
+			'Modo colaborativo',
 			array( $this, 'render_collaborative_status_metabox' ),
 			'documentate_document',
 			'side',
@@ -287,11 +287,11 @@ class Documentate_Admin {
 		<div id="documentate-collab-status-metabox" class="documentate-collab-metabox">
 			<div class="documentate-collab-metabox__status" data-status="connecting">
 				<span class="documentate-collab-metabox__indicator"></span>
-				<span class="documentate-collab-metabox__label"><?php esc_html_e( 'Connecting...', 'documentate' ); ?></span>
+				<span class="documentate-collab-metabox__label"><?php echo esc_html( 'Conectando...' ); ?></span>
 				<div class="documentate-collab-metabox__avatars"></div>
 			</div>
 			<div class="documentate-collab-metabox__retries" style="display: none;">
-				<span class="documentate-collab-metabox__retry-count">0</span>/5 <?php esc_html_e( 'retries', 'documentate' ); ?>
+				<span class="documentate-collab-metabox__retry-count">0</span>/5 <?php echo esc_html( 'reintentos' ); ?>
 			</div>
 		</div>
 		<?php
@@ -305,7 +305,7 @@ class Documentate_Admin {
 
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_error(
-				array( 'message' => __( 'You are not authorized to access this resource.', 'documentate' ) ),
+				array( 'message' => 'No estás autorizado para acceder a este recurso.' ),
 				403,
 			);
 		}
@@ -499,7 +499,7 @@ class Documentate_Admin {
 			array(
 				'fieldLabels' => $field_labels,
 				'strings' => array(
-					'fieldContent' => __( 'Field content ↓', 'documentate' ),
+					'fieldContent' => 'Contenido del campo ↓',
 				),
 			)
 		);
@@ -516,22 +516,22 @@ class Documentate_Admin {
 	private function get_revision_field_labels() {
 		$labels = array(
 			// Default labels for common fields.
-			'post_title' => __( 'Document Title', 'documentate' ),
-			'post_content' => __( 'Content', 'documentate' ),
-			'resolution_number' => __( 'Resolution Number', 'documentate' ),
-			'date' => __( 'Date', 'documentate' ),
-			'antecedentes' => __( 'Background', 'documentate' ),
-			'fundamentos' => __( 'Legal Grounds', 'documentate' ),
-			'resuelve' => __( 'Resolution', 'documentate' ),
-			'anexos' => __( 'Annexes', 'documentate' ),
-			'firma' => __( 'Signature', 'documentate' ),
-			'cargo' => __( 'Position', 'documentate' ),
-			'lugar' => __( 'Place', 'documentate' ),
-			'destinatario' => __( 'Recipient', 'documentate' ),
-			'asunto' => __( 'Subject', 'documentate' ),
-			'cuerpo' => __( 'Body', 'documentate' ),
-			'saludo' => __( 'Greeting', 'documentate' ),
-			'despedida' => __( 'Closing', 'documentate' ),
+			'post_title' => 'Título del documento',
+			'post_content' => 'Contenido',
+			'resolution_number' => 'Número de resolución',
+			'date' => 'Fecha',
+			'antecedentes' => 'Antecedentes',
+			'fundamentos' => 'Fundamentos de derecho',
+			'resuelve' => 'Resolución',
+			'anexos' => 'Anexos',
+			'firma' => 'Firma',
+			'cargo' => 'Cargo',
+			'lugar' => 'Lugar',
+			'destinatario' => 'Destinatario',
+			'asunto' => 'Asunto',
+			'cuerpo' => 'Cuerpo',
+			'saludo' => 'Saludo',
+			'despedida' => 'Despedida',
 		);
 
 		// Try to get labels from the current revision's parent document type.
@@ -729,12 +729,9 @@ class Documentate_Admin {
 			'documentateAttachments',
 			array(
 				'i18n' => array(
-					/* translators: Title of the WordPress Media Library frame for selecting attachment files */
-					'title' => __( 'Select files', 'documentate' ),
-					/* translators: Button label in the Media Library to confirm selection of attachment files */
-					'button' => __( 'Add to document', 'documentate' ),
-					/* translators: Tooltip for the remove attachment button */
-					'remove' => __( 'Remove', 'documentate' ),
+					'title' => 'Seleccionar archivos',
+					'button' => 'Añadir al documento',
+					'remove' => 'Eliminar',
 				),
 			)
 		);

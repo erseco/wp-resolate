@@ -91,7 +91,7 @@ class Documentate_Document_Repeater_Field {
 		echo '<button type="button" class="button button-secondary documentate-array-add" data-array-target="'
 				. esc_attr( $slug )
 				. '">'
-				. esc_html__( 'Add item', 'documentate' )
+				. esc_html( 'Añadir elemento' )
 				. '</button>';
 		echo '</div>';
 
@@ -188,10 +188,10 @@ class Documentate_Document_Repeater_Field {
 				. '" draggable="true" style="border:1px solid #e5e5e5;padding:16px;margin-bottom:12px;background:#fff;">';
 		echo '<div class="documentate-array-item-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">';
 		echo '<span class="documentate-array-handle" role="button" tabindex="0" aria-label="'
-				. esc_attr__( 'Move item', 'documentate' )
+				. esc_attr( 'Mover elemento' )
 				. '" style="cursor:move;user-select:none;">≡</span>';
 		echo '<button type="button" class="button-link-delete documentate-array-remove">'
-				. esc_html__( 'Delete', 'documentate' )
+				. esc_html( 'Eliminar' )
 				. '</button>';
 		echo '</div>';
 
@@ -263,7 +263,7 @@ class Documentate_Document_Repeater_Field {
 		echo '<div class="documentate-subarray-heading" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">';
 		echo '<span style="font-weight:600;">' . esc_html( $label ) . '</span>';
 		echo '<button type="button" class="button button-secondary documentate-subarray-add">'
-				. esc_html__( 'Add item', 'documentate' )
+				. esc_html( 'Añadir elemento' )
 				. '</button>';
 		echo '</div>';
 
@@ -296,7 +296,7 @@ class Documentate_Document_Repeater_Field {
 				. '" style="border:1px solid #e5e5e5;padding:12px;margin-bottom:8px;background:#fff;">';
 		echo '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">';
 		echo '<button type="button" class="button-link-delete documentate-subarray-remove">'
-				. esc_html__( 'Delete', 'documentate' )
+				. esc_html( 'Eliminar' )
 				. '</button>';
 		echo '</div>';
 
@@ -508,7 +508,7 @@ class Documentate_Document_Repeater_Field {
 			if ( '' !== $placeholder ) {
 				echo '<option value="">' . esc_html( $placeholder ) . '</option>';
 			} elseif ( empty( $attributes['required'] ) ) {
-				echo '<option value="">' . esc_html__( 'Select an option…', 'documentate' ) . '</option>';
+				echo '<option value="">' . esc_html( 'Selecciona una opción…' ) . '</option>';
 			}
 			foreach ( $options as $option_value => $option_label ) {
 				echo '<option value="'

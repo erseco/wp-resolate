@@ -151,7 +151,7 @@ class Documentate_REST_Comment_Protection {
 			if ( $post_id && in_array( get_post_type( $post_id ), $this->protected_post_types, true ) ) {
 				return new WP_Error(
 					'rest_cannot_create_comment',
-					__( 'You are not authorized to access this resource.', 'documentate' ),
+					'No estás autorizado para acceder a este recurso.',
 					array( 'status' => rest_authorization_required_code() ),
 				);
 			}
@@ -175,7 +175,7 @@ class Documentate_REST_Comment_Protection {
 			if ( 'GET' === $method ) {
 				return new WP_Error(
 					'rest_forbidden_comment',
-					__( 'You are not authorized to access this resource.', 'documentate' ),
+					'No estás autorizado para acceder a este recurso.',
 					array( 'status' => rest_authorization_required_code() ),
 				);
 			}
@@ -183,7 +183,7 @@ class Documentate_REST_Comment_Protection {
 			if ( in_array( $method, array( 'PUT', 'PATCH', 'DELETE' ), true ) ) {
 				return new WP_Error(
 					'rest_cannot_edit_comment',
-					__( 'You are not authorized to access this resource.', 'documentate' ),
+					'No estás autorizado para acceder a este recurso.',
 					array( 'status' => rest_authorization_required_code() ),
 				);
 			}
@@ -208,7 +208,7 @@ class Documentate_REST_Comment_Protection {
 		if ( $post_id && in_array( get_post_type( $post_id ), $this->protected_post_types, true ) ) {
 			return new WP_Error(
 				'rest_cannot_create_comment',
-				__( 'You are not authorized to access this resource.', 'documentate' ),
+				'No estás autorizado para acceder a este recurso.',
 				array( 'status' => rest_authorization_required_code() ),
 			);
 		}
@@ -247,7 +247,7 @@ class Documentate_REST_Comment_Protection {
 		if ( $comment && in_array( get_post_type( $comment->comment_post_ID ), $this->protected_post_types, true ) ) {
 			return new WP_Error(
 				'rest_cannot_edit_comment',
-				__( 'You are not authorized to access this resource.', 'documentate' ),
+				'No estás autorizado para acceder a este recurso.',
 				array( 'status' => rest_authorization_required_code() ),
 			);
 		}

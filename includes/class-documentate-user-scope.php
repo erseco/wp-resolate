@@ -71,12 +71,12 @@ class Documentate_User_Scope {
 
 		wp_nonce_field( 'documentate_save_scope_' . $user->ID, 'documentate_scope_nonce' );
 		?>
-		<h2><?php esc_html_e( 'Documentate', 'documentate' ); ?></h2>
+		<h2><?php echo esc_html( 'Documentate' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row">
 					<label for="documentate_scope_term_id">
-						<?php esc_html_e( 'Scope category', 'documentate' ); ?>
+						<?php echo esc_html( 'Categoría de ámbito' ); ?>
 					</label>
 				</th>
 				<td>
@@ -84,7 +84,7 @@ class Documentate_User_Scope {
 
 					wp_dropdown_categories(
 						array(
-							'show_option_none' => __( '— No scope —', 'documentate' ),
+							'show_option_none' => '— Sin ámbito —',
 							'option_none_value' => '0',
 							'orderby' => 'name',
 							'selected' => $current_term_id,
@@ -96,7 +96,7 @@ class Documentate_User_Scope {
 					);
 					?>
 					<p class="description">
-						<?php esc_html_e( 'Documents in this category (and subcategories) will be visible to this user.', 'documentate' ); ?>
+						<?php echo esc_html( 'Los documentos en esta categoría (y subcategorías) serán visibles para este usuario.' ); ?>
 					</p>
 				</td>
 			</tr>

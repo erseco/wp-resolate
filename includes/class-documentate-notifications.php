@@ -427,16 +427,10 @@ class Documentate_Notifications {
 	 */
 	private function get_notification_options() {
 		return array(
-			self::KEY_AUTHOR_REVIEW => __( 'Cuando uno de mis documentos se envía a revisión.', 'documentate' ),
-			self::KEY_AUTHOR_PUBLISH => __( 'Cuando uno de mis documentos se publica.', 'documentate' ),
-			self::KEY_AUTHOR_OTHER => __(
-				'Otros cambios de estado de mis documentos (devueltos a borrador, archivados, etc.).',
-				'documentate',
-			),
-			self::KEY_ADMIN_REVIEW => __(
-				'Cuando un documento de otra persona pasa a revisión (solo administradores).',
-				'documentate',
-			),
+			self::KEY_AUTHOR_REVIEW => 'Cuando uno de mis documentos se envía a revisión.',
+			self::KEY_AUTHOR_PUBLISH => 'Cuando uno de mis documentos se publica.',
+			self::KEY_AUTHOR_OTHER => 'Otros cambios de estado de mis documentos (devueltos a borrador, archivados, etc.).',
+			self::KEY_ADMIN_REVIEW => 'Cuando un documento de otra persona pasa a revisión (solo administradores).',
 		);
 	}
 
@@ -461,17 +455,17 @@ class Documentate_Notifications {
 
 		wp_nonce_field( 'documentate_save_notifications_' . $user->ID, 'documentate_notifications_nonce' );
 		?>
-		<h2><?php esc_html_e( 'Notificaciones de Documentate', 'documentate' ); ?></h2>
+		<h2><?php echo esc_html( 'Notificaciones de Documentate' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<tr>
-				<th scope="row"><?php esc_html_e( 'Notificaciones por correo', 'documentate' ); ?></th>
+				<th scope="row"><?php echo esc_html( 'Notificaciones por correo' ); ?></th>
 				<td>
 					<fieldset>
 						<legend class="screen-reader-text">
-							<span><?php esc_html_e( 'Notificaciones por correo', 'documentate' ); ?></span>
+							<span><?php echo esc_html( 'Notificaciones por correo' ); ?></span>
 						</legend>
 						<p class="description">
-							<?php esc_html_e( 'Selecciona los avisos que quieres recibir por correo electrónico.', 'documentate' ); ?>
+							<?php echo esc_html( 'Selecciona los avisos que quieres recibir por correo electrónico.' ); ?>
 						</p>
 						<?php foreach ( $options as $key => $label ) : ?>
 							<?php

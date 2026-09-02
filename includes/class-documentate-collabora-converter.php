@@ -98,10 +98,7 @@ class Documentate_Collabora_Converter {
 		if ( ! WP_Filesystem() ) {
 			return new WP_Error(
 				'documentate_fs_unavailable',
-				__(
-					'Could not initialize the WordPress filesystem.',
-					'documentate',
-				)
+				'No se pudo inicializar el sistema de archivos de WordPress.'
 			);
 		}
 
@@ -124,7 +121,7 @@ class Documentate_Collabora_Converter {
 	 */
 	public static function get_status_message() {
 		if ( '' === self::get_base_url() ) {
-			return __( 'Configure the Collabora Online service base URL in settings.', 'documentate' );
+			return 'Configura la URL base del servicio Collabora Online en los ajustes.';
 		}
 
 		return '';
@@ -198,7 +195,7 @@ class Documentate_Collabora_Converter {
 			self::log( 'Input file missing', array( 'path' => $input_path ) );
 			return new WP_Error(
 				'documentate_collabora_input_missing',
-				__( 'The source file for conversion does not exist.', 'documentate' )
+				'El fichero origen para la conversión no existe.'
 			);
 		}
 
@@ -206,7 +203,7 @@ class Documentate_Collabora_Converter {
 		if ( '' === $base_url ) {
 			return new WP_Error(
 				'documentate_collabora_not_configured',
-				__( 'Configure the Collabora Online service URL to convert documents.', 'documentate' )
+				'Configura la URL del servicio Collabora Online para convertir documentos.'
 			);
 		}
 
@@ -214,7 +211,7 @@ class Documentate_Collabora_Converter {
 		if ( ! in_array( $output_format, array( 'pdf', 'docx', 'odt' ), true ) ) {
 			return new WP_Error(
 				'documentate_collabora_invalid_target',
-				__( 'Output format not supported by Collabora.', 'documentate' )
+				'Formato de salida no soportado por Collabora.'
 			);
 		}
 
@@ -224,7 +221,7 @@ class Documentate_Collabora_Converter {
 		if ( false === $file_body ) {
 			return new WP_Error(
 				'documentate_collabora_read_failed',
-				__( 'Could not read the input file for conversion.', 'documentate' )
+				'No se pudo leer el fichero de entrada para la conversión.'
 			);
 		}
 
@@ -315,8 +312,7 @@ class Documentate_Collabora_Converter {
 			return new WP_Error(
 				'documentate_collabora_request_failed',
 				sprintf(
-					/* translators: %s: error message returned by wp_remote_post(). */
-					__( 'Error connecting to Collabora Online: %s', 'documentate' ),
+					'Error al conectar con Collabora Online: %s',
 					$response->get_error_message()
 				),
 				array(
@@ -350,8 +346,7 @@ class Documentate_Collabora_Converter {
 			return new WP_Error(
 				'documentate_collabora_http_error',
 				sprintf(
-					/* translators: %d: HTTP status code returned by Collabora. */
-					__( 'Collabora Online returned HTTP code %d during conversion.', 'documentate' ),
+					'Collabora Online devolvió el código HTTP %d durante la conversión.',
 					$status
 				),
 				array(
@@ -368,7 +363,7 @@ class Documentate_Collabora_Converter {
 			self::log( 'Empty response body', array( 'endpoint' => $endpoint ) );
 			return new WP_Error(
 				'documentate_collabora_empty_response',
-				__( 'Collabora returned an empty response.', 'documentate' ),
+				'Collabora devolvió una respuesta vacía.',
 				array( 'endpoint' => $endpoint )
 			);
 		}
@@ -377,7 +372,7 @@ class Documentate_Collabora_Converter {
 			self::log( 'Write failed', array( 'output_path' => $output_path ) );
 			return new WP_Error(
 				'documentate_collabora_write_failed',
-				__( 'Could not save the converted file to disk.', 'documentate' )
+				'No se pudo guardar el fichero convertido en el disco.'
 			);
 		}
 

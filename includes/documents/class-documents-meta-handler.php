@@ -444,7 +444,7 @@ class Documents_Meta_Handler {
 
 		if ( empty( $schema ) ) {
 			$schema['content'] = array(
-				'label' => __( 'Content', 'documentate' ),
+				'label' => 'Contenido',
 				'type' => 'textarea',
 				'data_type' => 'text',
 				'rol' => \Documentate_Campos_Rol::ROL_AREA,

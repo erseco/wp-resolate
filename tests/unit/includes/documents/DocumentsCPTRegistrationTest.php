@@ -99,9 +99,9 @@ class DocumentsCPTRegistrationTest extends WP_UnitTestCase {
 		$this->registration->register_post_type();
 		$post_type = get_post_type_object( 'documentate_document' );
 
-		$this->assertSame( 'Documents', $post_type->labels->name );
-		$this->assertSame( 'Document', $post_type->labels->singular_name );
-		$this->assertSame( 'Add New Document', $post_type->labels->add_new_item );
+		$this->assertSame( 'Documentos', $post_type->labels->name );
+		$this->assertSame( 'Documento', $post_type->labels->singular_name );
+		$this->assertSame( 'Añadir nuevo documento', $post_type->labels->add_new_item );
 	}
 
 	/**
@@ -165,9 +165,9 @@ class DocumentsCPTRegistrationTest extends WP_UnitTestCase {
 		$this->registration->register_taxonomies();
 		$taxonomy = get_taxonomy( 'documentate_doc_type' );
 
-		$this->assertSame( 'Document Types', $taxonomy->labels->name );
-		$this->assertSame( 'Document Type', $taxonomy->labels->singular_name );
-		$this->assertSame( 'Add New Type', $taxonomy->labels->add_new_item );
+		$this->assertSame( 'Tipos de documento', $taxonomy->labels->name );
+		$this->assertSame( 'Tipo de documento', $taxonomy->labels->singular_name );
+		$this->assertSame( 'Añadir nuevo tipo', $taxonomy->labels->add_new_item );
 	}
 
 	/**
