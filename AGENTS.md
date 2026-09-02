@@ -52,7 +52,7 @@ make clean       # Reset WordPress environment
 ### Full local verification (preferred when Docker is available)
 
 ```bash
-make check       # Runs: lint -> check-plugin -> test
+make check       # Runs: lint -> phpmd -> check-plugin -> test
                  # (verification only; does not modify source files)
 ```
 
@@ -62,6 +62,7 @@ make check       # Runs: lint -> check-plugin -> test
 |--------------------------|----------------------------------------------------------|
 | `make fix`               | Auto-fix PHP with PHPCBF / WPCS                         |
 | `make lint`              | Lint PHP with PHPCS / WPCS — **always required**         |
+| `make phpmd`             | Complexity budget vs. `phpmd-baseline.xml` — **always required** |
 | `make mago-format`       | Optional secondary Mago formatter (may be removed)       |
 | `make mago-lint`         | Optional secondary Mago lint (may be removed)            |
 | `make check-plugin`      | Run WordPress plugin-check — **always required**         |
@@ -86,7 +87,7 @@ make test FILE=tests/unit/Foo.php # run a specific test file
 
 | Situation                                           | Required checks                              |
 |-----------------------------------------------------|----------------------------------------------|
-| Any PHP change                                      | `make fix`, `make lint`, `make test`         |
+| Any PHP change                                      | `make fix`, `make lint`, `make phpmd`, `make test` |
 | Any PHP change merged to main                       | also `make check-plugin`                     |
 | UI, admin flows, editor flows, or browser behaviour | also `make test-e2e`                         |
 | Full pre-merge verification                         | `make check` (covers all of the above)       |
@@ -185,12 +186,36 @@ de traducción.
 ### Complexity budget
 
 - Keep methods small. `phpmd.xml` sets the budget: **cyclomatic complexity 15**,
-  **NPath complexity 500**, **method length 150**, **class length 2500**,
-  **class complexity 100**. Nothing enforces it — `.github/workflows/phpmd.yml`
-  runs with `--ignore-violations-on-exit` under `continue-on-error`, so it only
-  uploads SARIF to code scanning and can never fail the build. The budget is
-  kept by review; check a change by hand with
-  `php -d error_reporting="E_ALL & ~E_DEPRECATED" vendor/bin/phpmd includes text phpmd.xml`.
+  **NPath complexity 500**, **method length 150 lines**, **class length 2500
+  lines**, **class complexity (WeightedMethodCount) 100** — the class rule
+  fires when the class *reaches* the threshold (`>= 100`), not only above it.
+- `make phpmd` enforces this and is part of `make check` and of CI
+  (`.github/workflows/ci.yml`, right after `make lint`): it runs
+  `phpmd.xml` against `includes,admin,public,documentate.php,uninstall.php`
+  with `--baseline-file phpmd-baseline.xml` and **fails the build** on any
+  violation that isn't already in the baseline. `phpmd-baseline.xml` records
+  the debt inherited from the OpenTBS conversion code (mostly
+  `includes/class-documentate-opentbs.php`, plus a few other pre-existing
+  files) — see the comment at the top of `phpmd.xml`. Nothing new may be
+  added to it: shrinking it is fine (simplify the flagged method/class until
+  PHPMD stops reporting it, then regenerate with
+  `vendor/bin/phpmd ... --update-baseline`); growing it is not — a new
+  violation must be fixed by splitting the method or class, never by adding
+  it to `phpmd-baseline.xml` or raising a threshold in `phpmd.xml`.
+  `.github/workflows/phpmd.yml` is separate and unrelated to this gate: it
+  runs the ruleset with `--ignore-violations-on-exit`/`continue-on-error` to
+  upload SARIF to code scanning, and it never fails the build.
+- The baseline is named `phpmd-baseline.xml`, not `phpmd.baseline.xml`, on
+  purpose: PHPMD auto-discovers a file with the latter name next to the
+  ruleset and would then apply it to every run, `.github/workflows/phpmd.yml`
+  included, and the code-scanning dashboard would stop showing the inherited
+  debt. With this name only the commands that pass `--baseline-file` are
+  baselined — the gate — while the dashboard keeps reporting the whole
+  picture (48 violations today).
+- Check a single file or directory by hand with
+  `php -d error_reporting=E_ALL^E_DEPRECATED vendor/bin/phpmd includes/app/class-documentate-app-detalle.php text phpmd.xml`
+  — no baseline, so everything the file carries shows up. Add
+  `--baseline-file phpmd-baseline.xml` to ask the gate's question instead.
 - When a method approaches either threshold, extract pure helpers (input
   parsing, authorization checks, response building) instead of disabling the
   rule or raising the threshold.

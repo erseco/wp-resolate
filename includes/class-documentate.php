@@ -230,6 +230,8 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-adjuntos.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-acciones.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-shell.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-bandeja.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lista-fila.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lista.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detalle.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-editar.php';

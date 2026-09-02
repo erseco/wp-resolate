@@ -8,6 +8,16 @@
     <description>
         PHPMD rules for Documentate WordPress plugin.
         Adjusted thresholds for WordPress plugin architecture patterns.
+
+        `make phpmd` runs this ruleset with `phpmd-baseline.xml`, which holds
+        the debt inherited from the OpenTBS conversion code (mainly
+        includes/class-documentate-opentbs.php) plus a handful of
+        pre-existing WeightedMethodCount/NPath violations elsewhere. Nothing
+        new may be added to that baseline: shrinking it (by simplifying a
+        baselined method or class until PHPMD stops flagging it, then
+        regenerating with --update-baseline) is welcome; growing it is not.
+        A new violation must be fixed by splitting the method/class, not by
+        adding it to the baseline. See "Complexity budget" in AGENTS.md.
     </description>
 
     <!-- Exclude test and vendor directories -->

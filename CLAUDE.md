@@ -48,6 +48,7 @@ no assertion-free tests. See *Tests* in `AGENTS.md`.
 ```bash
 make fix                   # auto-format PHP (PHPCBF / WPCS)
 make lint                  # lint PHP (PHPCS / WPCS)       — always required
+make phpmd                 # complexity budget vs. baseline — always required
 make check-plugin          # WordPress plugin-check         — always required
 make test                  # PHPUnit tests (Docker)         — always required
 make test-e2e              # Playwright E2E (Docker)        — UI/browser changes
@@ -73,6 +74,11 @@ A task is **not done** until all relevant checks pass.
   document statuses/transitions (área → gestión documental → administración);
   extend that table, never hard-code a status/transition elsewhere. See
   `ARCHITECTURE.md` §3.
+- Complexity budget (`phpmd.xml`): cyclomatic 15, NPath 500, method 150
+  lines, class 2500 lines, class complexity 100 (fires at `>= 100`).
+  `make phpmd` fails on any violation outside `phpmd-baseline.xml` (inherited
+  OpenTBS debt) — fix by splitting the method/class, never by growing the
+  baseline. See *Complexity budget* in `AGENTS.md`.
 - Requires Docker / wp-env for `make check-plugin` and `make test`.
 - AutoFirma's intermediate routes use `permission_callback => '__return_true'`
   deliberately — a 32-char session token authorises them, not the WP session.

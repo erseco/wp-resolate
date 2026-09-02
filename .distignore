@@ -48,6 +48,7 @@
 /Makefile
 /package.json
 /package-lock.json
+/phpmd-baseline.xml
 /phpmd.xml
 /phpunit.xml.dist
 /renovate.json

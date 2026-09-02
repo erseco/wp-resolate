@@ -248,7 +248,7 @@ check-plugin: check-docker start-docker-if-not-running
 
 # Combined check for lint, tests, and more.
 # Verification targets do not modify source files.
-check: lint check-plugin test
+check: lint phpmd check-plugin test
 
 check-all: check
 
@@ -287,9 +287,28 @@ mago-lint: require-mago
 
 mago-format: require-mago
 	composer mago:format
-# Run PHP Mess Detector ignoring vendor and node_modules
+# Run PHP Mess Detector against the complexity budget in phpmd.xml, only
+# failing on violations outside phpmd-baseline.xml (the debt inherited from
+# the OpenTBS conversion code). See phpmd.xml and the "Complexity budget"
+# section in AGENTS.md. -d suppresses deprecation noise from PHPMD's own
+# PHP-Parser dependency, unrelated to the code being scanned.
 phpmd:
-	phpmd . text cleancode,codesize,controversial,design,naming,unusedcode --exclude vendor,node_modules,tests
+	@if [ ! -x "./vendor/bin/phpmd" ]; then \
+		echo "Error: PHPMD is not installed."; \
+		echo "Run: composer install --prefer-dist"; \
+		exit 1; \
+	fi
+	@php -d error_reporting=E_ALL^E_DEPRECATED ./vendor/bin/phpmd \
+		includes,admin,public,documentate.php,uninstall.php \
+		text phpmd.xml --baseline-file phpmd-baseline.xml; \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo ""; \
+		echo "PHPMD: hay violaciones de complejidad fuera de phpmd-baseline.xml."; \
+		echo "Divide el método o la clase señalada arriba; no amplíes el baseline."; \
+		exit $$EXIT_CODE; \
+	fi
+	@echo "PHPMD: sin violaciones nuevas fuera de phpmd-baseline.xml."
 
 # ─── Composer / Packaging ─────────────────────────────────────────────────────
 
@@ -367,8 +386,9 @@ help:
 	@echo "  lint-no-tty        - Alias for lint (for git hooks)"
 	@echo "  mago-lint          - Optional secondary Mago lint"
 	@echo "  mago-format        - Optional secondary Mago formatter"
+	@echo "  phpmd              - Check complexity budget (phpmd.xml) against phpmd-baseline.xml"
 	@echo "  check-plugin       - Run WordPress plugin-check (Docker)"
-	@echo "  check              - Run lint, plugin-check, and tests"
+	@echo "  check              - Run lint, phpmd, plugin-check, and tests"
 	@echo "  check-all          - Alias for check"
 	@echo ""
 	@echo "Testing:"

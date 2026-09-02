@@ -220,6 +220,13 @@ distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
   bandejas/list, document detail (status stepper, actividad, export) and the
   edit screen (fields grouped by role, attachment dropzone, transition
   buttons) respectively.
+- `class-documentate-app-bandeja.php` (`Documentate_App_Bandeja`) — which
+  trays a role may open, which one the request means, the active status/área
+  filters, and the `WP_Query` arguments and counts behind them. The list view
+  and the tab badges ask it; they never build a query themselves.
+- `class-documentate-app-lista-fila.php` (`Documentate_App_Lista_Fila`) — one
+  row of that list: the text the quick filter matches against, the paper-clip
+  of a document with a file, the sublines and the single action offered.
 - `class-documentate-app-acciones.php` (`Documentate_App_Acciones`) — the
   actual POST handlers: create, save, transition (delegates to
   `Documentate_Transiciones::aplicar()`), comment. Every handler is

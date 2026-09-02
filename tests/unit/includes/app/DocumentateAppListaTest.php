@@ -9,6 +9,8 @@ use Documentate\DocType\SchemaStorage;
 
 /**
  * @covers Documentate_App_Lista
+ * @covers Documentate_App_Bandeja
+ * @covers Documentate_App_Lista_Fila
  * @covers Documentate_App_Shell
  */
 class DocumentateAppListaTest extends WP_UnitTestCase {
