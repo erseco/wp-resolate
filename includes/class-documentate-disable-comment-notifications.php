@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit();
  * Class Documentate_Disable_Comment_Notifications
  *
  * Hooks into WordPress comment notifications and returns an empty recipient
- * list for 'documentate_document' posts. Prevents any email notifications on new comments.
+ * list for 'documentate_document' posts and for workflow events
+ * ('documentate_evento' comments). Prevents any email notifications on them.
  */
 class Documentate_Disable_Comment_Notifications {
 	/**
@@ -37,7 +38,16 @@ class Documentate_Disable_Comment_Notifications {
 	 */
 	public function disable_comment_notifications( $emails, $comment_id ) {
 		$comment = get_comment( $comment_id );
-		if ( $comment && 'documentate_document' === get_post_type( $comment->comment_post_ID ) ) {
+		if ( ! $comment ) {
+			return $emails;
+		}
+
+		if ( 'documentate_evento' === $comment->comment_type ) {
+			// Workflow events are never mailed, whatever post they hang from.
+			return array();
+		}
+
+		if ( 'documentate_document' === get_post_type( $comment->comment_post_ID ) ) {
 			// Return an empty array to disable all notifications for this CPT.
 			return array();
 		}

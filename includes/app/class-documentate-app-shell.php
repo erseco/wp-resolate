@@ -81,20 +81,7 @@ class Documentate_App_Shell {
 	 * @return string
 	 */
 	public static function rol() {
-		if ( current_user_can( 'manage_options' ) ) {
-			return __( 'Administration', 'documentate' );
-		}
-
-		$scope_term = absint( get_user_meta( get_current_user_id(), 'documentate_scope_term_id', true ) );
-		if ( $scope_term > 0 ) {
-			$term = get_term( $scope_term, 'category' );
-			if ( $term && ! is_wp_error( $term ) ) {
-				/* translators: %s: scope category name */
-				return sprintf( __( 'Area · %s', 'documentate' ), $term->name );
-			}
-		}
-
-		return __( 'Editing', 'documentate' );
+		return Documentate_Roles::etiqueta_rol();
 	}
 
 	/**
@@ -129,6 +116,7 @@ class Documentate_App_Shell {
 		$estados = array(
 			'draft' => array( 'borrador', __( 'Draft', 'documentate' ) ),
 			'auto-draft' => array( 'borrador', __( 'Draft', 'documentate' ) ),
+			'en_gestion' => array( 'gestion', 'En gestión' ),
 			'pending' => array( 'pendiente', __( 'In Review', 'documentate' ) ),
 			'publish' => array( 'aprobado', __( 'Approved', 'documentate' ) ),
 			'archived' => array( 'archivado', __( 'Archived', 'documentate' ) ),

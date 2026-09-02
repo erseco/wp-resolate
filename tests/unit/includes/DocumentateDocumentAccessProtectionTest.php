@@ -709,6 +709,58 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The site-wide comment feed never carries document comments or events.
+	 */
+	public function test_comment_feed_excludes_document_comments_and_events() {
+		wp_set_current_user( $this->admin_user_id );
+		$doc_comment = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $this->document_id,
+				'comment_content'  => 'Comentario en documento',
+				'comment_approved' => 1,
+				'user_id'          => $this->admin_user_id,
+			)
+		);
+		$evento = Documentate_Actividad::registrar_evento( $this->document_id, 'aprobó y publicó el documento' );
+		$post_comment = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $this->regular_post_id,
+				'comment_content'  => 'Comentario en entrada',
+				'comment_approved' => 1,
+				'user_id'          => $this->admin_user_id,
+			)
+		);
+		wp_set_current_user( 0 );
+
+		$feed = new WP_Query(
+			array(
+				'feed'         => 'rss2',
+				'withcomments' => 1,
+			)
+		);
+
+		$ids = array_map( 'intval', wp_list_pluck( (array) $feed->comments, 'comment_ID' ) );
+		$this->assertContains( $post_comment, $ids, 'Regular post comments stay in the feed.' );
+		$this->assertNotContains( $doc_comment, $ids, 'Document comments must not leak into the feed.' );
+		$this->assertNotContains( $evento, $ids, 'Workflow events must not leak into the feed.' );
+	}
+
+	/**
+	 * The comment feed of a single document is empty; other posts keep theirs.
+	 */
+	public function test_single_comment_feed_where_clause() {
+		$query = new WP_Query();
+		$query->is_singular = true;
+		$query->posts = array( get_post( $this->document_id ) );
+		$this->assertStringEndsWith( ' AND 1 = 0', $this->protection->exclude_documents_from_comment_feed( 'WHERE 1=1', $query ) );
+
+		$query->posts = array( get_post( $this->regular_post_id ) );
+		$this->assertSame( 'WHERE 1=1', $this->protection->exclude_documents_from_comment_feed( 'WHERE 1=1', $query ) );
+
+		$this->assertNotFalse( has_filter( 'comment_feed_where', array( $this->protection, 'exclude_documents_from_comment_feed' ) ) );
+	}
+
+	/**
 	 * Test exclude_document_comments_clause adds proper SQL.
 	 */
 	public function test_exclude_document_comments_clause() {

@@ -89,48 +89,99 @@
 				});
 			}
 
-			// "Save Draft" button.
+			// "Guardar borrador" button.
 			$('#documentate-save-draft').on('click', function (e) {
 				e.preventDefault();
 				self.submitWithStatus('draft');
 			});
 
-			// "Send to Review" button.
+			// "Enviar a gestión" / "Enviar a revisión" button: the target
+			// status travels in data-estado (en_gestion or pending).
 			$('#documentate-send-review').on('click', function (e) {
 				e.preventDefault();
+				var estado = $(this).data('estado') || 'pending';
 				if (!self.config.isAdmin) {
-					var msg = (self.config.strings && self.config.strings.confirmSendReview)
-						|| 'Are you sure you want to send this document to review?';
+					var strings = self.config.strings || {};
+					var msg = estado === 'en_gestion'
+						? (strings.confirmSendGestion || '¿Enviar el documento a gestión documental?')
+						: (strings.confirmSendReview || '¿Enviar el documento a revisión?');
 					if (!window.confirm(msg)) {
 						return;
 					}
 				}
+				self.submitWithStatus(estado);
+			});
+
+			// "Pasar a administración" button (from en_gestion to pending).
+			$('#documentate-pass-admin').on('click', function (e) {
+				e.preventDefault();
+				var strings = self.config.strings || {};
+				if (!window.confirm(strings.confirmPassAdmin || '¿Pasar el documento a administración?')) {
+					return;
+				}
 				self.submitWithStatus('pending');
 			});
 
-			// "Approve & Publish" button.
+			// "Guardar" button (save while keeping en_gestion status).
+			$('#documentate-save-gestion').on('click', function (e) {
+				e.preventDefault();
+				self.submitWithStatus('en_gestion');
+			});
+
+			// "Aprobar y publicar" button.
 			$('#documentate-approve-publish').on('click', function (e) {
 				e.preventDefault();
 				self.submitWithStatus('publish');
 			});
 
-			// "Return to Draft" button.
+			// "Devolver al área" button: needs a reason.
 			$('#documentate-return-draft').on('click', function (e) {
 				e.preventDefault();
-				self.submitWithStatus('draft');
+				self.submitReturn('draft');
 			});
 
-			// "Return to Review" button (from published back to pending).
+			// "Devolver a gestión" button (from pending back to en_gestion): needs a reason.
+			$('#documentate-return-gestion').on('click', function (e) {
+				e.preventDefault();
+				self.submitReturn('en_gestion');
+			});
+
+			// "Devolver a revisión" button (from published back to pending).
 			$('#documentate-return-review').on('click', function (e) {
 				e.preventDefault();
 				self.submitWithStatus('pending');
 			});
 
-			// "Save" button (save while keeping pending status).
+			// "Guardar" button (save while keeping pending status).
 			$('#documentate-save-pending').on('click', function (e) {
 				e.preventDefault();
 				self.submitWithStatus('pending');
 			});
+		},
+
+		/**
+		 * Submit a return: reveal the reason box first, refuse to submit while empty.
+		 *
+		 * @param {string} newStatus The status the document goes back to.
+		 */
+		submitReturn: function (newStatus) {
+			var $box = $('.documentate-mgmt-motivo');
+			var $motivo = $('#documentate-return-draft-motivo');
+
+			if ($box.length && !$box.is(':visible')) {
+				$box.show();
+				$motivo.trigger('focus');
+				return;
+			}
+
+			if (!$motivo.length || $.trim($motivo.val()) === '') {
+				var strings = this.config.strings || {};
+				window.alert(strings.motivoRequired || 'Escribe el motivo de la devolución.');
+				$motivo.trigger('focus');
+				return;
+			}
+
+			this.submitWithStatus(newStatus);
 		},
 
 		/**
@@ -294,15 +345,19 @@
 					icon = 'dashicons-archive';
 					message = self.config.strings && self.config.strings.archivedMessage
 						? self.config.strings.archivedMessage
-						: 'This document is archived and cannot be edited.';
+						: 'Este documento está archivado y no se puede editar.';
 				} else if (self.config.isPending && !self.config.isAdmin) {
 					message = self.config.strings && self.config.strings.pendingMessage
 						? self.config.strings.pendingMessage
-						: 'This document is pending review and cannot be edited.';
+						: 'Este documento está en revisión y no se puede editar.';
+				} else if (self.config.isEnGestion && self.config.isLocked) {
+					message = self.config.strings && self.config.strings.gestionMessage
+						? self.config.strings.gestionMessage
+						: 'Este documento está en gestión documental y no se puede editar.';
 				} else {
 					message = self.config.strings && self.config.strings.lockedMessage
 						? self.config.strings.lockedMessage
-						: 'This document is published and cannot be edited.';
+						: 'Este documento está aprobado y no se puede editar.';
 				}
 
 				$container.append(
@@ -330,6 +385,8 @@
 					: this.config.strings.archivedMessage;
 			} else if (this.config.isPending && !this.config.isAdmin) {
 				message = this.config.strings.pendingMessage;
+			} else if (this.config.isEnGestion && this.config.isLocked) {
+				message = this.config.strings.gestionMessage;
 			} else {
 				message = this.config.isAdmin
 					? this.config.strings.adminUnlock

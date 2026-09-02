@@ -621,3 +621,21 @@ body.documentate-document-locked #poststuff {
 		display: none !important;
 	}
 }
+
+/* ==========================================================================
+   Return reason (revealed before a "Devolver" submit)
+   ========================================================================== */
+
+.documentate-mgmt-motivo {
+	margin: 8px 0 4px;
+}
+
+.documentate-mgmt-motivo label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.documentate-mgmt-motivo textarea {
+	resize: vertical;
+}

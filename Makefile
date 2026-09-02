@@ -91,8 +91,15 @@ destroy:
 
 tests: test
 
+# The WP test bootstrap reinstalls the tests database: two PHPUnit runs at
+# once corrupt each other. Refuse to start while another run is alive.
+# Keep the guard on its own recipe line: joined to the command that names
+# ./vendor/bin/phpunit it would match its own shell under procps pgrep (Linux).
+PHPUNIT_GUARD = if pgrep -f 'vendor/bin/[p]hpunit' >/dev/null 2>&1; then echo 'PHPUnit ya está en ejecución'; exit 1; fi
+
 # Run unit tests with PHPUnit. Use FILE or FILTER (or both).
 test: start-docker-if-not-running
+	@$(PHPUNIT_GUARD)
 	@CMD="./vendor/bin/phpunit"; \
 	if [ -n "$(FILE)" ]; then CMD="$$CMD $(FILE)"; fi; \
 	if [ -n "$(FILTER)" ]; then CMD="$$CMD --filter $(FILTER)"; fi; \
@@ -114,6 +121,7 @@ test-verbose: start-docker-if-not-running
 #   wp-env start --config=.wp-env.docker.json --xdebug=coverage
 # If coverage shows 0%, restart wp-env with the --xdebug=coverage flag.
 test-coverage: start-docker-if-not-running
+	@$(PHPUNIT_GUARD)
 	@mkdir -p artifacts/coverage
 	@CMD="env XDEBUG_MODE=coverage ./vendor/bin/phpunit --colors=always --coverage-text=artifacts/coverage/coverage.txt --coverage-html artifacts/coverage/html --coverage-clover artifacts/coverage/clover.xml"; \
 	if [ -n "$(FILE)" ]; then CMD="$$CMD $(FILE)"; fi; \

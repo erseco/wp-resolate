@@ -73,6 +73,10 @@ class DocumentateScopeFilterTest extends WP_UnitTestCase {
 		$this->admin_user_id  = $this->factory->user->create( array( 'role' => 'administrator' ) );
 		$this->editor_user_id = $this->factory->user->create( array( 'role' => 'editor' ) );
 
+		// The editor role carries the gestión capability; these tests model a
+		// plain área user, so deny it for this user (gestión has its own tests).
+		( new WP_User( $this->editor_user_id ) )->add_cap( Documentate_Roles::CAP_GESTION, false );
+
 		// Categories: parent -> child, and a separate other category.
 		$parent = wp_insert_term( 'Scope Parent', 'category' );
 		$child  = wp_insert_term( 'Scope Child', 'category', array( 'parent' => $parent['term_id'] ) );

@@ -781,21 +781,24 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The role chip names the scope of the user.
+	 * The role chip names the role and, for área users, their scope.
 	 */
 	public function test_rol_reflects_the_user() {
 		wp_set_current_user( $this->admin_id );
-		$admin = Documentate_App_Shell::rol();
+		$this->assertSame( 'Administración', Documentate_App_Shell::rol() );
 
+		// An editor carries the gestión capability.
 		wp_set_current_user( $this->editor_id );
-		$this->assertStringContainsString( 'Ámbito App', Documentate_App_Shell::rol() );
+		$this->assertSame( 'Gestión documental', Documentate_App_Shell::rol() );
 
-		delete_user_meta( $this->editor_id, 'documentate_scope_term_id' );
-		$sin_ambito = Documentate_App_Shell::rol();
+		// An author is área: the chip names their scope.
+		$autor = self::factory()->user->create( array( 'role' => 'author' ) );
+		update_user_meta( $autor, 'documentate_scope_term_id', $this->cat_scope );
+		wp_set_current_user( $autor );
+		$this->assertSame( 'Área · Ámbito App', Documentate_App_Shell::rol() );
 
-		$this->assertNotSame( '', $admin );
-		$this->assertNotSame( $admin, $sin_ambito );
-		$this->assertStringNotContainsString( 'Ámbito App', $sin_ambito );
+		delete_user_meta( $autor, 'documentate_scope_term_id' );
+		$this->assertSame( 'Edición', Documentate_App_Shell::rol() );
 	}
 
 	/**
@@ -804,6 +807,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	public function test_estado_chip_maps_statuses() {
 		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::estado_chip( 'draft' )['clase'] );
 		$this->assertSame( 'dcta-estado dcta-estado-pendiente', Documentate_App_Shell::estado_chip( 'pending' )['clase'] );
+		$this->assertSame( 'dcta-estado dcta-estado-gestion', Documentate_App_Shell::estado_chip( 'en_gestion' )['clase'] );
+		$this->assertSame( 'En gestión', Documentate_App_Shell::estado_chip( 'en_gestion' )['texto'] );
 		$this->assertSame( 'dcta-estado dcta-estado-aprobado', Documentate_App_Shell::estado_chip( 'publish' )['clase'] );
 		$this->assertSame( 'dcta-estado dcta-estado-archivado', Documentate_App_Shell::estado_chip( 'archived' )['clase'] );
 		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::estado_chip( 'unknown' )['clase'] );

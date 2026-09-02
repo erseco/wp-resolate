@@ -121,6 +121,34 @@ class DocumentateDisableCommentNotificationsTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Workflow events are never mailed, even when they hang from a regular post.
+	 */
+	public function test_disables_notifications_for_workflow_events() {
+		wp_set_current_user( $this->admin_user_id );
+
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'post',
+				'post_title'  => 'Regular post with event',
+				'post_status' => 'publish',
+			)
+		);
+
+		$comment_id = wp_insert_comment(
+			array(
+				'comment_post_ID' => $post_id,
+				'comment_content' => 'envió el documento a gestión',
+				'comment_type'    => 'documentate_evento',
+				'user_id'         => $this->admin_user_id,
+			)
+		);
+
+		$result = $this->handler->disable_comment_notifications( array( 'admin@example.com' ), $comment_id );
+
+		$this->assertSame( array(), $result );
+	}
+
+	/**
 	 * Test handles non-existent comment gracefully.
 	 */
 	public function test_handles_nonexistent_comment() {

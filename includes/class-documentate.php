@@ -206,7 +206,18 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doc-types-admin.php';
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doctype-help-notice.php';
 
-		// Workflow management (role-based restrictions, read-only published state).
+		// Workflow foundation: roles, statuses, document helpers, activity and transitions.
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-roles.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-estados.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-documento.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-actividad.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-transiciones.php';
+		Documentate_Roles::init();
+		Documentate_Estados::init();
+		Documentate_Transiciones::init();
+
+		// Workflow management (role-based restrictions, read-only published state) and its metabox.
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-workflow-metabox.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-workflow.php';
 		new Documentate_Workflow();
 

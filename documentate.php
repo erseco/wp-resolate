@@ -62,6 +62,7 @@ if ( interface_exists( 'Erseco\AutoFirma\IntermediateServer\Storage\StoreInterfa
 }
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-data.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-roles.php';
 
 /**
  * The code that runs during plugin activation.
@@ -76,6 +77,9 @@ function documentate_activate_plugin() {
 
 	update_option( 'documentate_flush_rewrites', true );
 	update_option( 'documentate_version', DOCUMENTATE_VERSION );
+
+	// Grant the gestión documental capability to the roles that carry it.
+	Documentate_Roles::ensure_caps( true );
 
 	// Only request demo seeding in non-production environments (and Playground).
 	// This prevents demo login accounts from ever being created on production.

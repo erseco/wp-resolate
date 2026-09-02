@@ -283,6 +283,7 @@ class Documentate_App {
 
 		wp_set_post_terms( $post_id, array( $tipo ), 'documentate_doc_type', false );
 		update_post_meta( $post_id, 'documentate_locked_doc_type', $tipo );
+		Documentate_Actividad::registrar_evento( $post_id, 'creó el borrador' );
 
 		self::redirigir( Documentate_App_Editar::url( $post_id ) );
 	}
@@ -321,15 +322,14 @@ class Documentate_App {
 			self::redirigir( $editar_url, array( 'error' => 'titulo' ) );
 		}
 
-		// Saving keeps the stored status; only a draft can be sent for review.
-		// Approval and archiving stay in wp-admin.
+		// Saving keeps the stored status: the fields are persisted first and
+		// the transition, when asked for, runs afterwards through the engine.
 		$enviar = self::se_envia_a_revision( $post );
 
 		$result = wp_update_post(
 			array(
 				'ID' => $post->ID,
 				'post_title' => $titulo,
-				'post_status' => $enviar ? 'pending' : $post->post_status,
 			),
 			true
 		);
@@ -338,10 +338,14 @@ class Documentate_App {
 			self::redirigir( $editar_url, array( 'error' => 'guardar' ) );
 		}
 
-		// The workflow may have kept the document in draft (for instance when
-		// it has no type); only leave the editor when it really moved on.
-		if ( $enviar && 'pending' === get_post_status( $post->ID ) ) {
-			self::redirigir( Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) ), array( 'enviado' => '1' ) );
+		// The engine refuses the transition when the workflow keeps the
+		// document in draft (for instance when it has no type); only leave
+		// the editor when it really moved on.
+		if ( $enviar ) {
+			$clave = Documentate_Documento::con_gestion( $post ) ? 'enviar_gestion' : 'enviar_revision';
+			if ( true === Documentate_Transiciones::aplicar( $post->ID, $clave ) ) {
+				self::redirigir( Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) ), array( 'enviado' => '1' ) );
+			}
 		}
 
 		self::redirigir( $editar_url, array( 'guardado' => '1' ) );

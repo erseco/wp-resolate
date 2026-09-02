@@ -57,6 +57,9 @@ class Documentate_Document_Access_Protection {
 
 		// Filter comment queries to exclude document comments for unauthorized users.
 		add_filter( 'comments_pre_query', array( $this, 'filter_comment_queries' ), 10, 2 );
+
+		// Comment feeds (RSS) are public: keep document comments and events out of them.
+		add_filter( 'comment_feed_where', array( $this, 'exclude_documents_from_comment_feed' ), 10, 2 );
 	}
 
 	/**
@@ -279,6 +282,29 @@ class Documentate_Document_Access_Protection {
 		add_filter( 'comments_clauses', array( $this, 'exclude_document_comments_clause' ) );
 
 		return $comments;
+	}
+
+	/**
+	 * Keep document comments (and workflow events) out of the comment feeds.
+	 *
+	 * The site-wide feed joins the posts table, so the post type can be
+	 * excluded directly; the single-post feed does not join it, so the
+	 * document's own feed is emptied instead.
+	 *
+	 * @param string   $where WHERE clause of the comment feed query.
+	 * @param WP_Query $query The query being built.
+	 * @return string
+	 */
+	public function exclude_documents_from_comment_feed( $where, $query ) {
+		global $wpdb;
+
+		if ( $query instanceof WP_Query && $query->is_singular() ) {
+			$post = isset( $query->posts[0] ) ? $query->posts[0] : null;
+
+			return $post instanceof WP_Post && self::POST_TYPE === $post->post_type ? $where . ' AND 1 = 0' : $where;
+		}
+
+		return $where . $wpdb->prepare( " AND {$wpdb->posts}.post_type <> %s", self::POST_TYPE );
 	}
 
 	/**

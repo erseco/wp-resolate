@@ -44,13 +44,27 @@ class UninstallTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test uninstall when WP_UNINSTALL_PLUGIN is defined.
+	 * Restore the capabilities uninstall.php removes: roles live in memory
+	 * across tests, so the rollback alone does not bring them back.
+	 */
+	public function tear_down(): void {
+		Documentate_Roles::ensure_caps( true );
+		parent::tear_down();
+	}
+
+	/**
+	 * Test uninstall when WP_UNINSTALL_PLUGIN is defined: it removes the
+	 * gestión capability from the roles and forgets the version option.
 	 */
 	public function test_uninstall_with_constant_defined() {
 		// Define the constant if not already defined.
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 			define( 'WP_UNINSTALL_PLUGIN', true );
 		}
+
+		Documentate_Roles::ensure_caps( true );
+		$this->assertTrue( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertSame( Documentate_Roles::VERSION, get_option( Documentate_Roles::OPTION_VERSION ) );
 
 		$file = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'uninstall.php';
 
@@ -59,7 +73,9 @@ class UninstallTest extends WP_UnitTestCase {
 		include $file;
 		$output = ob_get_clean();
 
-		// If we got here without exiting, the constant check passed.
-		$this->assertTrue( true );
+		$this->assertSame( '', $output );
+		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertFalse( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertFalse( get_option( Documentate_Roles::OPTION_VERSION ) );
 	}
 }

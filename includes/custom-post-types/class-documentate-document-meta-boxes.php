@@ -420,7 +420,8 @@ class Documentate_Document_Meta_Boxes {
 		}
 
 		if ( 'rich' === $type ) {
-			$is_locked = in_array( $post->post_status, array( 'publish', 'archived' ), true );
+			$is_locked = in_array( $post->post_status, array( 'publish', 'archived' ), true )
+				|| ! Documentate_Workflow::user_can_modify_status( (string) $post->post_status, get_current_user_id() );
 			Documentate_Document_Scalar_Field::render_rich_editor_control(
 				$meta_key,
 				$value,

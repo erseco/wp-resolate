@@ -95,25 +95,29 @@ class Documentate_Notifications {
 		$actor_id = get_current_user_id();
 
 		// Notify the author about their own document's state change.
-		$author_key = $this->get_author_notification_key( $old_status, $new_status );
+		$author_key = $this->get_author_notification_key( $old_status, $new_status, $author_id === $actor_id );
 		if ( $author_key && $author_id > 0 && ! $this->user_disabled( $author_id, $author_key ) ) {
 			$this->send_state_change_email( $post, $old_status, $new_status, $author_id, $actor_id );
 		}
 
 		// Notify administrators when someone else's document moves to pending review.
-		if ( 'pending' === $new_status && 'pending' !== $old_status ) {
+		if ( 'pending' === $new_status ) {
 			$this->notify_admins_pending_review( $post, $author_id, $actor_id );
 		}
+
+		// Notify gestión documental about the documents that reach or leave them.
+		$this->notify_gestion( $post, $old_status, $new_status, $actor_id );
 	}
 
 	/**
 	 * Decide which author-side notification key applies to a status transition.
 	 *
-	 * @param string $old_status Old post status.
-	 * @param string $new_status New post status.
+	 * @param string $old_status     Old post status.
+	 * @param string $new_status     New post status.
+	 * @param bool   $actor_is_author Whether the author triggered the change.
 	 * @return string|null Notification key or null when no author email applies.
 	 */
-	private function get_author_notification_key( $old_status, $new_status ) {
+	private function get_author_notification_key( $old_status, $new_status, $actor_is_author = false ) {
 		if ( in_array( $new_status, array( 'auto-draft', 'inherit', 'new' ), true ) ) {
 			return null;
 		}
@@ -124,6 +128,12 @@ class Documentate_Notifications {
 
 		if ( 'publish' === $new_status ) {
 			return self::KEY_AUTHOR_PUBLISH;
+		}
+
+		// Sending to gestión is the author's own act; a return from
+		// administración to gestión is gestión's business, not the author's.
+		if ( 'en_gestion' === $new_status && ( $actor_is_author || 'pending' === $old_status ) ) {
+			return null;
 		}
 
 		// Skip the initial transition into draft (document creation).
@@ -150,15 +160,15 @@ class Documentate_Notifications {
 			return;
 		}
 
-		$reason = $this->get_state_change_reason( $new_status );
-		$subject = $this->build_subject( $reason, $post->post_title );
+		$reason = $this->get_state_change_reason( $post, $new_status );
+		$subject = $this->build_subject( $reason, $post );
 		$body = $this->build_body( $post, $old_status, $new_status, $actor_id );
 
 		wp_mail( $author->user_email, $subject, $body );
 	}
 
 	/**
-	 * Notify all administrators (except the author and the actor) that a document is pending review.
+	 * Notify all administrators (except the author) that a document is pending approval.
 	 *
 	 * @param WP_Post $post      Post object.
 	 * @param int     $author_id Author user ID.
@@ -185,74 +195,172 @@ class Documentate_Notifications {
 				continue;
 			}
 
-			$subject = $this->build_subject( __( 'Pendiente de revisión', 'documentate' ), $post->post_title );
+			$subject = $this->build_subject( 'Pendiente de aprobar', $post );
 			$body = $this->build_body( $post, '', 'pending', $actor_id );
 			wp_mail( $admin->user_email, $subject, $body );
 		}
 	}
 
 	/**
-	 * Build the email subject prefixed with [documentate].
+	 * Mail gestión documental about the transitions that concern them.
 	 *
-	 * Truncates the title so subjects stay short even for long document titles.
+	 * Draft to en_gestion: a new document waits for them. Pending to
+	 * en_gestion: administración returned one with a reason. Pending to
+	 * publish of a type that went through gestión: it was approved.
 	 *
-	 * @param string $reason Short reason describing the change.
-	 * @param string $title  Document title.
-	 * @return string Final subject line.
+	 * @param WP_Post $post       Post object.
+	 * @param string  $old_status Old post status.
+	 * @param string  $new_status New post status.
+	 * @param int     $actor_id   ID of the user who triggered the change.
+	 * @return void
 	 */
-	private function build_subject( $reason, $title ) {
-		$title = wp_strip_all_tags( (string) $title );
-		$max = 60;
-		if ( function_exists( 'mb_strlen' ) && mb_strlen( $title ) > $max ) {
-			$title = mb_substr( $title, 0, $max - 1 ) . '…';
-		} elseif ( strlen( $title ) > $max ) {
-			$title = substr( $title, 0, $max - 1 ) . '…';
+	private function notify_gestion( $post, $old_status, $new_status, $actor_id ) {
+		$transicion = $old_status . '>' . $new_status;
+		$asuntos = array(
+			'draft>en_gestion' => 'Nuevo documento en gestión',
+			'pending>en_gestion' => 'Devuelto por administración',
+			'pending>publish' => 'Documento aprobado',
+		);
+
+		if ( ! isset( $asuntos[ $transicion ] ) ) {
+			return;
 		}
 
-		return sprintf( '[documentate] %1$s: %2$s', $reason, $title );
+		if ( 'pending>publish' === $transicion && ! Documentate_Documento::con_gestion( $post ) ) {
+			return;
+		}
+
+		$subject = $this->build_subject( $asuntos[ $transicion ], $post );
+		$body = $this->build_body( $post, $old_status, $new_status, $actor_id );
+
+		foreach ( $this->gestion_recipients( $actor_id ) as $email ) {
+			wp_mail( $email, $subject, $body );
+		}
+	}
+
+	/**
+	 * Email addresses of every gestión documental user except the actor.
+	 *
+	 * Selected by capability, not by role: the site owner may grant
+	 * CAP_GESTION to any role or user, and only those who also hold
+	 * edit_others_posts can actually open the documents.
+	 *
+	 * @param int $actor_id ID of the user who triggered the change.
+	 * @return string[]
+	 */
+	private function gestion_recipients( $actor_id ) {
+		$users = get_users(
+			array(
+				'capability' => Documentate_Roles::CAP_GESTION,
+				'fields' => array( 'ID', 'user_email' ),
+			)
+		);
+
+		$emails = array();
+		foreach ( $users as $user ) {
+			$user_id = (int) $user->ID;
+			if ( $user_id === $actor_id || empty( $user->user_email ) ) {
+				continue;
+			}
+			if ( ! user_can( $user_id, Documentate_Roles::CAP_GESTION ) || ! user_can( $user_id, 'edit_others_posts' ) ) {
+				continue;
+			}
+			$emails[] = (string) $user->user_email;
+		}
+
+		return $emails;
+	}
+
+	/**
+	 * Build the email subject: "Documentate · <reason>: <nombre corto>".
+	 *
+	 * @param string  $reason Short reason describing the change.
+	 * @param WP_Post $post   Document.
+	 * @return string Final subject line.
+	 */
+	private function build_subject( $reason, $post ) {
+		return sprintf( 'Documentate · %1$s: %2$s', $reason, Documentate_Documento::nombre_corto( $post ) );
 	}
 
 	/**
 	 * Map a target status to a short, human-readable subject reason.
 	 *
-	 * @param string $new_status New post status.
-	 * @return string Translated reason.
+	 * @param WP_Post $post       Document.
+	 * @param string  $new_status New post status.
+	 * @return string
 	 */
-	private function get_state_change_reason( $new_status ) {
-		switch ( $new_status ) {
-			case 'pending':
-				return __( 'Documento enviado a revisión', 'documentate' );
-			case 'publish':
-				return __( 'Documento publicado', 'documentate' );
-			case 'draft':
-				return __( 'Documento devuelto a borrador', 'documentate' );
-			case 'archived':
-				return __( 'Documento archivado', 'documentate' );
-			case 'trash':
-				return __( 'Documento enviado a la papelera', 'documentate' );
-			default:
-				return __( 'Cambio de estado del documento', 'documentate' );
+	private function get_state_change_reason( $post, $new_status ) {
+		if ( 'draft' === $new_status && Documentate_Documento::devuelto( $post ) ) {
+			return 'Documento devuelto';
 		}
+
+		$reasons = array(
+			'pending' => 'Documento enviado a revisión',
+			'publish' => 'Documento aprobado',
+			'en_gestion' => 'Documento enviado a gestión',
+			'draft' => 'Documento devuelto a borrador',
+			'archived' => 'Documento archivado',
+			'trash' => 'Documento enviado a la papelera',
+		);
+
+		return $reasons[ $new_status ] ?? 'Cambio de estado del documento';
 	}
 
 	/**
 	 * Translate an internal post status into a human-readable label.
 	 *
 	 * @param string $status Post status.
-	 * @return string Translated label, or the raw status if unknown.
+	 * @return string Label, or the raw status if unknown.
 	 */
 	private function status_label( $status ) {
-		$labels = array(
-			'draft' => __( 'Borrador', 'documentate' ),
-			'pending' => __( 'Pendiente de revisión', 'documentate' ),
-			'publish' => __( 'Publicado', 'documentate' ),
-			'archived' => __( 'Archivado', 'documentate' ),
-			'trash' => __( 'Papelera', 'documentate' ),
-			'auto-draft' => __( 'Borrador inicial', 'documentate' ),
-			'new' => __( 'Nuevo', 'documentate' ),
+		$labels = Documentate_Estados::etiquetas() + array(
+			'trash' => 'Papelera',
+			'auto-draft' => 'Borrador inicial',
+			'new' => 'Nuevo',
 		);
 
 		return $labels[ $status ] ?? $status;
+	}
+
+	/**
+	 * Reason of a return, from the transition in progress or the stored mark.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string Empty when the change is not a return.
+	 */
+	private function motivo( $post ) {
+		$motivo = Documentate_Transiciones::motivo_en_curso( $post->ID );
+		if ( '' !== $motivo ) {
+			return $motivo;
+		}
+
+		$devuelto = Documentate_Documento::devuelto( $post );
+
+		return $devuelto ? $devuelto['motivo'] : '';
+	}
+
+	/**
+	 * Link to the document: the application when it exists, wp-admin otherwise.
+	 *
+	 * @param WP_Post $post   Document.
+	 * @param bool    $editar Whether to point at the edit view.
+	 * @return string
+	 */
+	private function enlace( $post, $editar ) {
+		if ( class_exists( 'Documentate_App_Shell' ) ) {
+			$args = array( 'doc' => $post->ID );
+			if ( $editar ) {
+				$args['vista'] = 'editar';
+			}
+			$url = Documentate_App_Shell::page_url( $args );
+			if ( '' !== $url ) {
+				return $url;
+			}
+		}
+
+		$edit_link = get_edit_post_link( $post->ID, '' );
+
+		return $edit_link ? $edit_link : admin_url( 'post.php?action=edit&post=' . $post->ID );
 	}
 
 	/**
@@ -266,46 +374,25 @@ class Documentate_Notifications {
 	 */
 	private function build_body( $post, $old_status, $new_status, $actor_id ) {
 		$actor = $actor_id > 0 ? get_userdata( $actor_id ) : null;
-		$actor_name = $actor && ! empty( $actor->display_name ) ? $actor->display_name : __( 'Sistema', 'documentate' );
-
-		$edit_link = get_edit_post_link( $post->ID, '' );
-		if ( ! $edit_link ) {
-			$edit_link = admin_url( 'post.php?action=edit&post=' . $post->ID );
-		}
+		$actor_name = $actor && ! empty( $actor->display_name ) ? $actor->display_name : 'Sistema';
+		$es_devolucion = in_array( $new_status, array( 'draft', 'en_gestion' ), true ) && '' !== $old_status;
+		$motivo = $es_devolucion ? $this->motivo( $post ) : '';
 
 		$lines = array();
-		$lines[] = sprintf(
-			/* translators: %s: document title */
-			__( 'Documento: %s', 'documentate' ),
-			wp_strip_all_tags( (string) $post->post_title ),
-		);
+		$lines[] = sprintf( 'Documento: %s', wp_strip_all_tags( (string) $post->post_title ) );
 
 		if ( $old_status ) {
-			$lines[] = sprintf(
-				/* translators: 1: previous status, 2: new status */
-				__( 'Cambio de estado: %1$s → %2$s', 'documentate' ),
-				$this->status_label( $old_status ),
-				$this->status_label( $new_status ),
-			);
+			$lines[] = sprintf( 'Cambio de estado: %1$s → %2$s', $this->status_label( $old_status ), $this->status_label( $new_status ) );
 		} else {
-			$lines[] = sprintf(
-				/* translators: %s: post status label */
-				__( 'Estado: %s', 'documentate' ),
-				$this->status_label( $new_status ),
-			);
+			$lines[] = sprintf( 'Estado: %s', $this->status_label( $new_status ) );
 		}
 
-		$lines[] = sprintf(
-			/* translators: %s: name of the user who made the change */
-			__( 'Realizado por: %s', 'documentate' ),
-			$actor_name,
-		);
+		$lines[] = sprintf( 'Realizado por: %s', $actor_name );
+		if ( '' !== $motivo ) {
+			$lines[] = sprintf( 'Motivo: «%s»', $motivo );
+		}
 		$lines[] = '';
-		$lines[] = sprintf(
-			/* translators: %s: edit URL of the document */
-			__( 'Enlace al documento: %s', 'documentate' ),
-			$edit_link,
-		);
+		$lines[] = sprintf( 'Enlace al documento: %s', $this->enlace( $post, '' !== $motivo ) );
 
 		return implode( "\n", $lines );
 	}

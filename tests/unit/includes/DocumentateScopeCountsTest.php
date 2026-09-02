@@ -76,6 +76,10 @@ class DocumentateScopeCountsTest extends WP_UnitTestCase {
 		$this->admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
 
+		// The editor role carries the gestión capability; these tests model a
+		// plain área user, so deny it for this user (gestión has its own tests).
+		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_GESTION, false );
+
 		$parent = wp_insert_term( 'Scope A', 'category' );
 		$child  = wp_insert_term( 'Scope A Child', 'category', array( 'parent' => $parent['term_id'] ) );
 		$other  = wp_insert_term( 'Scope B', 'category' );
@@ -117,7 +121,7 @@ class DocumentateScopeCountsTest extends WP_UnitTestCase {
 	 *
 	 * @var string[]
 	 */
-	private const ALL_VIEW_STATUSES = array( 'publish', 'future', 'draft', 'pending', 'private' );
+	private const ALL_VIEW_STATUSES = array( 'publish', 'future', 'draft', 'pending', 'private', 'en_gestion' );
 
 	/**
 	 * Create a documentate_document with a fixed status, author and category.
@@ -378,7 +382,7 @@ class DocumentateScopeCountsTest extends WP_UnitTestCase {
 	 */
 	public function test_all_list_statuses_constant() {
 		$this->assertSame(
-			array( 'publish', 'future', 'draft', 'pending', 'private' ),
+			array( 'publish', 'future', 'draft', 'pending', 'private', 'en_gestion' ),
 			Documentate_Scope_Filter::ALL_LIST_STATUSES
 		);
 	}

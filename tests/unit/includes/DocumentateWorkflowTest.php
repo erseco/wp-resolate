@@ -778,7 +778,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-warning', $output );
-		$this->assertStringContainsString( 'document type', $output );
+		$this->assertStringContainsString( 'tipo de documento', $output );
 	}
 
 	/**
@@ -805,7 +805,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-info', $output );
-		$this->assertStringContainsString( 'pending', $output );
+		$this->assertStringContainsString( 'revisión', $output );
 	}
 
 	/**
@@ -832,7 +832,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-error', $output );
-		$this->assertStringContainsString( 'administrators', $output );
+		$this->assertStringContainsString( 'administración', $output );
 	}
 
 	/**
@@ -908,10 +908,12 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-stepper', $output );
-		$this->assertStringContainsString( 'Draft', $output );
-		$this->assertStringContainsString( 'Save Draft', $output );
-		$this->assertStringContainsString( 'Send to Review', $output );
+		$this->assertStringContainsString( 'Borrador', $output );
+		$this->assertStringContainsString( 'Guardar borrador', $output );
+		$this->assertStringContainsString( 'Enviar a revisión', $output );
+		$this->assertStringContainsString( 'data-estado="pending"', $output );
 		$this->assertStringContainsString( 'post_status', $output );
+		$this->assertStringContainsString( 'documentate_workflow_nonce', $output );
 	}
 
 	/**
@@ -969,10 +971,15 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'In Review', $output );
-		$this->assertStringContainsString( 'Approve &amp; Publish', $output );
-		$this->assertStringContainsString( 'Return to Draft', $output );
+		$this->assertStringContainsString( 'En revisión', $output );
+		$this->assertStringContainsString( 'Aprobar y publicar', $output );
+		$this->assertStringContainsString( 'Devolver al área', $output );
 		$this->assertStringContainsString( 'documentate-save-pending', $output );
+		$this->assertStringContainsString( 'id="documentate-return-draft-motivo"', $output );
+		$this->assertStringContainsString( 'name="documentate_motivo"', $output );
+		$this->assertStringContainsString( 'Motivo de la devolución', $output );
+		// The type does not go through gestión: no "Devolver a gestión".
+		$this->assertStringNotContainsString( 'documentate-return-gestion', $output );
 	}
 
 	/**
@@ -1009,10 +1016,10 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'pending review', $output );
+		$this->assertStringContainsString( 'en revisión', $output );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $output );
-		$this->assertStringNotContainsString( 'Approve &amp; Publish', $output );
-		$this->assertStringNotContainsString( 'Save Draft', $output );
+		$this->assertStringNotContainsString( 'Aprobar y publicar', $output );
+		$this->assertStringNotContainsString( 'Guardar borrador', $output );
 	}
 
 	/**
@@ -1048,10 +1055,10 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Approved', $output );
-		$this->assertStringContainsString( 'read-only', $output );
-		$this->assertStringContainsString( 'Return to Review', $output );
-		$this->assertStringContainsString( 'Archive', $output );
+		$this->assertStringContainsString( 'Aprobado', $output );
+		$this->assertStringContainsString( 'solo lectura', $output );
+		$this->assertStringContainsString( 'Devolver a revisión', $output );
+		$this->assertStringContainsString( 'Archivar', $output );
 	}
 
 	/**
@@ -1090,7 +1097,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Contact an administrator', $output );
+		$this->assertStringContainsString( 'Contacta con administración', $output );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $output );
 	}
 
@@ -1111,10 +1118,10 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Submit for Pending Review', $output );
+		$this->assertStringContainsString( 'Envía a revisión', $output );
 		$this->assertStringContainsString( 'documentate-mgmt-message--draft', $output );
-		$this->assertStringContainsString( 'Save Draft', $output );
-		$this->assertStringContainsString( 'Send to Review', $output );
+		$this->assertStringContainsString( 'Guardar borrador', $output );
+		$this->assertStringContainsString( 'Enviar a revisión', $output );
 		// No Publish button — flow is always Draft → Review → Approved.
 		$this->assertStringNotContainsString( 'documentate-publish', $output );
 	}
@@ -1139,7 +1146,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-save-draft', $output );
-		$this->assertStringContainsString( 'Send to Review', $output );
+		$this->assertStringContainsString( 'Enviar a revisión', $output );
 		$this->assertStringNotContainsString( 'documentate-publish', $output );
 	}
 
@@ -1463,8 +1470,8 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'archived', $output );
-		$this->assertStringContainsString( 'Unarchive', $output );
+		$this->assertStringContainsString( 'archivado', $output );
+		$this->assertStringContainsString( 'Desarchivar', $output );
 	}
 
 	/**
@@ -1508,9 +1515,9 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'archived', $output );
-		$this->assertStringContainsString( 'Contact an administrator', $output );
-		$this->assertStringNotContainsString( '>Unarchive<', $output );
+		$this->assertStringContainsString( 'archivado', $output );
+		$this->assertStringContainsString( 'Contacta con administración', $output );
+		$this->assertStringNotContainsString( 'Desarchivar', $output );
 	}
 
 	/**
@@ -1543,7 +1550,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Archive', $output );
+		$this->assertStringContainsString( 'Archivar', $output );
 	}
 
 	/**
@@ -1570,7 +1577,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-error', $output );
-		$this->assertStringContainsString( 'Archived', $output );
+		$this->assertStringContainsString( 'archivados', $output );
 	}
 
 	/**
@@ -1597,7 +1604,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-error', $output );
-		$this->assertStringContainsString( 'published', $output );
+		$this->assertStringContainsString( 'aprobados', $output );
 	}
 
 	/**
@@ -1624,7 +1631,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-error', $output );
-		$this->assertStringContainsString( 'administrators', $output );
+		$this->assertStringContainsString( 'administración', $output );
 	}
 
 	/**
@@ -1644,11 +1651,12 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Draft', $output );
-		$this->assertStringContainsString( 'In Review', $output );
-		$this->assertStringContainsString( 'Approved', $output );
-		// Archived step should NOT appear in stepper.
+		$this->assertStringContainsString( 'Borrador', $output );
+		$this->assertStringContainsString( 'En revisión', $output );
+		$this->assertStringContainsString( 'Aprobado', $output );
+		// Neither the archived step nor "En gestión" (type without gestión) appear.
 		$this->assertStringNotContainsString( 'is-status-archived', $output );
+		$this->assertStringNotContainsString( 'En gestión', $output );
 	}
 
 	/**
@@ -1707,7 +1715,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringNotContainsString( 'Move to Trash', $output );
+		$this->assertStringNotContainsString( 'Mover a la papelera', $output );
 	}
 
 	/**
@@ -1740,7 +1748,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Move to Trash', $output );
+		$this->assertStringContainsString( 'Mover a la papelera', $output );
 	}
 
 	/**
@@ -1885,7 +1893,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'documentate-doc-type-section', $output );
 		$this->assertStringContainsString( 'documentate_type_nonce', $output );
-		$this->assertStringContainsString( 'Select a type', $output );
+		$this->assertStringContainsString( 'Selecciona un tipo', $output );
 	}
 
 	/**
@@ -1910,7 +1918,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-doc-type-section', $output );
-		$this->assertStringContainsString( 'Selected type:', $output );
+		$this->assertStringContainsString( 'Tipo seleccionado:', $output );
 		$this->assertStringNotContainsString( '<select', $output );
 	}
 }

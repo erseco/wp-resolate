@@ -318,7 +318,7 @@ class Documentate_Document_Admin_List {
 		}
 
 		// Default view: exclude archived.
-		$query->set( 'post_status', array( 'publish', 'pending', 'draft', 'private', 'future' ) );
+		$query->set( 'post_status', array( 'publish', 'pending', 'en_gestion', 'draft', 'private', 'future' ) );
 	}
 	/**
 	 * Whether this query is the documents list table's main query.
