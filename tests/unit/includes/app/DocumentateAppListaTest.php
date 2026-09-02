@@ -548,4 +548,40 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 		wp_set_current_user( $this->admin_id );
 		$this->assertStringContainsString( '← Todos los documentos', Documentate_App_Shell::enlace_volver() );
 	}
+
+	/**
+	 * The quick filter is offered on every tray and carries what to match on.
+	 */
+	public function test_the_tray_offers_a_quick_filter() {
+		$html = $this->render( $this->area_id );
+
+		$this->assertStringContainsString( 'data-dcta-busqueda', $html );
+		$this->assertStringContainsString( 'placeholder="Filtrar…"', $html );
+		$this->assertStringContainsString( 'Filtrar los documentos de la lista', $html );
+
+		// Hidden until the script shows it: without JavaScript it would do nothing.
+		$this->assertMatchesRegularExpression( '/<span class="dcta-busqueda" data-dcta-busqueda hidden>/', $html );
+	}
+
+	/**
+	 * Every row carries the text the quick filter matches: name, official
+	 * title, type and status.
+	 */
+	public function test_every_row_carries_the_text_the_filter_matches() {
+		$html = $this->render( $this->area_id );
+
+		$this->assertMatchesRegularExpression(
+			'/data-dcta-texto="[^"]*Jornadas digitales[^"]*Jornadas de competencia digital[^"]*Borrador[^"]*"/u',
+			$html
+		);
+	}
+
+	/**
+	 * The footer keeps the number of drawn rows, so the filter can count.
+	 */
+	public function test_the_footer_says_how_many_rows_are_drawn() {
+		$html = $this->render( $this->area_id );
+
+		$this->assertMatchesRegularExpression( '/data-dcta-pie data-dcta-pie-total="\d+"/', $html );
+	}
 }

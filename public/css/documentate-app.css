@@ -448,7 +448,47 @@ body.documentate-app .wp-block-post-content {
 	display: flex;
 	gap: 9px;
 	flex-wrap: wrap;
+	align-items: center;
 	margin: 0 0 16px;
+}
+
+/* The quick filter sits at the end of the chip row and pushes to the right
+   while there is room; on a phone it drops to its own line, full width. */
+.dcta-busqueda {
+	display: inline-flex;
+	align-items: center;
+	margin-inline-start: auto;
+}
+
+.dcta-busqueda-campo {
+	min-height: 40px;
+	min-width: 220px;
+	padding: 0 14px;
+	border: 1px solid var(--dcta-linea);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--dcta-texto);
+	font: inherit;
+	font-size: 14px;
+}
+
+/* The theme owns .screen-reader-text on the front end, but the app hides the
+   theme's stylesheet chrome, so the label needs its own hiding rule. */
+.dcta-busqueda .screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.dcta-busqueda-campo:focus {
+	outline: 2px solid var(--dcta-pri);
+	outline-offset: 1px;
 }
 
 .dcta-fchip {
@@ -1502,6 +1542,15 @@ body.documentate-app .documentate-loading-modal__content {
 /* --- small screens --------------------------------------------------------- */
 
 @media (max-width: 782px) {
+	.dcta-busqueda {
+		width: 100%;
+		margin-inline-start: 0;
+	}
+
+	.dcta-busqueda-campo {
+		width: 100%;
+	}
+
 	.dcta-fila {
 		grid-template-columns: minmax(0, 1fr) 110px;
 	}

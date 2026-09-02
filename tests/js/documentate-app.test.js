@@ -368,3 +368,108 @@ describe( 'new document form', () => {
 		expect( document.getElementById( 'documentate-app-prefijo' ).textContent ).toBe( 'CONV' );
 	} );
 } );
+
+const LISTA = `
+	<div class="dcta-filtros">
+		<a class="dcta-fchip dcta-fchip-on" href="#">Todos</a>
+		<span class="dcta-busqueda" data-dcta-busqueda hidden>
+			<label class="screen-reader-text" for="dcta-busqueda">Filtrar los documentos de la lista</label>
+			<input type="search" id="dcta-busqueda" class="dcta-busqueda-campo" placeholder="Filtrar…">
+		</span>
+	</div>
+	<div class="dcta-tabla">
+		<div class="dcta-fila dcta-fila-cab"><span>Documento</span></div>
+		<div class="dcta-fila" data-dcta-texto="PG · Material aulas digitales Propuesta de gasto Borrador"></div>
+		<div class="dcta-fila" data-dcta-texto="RES · Listado definitivo Resolución En gestión"></div>
+		<div class="dcta-fila" data-dcta-texto="CONV · Jornadas competencia digital Convocatoria Borrador"></div>
+		<div class="dcta-tabla-pie" data-dcta-pie data-dcta-pie-total="3">3 documentos</div>
+	</div>`;
+
+/**
+ * Build a tray and run the module on it.
+ */
+function montarLista() {
+	document.body.innerHTML = LISTA;
+	cargar();
+}
+
+/**
+ * Type into the quick filter.
+ *
+ * @param {string} texto What the person types.
+ */
+function filtrar( texto ) {
+	const campo = document.getElementById( 'dcta-busqueda' );
+	campo.value = texto;
+	campo.dispatchEvent( new window.Event( 'input' ) );
+}
+
+/**
+ * The rows still on screen.
+ *
+ * @return {string[]} Their searchable text.
+ */
+function filasVisibles() {
+	return Array.from(
+		document.querySelectorAll( '.dcta-fila:not(.dcta-fila-cab)' )
+	)
+		.filter( ( fila ) => ! fila.hidden )
+		.map( ( fila ) => fila.getAttribute( 'data-dcta-texto' ) );
+}
+
+describe( 'quick filter', () => {
+	it( 'shows the box only when the script runs', () => {
+		document.body.innerHTML = LISTA;
+		expect( document.querySelector( '[data-dcta-busqueda]' ).hidden ).toBe( true );
+
+		cargar();
+		expect( document.querySelector( '[data-dcta-busqueda]' ).hidden ).toBe( false );
+	} );
+
+	it( 'narrows the rows as you type and counts what is left', () => {
+		montarLista();
+
+		filtrar( 'jornadas' );
+		expect( filasVisibles() ).toEqual( [
+			'CONV · Jornadas competencia digital Convocatoria Borrador',
+		] );
+		expect( document.querySelector( '[data-dcta-pie]' ).textContent ).toBe(
+			'1 de 3 documentos'
+		);
+	} );
+
+	it( 'matches the type and the status too, ignoring accents', () => {
+		montarLista();
+
+		filtrar( 'gestion' );
+		expect( filasVisibles() ).toEqual( [
+			'RES · Listado definitivo Resolución En gestión',
+		] );
+
+		filtrar( 'propuesta' );
+		expect( filasVisibles() ).toEqual( [
+			'PG · Material aulas digitales Propuesta de gasto Borrador',
+		] );
+	} );
+
+	it( 'says so when nothing matches, and restores the list when cleared', () => {
+		montarLista();
+
+		filtrar( 'nada de nada' );
+		expect( filasVisibles() ).toEqual( [] );
+		expect( document.querySelector( '.dcta-vacio' ).hidden ).toBe( false );
+		expect( document.querySelector( '.dcta-vacio' ).textContent ).toBe(
+			'Ningún documento de la lista coincide con el filtro.'
+		);
+
+		filtrar( '' );
+		expect( filasVisibles() ).toHaveLength( 3 );
+		expect( document.querySelector( '.dcta-vacio' ).hidden ).toBe( true );
+		expect( document.querySelector( '[data-dcta-pie]' ).textContent ).toBe( '3 documentos' );
+	} );
+
+	it( 'does nothing on a page without a tray', () => {
+		document.body.innerHTML = '<div class="dcta-hoja"></div>';
+		expect( () => cargar() ).not.toThrow();
+	} );
+} );

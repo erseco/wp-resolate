@@ -420,7 +420,24 @@ class Documentate_App_Lista {
 			$html .= self::chip_filtro( $bandeja, $clave, $etiqueta, $clave === $estado, $area );
 		}
 
+		$html .= self::render_busqueda();
+
 		return $html . '</div>' . self::render_area_select( $bandeja, $estado, $area );
+	}
+
+	/**
+	 * The quick filter box, to the right of the chips.
+	 *
+	 * It narrows the rows already on screen as you type (documentate-app.js);
+	 * without JavaScript it stays hidden, because there is nothing behind it.
+	 *
+	 * @return string
+	 */
+	private static function render_busqueda() {
+		return '<span class="dcta-busqueda" data-dcta-busqueda hidden>'
+			. '<label class="screen-reader-text" for="dcta-busqueda">Filtrar los documentos de la lista</label>'
+			. '<input type="search" id="dcta-busqueda" class="dcta-busqueda-campo" placeholder="Filtrar…" autocomplete="off" />'
+			. '</span>';
 	}
 
 	/**
@@ -516,7 +533,8 @@ class Documentate_App_Lista {
 			$html .= self::render_fila( $post, $bandeja );
 		}
 
-		$html .= '<div class="dcta-tabla-pie">' . esc_html( self::texto_pie( (int) $query->found_posts, count( $query->posts ) ) ) . '</div>';
+		$html .= '<div class="dcta-tabla-pie" data-dcta-pie data-dcta-pie-total="' . esc_attr( (string) count( $query->posts ) ) . '">'
+			. esc_html( self::texto_pie( (int) $query->found_posts, count( $query->posts ) ) ) . '</div>';
 
 		return $html . '</div>';
 	}
@@ -570,7 +588,8 @@ class Documentate_App_Lista {
 		$accion = self::accion_fila( $post, $bandeja );
 		$detalle_url = self::url_detalle( $post->ID, $bandeja );
 
-		$html = '<div class="dcta-fila' . ( '' !== $devuelto ? ' dcta-fila-devuelta' : '' ) . '">';
+		$html = '<div class="dcta-fila' . ( '' !== $devuelto ? ' dcta-fila-devuelta' : '' ) . '"'
+			. ' data-dcta-texto="' . esc_attr( self::texto_buscable( $post, $tipo, $chip['texto'] ) ) . '">';
 		$html .= '<div class="dcta-doc-nombre">'
 			. '<a href="' . esc_url( $detalle_url ) . '">' . esc_html( Documentate_Documento::nombre_corto( $post ) ) . '</a>'
 			. self::icono_adjunto( $post )
@@ -583,6 +602,28 @@ class Documentate_App_Lista {
 		$html .= '<a class="dcta-mini" href="' . esc_url( $accion[1] ) . '">' . esc_html( $accion[0] ) . '</a>';
 
 		return $html . '</div>';
+	}
+
+	/**
+	 * Everything the quick filter matches a row against.
+	 *
+	 * The internal name, the official title, the type and the status, so
+	 * typing "gasto", "devuelto" or "RES" all narrow the list.
+	 *
+	 * @param WP_Post      $post   Document.
+	 * @param WP_Term|null $tipo   Document type.
+	 * @param string       $estado Status label.
+	 * @return string
+	 */
+	private static function texto_buscable( $post, $tipo, $estado ) {
+		$partes = array(
+			Documentate_Documento::nombre_corto( $post ),
+			wp_strip_all_tags( (string) $post->post_title ),
+			$tipo ? $tipo->name : '',
+			$estado,
+		);
+
+		return trim( implode( ' ', array_filter( $partes ) ) );
 	}
 
 	/**

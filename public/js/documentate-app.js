@@ -316,13 +316,89 @@
 		pintar();
 	}
 
+	/**
+	 * Strip accents and case so «gestión» also matches «gestion».
+	 */
+	function normalizar(texto) {
+		var plano = String(texto || '').toLowerCase();
+
+		return plano.normalize ? plano.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : plano;
+	}
+
+	/**
+	 * The quick filter: hides the rows that do not match what is typed.
+	 *
+	 * It is an enhancement on top of the status chips, which do the real
+	 * query; this one only narrows what is already on screen, so the box
+	 * stays hidden when this script does not run.
+	 */
+	function iniciarBusqueda() {
+		var caja = document.querySelector('[data-dcta-busqueda]');
+		var tabla = document.querySelector('.dcta-tabla');
+		if (!caja || !tabla) {
+			return;
+		}
+
+		var campo = caja.querySelector('.dcta-busqueda-campo');
+		var pie = tabla.querySelector('[data-dcta-pie]');
+		var filas = [];
+		cada('.dcta-fila:not(.dcta-fila-cab)', function (fila) {
+			filas.push(fila);
+		}, tabla);
+
+		if (!campo || !filas.length) {
+			return;
+		}
+
+		var total = filas.length;
+		var pieOriginal = pie ? pie.textContent : '';
+		var vacio = document.createElement('div');
+		vacio.className = 'dcta-vacio';
+		vacio.hidden = true;
+		vacio.textContent = 'Ningún documento de la lista coincide con el filtro.';
+		if (pie) {
+			tabla.insertBefore(vacio, pie);
+		} else {
+			tabla.appendChild(vacio);
+		}
+
+		caja.hidden = false;
+
+		function filtrar() {
+			var busqueda = normalizar(campo.value).trim();
+			var visibles = 0;
+
+			for (var i = 0; i < filas.length; i++) {
+				var texto = normalizar(filas[i].getAttribute('data-dcta-texto') || filas[i].textContent);
+				var coincide = '' === busqueda || texto.indexOf(busqueda) !== -1;
+				filas[i].hidden = !coincide;
+				if (coincide) {
+					visibles++;
+				}
+			}
+
+			vacio.hidden = 0 !== visibles;
+
+			if (pie) {
+				pie.textContent = '' === busqueda
+					? pieOriginal
+					: visibles + ' de ' + total + (1 === total ? ' documento' : ' documentos');
+			}
+		}
+
+		campo.addEventListener('input', filtrar);
+		campo.addEventListener('search', filtrar);
+		filtrar();
+	}
+
 	function init() {
 		iniciarDialogos();
 		iniciarAdjunto();
 		iniciarTipo();
+		iniciarBusqueda();
 	}
 
-	window.documentateApp = { init: init };
+	window.documentateApp = { init: init, iniciarBusqueda: iniciarBusqueda };
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);
