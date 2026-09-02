@@ -66,9 +66,12 @@ make check       # Runs: lint -> check-plugin -> test
 | `make mago-lint`         | Optional secondary Mago lint (may be removed)            |
 | `make check-plugin`      | Run WordPress plugin-check — **always required**         |
 | `make test`              | Run PHPUnit unit tests — **always required**             |
+| `make test-generation`   | PHPUnit generation suite only (OpenTBS/templates)        |
 | `make test-coverage`     | PHPUnit with Xdebug coverage (needs `--xdebug=coverage`) |
 | `make test-e2e`          | Run Playwright E2E tests against wp-env                  |
+| `make test-e2e-wasm`     | LibreOffice-WASM spec (`DOCUMENTATE_E2E_WASM=1`; opt-in) |
 | `make test-e2e-visual`   | Playwright with interactive UI                           |
+| `make capturas`          | Walk the document workflow with a real browser, write `capturas/informe.html` (re-seeds demo data; `SOLO=escritorio\|movil`; refuses to run alongside a live E2E/capturas job) |
 
 Targeted test runs:
 
@@ -181,17 +184,14 @@ de traducción.
 
 ### Complexity budget
 
-- Always review cyclomatic complexity and function/method length while writing
-  code and before committing, including existing functions you modify. Inspect
-  `phpmd.xml` for the actual enforced limits; do not rely on remembered defaults.
-- Keep cyclomatic complexity at **10 or less** as the project coding target
-  (the current PHPMD reporting threshold is 15), NPath complexity below **500**,
-  and function/method length below **150 lines**, as measured by PHPMD.
-- Run PHPMD on changed PHP files before committing. Fix new function/method
-  violations and do not worsen existing ones. Report inherited warnings
-  separately; passing tests or lint does not establish compliance with these
-  budgets.
-- When a method approaches any of these limits, extract pure helpers (input
+- Keep methods small. `phpmd.xml` sets the budget: **cyclomatic complexity 15**,
+  **NPath complexity 500**, **method length 150**, **class length 2500**,
+  **class complexity 100**. Nothing enforces it — `.github/workflows/phpmd.yml`
+  runs with `--ignore-violations-on-exit` under `continue-on-error`, so it only
+  uploads SARIF to code scanning and can never fail the build. The budget is
+  kept by review; check a change by hand with
+  `php -d error_reporting="E_ALL & ~E_DEPRECATED" vendor/bin/phpmd includes text phpmd.xml`.
+- When a method approaches either threshold, extract pure helpers (input
   parsing, authorization checks, response building) instead of disabling the
   rule or raising the threshold.
 - A long sequence of `if`/ternary guards multiplies NPath quickly — split
@@ -234,6 +234,15 @@ de traducción.
   - no `@covers` annotations pointing at code the test does not exercise.
 - If a branch is hard to reach, refactor the code so it becomes testable
   (extract the pure part, inject the dependency) instead of excluding it.
+- **JavaScript is measured by jest, not by Codecov.** `npm run test:unit-js`
+  collects coverage for `admin/js/documentate-*.js` and `public/js/*.js` and
+  fails when a module its suite owns falls below the floor in
+  `tests/js/jest.config.js`; the report lands in `artifacts/coverage-js/`.
+  A jest test only shows up in that report when it loads the module with
+  `require()` (or `jest.isolateModules()` for the IIFEs that need a fresh
+  evaluation per test) — `new Function( source )()` reports 0 %. Touching a
+  browser module means adding or extending its jest test and, when it gains
+  one, its floor.
 - Untestable-by-design code (`exit`, `wp_die` with output, external
   processes) is a narrow exception: keep it in the thinnest possible wrapper
   and test everything around it.
@@ -349,6 +358,16 @@ Read `ARCHITECTURE.md` for details on:
 - Native PDF rendering (`includes/pdf/`, layouts in `templates/pdf/`)
 - Conversion engines (Collabora, LibreOffice WASM in the browser)
 - Access control and scope filtering
+- Roles, statuses and the approval workflow (área → gestión documental → administración)
+- Fields by role in templates and the document data model
+- The front-end application under `/documentate/`
+
+`Documentate_Transiciones::reglas()` (`includes/class-documentate-transiciones.php`)
+is the **single source of truth** for which status a document can move to,
+from which status, for which role, and whether a reason is required. Both
+wp-admin and the front-end app read it to draw their buttons and to validate
+every save — never hard-code a transition or a status label anywhere else;
+extend the rule table instead.
 
 ---
 

@@ -42,23 +42,14 @@ class Documentate_Demo_Data {
 	/**
 	 * Whether demo content may be seeded in the current environment.
 	 *
-	 * Demo data — most importantly the demo login accounts — must never be
-	 * created on production sites. Seeding is permitted inside WordPress
-	 * Playground and in any non-production environment (local, development,
-	 * staging), as reported by wp_get_environment_type().
+	 * The decision itself lives in Documentate_Demo_Gate; this is the name
+	 * every caller of the plugin already asks by.
 	 *
+	 * @param string|null $environment Environment to evaluate (tests only).
 	 * @return bool True when demo seeding is permitted.
 	 */
-	public static function should_allow_demo_seeding() {
-		if ( ! class_exists( 'Documentate_Collabora_Converter' ) ) {
-			require_once plugin_dir_path( __FILE__ ) . 'class-documentate-collabora-converter.php';
-		}
-
-		if ( Documentate_Collabora_Converter::is_playground() ) {
-			return true;
-		}
-
-		return 'production' !== wp_get_environment_type();
+	public static function should_allow_demo_seeding( $environment = null ) {
+		return Documentate_Demo_Gate::is_allowed( $environment );
 	}
 
 	/**
@@ -701,7 +692,7 @@ class Documentate_Demo_Data {
 		}
 
 		// Defence in depth: never create real login accounts on production.
-		if ( ! self::should_allow_demo_seeding() ) {
+		if ( ! Documentate_Demo_Gate::allowed_or_disarm() ) {
 			return;
 		}
 
@@ -715,6 +706,7 @@ class Documentate_Demo_Data {
 				'first_name' => 'María',
 				'last_name' => 'García',
 				'scope' => 'Subdirección de Administración',
+				'gestion' => true,
 			),
 			array(
 				'user_login' => 'author1',
@@ -740,10 +732,13 @@ class Documentate_Demo_Data {
 
 		foreach ( $users as $user_data ) {
 			$scope_name = $user_data['scope'];
-			unset( $user_data['scope'] );
+			$gestion = ! empty( $user_data['gestion'] );
+			unset( $user_data['scope'], $user_data['gestion'] );
 
-			// Skip if user already exists.
-			if ( username_exists( $user_data['user_login'] ) ) {
+			// An account already there only has its gestión grant checked again.
+			$existing = (int) username_exists( $user_data['user_login'] );
+			if ( $existing > 0 ) {
+				self::grant_gestion( $existing, $gestion );
 				continue;
 			}
 
@@ -757,6 +752,21 @@ class Documentate_Demo_Data {
 			if ( $scope_term instanceof WP_Term ) {
 				update_user_meta( $user_id, Documentate_User_Scope::META_KEY, $scope_term->term_id );
 			}
+
+			self::grant_gestion( (int) $user_id, $gestion );
+		}
+	}
+
+	/**
+	 * Appoint a demo account gestión documental, when it is one.
+	 *
+	 * @param int  $user_id User ID.
+	 * @param bool $gestion Whether the account is gestión documental.
+	 * @return void
+	 */
+	private static function grant_gestion( $user_id, $gestion ) {
+		if ( $gestion ) {
+			Documentate_Roles::conceder_gestion( $user_id );
 		}
 	}
 

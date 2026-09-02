@@ -332,7 +332,10 @@ class Documentate_Workflow_Metabox {
 	private function render_stepper( $status, $con_gestion ) {
 		$steps = Documentate_Estados::etiquetas();
 		unset( $steps['archived'] );
-		if ( ! $con_gestion ) {
+		// The step the document is standing on always stays: a type can stop
+		// going through gestión documental while a document of that type is
+		// already in en_gestion, and the stepper must not answer "Borrador".
+		if ( ! $con_gestion && 'en_gestion' !== $status ) {
 			unset( $steps['en_gestion'] );
 		}
 
@@ -551,7 +554,7 @@ class Documentate_Workflow_Metabox {
 			return;
 		}
 
-		$this->render_button( 'documentate-return-review', 'warning', 'undo', 'Devolver a revisión' );
+		$this->render_button( 'documentate-return-review', 'warning', 'undo', Documentate_Transiciones::etiqueta( 'devolver_revision' ) );
 		?>
 		<a href="<?php echo esc_url( $this->get_archive_action_url( $post->ID, 'archive' ) ); ?>" class="documentate-mgmt-link">
 			<?php echo esc_html( Documentate_Transiciones::etiqueta( 'archivar' ) ); ?>

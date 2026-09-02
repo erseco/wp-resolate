@@ -122,11 +122,9 @@ class Documentate_App_Detalle {
 	private static function render_avisos( $post ) {
 		$html = self::render_banderas( $post );
 
-		$devuelto = Documentate_App_Shell::texto_devuelto( $post );
+		$devuelto = Documentate_App_Shell::aviso_devuelto( $post );
 		if ( '' !== $devuelto ) {
-			$html .= '<div class="dcta-aviso dcta-aviso-devuelto">'
-				. esc_html( rtrim( $devuelto, '.' ) . '. Corrige lo que haga falta y vuelve a enviarlo.' )
-				. '</div>';
+			$html .= '<div class="dcta-aviso dcta-aviso-devuelto">' . esc_html( $devuelto ) . '</div>';
 		}
 
 		$estado = self::texto_estado( $post );
@@ -208,19 +206,29 @@ class Documentate_App_Detalle {
 	}
 
 	/**
-	 * What the "enviado" flag means for the status the document landed in.
+	 * What the "enviado" flag means: the transition that ran, not who ran it.
+	 *
+	 * The handler carries the rule key on the redirect because two of them
+	 * (enviar_revision and pasar_admin) land in the same status, and the same
+	 * person can run either one. A redirect without the key — an older link,
+	 * or a status change made in wp-admin — falls back to the status.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return string
 	 */
 	private static function texto_enviado( $post ) {
-		if ( 'en_gestion' === $post->post_status ) {
-			return 'Documento enviado a gestión documental.';
+		$textos = array(
+			'enviar_gestion' => 'Documento enviado a gestión documental.',
+			'enviar_revision' => 'Documento enviado a revisión de administración.',
+			'pasar_admin' => 'Documento pasado a administración.',
+		);
+
+		$clave = self::bandera( 'transicion' );
+		if ( isset( $textos[ $clave ] ) ) {
+			return $textos[ $clave ];
 		}
 
-		return Documentate_Roles::es_gestion() && ! Documentate_Roles::es_administracion()
-			? 'Documento pasado a administración.'
-			: 'Documento enviado a revisión de administración.';
+		return 'en_gestion' === $post->post_status ? $textos['enviar_gestion'] : $textos['enviar_revision'];
 	}
 
 	/**
@@ -363,7 +371,7 @@ class Documentate_App_Detalle {
 			. '<span class="dashicons dashicons-media-default" aria-hidden="true"></span>'
 			. '<span class="dcta-adjunto-nombre">' . esc_html( Documentate_App_Adjuntos::nombre( $adjunto->ID ) ) . '</span>'
 			. '<span class="dcta-adjunto-peso">' . esc_html( Documentate_App_Adjuntos::tamano_legible( $adjunto->ID ) ) . '</span>'
-			. '<a href="' . esc_url( (string) wp_get_attachment_url( $adjunto->ID ) ) . '" target="_blank" rel="noopener">Abrir</a>'
+			. '<a href="' . esc_url( Documentate_App_Adjuntos::url( $post->ID ) ) . '" target="_blank" rel="noopener">Abrir</a>'
 			. '</p>';
 
 		$html .= '<p class="dcta-ayuda">'
@@ -428,6 +436,7 @@ class Documentate_App_Detalle {
 			. '<input type="hidden" name="documentate_app_accion" value="comentar" />'
 			. '<input type="hidden" name="documentate_app_doc" value="' . esc_attr( (string) $post->ID ) . '" />'
 			. '<input type="hidden" name="documentate_app_redirect_to" value="' . esc_attr( $destino ) . '" />'
+			. '<input type="hidden" name="documentate_app_bandeja" value="' . esc_attr( Documentate_App_Lista::bandeja_actual() ) . '" />'
 			. '</form>';
 	}
 
@@ -450,7 +459,11 @@ class Documentate_App_Detalle {
 		$html .= '<div class="dcta-card"><h2 class="dcta-h2">Acciones</h2>';
 
 		if ( Documentate_App_Editar::puede_editar( $post ) ) {
-			$html .= '<a class="dcta-btn dcta-btn-pri" href="' . esc_url( Documentate_App_Editar::url( $post->ID ) ) . '">Editar</a>';
+			// The tray travels with the link: the editor lights up the tab the
+			// visitor came from and its back link points at a tray that really
+			// holds this document.
+			$url_editar = Documentate_App_Editar::url( $post->ID, Documentate_App_Lista::bandeja_actual() );
+			$html .= '<a class="dcta-btn dcta-btn-pri" href="' . esc_url( $url_editar ) . '">Editar</a>';
 		}
 
 		$html .= self::render_form_acciones( $post );
@@ -557,7 +570,11 @@ class Documentate_App_Detalle {
 			),
 		);
 
-		if ( ! Documentate_Documento::con_gestion( $post ) ) {
+		// A type can stop going through gestión documental (its flag is
+		// unchecked, or its template loses the rol='gestion' fields) while a
+		// document of that type is already standing in en_gestion: the step it
+		// is on stays on the rail, or the stepper would say "Borrador".
+		if ( ! Documentate_Documento::con_gestion( $post ) && 'en_gestion' !== $post->post_status ) {
 			unset( $pasos['en_gestion'] );
 		}
 

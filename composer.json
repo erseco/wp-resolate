@@ -14,7 +14,6 @@
         "phpunit/phpunit": "^9.6.35",
         "squizlabs/php_codesniffer": "^3.13.5",
         "wp-cli/dist-archive-command": "^3.1",
-        "wp-cli/i18n-command": "^2.7.0",
         "wp-coding-standards/wpcs": "^3.4",
         "wp-phpunit/wp-phpunit": "^7.0.2",
         "yoast/phpunit-polyfills": "^1.1.5",

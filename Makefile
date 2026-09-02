@@ -154,6 +154,14 @@ test-e2e: start-docker-if-not-running setup-e2e-env
 # Alias kept for CI / back-compat.
 test-e2e-docker: test-e2e
 
+# Run the LibreOffice-WASM conversion spec, which playwright.config.js ignores
+# unless DOCUMENTATE_E2E_WASM is set: it downloads the LibreOffice bundle and
+# needs a cross-origin-isolated context, so it is not part of the per-PR gate.
+# CI runs this target weekly (.github/workflows/ci.yml, job e2e-wasm).
+test-e2e-wasm: start-docker-if-not-running setup-e2e-env
+	DOCUMENTATE_E2E_WASM=1 WP_BASE_URL=http://localhost:$(DOCKER_PORT) \
+		npm run test:e2e -- tests/e2e/specs/wasm-conversion.spec.js $(ARGS)
+
 # Run E2E tests with the visual UI / inspector (Docker).
 test-e2e-visual: start-docker-if-not-running setup-e2e-env
 	WP_BASE_URL=http://localhost:$(DOCKER_PORT) npm run test:e2e -- --ui $(ARGS)
@@ -371,6 +379,7 @@ help:
 	@echo "  test-coverage      - Run PHPUnit with coverage (Docker, requires --xdebug=coverage)"
 	@echo ""
 	@echo "  test-e2e           - Run E2E tests against Docker (port $(DOCKER_PORT))"
+	@echo "  test-e2e-wasm      - Run the LibreOffice-WASM E2E spec (opt-in, slow)"
 	@echo "  test-e2e-visual    - Run E2E tests with visual UI (Docker)"
 	@echo "  capturas           - Walk the whole cycle and write capturas/informe.html"
 	@echo "                       SOLO=escritorio|movil (one screen size only)"

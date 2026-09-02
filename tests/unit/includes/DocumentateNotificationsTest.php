@@ -365,6 +365,10 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 				'display_name' => 'Gestión User',
 			)
 		);
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		update_user_meta( $gestion_id, Documentate_Scope_Filter::SCOPE_META_KEY, $this->cat_id );
 
 		return $gestion_id;

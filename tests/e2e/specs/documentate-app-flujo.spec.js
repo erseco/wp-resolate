@@ -201,6 +201,14 @@ test.describe.serial( 'Documentate app · flujo completo', () => {
 			await sesionGestion.context.close();
 		}
 
+		// A beforeAll that threw (a WP-CLI lock that never cleared, an
+		// unexpected answer) leaves the fixture unbuilt, and Playwright still
+		// runs this hook: without the guard it dies dereferencing it and the
+		// report shows that TypeError instead of the real failure.
+		if ( ! escenario ) {
+			return;
+		}
+
 		limpiarEscenario( {
 			documentos: Object.values( escenario.documentos ).concat( [
 				docId,

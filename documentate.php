@@ -59,6 +59,7 @@ if ( interface_exists( 'Erseco\AutoFirma\IntermediateServer\Storage\StoreInterfa
 	require_once plugin_dir_path( __FILE__ ) . 'includes/autofirma/class-documentate-autofirma-transient-store.php';
 }
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-gate.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-data.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app-reloj.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app.php';

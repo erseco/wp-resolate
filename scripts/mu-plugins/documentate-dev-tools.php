@@ -20,6 +20,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/*
+ * Deployment discipline is not a guard: /scripts is out of the release ZIP,
+ * but this file does travel in the GitHub source ZIP that blueprint.json
+ * installs, and the blueprint copies it into WPMU_PLUGIN_DIR by itself. A
+ * site built from those steps must not end up with a login page advertising
+ * working credentials, so the environment is checked here as well — the same
+ * question Documentate_Demo_Data::should_allow_demo_seeding() asks before
+ * creating those accounts in the first place.
+ */
+if (
+	! ( defined( 'WORDPRESS_PLAYGROUND' ) && WORDPRESS_PLAYGROUND )
+	&& function_exists( 'wp_get_environment_type' )
+	&& 'production' === wp_get_environment_type()
+) {
+	return;
+}
+
 if ( ! function_exists( 'documentate_dev_demo_accounts' ) ) {
 	/**
 	 * Demo accounts used to try the application with each role.

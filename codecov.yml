@@ -11,6 +11,13 @@ coverage:
         target: 90%
         threshold: 0%
 
+# JavaScript is measured by jest, not here: tests/js/jest.config.js collects
+# coverage for the browser modules and fails the run when the ones its suite
+# owns lose it. Their report is deliberately not merged into the targets above
+# — most of admin/js is wp-admin glue exercised by the Playwright suite, which
+# produces no coverage data at all, so folding those files in would report them
+# as untested and turn a PHP gate into a number nobody can act on.
+
 ignore:
   # Third-party sources are copied into the distributable plugin during the
   # Composer build. Their coverage belongs to the upstream packages.

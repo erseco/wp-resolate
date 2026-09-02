@@ -45,6 +45,17 @@ class Documentate_Transiciones {
 	const MOTIVO_MIN = 3;
 
 	/**
+	 * Statuses a document can only reach once it has a document type.
+	 *
+	 * Documentate_Workflow forces a document with no type back to draft
+	 * (apply_classification_rule), so offering these moves on a document
+	 * without one would draw a button that can only ever fail.
+	 *
+	 * @var string[]
+	 */
+	const DESTINOS_CON_TIPO = array( 'en_gestion', 'pending', 'publish' );
+
+	/**
 	 * Transition being applied by aplicar(): array( post_id, destino, motivo ).
 	 *
 	 * While set, the workflow lets that status change through and the
@@ -168,6 +179,19 @@ class Documentate_Transiciones {
 				'bandera' => 'devuelto',
 			),
 			array(
+				'clave' => 'devolver_revision',
+				'desde' => 'publish',
+				'destino' => 'pending',
+				'quien' => 'admin',
+				'con_gestion' => null,
+				'motivo' => false,
+				'etiqueta' => 'Devolver a revisión',
+				'confirmar' => '¿Devolver el documento a revisión? Dejará de estar aprobado y volverá a la bandeja de revisión.',
+				'evento' => 'devolvió el documento a revisión',
+				'redireccion' => 'detalle',
+				'bandera' => '',
+			),
+			array(
 				'clave' => 'archivar',
 				'desde' => 'publish',
 				'destino' => 'archived',
@@ -278,10 +302,14 @@ class Documentate_Transiciones {
 	public static function disponibles( WP_Post $post, $user_id = null ) {
 		$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 		$con_gestion = Documentate_Documento::con_gestion( $post );
+		$sin_tipo = null === Documentate_Documento::tipo( $post );
 
 		$disponibles = array();
 		foreach ( self::reglas() as $regla ) {
 			if ( $regla['desde'] !== $post->post_status ) {
+				continue;
+			}
+			if ( $sin_tipo && in_array( $regla['destino'], self::DESTINOS_CON_TIPO, true ) ) {
 				continue;
 			}
 			if ( ! self::regla_aplicable( $regla, $post->ID, $user_id, $con_gestion, true ) ) {

@@ -87,6 +87,27 @@ class Documentate_Scope_Filter {
 	private $gestion_query = null;
 
 	/**
+	 * The same query, kept for the guard that runs after it.
+	 *
+	 * @var WP_Query|null
+	 */
+	private $gestion_guard_query = null;
+
+	/**
+	 * Scope terms of that query, kept for the guard that runs after it.
+	 *
+	 * @var int[]
+	 */
+	private $gestion_guard_terms = array();
+
+	/**
+	 * Whether the WHERE clause of that query actually ran.
+	 *
+	 * @var bool
+	 */
+	private $gestion_clause_ran = false;
+
+	/**
 	 * Register hooks.
 	 */
 	public function __construct() {
@@ -301,9 +322,7 @@ class Documentate_Scope_Filter {
 
 		// Gestión documental: own scope OR every document in the pipeline.
 		if ( Documentate_Roles::es_gestion() ) {
-			$this->gestion_term_ids = $term_ids;
-			$this->gestion_query = $query;
-			add_filter( 'posts_where', array( $this, 'gestion_posts_where' ), 10, 2 );
+			$this->bind_gestion_query( $query, (array) $term_ids );
 			return;
 		}
 
@@ -339,6 +358,30 @@ class Documentate_Scope_Filter {
 	}
 
 	/**
+	 * Restrict one list query to a gestión user's scope plus the pipeline.
+	 *
+	 * The restriction is a WHERE clause because it is an OR between a status
+	 * and a taxonomy match, which no query var can express; the guard bound
+	 * next to it drops the rows the clause should have left out when it never
+	 * runs (another plugin answering posts_pre_query, or replacing the query
+	 * object on a later pre_get_posts).
+	 *
+	 * @param WP_Query $query    Query being built.
+	 * @param int[]    $term_ids Scope terms of the gestión user.
+	 * @return void
+	 */
+	private function bind_gestion_query( $query, array $term_ids ) {
+		$this->gestion_term_ids = $term_ids;
+		$this->gestion_query = $query;
+		$this->gestion_guard_query = $query;
+		$this->gestion_guard_terms = $term_ids;
+		$this->gestion_clause_ran = false;
+
+		add_filter( 'posts_where', array( $this, 'gestion_posts_where' ), 10, 2 );
+		add_filter( 'the_posts', array( $this, 'gestion_the_posts' ), 10, 2 );
+	}
+
+	/**
 	 * WHERE clause for a gestión user's list: scope term match OR pipeline status.
 	 *
 	 * Bound to the query instance filter_documents_by_scope() saw: any other
@@ -355,6 +398,7 @@ class Documentate_Scope_Filter {
 		}
 
 		remove_filter( 'posts_where', array( $this, 'gestion_posts_where' ), 10 );
+		$this->gestion_clause_ran = true;
 
 		global $wpdb;
 
@@ -382,6 +426,75 @@ class Documentate_Scope_Filter {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above with bound values.
 		return $where . $wpdb->prepare( $sql, $params );
+	}
+
+	/**
+	 * Last line of defence for a gestión list whose WHERE clause never ran.
+	 *
+	 * The gestion_posts_where() clause is the only thing keeping the drafts of
+	 * other áreas out of a gestión user's list, and a filter can always be skipped:
+	 * another plugin answering posts_pre_query, or replacing the query object
+	 * on a later pre_get_posts. When that happens the rows are filtered here
+	 * instead of being handed over, so the restriction fails closed.
+	 *
+	 * @param WP_Post[] $posts Posts the query found.
+	 * @param WP_Query  $query Query that found them.
+	 * @return WP_Post[]
+	 */
+	public function gestion_the_posts( $posts, $query ) {
+		if ( $query !== $this->gestion_guard_query ) {
+			return $posts;
+		}
+
+		remove_filter( 'the_posts', array( $this, 'gestion_the_posts' ), 10 );
+
+		$clause_ran = $this->gestion_clause_ran;
+		$term_ids = $this->gestion_guard_terms;
+
+		$this->gestion_guard_query = null;
+		$this->gestion_guard_terms = array();
+		$this->gestion_clause_ran = false;
+		$this->gestion_term_ids = null;
+		$this->gestion_query = null;
+		remove_filter( 'posts_where', array( $this, 'gestion_posts_where' ), 10 );
+
+		if ( $clause_ran || ! is_array( $posts ) ) {
+			return $posts;
+		}
+
+		return array_values(
+			array_filter(
+				$posts,
+				function ( $post ) use ( $term_ids ) {
+					return $this->gestion_can_list( $post, $term_ids );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Whether one row belongs in a gestión user's list.
+	 *
+	 * @param mixed $post     Row the query returned.
+	 * @param int[] $term_ids Scope terms of the gestión user.
+	 * @return bool
+	 */
+	private function gestion_can_list( $post, array $term_ids ) {
+		if ( ! $post instanceof WP_Post ) {
+			return true;
+		}
+
+		if ( in_array( $post->post_status, self::GESTION_STATUSES, true ) ) {
+			return true;
+		}
+
+		if ( empty( $term_ids ) ) {
+			return false;
+		}
+
+		$post_terms = wp_get_post_terms( $post->ID, self::SCOPE_TAXONOMY, array( 'fields' => 'ids' ) );
+
+		return ! is_wp_error( $post_terms ) && (bool) array_intersect( array_map( 'absint', $post_terms ), $term_ids );
 	}
 
 	/**

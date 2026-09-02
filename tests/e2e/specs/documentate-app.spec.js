@@ -91,6 +91,14 @@ test.describe( 'Documentate app', () => {
 	test.afterAll( async () => {
 		test.setTimeout( 300_000 );
 
+		// A beforeAll that threw (a WP-CLI lock that never cleared, an
+		// unexpected answer) leaves the fixture unbuilt, and Playwright still
+		// runs this hook: without the guard it dies dereferencing it and the
+		// report shows that TypeError instead of the real failure.
+		if ( ! escenario ) {
+			return;
+		}
+
 		limpiarEscenario( {
 			documentos: Object.values( escenario.documentos ).concat( docIds ),
 			usuarios: [ EDITOR_LOGIN, SUBSCRIBER_LOGIN ],
@@ -107,8 +115,8 @@ test.describe( 'Documentate app', () => {
 
 		await node.click();
 		await page.waitForURL( /\/documentate\/?(\?.*)?$/ );
-		await expect( page.locator( '.dcta-h1' ) ).toHaveText( /Todos los documentos|All documents/ );
-		await expect( page.locator( '.dcta-rol' ) ).toHaveText( /Administración|Administration/ );
+		await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Todos los documentos' );
+		await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Administración' );
 	} );
 
 	test( 'administrator creates a document, saves the fields and sends it for review', async ( { page } ) => {
@@ -119,7 +127,7 @@ test.describe( 'Documentate app', () => {
 		await page.fill( '#documentate-app-titulo', TITLES.created );
 		await Promise.all( [
 			page.waitForURL( /vista=editar/ ),
-			page.getByRole( 'button', { name: /Crear borrador|Create draft/ } ).click(),
+			page.getByRole( 'button', { name: 'Crear borrador' } ).click(),
 		] );
 
 		const createdId = parseInt( new URL( page.url() ).searchParams.get( 'doc' ), 10 );
@@ -135,9 +143,9 @@ test.describe( 'Documentate app', () => {
 
 		await Promise.all( [
 			page.waitForURL( /guardado=1/ ),
-			page.getByRole( 'button', { name: /Guardar borrador|Save draft/ } ).click(),
+			page.getByRole( 'button', { name: 'Guardar borrador' } ).click(),
 		] );
-		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Cambios guardados|Changes saved/ );
+		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Cambios guardados/ );
 
 		// Values survive the round trip through the content writer: a plain
 		// field and a rich one (the textarea behind TinyMCE keeps the HTML).
@@ -180,16 +188,16 @@ test.describe( 'Documentate app', () => {
 
 		try {
 			await page.goto( APP_PATH );
-			await expect( page.locator( '.dcta-h1' ) ).toHaveText( /Mis documentos|My documents/ );
+			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Mis documentos' );
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.inScope } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.pending } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.outOfScope } ) ).toHaveCount( 0 );
 
 			await page.goto( `${ APP_PATH }?doc=${ docs.outOfScope }` );
-			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /fuera de tu ámbito|outside your scope/ );
+			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /fuera de tu ámbito/ );
 
 			await page.goto( `${ APP_PATH }?doc=${ docs.pending }&vista=editar` );
-			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /bloqueado|locked/ );
+			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /bloqueado/ );
 
 			await page.goto( `${ APP_PATH }?doc=${ docs.inScope }&vista=editar` );
 			const renamed = `${ TITLES.inScope } editado`;
@@ -198,9 +206,9 @@ test.describe( 'Documentate app', () => {
 			await fillRequiredAppFields( page, `Editor ${ RUN }` );
 			await Promise.all( [
 				page.waitForURL( /guardado=1/ ),
-				page.getByRole( 'button', { name: /Guardar borrador|Save draft/ } ).click(),
+				page.getByRole( 'button', { name: 'Guardar borrador' } ).click(),
 			] );
-			await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Cambios guardados|Changes saved/ );
+			await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Cambios guardados/ );
 			await expect( page.locator( '#documentate-app-titulo' ) ).toHaveValue( renamed );
 			await expect( page.locator( '#documentate-app-nombre' ) ).toHaveValue( `Corto ${ RUN }` );
 
@@ -219,7 +227,7 @@ test.describe( 'Documentate app', () => {
 
 		try {
 			await page.goto( APP_PATH );
-			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /no puede editar documentos|cannot edit documents/ );
+			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /no puede editar documentos/ );
 		} finally {
 			await context.close();
 		}
@@ -233,7 +241,7 @@ test.describe( 'Documentate app', () => {
 
 		try {
 			await page.goto( APP_PATH );
-			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /Inicia sesión|Sign in/ );
+			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /Inicia sesión/ );
 		} finally {
 			await context.close();
 		}

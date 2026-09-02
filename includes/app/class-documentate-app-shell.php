@@ -68,11 +68,13 @@ class Documentate_App_Shell {
 	 *
 	 * Archiving is a records-management decision taken from the admin list,
 	 * where the archive links have always lived; the application would offer
-	 * it with no confirmation and no feedback of its own.
+	 * it with no confirmation and no feedback of its own. Un-approving an
+	 * already published document ("Devolver a revisión") belongs to the same
+	 * toolbox: the application shows an approved document as finished.
 	 *
 	 * @var string[]
 	 */
-	const SOLO_WP_ADMIN = array( 'archivar', 'desarchivar' );
+	const SOLO_WP_ADMIN = array( 'archivar', 'desarchivar', 'devolver_revision' );
 
 	/**
 	 * Tabs already built in this request, keyed by user ID.
@@ -351,12 +353,18 @@ class Documentate_App_Shell {
 	/**
 	 * The "Devuelto por … el … : «…»" line of a returned document.
 	 *
+	 * Only for the side the return was addressed to. Administración returning
+	 * a document to gestión documental writes a note to gestión: the área,
+	 * which cannot open the document while it is in gestión, is neither told
+	 * to correct anything nor shown what was said.
+	 *
 	 * @param WP_Post $post Document.
-	 * @return string Empty when the document was not returned.
+	 * @return string Empty when the document was not returned, or when it was
+	 *                returned to somebody else.
 	 */
 	public static function texto_devuelto( $post ) {
 		$devuelto = Documentate_Documento::devuelto( $post );
-		if ( null === $devuelto ) {
+		if ( null === $devuelto || ( 'gestion' === $devuelto['a'] && ! Documentate_Roles::es_gestion() ) ) {
 			return '';
 		}
 
@@ -365,6 +373,30 @@ class Documentate_App_Shell {
 		$fecha = false === $marca ? '' : ' el ' . date_i18n( 'j M', $marca );
 
 		return 'Devuelto por ' . $quien . $fecha . ': «' . $devuelto['motivo'] . '»';
+	}
+
+	/**
+	 * The returned notice of the document view and the editor.
+	 *
+	 * The call to action is only added for whoever can actually act on it:
+	 * a document sitting in gestión documental is read-only for its área, so
+	 * telling them to correct it and send it again is an instruction they
+	 * cannot follow.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string Empty when there is nothing to show this person.
+	 */
+	public static function aviso_devuelto( $post ) {
+		$texto = self::texto_devuelto( $post );
+		if ( '' === $texto ) {
+			return '';
+		}
+
+		$texto = rtrim( $texto, '.' ) . '.';
+
+		return Documentate_App_Editar::puede_editar( $post )
+			? $texto . ' Corrige lo que haga falta y vuelve a enviarlo.'
+			: $texto;
 	}
 
 	/**

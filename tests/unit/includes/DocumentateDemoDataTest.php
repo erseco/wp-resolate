@@ -7,6 +7,7 @@
 
 /**
  * @covers Documentate_Demo_Data
+ * @covers Documentate_Demo_Gate
  */
 class DocumentateDemoDataTest extends WP_UnitTestCase {
 
@@ -149,14 +150,47 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Demo seeding is permitted inside WordPress Playground.
+	 * The gate never believes a request header.
+	 *
+	 * Documentate_Collabora_Converter::is_playground() does — it also believes
+	 * the site URL — and that is fine for picking a conversion engine, but a
+	 * false positive here creates login accounts with a known password. So the
+	 * decision is the environment's alone: on production the answer is no, even
+	 * with the Playground header set on the request.
 	 */
-	public function test_should_allow_demo_seeding_in_playground() {
+	public function test_should_allow_demo_seeding_ignores_the_playground_request_header() {
 		$_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] = '1';
 
-		$this->assertTrue( Documentate_Demo_Data::should_allow_demo_seeding() );
+		// The gate no longer pulls the converter in, so the contrast below has
+		// to make sure it is there.
+		if ( ! class_exists( 'Documentate_Collabora_Converter' ) ) {
+			require_once plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'includes/class-documentate-collabora-converter.php';
+		}
+
+		$this->assertTrue(
+			Documentate_Collabora_Converter::is_playground(),
+			'The converter still reads the header; only this gate stops doing so.'
+		);
+		$this->assertFalse( Documentate_Demo_Data::should_allow_demo_seeding( 'production' ) );
+		$this->assertTrue( Documentate_Demo_Data::should_allow_demo_seeding( 'staging' ) );
 
 		unset( $_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] );
+	}
+
+	/**
+	 * A staging database restored on production cannot arm the seeder again.
+	 */
+	public function test_the_seed_flag_is_dropped_where_seeding_is_refused() {
+		update_option( 'documentate_seed_demo_documents', true );
+
+		$this->assertFalse( Documentate_Demo_Gate::allowed_or_disarm( 'production' ) );
+		$this->assertFalse( get_option( 'documentate_seed_demo_documents', false ), 'The flag is dropped, not merely ignored.' );
+
+		update_option( 'documentate_seed_demo_documents', true );
+		$this->assertTrue( Documentate_Demo_Gate::allowed_or_disarm( 'staging' ) );
+		$this->assertTrue( (bool) get_option( 'documentate_seed_demo_documents' ) );
+
+		delete_option( 'documentate_seed_demo_documents' );
 	}
 
 	/**

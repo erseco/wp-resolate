@@ -6,14 +6,6 @@
  * (.documentate-array-item) holding concepto rows (.documentate-subarray-item)
  * plus the provider amounts, and the gasto_numero scalar field.
  */
-const fs = require( 'fs' );
-const path = require( 'path' );
-
-const SOURCE = fs.readFileSync(
-	path.join( __dirname, '../../admin/js/documentate-calculos.js' ),
-	'utf8'
-);
-
 /**
  * Markup of one concepto row.
  *
@@ -108,8 +100,12 @@ const SIN_PROVEEDORES = `
  * Evaluate the module against the current DOM.
  */
 function cargar() {
-	// eslint-disable-next-line no-new-func
-	new Function( SOURCE )();
+	// isolateModules re-evaluates the file on every call, the way the browser
+	// runs it on a fresh page — and unlike new Function( source ) it goes
+	// through the module registry, so the coverage report sees it.
+	jest.isolateModules( () => {
+		require( '../../admin/js/documentate-calculos.js' );
+	} );
 }
 
 /**

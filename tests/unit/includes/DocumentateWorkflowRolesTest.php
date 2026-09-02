@@ -10,6 +10,7 @@
 
 /**
  * @covers Documentate_Workflow
+ * @covers Documentate_Workflow_Metabox
  */
 class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 
@@ -74,6 +75,10 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$cat = wp_insert_term( 'Ámbito Workflow', 'category' );

@@ -244,7 +244,13 @@ class Documentate_Document_Meta_Saver {
 	 * Persist posted field values the current schema does not declare.
 	 *
 	 * Keeps values written by a previous document type, or by any type when the
-	 * schema cannot be resolved.
+	 * schema cannot be resolved — but never a slug that belongs to gestión
+	 * documental in some document type of the site. The current schema does
+	 * not declare these values by definition, so the rol guard of
+	 * save_schema_field() never sees them: without this an área could post
+	 * documentate_field_gasto_numero on a Convocatoria and have it stored,
+	 * which is exactly the invariant ("the área never writes gestión data")
+	 * the rest of the guard establishes.
 	 *
 	 * @param int   $post_id         Post ID.
 	 * @param array $post_values     Unslashed request body.
@@ -252,11 +258,23 @@ class Documentate_Document_Meta_Saver {
 	 * @return void
 	 */
 	private function save_unknown_field_meta( $post_id, array $post_values, array $known_meta_keys ) {
+		$hidden = null;
+
 		foreach ( $post_values as $key => $value ) {
 			if ( ! is_string( $key ) || ! str_starts_with( $key, 'documentate_field_' ) ) {
 				continue;
 			}
 			if ( isset( $known_meta_keys[ $key ] ) || is_array( $value ) ) {
+				continue;
+			}
+
+			// Looked up once, and only for a request that carries unknown
+			// fields at all: for gestión it is an empty list anyway.
+			if ( null === $hidden ) {
+				$hidden = Documentate_Document_Save_Context::gestion_slugs();
+			}
+
+			if ( isset( $hidden[ sanitize_key( substr( $key, strlen( 'documentate_field_' ) ) ) ] ) ) {
 				continue;
 			}
 

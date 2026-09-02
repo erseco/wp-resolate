@@ -74,6 +74,10 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create(
 			array(
 				'role' => 'author',
@@ -339,8 +343,15 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 		$html = $this->render( $this->gestion_id, array( 'bandeja' => 'revisar' ) );
 
 		$this->assertStringContainsString( '>Todos</a>', $html );
-		$this->assertStringNotContainsString( 'estado=devuelto', $html, 'Nothing in this tray was returned.' );
 		$this->assertStringNotContainsString( 'estado=draft', $html, 'Drafts are not part of this tray.' );
+		$this->assertStringNotContainsString( 'estado=archived', $html, 'Nothing in this tray is archived.' );
+		// "Devuelto" is not a status but a mark, and it follows the document
+		// wherever it was sent back to — including the drafts of the áreas.
+		$this->assertStringContainsString( 'estado=devuelto', $html );
+
+		Documentate_Documento::limpiar_devuelto( $this->docs['devuelto'] );
+		$vacio = $this->render( $this->gestion_id, array( 'bandeja' => 'revisar' ) );
+		$this->assertStringNotContainsString( 'estado=devuelto', $vacio, 'With nothing returned the chip is gone.' );
 	}
 
 	/**
@@ -389,6 +400,36 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'dcta-aviso-mal', $error );
 		$this->assertStringContainsString( 'Para devolver un documento hay que decir por qué.', $error );
+	}
+
+	/**
+	 * "Devueltos" means the same in every tray it is drawn in.
+	 */
+	public function test_the_returned_tile_counts_the_same_everywhere() {
+		$doc = $this->crear_documento( 'Devuelto al área', 'Devuelto área', $this->cat_a, 'draft' );
+		Documentate_Documento::marcar_devuelto( $doc, 'Falta el número de expediente', 'administracion', 'area', $this->admin_id );
+
+		$revision = $this->render( $this->admin_id, array( 'bandeja' => 'revision' ) );
+		$todos = $this->render( $this->admin_id, array( 'bandeja' => 'todos' ) );
+
+		$cifra = static function ( $html ) {
+			preg_match( '/<b>(\d+)<\/b><span>Devueltos<\/span>/', $html, $m );
+
+			return isset( $m[1] ) ? (int) $m[1] : -1;
+		};
+
+		$this->assertGreaterThan( 0, $cifra( $todos ) );
+		$this->assertSame( $cifra( $todos ), $cifra( $revision ), 'The tile promises the same set in both trays.' );
+
+		// And the chip finds it: clicking it is how the count is read.
+		$chip = $this->render(
+			$this->admin_id,
+			array(
+				'bandeja' => 'revision',
+				'estado' => 'devuelto',
+			)
+		);
+		$this->assertStringContainsString( 'Devuelto área', $chip );
 	}
 
 	/**
@@ -527,6 +568,10 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 		$devuelto = Documentate_App_Lista::argumentos_consulta( 'revisar', 'devuelto', 0 );
 		$this->assertSame( Documentate_Documento::META_DEVUELTO, $devuelto['meta_key'] );
 		$this->assertSame( 'EXISTS', $devuelto['meta_compare'] );
+		// A return travels with the document: the most common one lands in a
+		// draft, which the review trays would otherwise never show, so the
+		// "Devueltos" tile and chip would count something else than they say.
+		$this->assertContains( 'draft', $devuelto['post_status'], 'The returned filter reaches across statuses.' );
 
 		$area = Documentate_App_Lista::argumentos_consulta( 'todos', 'pending', $this->cat_b );
 		$this->assertSame( 'pending', $area['post_status'] );

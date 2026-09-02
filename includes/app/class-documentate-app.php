@@ -49,6 +49,7 @@ class Documentate_App {
 		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_save_document' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_transition' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_comment' ) );
+		Documentate_App_Adjuntos::init();
 	}
 
 	/**

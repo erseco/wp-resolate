@@ -105,10 +105,17 @@ class Documentate_Document_Content_Writer {
 		return call_user_func( $sanitizer, $raw_value );
 	}
 	/**
-	 * Sanitize rich text content by stripping dangerous elements only.
+	 * Sanitize rich text content the way core treats post_content.
 	 *
-	 * Only removes security-critical elements (script, style, iframe).
-	 * Full sanitization and cleanup is deferred to document generation time.
+	 * The dangerous containers (script, style, iframe) are removed with their
+	 * content, and then everything an author writes goes through
+	 * wp_kses_post(), which is what drops the event attributes and the
+	 * javascript: hrefs a tag-stripping pass leaves behind. This matters here
+	 * because the value travels: the área writes it, gestión documental and
+	 * administración open the same value later in wp_editor(), inside a
+	 * same-origin iframe of a session that can manage_options. Only a user
+	 * with unfiltered_html keeps their markup untouched, exactly as for a
+	 * normal post. The generation-time wp_kses_post() stays where it is.
 	 *
 	 * @param string $value Raw submitted value.
 	 * @return string
@@ -131,8 +138,9 @@ class Documentate_Document_Content_Writer {
 		);
 
 		$clean = preg_replace( $patterns, '', $value );
+		$clean = null === $clean ? $value : $clean;
 
-		return null === $clean ? $value : $clean;
+		return current_user_can( 'unfiltered_html' ) ? $clean : wp_kses_post( $clean );
 	}
 	/**
 	 * Whether a sanitized repeater row carries any visible value.

@@ -194,6 +194,11 @@ class Documentate_App_Lista {
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- The returned mark is only written on returns, so the set is small.
 			$args['meta_key'] = Documentate_Documento::META_DEVUELTO;
 			$args['meta_compare'] = 'EXISTS';
+			// A return leaves the document wherever it was sent back to, and
+			// the most common one (administración → área) lands in a draft.
+			// The tray statuses would hide exactly those, so the counter and
+			// the chip would promise a set the tray cannot show.
+			$args['post_status'] = array_keys( Documentate_Estados::etiquetas() );
 		} elseif ( '' !== $estado ) {
 			$args['post_status'] = $estado;
 		}

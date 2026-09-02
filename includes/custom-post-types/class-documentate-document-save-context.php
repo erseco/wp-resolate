@@ -134,6 +134,49 @@ class Documentate_Document_Save_Context {
 		return $hidden;
 	}
 	/**
+	 * Slugs that belong to gestión documental in any document type of the site.
+	 *
+	 * The hidden_slugs() list answers for the schema a save is composed
+	 * against, which is all the content writer needs. The unknown-field path
+	 * of the meta saver has no schema to lean on: a value it stores was
+	 * declared by some other type, so the question there is whether the slug
+	 * is gestión-owned anywhere, not in this document.
+	 *
+	 * @return array<string,bool> Empty for gestión documental and administración.
+	 */
+	public static function gestion_slugs() {
+		if ( Documentate_Roles::es_gestion() ) {
+			return array();
+		}
+
+		$term_ids = get_terms(
+			array(
+				'taxonomy' => 'documentate_doc_type',
+				'hide_empty' => false,
+				'fields' => 'ids',
+			)
+		);
+		if ( is_wp_error( $term_ids ) ) {
+			return array();
+		}
+
+		$slugs = array();
+		foreach ( (array) $term_ids as $term_id ) {
+			foreach ( (array) Documents_Meta_Handler::get_term_schema( (int) $term_id ) as $row ) {
+				if ( ! is_array( $row ) || empty( $row['slug'] ) || Documentate_Campos_Rol::puede_ver( $row ) ) {
+					continue;
+				}
+
+				$slug = sanitize_key( $row['slug'] );
+				if ( '' !== $slug ) {
+					$slugs[ $slug ] = true;
+				}
+			}
+		}
+
+		return $slugs;
+	}
+	/**
 	 * Entry for a stored value, keeping the type it was stored with.
 	 *
 	 * @param array $info Stored entry with value/type keys.

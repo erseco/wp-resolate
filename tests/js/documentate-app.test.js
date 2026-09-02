@@ -6,14 +6,6 @@
  * rail, the inline <details> fallback, the file dropzone and the type select
  * of the "new document" form.
  */
-const fs = require( 'fs' );
-const path = require( 'path' );
-
-const SOURCE = fs.readFileSync(
-	path.join( __dirname, '../../public/js/documentate-app.js' ),
-	'utf8'
-);
-
 const DIALOGOS = `
 	<dialog class="dcta-dialogo" id="dcta-dialogo-motivo">
 		<h2 class="dcta-dialogo-titulo">Devolver el documento</h2>
@@ -119,8 +111,12 @@ function stubDialogos() {
  * Evaluate the module against the current DOM.
  */
 function cargar() {
-	// eslint-disable-next-line no-new-func
-	new Function( SOURCE )();
+	// isolateModules re-evaluates the file on every call, the way the browser
+	// runs it on a fresh page — and unlike new Function( source ) it goes
+	// through the module registry, so the coverage report sees it.
+	jest.isolateModules( () => {
+		require( '../../public/js/documentate-app.js' );
+	} );
 }
 
 /**

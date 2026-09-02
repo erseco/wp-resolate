@@ -55,6 +55,10 @@ class DocumentateCamposRolEscrituraTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		// Restricted users only reach documents inside their scope (área category).
@@ -268,6 +272,54 @@ class DocumentateCamposRolEscrituraTest extends WP_UnitTestCase {
 		$this->assertSame( 'Modificado', get_post_meta( $this->doc_id, 'documentate_field_objeto', true ) );
 		$this->assertSame( '999/2099', get_post_meta( $this->doc_id, 'documentate_field_numero_resolucion', true ) );
 		$this->assertSame( array( 'Intruso' ), $this->stored_providers() );
+	}
+
+	/**
+	 * A slug gestión documental owns somewhere is refused even where the
+	 * current schema does not declare it.
+	 *
+	 * The unknown-field path exists to keep values written by a previous
+	 * document type, and it is the only one the rol guard of the schema pass
+	 * never sees: an área could otherwise post a gestión slug of another type
+	 * on its own document and have it stored, ready to surface the day that
+	 * type's template gains the field.
+	 */
+	public function test_saver_refuses_a_gestion_slug_the_schema_does_not_declare() {
+		$otro = wp_insert_post(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Convocatoria sin campos de gestión',
+				'post_status' => 'draft',
+				'post_author' => $this->area_id,
+			)
+		);
+		$convocatoria = wp_insert_term( 'Convocatoria escritura ' . uniqid(), 'documentate_doc_type' );
+		wp_set_post_terms( $otro, array( (int) $convocatoria['term_id'] ), 'documentate_doc_type', false );
+		wp_set_post_terms( $otro, wp_get_post_terms( $this->doc_id, 'category', array( 'fields' => 'ids' ) ), 'category', false );
+
+		wp_set_current_user( $this->area_id );
+		$_POST = array(
+			'documentate_sections_nonce' => wp_create_nonce( 'documentate_sections_nonce' ),
+			// Declared by the Resolución type as rol="gestion"; unknown here.
+			'documentate_field_numero_resolucion' => '999/2099',
+			'documentate_field_otro_campo' => 'Valor de un tipo anterior',
+		);
+
+		( new Documentate_Document_Meta_Saver() )->save_meta_boxes( $otro );
+
+		$this->assertSame( '', get_post_meta( $otro, 'documentate_field_numero_resolucion', true ) );
+		$this->assertSame(
+			'Valor de un tipo anterior',
+			get_post_meta( $otro, 'documentate_field_otro_campo', true ),
+			'Values of a previous type are still kept.'
+		);
+
+		// Gestión documental writes the same request without trouble (the nonce
+		// travels with the person, so it is minted again for them).
+		wp_set_current_user( $this->gestion_id );
+		$_POST['documentate_sections_nonce'] = wp_create_nonce( 'documentate_sections_nonce' );
+		( new Documentate_Document_Meta_Saver() )->save_meta_boxes( $otro );
+		$this->assertSame( '999/2099', get_post_meta( $otro, 'documentate_field_numero_resolucion', true ) );
 	}
 
 	/**

@@ -9,19 +9,6 @@
  * failure violated — plain fields count as changes, and a change blocks the
  * action — plus the save-and-resume handshake.
  */
-const fs = require( 'fs' );
-const path = require( 'path' );
-
-const SOURCE = fs.readFileSync(
-	path.join( __dirname, '../../admin/js/documentate-unsaved-changes.js' ),
-	'utf8'
-);
-
-const ACTIONS_SOURCE = fs.readFileSync(
-	path.join( __dirname, '../../admin/js/documentate-actions.js' ),
-	'utf8'
-);
-
 const POST_ID = 42;
 const STORAGE_KEY = `documentate_pending_action_${ POST_ID }`;
 
@@ -56,6 +43,22 @@ let submitSpy;
 const instances = [];
 
 /**
+ * Evaluate one browser module against the current DOM.
+ *
+ * isolateModules re-evaluates the file on every call, the way the browser runs
+ * it on a fresh page — and unlike new Function( source ) it goes through the
+ * module registry, so the coverage report sees it.
+ *
+ * @param {string} ruta Path of the module, relative to this file.
+ * @return {void}
+ */
+function cargarModulo( ruta ) {
+	jest.isolateModules( () => {
+		require( ruta );
+	} );
+}
+
+/**
  * Evaluate the guard against the current DOM.
  *
  * The module is a self-executing IIFE rather than a CommonJS module, so it is
@@ -64,8 +67,7 @@ const instances = [];
  * @return {Promise<void>} Resolves once jQuery's ready callbacks have run.
  */
 async function loadGuard() {
-	// eslint-disable-next-line no-new-func
-	new Function( SOURCE )();
+	cargarModulo( '../../admin/js/documentate-unsaved-changes.js' );
 	// jQuery defers ready callbacks by a tick when the document is already loaded.
 	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 	instances.push( window.documentateUnsavedChanges );
@@ -273,6 +275,50 @@ describe( 'action gate', () => {
 	} );
 } );
 
+describe( 'the form of the front-end application', () => {
+	// The app editor is not #post: without config.formSelector the guard binds
+	// nothing and the export buttons act on the previously saved version.
+	beforeEach( () => {
+		document.body.innerHTML = FIXTURE.replace(
+			'<form id="post">',
+			'<form class="dcta-editor">'
+		).replace( 'id="post_ID"', 'id="post_ID_app"' );
+		window.documentateUnsavedChangesConfig = {
+			postId: POST_ID,
+			formSelector: 'form.dcta-editor',
+			strings: {},
+		};
+		submitSpy = jest.fn();
+		document.querySelector( 'form.dcta-editor' ).submit = submitSpy;
+	} );
+
+	it( 'notices a change in the app editor', async () => {
+		await loadGuard();
+
+		const campo = document.getElementById( 'field-a' );
+		campo.value = 'Bloque I';
+		campo.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+
+		expect( window.documentateUnsavedChanges.isDirty() ).toBe( true );
+		expect(
+			document.querySelector( '.documentate-unsaved-indicator' ).hidden
+		).toBe( false );
+	} );
+
+	it( 'saves that form before resuming the export', async () => {
+		await loadGuard();
+		window.documentateUnsavedChanges.markDirty();
+		click( '#btn-pdf' );
+
+		document.querySelector( '.documentate-unsaved-modal__primary' ).click();
+
+		expect( submitSpy ).toHaveBeenCalled();
+		expect(
+			JSON.parse( window.sessionStorage.getItem( STORAGE_KEY ) )
+		).toMatchObject( { action: 'download', format: 'pdf' } );
+	} );
+} );
+
 describe( 'save and resume', () => {
 	it( 'submits the form and stores the action to replay', async () => {
 		await loadGuard();
@@ -387,10 +433,8 @@ describe( 'resume against the real action handler', () => {
 	 * @return {Promise<void>} Resolves once the ready queue has drained.
 	 */
 	async function loadPage() {
-		// eslint-disable-next-line no-new-func
-		new Function( SOURCE )();
-		// eslint-disable-next-line no-new-func
-		new Function( ACTIONS_SOURCE )();
+		cargarModulo( '../../admin/js/documentate-unsaved-changes.js' );
+		cargarModulo( '../../admin/js/documentate-actions.js' );
 		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		instances.push( window.documentateUnsavedChanges );
 	}

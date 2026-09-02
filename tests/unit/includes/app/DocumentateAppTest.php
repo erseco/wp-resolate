@@ -74,6 +74,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 
 		$scope = wp_insert_term( 'Ámbito App', 'category' );
 		$other = wp_insert_term( 'Otro Ámbito App', 'category' );
@@ -676,16 +680,20 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	/**
 	 * Saving without a title sends the user back with the title flag.
 	 */
-	public function test_save_document_handler_requires_a_title() {
+	public function test_save_document_handler_keeps_the_stored_title() {
 		$doc = $this->crear_documento( 'Propuesta sin título', $this->cat_scope );
+		Documentate_Documento::guardar_nombre_interno( $doc, 'Propuesta' );
 
 		wp_set_current_user( $this->editor_id );
 		$this->preparar_guardado( $doc, '   ' );
 
 		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'error=titulo', $destino );
+		// An empty box falls back to what the document already has: the save
+		// goes through and the title survives.
+		$this->assertStringContainsString( 'guardado=1', $destino );
 		$this->assertSame( 'Propuesta sin título', get_post_field( 'post_title', $doc ) );
+		$this->assertSame( 'Propuesta', Documentate_Documento::nombre_interno( $doc ) );
 	}
 
 	/**

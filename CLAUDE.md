@@ -51,6 +51,7 @@ make lint                  # lint PHP (PHPCS / WPCS)       — always required
 make check-plugin          # WordPress plugin-check         — always required
 make test                  # PHPUnit tests (Docker)         — always required
 make test-e2e              # Playwright E2E (Docker)        — UI/browser changes
+make capturas               # walk the document cycle, write capturas/informe.html
 make check                 # verify only (does not reformat)
 make mago-lint             # optional secondary Mago lint
 make mago-format           # optional secondary Mago format
@@ -68,6 +69,10 @@ A task is **not done** until all relevant checks pass.
 - UI text in **Spanish**; code, comments, docblocks in **English**.
 - La interfaz está en español directamente en el código; no hay i18n ni
   ficheros de traducción.
+- `Documentate_Transiciones::reglas()` is the single source of truth for
+  document statuses/transitions (área → gestión documental → administración);
+  extend that table, never hard-code a status/transition elsewhere. See
+  `ARCHITECTURE.md` §3.
 - Requires Docker / wp-env for `make check-plugin` and `make test`.
 - AutoFirma's intermediate routes use `permission_callback => '__return_true'`
   deliberately — a 32-char session token authorises them, not the WP session.

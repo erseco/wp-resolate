@@ -258,23 +258,29 @@ class Documentate_Document_Access_Protection {
 	}
 
 	/**
-	 * Filter comment queries to exclude document comments for unauthorized users.
+	 * Keep document comments out of every query that is not about one document.
+	 *
+	 * The activity of a document — the workflow events, which carry the reason
+	 * of every return, and the comments people write on it — is readable by
+	 * whoever may edit that document, and by nobody else. A query naming the
+	 * document is answered normally after that per-document check; every other
+	 * comment query (the dashboard activity widget, the Recent Comments widget,
+	 * the Comments screen, a theme's "latest comments" loop) gets the clause
+	 * that excludes the post type, whatever the visitor may do elsewhere on
+	 * the site. Capabilities are not enough here: every área author has
+	 * edit_posts, which says nothing about the documents of other áreas.
 	 *
 	 * @param array|null       $comments Return value. Default null to continue with query.
 	 * @param WP_Comment_Query $query    Comment query object.
 	 * @return array|null Empty array to block, null to continue.
 	 */
 	public function filter_comment_queries( $comments, $query ) {
-		if ( $this->user_can_access() ) {
-			return $comments;
-		}
-
 		// Check if query is for a specific post.
 		$query_vars = $query->query_vars;
 		if ( ! empty( $query_vars['post_id'] ) ) {
 			$post_id = (int) $query_vars['post_id'];
 			if ( get_post_type( $post_id ) === self::POST_TYPE ) {
-				return array();
+				return current_user_can( 'edit_post', $post_id ) ? $comments : array();
 			}
 		}
 

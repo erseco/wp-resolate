@@ -80,6 +80,10 @@ class DocumentateAppVistasTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create(
 			array(
 				'role' => 'author',
@@ -274,6 +278,81 @@ class DocumentateAppVistasTest extends WP_UnitTestCase {
 		// The reason and the instruction are two sentences, not one run-on line.
 		$this->assertStringContainsString( '». Corrige lo que haga falta y vuelve a enviarlo.', $html );
 		$this->assertStringContainsString( 'dcta-estado-devuelto', $html );
+	}
+
+	/**
+	 * A return addressed to gestión documental is not shown to the área.
+	 *
+	 * Administración returning an en_gestion document writes a note to
+	 * gestión: the área cannot even open the document while it is there, so
+	 * telling them to correct it contradicts the status notice right below and
+	 * leaks an internal note.
+	 */
+	public function test_a_return_addressed_to_gestion_stays_between_gestion_and_administracion() {
+		$doc_id = $this->crear_documento( 'en_gestion' );
+		Documentate_Documento::marcar_devuelto( $doc_id, 'Falta el número de expediente', 'administracion', 'gestion', $this->admin_id );
+
+		$area = $this->detalle( $this->area_id, $doc_id );
+		$this->assertStringNotContainsString( 'dcta-aviso-devuelto', $area );
+		$this->assertStringNotContainsString( 'Falta el número de expediente', $area );
+		$this->assertStringNotContainsString( 'Corrige lo que haga falta', $area );
+		$this->assertStringContainsString( 'En gestión documental: están completando los datos oficiales.', $area );
+
+		$gestion = $this->detalle( $this->gestion_id, $doc_id );
+		$this->assertStringContainsString( 'dcta-aviso-devuelto', $gestion );
+		$this->assertStringContainsString( 'Falta el número de expediente', $gestion );
+		$this->assertStringContainsString( 'Corrige lo que haga falta y vuelve a enviarlo.', $gestion );
+	}
+
+	/**
+	 * The call to action is only for whoever can act on it.
+	 */
+	public function test_a_returned_document_nobody_can_edit_gives_no_instructions() {
+		$doc_id = $this->crear_documento( 'pending' );
+		Documentate_Documento::marcar_devuelto( $doc_id, 'Revisar la partida', 'gestion', 'area', $this->gestion_id );
+
+		$html = $this->detalle( $this->area_id, $doc_id );
+
+		$this->assertStringContainsString( 'Revisar la partida', $html );
+		$this->assertStringNotContainsString( 'Corrige lo que haga falta', $html, 'The document is locked for its área.' );
+	}
+
+	/**
+	 * The stepper keeps the step the document is standing on.
+	 *
+	 * A type stops going through gestión documental (its flag is unchecked, or
+	 * its template loses the rol="gestion" fields) while a document of that
+	 * type is already in en_gestion: the rail must not answer "Borrador".
+	 */
+	public function test_the_stepper_keeps_a_step_the_type_no_longer_declares() {
+		$doc_id = $this->crear_documento( 'en_gestion' );
+		update_term_meta( $this->tipo_gestion, Documentate_Documento::TERM_META_CON_GESTION, '' );
+		( new SchemaStorage() )->save_schema(
+			$this->tipo_gestion,
+			array(
+				'version' => 2,
+				'fields' => array(
+					array(
+						'name' => 'objeto',
+						'slug' => 'objeto',
+						'title' => 'Objeto',
+						'type' => 'text',
+					),
+				),
+				'meta' => array(
+					'template_type' => 'odt',
+					'template_name' => 'vistas.odt',
+					'hash' => md5( 'sin gestion' ),
+					'parsed_at' => current_time( 'mysql' ),
+				),
+			)
+		);
+		$this->assertFalse( Documentate_Documento::con_gestion( $doc_id ) );
+
+		$html = $this->detalle( $this->gestion_id, $doc_id );
+
+		$this->assertStringContainsString( 'Completando datos oficiales', $html, 'The step it stands on is the current one.' );
+		$this->assertStringNotContainsString( 'dcta-paso-actual"><span class="dcta-paso-punto" aria-hidden="true"></span><span class="dcta-paso-t">Borrador', $html );
 	}
 
 	/**
@@ -510,6 +589,35 @@ class DocumentateAppVistasTest extends WP_UnitTestCase {
 
 		$directo = $this->editar( $this->area_id, $this->crear_documento( 'draft', $this->tipo_directo ) );
 		$this->assertStringContainsString( 'va directo a administración', $directo );
+	}
+
+	/**
+	 * A document with no type can be given one from the editor.
+	 *
+	 * Documents saved in wp-admin without picking a type used to be a dead end
+	 * in the application: no fields, a read-only type box and a "Enviar a
+	 * revisión" button that could only fail.
+	 */
+	public function test_a_document_without_a_type_is_given_one_here() {
+		wp_set_current_user( $this->admin_id );
+		$doc_id = wp_insert_post(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Guardado en wp-admin sin tipo',
+				'post_status' => 'draft',
+				'post_author' => $this->area_id,
+			)
+		);
+		wp_set_object_terms( $doc_id, array( $this->cat_id ), 'category' );
+
+		$html = $this->editar( $this->area_id, $doc_id );
+
+		$this->assertStringContainsString( 'id="documentate-app-tipo"', $html );
+		$this->assertStringContainsString( 'name="documentate_doc_type"', $html );
+		$this->assertStringContainsString( 'name="documentate_type_nonce"', $html );
+		$this->assertStringNotContainsString( 'id="dcta-tipo-fijo"', $html );
+		$this->assertStringContainsString( 'todavía no tiene tipo de documento', $html );
+		$this->assertStringNotContainsString( 'value="enviar_revision"', $html, 'Nothing that could only fail is drawn.' );
 	}
 
 	/**

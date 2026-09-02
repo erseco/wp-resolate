@@ -49,6 +49,10 @@ class DocumentateMetaBoxRolTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$term = wp_insert_term( 'Resolución rol ' . uniqid(), 'documentate_doc_type' );

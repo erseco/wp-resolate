@@ -157,10 +157,12 @@ class Documentate_App_Acciones {
 	 * The "Guardar" button is formnovalidate (a draft must always be
 	 * saveable), so the required attributes of the browser are not enough:
 	 * an empty internal name would silently erase the one every list, every
-	 * heading and every notification is named after.
+	 * heading and every notification is named after. Both values arrive here
+	 * after falling back to the stored ones, so this only fires for a
+	 * document that never had them.
 	 *
-	 * @param string $titulo Official title posted.
-	 * @param string $nombre Internal name posted.
+	 * @param string $titulo Official title, or the stored one.
+	 * @param string $nombre Internal name, or the stored one.
 	 * @return string Error flag, empty when both are there.
 	 */
 	private static function error_de_datos( $titulo, $nombre ) {
@@ -169,6 +171,31 @@ class Documentate_App_Acciones {
 		}
 
 		return '' === $nombre ? 'nombre' : '';
+	}
+
+	/**
+	 * The basic data of the edit form, falling back to what is stored.
+	 *
+	 * What the document already has is what an empty box falls back to, and
+	 * nothing is written before the fields of the form are persisted: a blank
+	 * internal name can never cost somebody the whole Bloque I they just
+	 * filled in. Only a document that never had one is reported.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return array{titulo:string,nombre:string,error:string}
+	 */
+	private static function datos_basicos( $post ) {
+		$titulo = self::texto_enviado( 'documentate_app_titulo' );
+		$nombre = self::texto_enviado( 'documentate_app_nombre' );
+
+		$titulo = '' !== $titulo ? $titulo : (string) $post->post_title;
+		$nombre = '' !== $nombre ? $nombre : Documentate_Documento::nombre_interno( $post );
+
+		return array(
+			'titulo' => $titulo,
+			'nombre' => $nombre,
+			'error' => self::error_de_datos( $titulo, $nombre ),
+		);
 	}
 
 	/**
@@ -269,14 +296,11 @@ class Documentate_App_Acciones {
 			self::redirigir( $editar_url, array( 'error' => 'bloqueado' ) );
 		}
 
-		$titulo = self::texto_enviado( 'documentate_app_titulo' );
-		$nombre = self::texto_enviado( 'documentate_app_nombre' );
-		$error_datos = self::error_de_datos( $titulo, $nombre );
-		if ( '' !== $error_datos ) {
-			self::redirigir( $editar_url, array( 'error' => $error_datos ) );
-		}
+		$basicos = self::datos_basicos( $post );
+		$titulo = $basicos['titulo'];
+		$error_datos = $basicos['error'];
 
-		Documentate_Documento::guardar_nombre_interno( $post->ID, $nombre );
+		Documentate_Documento::guardar_nombre_interno( $post->ID, $basicos['nombre'] );
 		if ( Documentate_Roles::es_gestion() ) {
 			Documentate_Documento::guardar_anotaciones( $post->ID, self::texto_enviado( 'documentate_app_anotaciones', true ) );
 		}
@@ -293,6 +317,12 @@ class Documentate_App_Acciones {
 
 		if ( is_wp_error( $resultado ) ) {
 			self::redirigir( $editar_url, array( 'error' => 'guardar' ) );
+		}
+
+		// Everything the request carried is stored by now; what is missing is
+		// reported without moving the document on.
+		if ( '' !== $error_datos ) {
+			self::redirigir( $editar_url, array( 'error' => $error_datos ) );
 		}
 
 		if ( '' !== $error_adjunto ) {
@@ -407,6 +437,13 @@ class Documentate_App_Acciones {
 		$bandera = Documentate_Transiciones::bandera( $clave );
 		$args = '' !== $bandera ? array( $bandera => '1' ) : array();
 
+		// Three rules raise the "enviado" flag and each one has its own
+		// sentence, which the status alone cannot tell apart (enviar_revision
+		// and pasar_admin both land in "pending").
+		if ( 'enviado' === $bandera ) {
+			$args['transicion'] = $clave;
+		}
+
 		if ( 'bandeja' === Documentate_Transiciones::redireccion( $clave ) ) {
 			$bandeja = Documentate_Roles::es_administracion() ? 'revision' : 'revisar';
 
@@ -475,17 +512,22 @@ class Documentate_App_Acciones {
 	 */
 	private static function adjunto_aceptable( array $archivo ) {
 		$ruta = isset( $archivo['tmp_name'] ) ? (string) $archivo['tmp_name'] : '';
+		$es_subida = '' !== $ruta && is_uploaded_file( $ruta );
 
-		/**
-		 * Whether a posted path really is an upload of the current request.
-		 *
-		 * Only the test suite filters this, to hand a fixture written to a
-		 * temporary file to the handler; nothing in the plugin does.
-		 *
-		 * @param bool   $es_subida Result of is_uploaded_file().
-		 * @param string $ruta      Temporary path posted by the browser.
-		 */
-		$es_subida = (bool) apply_filters( 'documentate_app_adjunto_es_subida', '' !== $ruta && is_uploaded_file( $ruta ), $ruta );
+		// The filter exists so the test suite can hand a fixture written to a
+		// temporary file to the handler. It is fenced to the PHPUnit bootstrap
+		// (WP_TESTS_DOMAIN is defined by wp-phpunit and by nothing else): a
+		// check that says "this path really is an upload of this request" must
+		// not be something a plugin or a theme of the site can switch off.
+		if ( defined( 'WP_TESTS_DOMAIN' ) ) {
+			/**
+			 * Whether a posted path really is an upload of the current request.
+			 *
+			 * @param bool   $es_subida Result of is_uploaded_file().
+			 * @param string $ruta      Temporary path posted by the browser.
+			 */
+			$es_subida = (bool) apply_filters( 'documentate_app_adjunto_es_subida', $es_subida, $ruta );
+		}
 
 		return $es_subida && ! is_wp_error( Documentate_App_Adjuntos::validar( $archivo ) );
 	}

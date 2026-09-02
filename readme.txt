@@ -12,17 +12,20 @@ Generate official resolutions and structured administrative documents from ODT/D
 
 == Description ==
 
-Documentate is a WordPress plugin developed by the ATE to create official resolutions and structured administrative documents from ODT/DOCX templates.
+Documentate is a WordPress plugin developed by the ATE to create official resolutions and structured administrative documents from ODT/DOCX templates, and to run them through an approval workflow before they're published.
 
 It uses OpenTBS to merge the document data into the template, and draws the PDF natively on the server from an HTML layout. Collabora Online (server-side) and LibreOffice WASM (in the browser) remain selectable as alternative PDF engines.
 
 ### Features
 
 - **Document types (templates)** defined as a custom taxonomy with schema-driven fields.
+- **Three-role approval workflow**: área creates and sends, gestión documental completes the official fields, administración approves and publishes — with a "devuelto" (returned, with reason) mark and a full activity log at every step.
+- **Fields by role in the templates**: a placeholder marked `rol='gestion'` is only shown to, and only saved from, gestión documental / administración.
+- **Front-end application** under `/documentate/` (inboxes, detail, edit, attachments, export) alongside full parity in wp-admin.
 - **ODT/DOCX generation** from templates via OpenTBS.
 - **Native PDF generation** from an HTML layout per document type, with no external service; Collabora Online (server) or LibreOffice WASM (browser, experimental) can be selected instead.
 - **Per-user scope filtering** (hierarchical categories) to control document visibility.
-- **Workflow, revisions, attachments and collaborative editing.**
+- **Revisions, attachments and collaborative editing.**
 - **Multisite compatible.**
 
 ### Third-party libraries
@@ -49,7 +52,10 @@ Native PDF rendering (default, no external service), Collabora Online (server-si
 The PDF engine becomes the native renderer, so documents are drawn on the server instead of being sent to a Collabora service. Document types created earlier are matched to the layout their ODT or DOCX template is named after, once, on the first visit to the admin area; a type whose template matches no layout keeps the generic one and can be pointed at another under **PDF layout** in the document type. To carry on converting through Collabora, pick it under Settings → Documentate → Conversion engine.
 
 = How is document visibility controlled? =
-Through a per-user scope (hierarchical categories). Administrators see every document; other users only see documents in their scope and its subcategories.
+Through a per-user scope (hierarchical categories). Administrators see every document; other users only see documents in their scope and its subcategories. Gestión documental users additionally see any document already in the workflow (not a draft), regardless of scope, so they can complete it.
+
+= What are the three roles? =
+Área creates a document and fills in its own fields; gestión documental completes the fields marked as official data and passes the document on; administración approves, publishes, returns or archives it. A document can be returned to a previous role with a reason at any step.
 
 == Screenshots ==
 

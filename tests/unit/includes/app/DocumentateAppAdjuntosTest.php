@@ -178,6 +178,93 @@ class DocumentateAppAdjuntosTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The name on disk is unguessable; the name on screen is the one chosen.
+	 *
+	 * The uploads folder is served by the web server with no capability check
+	 * of any kind, so a document whose file kept its own name would be one
+	 * guess away from anybody on the internet.
+	 */
+	public function test_the_file_is_stored_under_an_unguessable_name() {
+		$attachment_id = Documentate_App_Adjuntos::guardar( $this->doc_id, $this->fichero( 'resolucion.pdf' ) );
+
+		$en_disco = basename( (string) get_attached_file( $attachment_id ) );
+
+		$this->assertNotSame( 'resolucion.pdf', $en_disco );
+		$this->assertMatchesRegularExpression( '/^resolucion-[0-9a-f]{16}\.pdf$/', $en_disco );
+		$this->assertSame( 'resolucion.pdf', Documentate_App_Adjuntos::nombre( $attachment_id ), 'The readable name is what the lists and the activity show.' );
+	}
+
+	/**
+	 * The file is served by a handler that checks the document permission.
+	 */
+	public function test_the_file_is_served_only_to_whoever_may_open_the_document() {
+		$attachment_id = Documentate_App_Adjuntos::guardar( $this->doc_id, $this->fichero( 'resolucion.pdf' ) );
+
+		$url = Documentate_App_Adjuntos::url( $this->doc_id );
+		$this->assertStringContainsString( 'admin-post.php', $url );
+		$this->assertStringContainsString( 'action=' . Documentate_App_Adjuntos::ACCION_SERVIR, $url );
+		$this->assertStringContainsString( 'doc=' . $this->doc_id, $url );
+		$this->assertStringContainsString( 'adjunto=' . $attachment_id, $url );
+
+		$_GET = array(
+			'doc' => (string) $this->doc_id,
+			'adjunto' => (string) $attachment_id,
+		);
+
+		// Somebody from another área cannot read the file of this document.
+		$intruso = self::factory()->user->create( array( 'role' => 'author' ) );
+		update_user_meta( $intruso, 'documentate_scope_term_id', (int) wp_insert_term( 'Otra área ' . uniqid(), 'category' )['term_id'] );
+		wp_set_current_user( $intruso );
+
+		try {
+			Documentate_App_Adjuntos::servir();
+			$this->fail( 'The handler must refuse.' );
+		} catch ( WPDieException $e ) {
+			$this->assertStringContainsString( 'No tienes permiso', $e->getMessage() );
+		}
+
+		$_GET = array();
+	}
+
+	/**
+	 * A document with no file has no URL to serve.
+	 */
+	public function test_a_document_without_a_file_has_no_url() {
+		$this->assertSame( '', Documentate_App_Adjuntos::url( $this->doc_id ) );
+		$this->assertSame( '', Documentate_App_Adjuntos::url( 0 ) );
+	}
+
+	/**
+	 * A path that is neither an upload nor a file the plugin wrote is refused.
+	 *
+	 * media_handle_sideload() — unlike wp_handle_upload() — skips the
+	 * is_uploaded_file() test, so a posted tmp_name pointing anywhere the
+	 * process can read would otherwise copy that file to a public URL.
+	 */
+	public function test_a_path_outside_the_temporary_folder_is_refused() {
+		$fuera = trailingslashit( wp_upload_dir()['basedir'] ) . 'documentate-origen-' . uniqid() . '.pdf';
+		file_put_contents( $fuera, self::PDF ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture.
+
+		$error = Documentate_App_Adjuntos::guardar(
+			$this->doc_id,
+			array(
+				'name' => 'resolucion.pdf',
+				'type' => 'application/pdf',
+				'tmp_name' => $fuera,
+				'error' => 0,
+				'size' => (int) filesize( $fuera ),
+			)
+		);
+
+		$this->assertWPError( $error );
+		$this->assertSame( 'sin_subida', $error->get_error_code() );
+		$this->assertNull( Documentate_Documento::adjunto( $this->doc_id ) );
+		$this->assertFileExists( $fuera, 'The file it pointed at is left alone.' );
+
+		wp_delete_file( $fuera );
+	}
+
+	/**
 	 * A second file replaces the first one.
 	 */
 	public function test_a_second_file_replaces_the_first_one() {

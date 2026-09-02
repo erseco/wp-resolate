@@ -36,6 +36,32 @@ class Documentate_App_Adjuntos {
 	const CAMPO = 'documentate_app_adjunto';
 
 	/**
+	 * Attachment meta holding the file name the person chose.
+	 *
+	 * The name on disk carries random entropy (see nombre_en_disco()), so the
+	 * readable one is kept apart for the lists and the activity.
+	 *
+	 * @var string
+	 */
+	const META_NOMBRE = '_documentate_nombre_original';
+
+	/**
+	 * Action of admin-post.php that serves the file of a document.
+	 *
+	 * @var string
+	 */
+	const ACCION_SERVIR = 'documentate_adjunto';
+
+	/**
+	 * Register the hooks that serve attachments.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		add_action( 'admin_post_' . self::ACCION_SERVIR, array( __CLASS__, 'servir' ) );
+	}
+
+	/**
 	 * Extensions the application accepts, and the mime type of each.
 	 *
 	 * @return array<string,string>
@@ -168,14 +194,19 @@ class Documentate_App_Adjuntos {
 			return $valido;
 		}
 
+		if ( ! self::origen_aceptable( (string) $archivo['tmp_name'] ) ) {
+			return new WP_Error( 'sin_subida', 'El fichero no procede de esta subida.' );
+		}
+
 		// The sideload helpers live in wp-admin and the application runs on the
 		// front end, so they are pulled in here rather than at load time.
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
+		$nombre = sanitize_file_name( (string) $archivo['name'] );
 		$datos = array(
-			'name' => sanitize_file_name( (string) $archivo['name'] ),
+			'name' => self::nombre_en_disco( $nombre ),
 			'type' => isset( $archivo['type'] ) ? sanitize_mime_type( (string) $archivo['type'] ) : '',
 			'tmp_name' => (string) $archivo['tmp_name'],
 			'error' => 0,
@@ -191,14 +222,139 @@ class Documentate_App_Adjuntos {
 			return $attachment_id;
 		}
 
+		update_post_meta( (int) $attachment_id, self::META_NOMBRE, $nombre );
 		update_post_meta( $post_id, Documentate_Documento::META_ADJUNTOS, array( (int) $attachment_id ) );
 
-		// The stored name, not the posted one: WordPress renames a file when
-		// another one of the same name is already there, and the activity must
-		// name what quitar() will name later.
 		Documentate_Actividad::registrar_evento( $post_id, 'adjuntó el fichero «' . self::nombre( (int) $attachment_id ) . '»' );
 
 		return (int) $attachment_id;
+	}
+
+	/**
+	 * Whether a path may be moved into the media library.
+	 *
+	 * The media_handle_sideload() helper — unlike wp_handle_upload() — does
+	 * not check that the path really is an upload of this request, so anything reaching
+	 * it from a posted tmp_name would copy an arbitrary readable file of the
+	 * server to a public URL. A real upload is always accepted; a path the
+	 * plugin wrote itself (the demo seeder and the test fixtures use
+	 * wp_tempnam()) only where demo content is allowed at all, which is never
+	 * a production site.
+	 *
+	 * @param string $ruta Temporary path handed to guardar().
+	 * @return bool
+	 */
+	private static function origen_aceptable( $ruta ) {
+		if ( '' === $ruta ) {
+			return false;
+		}
+
+		if ( is_uploaded_file( $ruta ) ) {
+			return true;
+		}
+
+		if ( ! Documentate_Demo_Data::should_allow_demo_seeding() ) {
+			return false;
+		}
+
+		$temporal = realpath( get_temp_dir() );
+		$real = realpath( $ruta );
+
+		return false !== $temporal && false !== $real && str_starts_with( $real, trailingslashit( $temporal ) );
+	}
+
+	/**
+	 * The name the uploaded file is stored under.
+	 *
+	 * The uploads folder is served straight by the web server, so a document
+	 * whose file keeps its own name ("resolucion.pdf") is one guess away from
+	 * anybody on the internet. The readable name is kept in META_NOMBRE and
+	 * the file itself gets a random token nobody can guess. url() is what the
+	 * views link to, and it checks the capability before serving anything.
+	 *
+	 * @param string $nombre Sanitized file name chosen by the person.
+	 * @return string
+	 */
+	private static function nombre_en_disco( $nombre ) {
+		$extension = strtolower( (string) pathinfo( $nombre, PATHINFO_EXTENSION ) );
+		$base = (string) pathinfo( $nombre, PATHINFO_FILENAME );
+		$base = '' === $base ? 'documento' : $base;
+
+		$token = substr( bin2hex( random_bytes( 8 ) ), 0, 16 );
+
+		return '' === $extension ? $base . '-' . $token : $base . '-' . $token . '.' . $extension;
+	}
+
+	/**
+	 * URL that serves the file of a document, checking the capability first.
+	 *
+	 * @param int $post_id Document ID.
+	 * @return string Empty when the document carries no file.
+	 */
+	public static function url( $post_id ) {
+		$post = Documentate_Documento::post( $post_id );
+		$adjunto = null === $post ? null : Documentate_Documento::adjunto( $post );
+		if ( null === $post || null === $adjunto ) {
+			return '';
+		}
+
+		return add_query_arg(
+			array(
+				'action' => self::ACCION_SERVIR,
+				'doc' => $post->ID,
+				'adjunto' => $adjunto->ID,
+			),
+			admin_url( 'admin-post.php' )
+		);
+	}
+
+	/**
+	 * Serve the file of a document to whoever may open that document.
+	 *
+	 * @return void
+	 */
+	public static function servir() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only request authorised by the capability check below; a nonce would only expire the link.
+		$doc_id = isset( $_GET['doc'] ) ? absint( $_GET['doc'] ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only request authorised by the capability check below.
+		$adjunto_id = isset( $_GET['adjunto'] ) ? absint( $_GET['adjunto'] ) : 0;
+
+		$ruta = self::ruta_servible( $doc_id, $adjunto_id );
+		if ( '' === $ruta ) {
+			wp_die( esc_html( 'No tienes permiso para abrir este fichero.' ), '', array( 'response' => 403 ) );
+		}
+
+		nocache_headers();
+		header( 'Content-Type: ' . get_post_mime_type( $adjunto_id ) );
+		header( 'Content-Length: ' . filesize( $ruta ) );
+		header( 'Content-Disposition: inline; filename="' . self::nombre( $adjunto_id ) . '"' );
+		header( 'X-Content-Type-Options: nosniff' );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Streaming a file to the browser; WP_Filesystem would read it all into memory.
+		readfile( $ruta );
+		exit;
+	}
+
+	/**
+	 * Path of the file, when this person may open that document.
+	 *
+	 * @param int $doc_id     Document ID.
+	 * @param int $adjunto_id Attachment ID.
+	 * @return string Empty when the request may not be served.
+	 */
+	private static function ruta_servible( $doc_id, $adjunto_id ) {
+		if ( $doc_id <= 0 || $adjunto_id <= 0 || ! current_user_can( 'edit_post', $doc_id ) ) {
+			return '';
+		}
+
+		$adjunto = Documentate_Documento::adjunto( $doc_id );
+		if ( null === $adjunto || $adjunto->ID !== $adjunto_id ) {
+			return '';
+		}
+
+		$ruta = (string) get_attached_file( $adjunto_id );
+
+		return '' !== $ruta && file_exists( $ruta ) ? $ruta : '';
 	}
 
 	/**
@@ -230,13 +386,22 @@ class Documentate_App_Adjuntos {
 	}
 
 	/**
-	 * File name of an attachment, as it is stored in the uploads folder.
+	 * File name of an attachment, as the person who uploaded it wrote it.
+	 *
+	 * Falls back to the name on disk for files attached before the readable
+	 * name was kept apart from it.
 	 *
 	 * @param int $attachment_id Attachment ID.
 	 * @return string
 	 */
 	public static function nombre( $attachment_id ) {
-		$ruta = (string) get_attached_file( (int) $attachment_id );
+		$attachment_id = (int) $attachment_id;
+		$nombre = (string) get_post_meta( $attachment_id, self::META_NOMBRE, true );
+		if ( '' !== $nombre ) {
+			return $nombre;
+		}
+
+		$ruta = (string) get_attached_file( $attachment_id );
 
 		return '' === $ruta ? '' : basename( $ruta );
 	}

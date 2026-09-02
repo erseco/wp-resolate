@@ -55,6 +55,9 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account; the stock editor
+		// role never carries the capability (see test_a_plain_editor_is_not_gestion).
+		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$this->subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
@@ -72,10 +75,17 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The capability is granted to editor and administrator only.
+	 * The capability lives in a role of its own, plus administrators.
 	 */
-	public function test_caps_granted_to_editor_and_administrator_roles() {
-		$this->assertTrue( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+	public function test_caps_granted_to_the_gestion_role_and_administrators() {
+		$gestion = get_role( Documentate_Roles::ROL_GESTION );
+
+		$this->assertNotNull( $gestion, 'ensure_caps() creates the gestión documental role.' );
+		$this->assertTrue( $gestion->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertTrue( $gestion->has_cap( 'edit_others_posts' ), 'Without it the capability does nothing.' );
+		$this->assertTrue( $gestion->has_cap( 'upload_files' ) );
+		$this->assertFalse( $gestion->has_cap( 'publish_posts' ), 'Gestión never publishes.' );
+
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_GESTION ) );
 		$this->assertFalse( get_role( 'author' )->has_cap( Documentate_Roles::CAP_GESTION ) );
 		$this->assertFalse( get_role( 'subscriber' )->has_cap( Documentate_Roles::CAP_GESTION ) );
@@ -83,25 +93,80 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The stock editor role is left alone: updating the plugin must not hand
+	 * the documents of every área to whoever edits the content of the site.
+	 */
+	public function test_a_plain_editor_is_not_gestion() {
+		// Roles live in the options table and survive between tests, and a site
+		// may have been given the capability by hand: what is asserted here is
+		// what ensure_caps() does, starting from a role that does not have it.
+		get_role( 'editor' )->remove_cap( Documentate_Roles::CAP_GESTION );
+
+		Documentate_Roles::ensure_caps( true );
+
+		$this->assertNotContains( 'editor', Documentate_Roles::roles_con_gestion() );
+		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+
+		$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$this->assertFalse( user_can( $editor, Documentate_Roles::CAP_GESTION ) );
+		$this->assertFalse( Documentate_Roles::es_gestion( $editor ) );
+		$this->assertSame( 'Edición', Documentate_Roles::etiqueta_rol( $editor ) );
+	}
+
+	/**
+	 * A site that already ran version 1 gets the editor grant taken back.
+	 */
+	public function test_the_version_1_grant_to_the_editor_role_is_undone() {
+		get_role( 'editor' )->add_cap( Documentate_Roles::CAP_GESTION );
+		update_option( Documentate_Roles::OPTION_VERSION, Documentate_Roles::VERSION_EDITOR_GRANT );
+
+		Documentate_Roles::ensure_caps();
+
+		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertSame( Documentate_Roles::VERSION, get_option( Documentate_Roles::OPTION_VERSION ) );
+	}
+
+	/**
+	 * A site that says the capability belongs to another role keeps it there.
+	 */
+	public function test_the_roles_list_is_filterable() {
+		$filtro = static function () {
+			return array( 'editor' );
+		};
+		add_filter( 'documentate_roles_con_gestion', $filtro );
+
+		Documentate_Roles::ensure_caps( true );
+		$this->assertContains( 'editor', Documentate_Roles::roles_con_gestion() );
+		$this->assertTrue( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+
+		remove_filter( 'documentate_roles_con_gestion', $filtro );
+		get_role( 'editor' )->remove_cap( Documentate_Roles::CAP_GESTION );
+	}
+
+	/**
 	 * ensure_caps() runs once per version unless forced.
 	 */
 	public function test_ensure_caps_runs_once_per_version_unless_forced() {
-		get_role( 'editor' )->remove_cap( Documentate_Roles::CAP_GESTION );
-		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$rol = static function () {
+			return get_role( Documentate_Roles::ROL_GESTION );
+		};
+
+		$rol()->remove_cap( Documentate_Roles::CAP_GESTION );
+		$this->assertFalse( $rol()->has_cap( Documentate_Roles::CAP_GESTION ) );
 
 		// Version already applied: nothing happens.
 		Documentate_Roles::ensure_caps();
-		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertFalse( $rol()->has_cap( Documentate_Roles::CAP_GESTION ) );
 
 		// Forced: granted again.
 		Documentate_Roles::ensure_caps( true );
-		$this->assertTrue( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertTrue( $rol()->has_cap( Documentate_Roles::CAP_GESTION ) );
 
 		// A missing (older) version grants without forcing.
-		get_role( 'editor' )->remove_cap( Documentate_Roles::CAP_GESTION );
+		$rol()->remove_cap( Documentate_Roles::CAP_GESTION );
 		delete_option( Documentate_Roles::OPTION_VERSION );
 		Documentate_Roles::ensure_caps();
-		$this->assertTrue( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertTrue( $rol()->has_cap( Documentate_Roles::CAP_GESTION ) );
 		$this->assertSame( Documentate_Roles::VERSION, get_option( Documentate_Roles::OPTION_VERSION ) );
 	}
 
@@ -115,12 +180,15 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * remove_caps() strips the capability from both roles and forgets the version.
+	 * remove_caps() drops the role, the capability and the version.
 	 */
 	public function test_remove_caps_strips_roles_and_option() {
+		get_role( 'editor' )->add_cap( Documentate_Roles::CAP_GESTION );
+
 		Documentate_Roles::remove_caps();
 
-		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertNull( get_role( Documentate_Roles::ROL_GESTION ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ), 'A site that moved the capability to the editor role is cleaned up too.' );
 		$this->assertFalse( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_GESTION ) );
 		$this->assertFalse( get_option( Documentate_Roles::OPTION_VERSION ) );
 	}
@@ -172,7 +240,7 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 		$this->assertFalse( Documentate_Roles::es_gestion( $this->author_id ) );
 		$this->assertTrue( Documentate_Roles::es_area( $this->author_id ) );
 
-		// And an editor denied the capability stops being gestión.
+		// And an account denied the capability stops being gestión.
 		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_GESTION, false );
 		$this->assertFalse( Documentate_Roles::es_gestion( $this->editor_id ) );
 		$this->assertTrue( Documentate_Roles::es_area( $this->editor_id ) );

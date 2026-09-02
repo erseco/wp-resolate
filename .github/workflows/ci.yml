@@ -12,6 +12,17 @@ on:
     paths-ignore:
       - '**.md'
       - '.github/*.md'
+  # The LibreOffice-WASM conversion spec downloads a browser bundle and needs a
+  # cross-origin-isolated context, so it is too slow and too flaky to gate every
+  # PR. It runs on a schedule instead, and on demand from the Actions tab.
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      wasm:
+        description: 'Run the LibreOffice-WASM E2E spec'
+        type: boolean
+        default: false
 
 # Cancel previous runs on the same branch
 concurrency:
@@ -71,6 +82,17 @@ jobs:
       # after the container boot and the PHP suite.
       - name: Run JavaScript unit tests
         run: npm run test:unit-js
+
+      # The jest run enforces its own per-module floors (tests/js/jest.config.js);
+      # the report is kept as an artifact so a JS coverage drop can be read
+      # without rerunning the suite.
+      - name: Upload JavaScript coverage report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-report-js
+          path: artifacts/coverage-js/
+          retention-days: 30
 
       - name: Start wp-env with coverage
         run: |
@@ -224,6 +246,69 @@ jobs:
         if: failure()
         with:
           name: playwright-report-shard-${{ matrix.shard }}
+          path: artifacts/
+          retention-days: 7
+
+  # The LibreOffice-WASM conversion path is the one browser flow the per-PR
+  # gate cannot afford (it downloads the LibreOffice bundle and needs a
+  # cross-origin-isolated context), so playwright.config.js ignores its spec
+  # unless DOCUMENTATE_E2E_WASM is set. It is checked here instead: weekly, and
+  # on demand from the Actions tab ("Run workflow" with the WASM box ticked).
+  e2e-wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'schedule' || inputs.wasm
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+
+      - name: Install Playwright system deps
+        run: npx playwright install-deps chromium
+
+      - name: Start wp-env
+        run: npx wp-env start --config=.wp-env.docker.json
+
+      - name: Run the WASM conversion E2E spec
+        run: make test-e2e-wasm
+        env:
+          CI: true
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Upload E2E artifacts on failure
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-wasm
           path: artifacts/
           retention-days: 7
 

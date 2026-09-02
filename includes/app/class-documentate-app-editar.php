@@ -158,11 +158,17 @@ class Documentate_App_Editar {
 	 * @return string
 	 */
 	private static function render_banner( $post ) {
-		$devuelto = Documentate_App_Shell::texto_devuelto( $post );
-		if ( '' !== $devuelto ) {
-			return '<div class="dcta-aviso dcta-aviso-devuelto">'
-				. esc_html( rtrim( $devuelto, '.' ) . '. Corrige lo que haga falta y vuelve a enviarlo.' )
+		if ( null === Documentate_Documento::tipo( $post ) ) {
+			// Without a type there is no template, no fields and no way
+			// forward: the workflow sends the document straight back to draft.
+			return '<div class="dcta-aviso dcta-aviso-info">'
+				. esc_html( 'Este documento todavía no tiene tipo de documento. Elígelo y guarda: hasta entonces no se puede enviar ni tiene campos que rellenar.' )
 				. '</div>';
+		}
+
+		$devuelto = Documentate_App_Shell::aviso_devuelto( $post );
+		if ( '' !== $devuelto ) {
+			return '<div class="dcta-aviso dcta-aviso-devuelto">' . esc_html( $devuelto ) . '</div>';
 		}
 
 		if ( Documentate_Roles::es_gestion() || 'draft' !== $post->post_status ) {
@@ -185,6 +191,7 @@ class Documentate_App_Editar {
 	 */
 	private static function render_basicos( $post, $nombre_tipo ) {
 		$prefijo = Documentate_Documento::prefijo_tipo( $post );
+		$sin_tipo = null === Documentate_Documento::tipo( $post );
 		?>
 		<div class="dcta-card dcta-editor-card">
 			<h2 class="dcta-h2">Datos básicos</h2>
@@ -193,6 +200,8 @@ class Documentate_App_Editar {
 				<span class="dcta-prefijo-grupo">
 					<?php if ( '' !== $prefijo ) : ?>
 						<span class="dcta-prefijo"><?php echo esc_html( $prefijo ); ?></span>
+					<?php elseif ( $sin_tipo ) : ?>
+						<span class="dcta-prefijo" id="documentate-app-prefijo" hidden></span>
 					<?php endif; ?>
 					<input type="text" id="documentate-app-nombre" name="documentate_app_nombre" value="<?php echo esc_attr( Documentate_Documento::nombre_interno( $post ) ); ?>" required maxlength="80" />
 				</span>
@@ -203,10 +212,56 @@ class Documentate_App_Editar {
 				<textarea id="documentate-app-titulo" name="documentate_app_titulo" rows="2" required maxlength="500"><?php echo esc_textarea( $post->post_title ); ?></textarea>
 				<p class="dcta-ayuda">El título completo tal y como saldrá en el documento.</p>
 			</div>
+			<?php self::render_campo_tipo( $sin_tipo, $nombre_tipo ); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Print the document type: fixed once it is set, a select while it is not.
+	 *
+	 * A document saved in wp-admin without picking a type would otherwise be a
+	 * dead end here: no fields, no transitions and no way of giving it one.
+	 * The select posts the same field and nonce as the wp-admin type metabox,
+	 * so Documentate_Document_Meta_Saver::save_doc_type_selection() stores it
+	 * — and locks it, exactly as everywhere else.
+	 *
+	 * @param bool   $sin_tipo    Whether the document still has no type.
+	 * @param string $nombre_tipo Document type name.
+	 * @return void
+	 */
+	private static function render_campo_tipo( $sin_tipo, $nombre_tipo ) {
+		if ( ! $sin_tipo ) {
+			?>
 			<div class="dcta-campo">
 				<label for="dcta-tipo-fijo">Tipo de documento</label>
 				<input type="text" id="dcta-tipo-fijo" value="<?php echo esc_attr( $nombre_tipo ); ?>" readonly />
 			</div>
+			<?php
+			return;
+		}
+
+		$tipos = get_terms(
+			array(
+				'taxonomy' => 'documentate_doc_type',
+				'hide_empty' => false,
+			)
+		);
+		$tipos = is_wp_error( $tipos ) ? array() : $tipos;
+		?>
+		<div class="dcta-campo">
+			<label for="documentate-app-tipo">Tipo de documento</label>
+			<?php wp_nonce_field( 'documentate_type_nonce', 'documentate_type_nonce' ); ?>
+			<select id="documentate-app-tipo" name="documentate_doc_type" required>
+				<option value="">Elige un tipo…</option>
+				<?php foreach ( $tipos as $tipo ) : ?>
+					<option value="<?php echo esc_attr( (string) $tipo->term_id ); ?>"
+						data-prefijo="<?php echo esc_attr( Documentate_Documento::prefijo_de_tipo( $tipo->term_id ) ); ?>"
+						data-gestion="<?php echo esc_attr( Documentate_Documento::tipo_con_gestion( $tipo->term_id ) ? '1' : '' ); ?>"><?php echo esc_html( $tipo->name ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<p class="dcta-ayuda" id="documentate-app-tipo-nota"></p>
+			<p class="dcta-ayuda">El tipo decide la plantilla y los campos, y no se puede cambiar después de guardarlo.</p>
 		</div>
 		<?php
 	}
@@ -300,7 +355,7 @@ class Documentate_App_Editar {
 					<span class="dashicons dashicons-media-default" aria-hidden="true"></span>
 					<span class="dcta-adjunto-nombre"><?php echo esc_html( Documentate_App_Adjuntos::nombre( $adjunto->ID ) ); ?></span>
 					<span class="dcta-adjunto-peso"><?php echo esc_html( Documentate_App_Adjuntos::tamano_legible( $adjunto->ID ) ); ?></span>
-					<a href="<?php echo esc_url( (string) wp_get_attachment_url( $adjunto->ID ) ); ?>" target="_blank" rel="noopener">Abrir</a>
+					<a href="<?php echo esc_url( Documentate_App_Adjuntos::url( $post->ID ) ); ?>" target="_blank" rel="noopener">Abrir</a>
 				</p>
 				<label class="dcta-adjunto-quitar">
 					<input type="checkbox" name="documentate_app_quitar_adjunto" value="1" /> Quitar el fichero al guardar

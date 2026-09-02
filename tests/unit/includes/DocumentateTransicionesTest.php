@@ -66,6 +66,10 @@ class DocumentateTransicionesTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$cat = wp_insert_term( 'Ámbito Transiciones', 'category' );
@@ -216,6 +220,56 @@ class DocumentateTransicionesTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A document with no document type is offered nothing that would bounce back.
+	 *
+	 * Documentate_Workflow forces such a document back to draft, so a button
+	 * for it could only ever fail with "esa acción no está disponible", which
+	 * is not the reason and leaves the person nothing to act on.
+	 */
+	public function test_a_document_without_a_type_is_offered_no_way_forward() {
+		wp_set_current_user( $this->admin_id );
+		$doc = wp_insert_post(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Guardado en wp-admin sin tipo',
+				'post_status' => 'draft',
+				'post_author' => $this->area_id,
+			)
+		);
+		wp_set_object_terms( $doc, array( $this->cat_id ), 'category' );
+
+		wp_set_current_user( $this->area_id );
+		$this->assertSame( array(), Documentate_Transiciones::disponibles( get_post( $doc ) ) );
+
+		$resultado = Documentate_Transiciones::aplicar( $doc, 'enviar_revision' );
+		$this->assertWPError( $resultado );
+		$this->assertSame( 'transicion_no_disponible', $resultado->get_error_code() );
+		$this->assertSame( 'draft', get_post_status( $doc ) );
+		$this->assertSame( array(), Documentate_Actividad::listar( $doc ) );
+
+		// With a type it is offered again.
+		wp_set_object_terms( $doc, array( $this->tipo_directo ), 'documentate_doc_type' );
+		$this->assertArrayHasKey( 'enviar_revision', Documentate_Transiciones::disponibles( get_post( $doc ) ) );
+	}
+
+	/**
+	 * Un-approving a published document is a rule like any other: audited.
+	 */
+	public function test_un_approving_a_published_document_is_recorded() {
+		$doc = $this->crear_documento( 'publish', $this->tipo_gestion );
+
+		wp_set_current_user( $this->admin_id );
+		$this->assertTrue( Documentate_Transiciones::aplicar( $doc, 'devolver_revision' ) );
+
+		$this->assertSame( 'pending', get_post_status( $doc ) );
+		$this->assertSame(
+			array( 'devolvió el documento a revisión' ),
+			wp_list_pluck( Documentate_Actividad::listar( $doc ), 'texto' )
+		);
+		$this->assertFalse( Documentate_Transiciones::permitida( $doc, 'publish', 'pending', $this->gestion_id ) );
+	}
+
+	/**
 	 * A return without a reason (or a too short one) is refused everywhere.
 	 */
 	public function test_returns_require_a_reason() {
@@ -334,25 +388,26 @@ class DocumentateTransicionesTest extends WP_UnitTestCase {
 		$this->assertWPError( $invalido );
 		$this->assertSame( 'documento_invalido', $invalido->get_error_code() );
 
-		// A draft without a type: the workflow keeps it in draft (Rule 1).
-		$sin_tipo = wp_insert_post(
-			array(
-				'post_type' => 'documentate_document',
-				'post_title' => 'Sin tipo',
-				'post_status' => 'draft',
-				'post_author' => $this->area_id,
-			)
-		);
-		wp_set_object_terms( $sin_tipo, array( $this->cat_id ), 'category' );
-		Documentate_Documento::marcar_devuelto( $sin_tipo, 'antes', 'gestion', 'area', $this->gestion_id );
+		// A transition the save does not land (the workflow, or anything else
+		// hooked on the save, keeps the document where it was).
+		$doc = $this->crear_documento( 'draft', $this->tipo_directo );
+		Documentate_Documento::marcar_devuelto( $doc, 'antes', 'gestion', 'area', $this->gestion_id );
+		wp_set_current_user( $this->admin_id );
 
-		$resultado = Documentate_Transiciones::aplicar( $sin_tipo, 'enviar_revision' );
+		$congelar = static function ( $data ) {
+			$data['post_status'] = 'draft';
+
+			return $data;
+		};
+		add_filter( 'wp_insert_post_data', $congelar, 999 );
+		$resultado = Documentate_Transiciones::aplicar( $doc, 'enviar_revision' );
+		remove_filter( 'wp_insert_post_data', $congelar, 999 );
 
 		$this->assertWPError( $resultado );
 		$this->assertSame( 'transicion_no_aplicada', $resultado->get_error_code() );
-		$this->assertSame( 'draft', get_post_status( $sin_tipo ) );
-		$this->assertSame( array(), Documentate_Actividad::listar( $sin_tipo ), 'The event is rolled back.' );
-		$this->assertSame( 'antes', Documentate_Documento::devuelto( $sin_tipo )['motivo'], 'The mark is restored.' );
+		$this->assertSame( 'draft', get_post_status( $doc ) );
+		$this->assertSame( array(), Documentate_Actividad::listar( $doc ), 'The event is rolled back.' );
+		$this->assertSame( 'antes', Documentate_Documento::devuelto( $doc )['motivo'], 'The mark is restored.' );
 	}
 
 	/**

@@ -85,6 +85,10 @@ class DocumentateAppAccionesTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$area = wp_insert_term( 'Área acciones ' . uniqid(), 'category' );
@@ -608,9 +612,11 @@ class DocumentateAppAccionesTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Saving without an internal name is refused instead of erasing it.
+	 * An empty internal name keeps the stored one instead of erasing it.
+	 *
+	 * "Guardar" is formnovalidate, so the box can reach the handler empty.
 	 */
-	public function test_save_requires_the_internal_name() {
+	public function test_save_falls_back_to_the_stored_internal_name() {
 		$doc_id = $this->crear_documento( 'Borrador con nombre', $this->tipo_gestion );
 		Documentate_Documento::guardar_nombre_interno( $doc_id, 'Material aulas' );
 
@@ -618,8 +624,40 @@ class DocumentateAppAccionesTest extends WP_UnitTestCase {
 		$this->post_guardar( $doc_id, array( 'documentate_app_nombre' => '   ' ) );
 		$destino = $this->capturar( array( 'Documentate_App_Acciones', 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'error=nombre', $destino );
+		$this->assertStringContainsString( 'guardado=1', $destino );
 		$this->assertSame( 'Material aulas', Documentate_Documento::nombre_interno( $doc_id ), 'The stored name is untouched.' );
+	}
+
+	/**
+	 * A document that never had an internal name reports it — after saving the
+	 * rest, not instead of saving it.
+	 *
+	 * Documents created in wp-admin carry no internal name at all, so the app
+	 * pre-fills that box empty: bailing before wp_update_post() would throw
+	 * away every field the person had just filled in.
+	 */
+	public function test_save_stores_the_fields_even_when_the_name_is_missing() {
+		$doc_id = $this->crear_documento( 'Creado en wp-admin', $this->tipo_gestion );
+		Documentate_Documento::guardar_nombre_interno( $doc_id, '' );
+
+		wp_set_current_user( $this->area_id );
+		$this->post_guardar(
+			$doc_id,
+			array(
+				'documentate_app_nombre' => '',
+				'documentate_app_titulo' => 'Resolución con todo el bloque I',
+				'documentate_field_objeto' => 'Objeto que costó media hora escribir',
+			)
+		);
+		$destino = $this->capturar( array( 'Documentate_App_Acciones', 'handle_save_document' ) );
+
+		$this->assertStringContainsString( 'error=nombre', $destino );
+		$this->assertSame(
+			'Objeto que costó media hora escribir',
+			get_post_meta( $doc_id, 'documentate_field_objeto', true ),
+			'The fields of the form are stored before the missing datum is reported.'
+		);
+		$this->assertSame( 'Resolución con todo el bloque I', get_post_field( 'post_title', $doc_id ) );
 	}
 
 	/**

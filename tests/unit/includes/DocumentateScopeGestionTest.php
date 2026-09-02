@@ -67,6 +67,10 @@ class DocumentateScopeGestionTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		// Gestión documental is appointed account by account: the plugin keeps
+		// the capability in a role of its own and never grants it to the stock
+		// editor role, so the account is given it here the way a site would.
+		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
 
 		$a = wp_insert_term( 'Área A', 'category' );
 		$b = wp_insert_term( 'Área B', 'category' );
@@ -208,6 +212,39 @@ class DocumentateScopeGestionTest extends WP_UnitTestCase {
 
 		$this->assertSame( $esperados, $this->listed_ids() );
 		$this->assertFalse( has_filter( 'posts_where', array( $this->filter, 'gestion_posts_where' ) ), 'The clause is removed after the query.' );
+	}
+
+	/**
+	 * The restriction fails closed when its WHERE clause never runs.
+	 *
+	 * The clause is the only thing keeping the drafts of other áreas out of a
+	 * gestión list, and a filter can always be skipped: another plugin
+	 * answering posts_pre_query, or replacing the query object on a later
+	 * pre_get_posts. The rows are filtered on the way out instead.
+	 */
+	public function test_the_gestion_list_drops_foreign_drafts_when_the_clause_is_skipped() {
+		wp_set_current_user( $this->gestion_id );
+
+		$query = new WP_Query();
+		$query->set( 'post_type', 'documentate_document' );
+		$query->set( 'post_status', array( 'draft', 'en_gestion', 'pending', 'publish', 'archived' ) );
+		$query->set( 'posts_per_page', -1 );
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$GLOBALS['wp_the_query'] = $query;
+
+		$this->filter->filter_documents_by_scope( $query );
+
+		// Somebody else answers the query, so posts_where never runs.
+		remove_filter( 'posts_where', array( $this->filter, 'gestion_posts_where' ), 10 );
+		$todos = array_map( 'get_post', array_values( $this->docs ) );
+
+		$devueltos = apply_filters_ref_array( 'the_posts', array( $todos, &$query ) );
+		$ids = array_map( static fn( $post ) => (int) $post->ID, $devueltos );
+
+		$this->assertContains( $this->docs['draft_a'], $ids, 'Their own área is still theirs.' );
+		$this->assertContains( $this->docs['gestion_b'], $ids, 'The pipeline is still open.' );
+		$this->assertNotContains( $this->docs['draft_b'], $ids, 'A draft of another área is not listed.' );
+		$this->assertFalse( has_filter( 'the_posts', array( $this->filter, 'gestion_the_posts' ) ), 'The guard is removed after the query.' );
 	}
 
 	/**

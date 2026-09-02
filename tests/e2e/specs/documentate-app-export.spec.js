@@ -97,6 +97,14 @@ test.describe( 'Documentate app · exportación', () => {
 	test.afterAll( async () => {
 		test.setTimeout( 300_000 );
 
+		// A beforeAll that threw (a WP-CLI lock that never cleared, an
+		// unexpected answer) leaves the fixture unbuilt, and Playwright still
+		// runs this hook: without the guard it dies dereferencing it and the
+		// report shows that TypeError instead of the real failure.
+		if ( ! escenario ) {
+			return;
+		}
+
 		limpiarEscenario( {
 			documentos: [ docId ],
 			categorias: Object.values( escenario.categorias ),
