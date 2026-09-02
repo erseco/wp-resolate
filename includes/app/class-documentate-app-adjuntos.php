@@ -326,12 +326,13 @@ class Documentate_App_Adjuntos {
 
 		nocache_headers();
 		header( 'Content-Type: ' . get_post_mime_type( $adjunto_id ) );
+		// nosemgrep: php.lang.security.injection.tainted-filename.tainted-filename -- $ruta is not a name the request carries: the request only names a document and an attachment ID (both absint), ruta_servible() refuses unless the reader may edit that document and the ID is the very attachment that document holds, and Documentate_Ficheros resolves the stored path with realpath() and refuses anything outside the uploads directory.
 		header( 'Content-Length: ' . filesize( $ruta ) );
 		header( 'Content-Disposition: inline; filename="' . Documentate_Ficheros::nombre_para_cabecera( self::nombre( $adjunto_id ) ) . '"' );
 		header( 'X-Content-Type-Options: nosniff' );
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Streaming a file to the browser; WP_Filesystem would read it all into memory.
-		readfile( $ruta );
+		// nosemgrep: php.lang.security.injection.tainted-filename.tainted-filename -- Same guarded path as the header above.
+		readfile( $ruta ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Streaming a file to the browser; WP_Filesystem would read it all into memory.
 		exit;
 	}
 

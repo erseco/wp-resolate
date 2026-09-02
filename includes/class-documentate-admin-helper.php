@@ -70,6 +70,29 @@ class Documentate_Admin_Helper {
 	);
 
 	/**
+	 * Generate a document in one of the formats the plugin knows.
+	 *
+	 * The generator is named here, not looked up and called dynamically: a
+	 * requested format chooses a branch, never a method name. PDF is the
+	 * answer to anything else, which is what the export buttons offer when a
+	 * type has no template of its own.
+	 *
+	 * @param string $format  Requested format.
+	 * @param int    $post_id Document post ID.
+	 * @return string|WP_Error Path of the generated file, or the failure.
+	 */
+	private static function generar( $format, $post_id ) {
+		switch ( $format ) {
+			case 'docx':
+				return Documentate_Document_Generator::generate_docx( $post_id );
+			case 'odt':
+				return Documentate_Document_Generator::generate_odt( $post_id );
+			default:
+				return Documentate_Document_Generator::generate_pdf( $post_id );
+		}
+	}
+
+	/**
 	 * Get an initialized WP_Filesystem instance.
 	 *
 	 * @return WP_Filesystem_Base|WP_Error Filesystem handler or error on failure.
@@ -1488,8 +1511,7 @@ class Documentate_Admin_Helper {
 
 		$this->ensure_document_generator();
 
-		$method = isset( self::$format_generator_map[ $format ] ) ? self::$format_generator_map[ $format ] : 'generate_pdf';
-		$result = call_user_func( array( 'Documentate_Document_Generator', $method ), $post_id );
+		$result = self::generar( $format, $post_id );
 
 		if ( is_wp_error( $result ) ) {
 			$this->send_generation_error( $result );

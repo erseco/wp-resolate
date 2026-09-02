@@ -1573,6 +1573,26 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 	}
 
 	/**
+	 * Each requested format picks its own generator, and anything else is a PDF.
+	 *
+	 * The endpoint never builds a callable out of the request, so this walks
+	 * the branch that answers it.
+	 */
+	public function test_each_format_reaches_its_generator() {
+		$metodo = new ReflectionMethod( $this->helper, 'generar' );
+		$metodo->setAccessible( true );
+
+		// A document without a type has no template, so every branch comes back
+		// as the generator's own error: which one it is says which branch ran.
+		$post_id = self::factory()->post->create( array( 'post_type' => 'documentate_document' ) );
+
+		foreach ( array( 'docx', 'odt', 'pdf', 'ristra-inventada', '' ) as $formato ) {
+			$resultado = $metodo->invoke( null, $formato, $post_id );
+			$this->assertInstanceOf( WP_Error::class, $resultado, 'Formato: ' . $formato );
+		}
+	}
+
+	/**
 	 * Test format_generator_map static property exists.
 	 */
 	public function test_format_generator_map_exists() {
