@@ -211,6 +211,64 @@ class SchemaConverterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A placeholder name with no title of its own is humanized, not shown raw.
+	 *
+	 * The block placeholders of the propuesta de gasto are called "servicios",
+	 * "suministros" and "expertos"; without this the editor headed them with
+	 * the raw lowercase slug next to properly titled fields.
+	 */
+	public function test_to_legacy_humanizes_a_one_word_placeholder_name() {
+		$v2_schema = array(
+			'version' => 2,
+			'fields' => array(
+				array(
+					'slug' => 'objeto',
+					'name' => 'objeto',
+					'type' => 'text',
+				),
+			),
+			'repeaters' => array(
+				array(
+					'slug' => 'servicios',
+					'name' => 'servicios',
+					'fields' => array(
+						array( 'slug' => 'proveedor', 'type' => 'text' ),
+					),
+				),
+			),
+		);
+
+		$result = SchemaConverter::to_legacy( $v2_schema );
+
+		$this->assertSame( 'Objeto', $this->find_field_by_slug( $result, 'objeto' )['label'] );
+		$this->assertSame( 'Servicios', $this->find_field_by_slug( $result, 'servicios' )['label'] );
+	}
+
+	/**
+	 * A title written by a person is used exactly as written.
+	 */
+	public function test_to_legacy_keeps_a_written_title_verbatim() {
+		$v2_schema = array(
+			'version' => 2,
+			'fields' => array(
+				array(
+					'slug' => 'gasto_letra',
+					'name' => 'gasto_letra',
+					'title' => 'Gasto total (en letra)',
+					'type' => 'text',
+				),
+			),
+		);
+
+		$result = SchemaConverter::to_legacy( $v2_schema );
+
+		$this->assertSame(
+			'Gasto total (en letra)',
+			$this->find_field_by_slug( $result, 'gasto_letra' )['label']
+		);
+	}
+
+	/**
 	 * Test to_legacy with multiple fields.
 	 */
 	public function test_to_legacy_multiple_fields() {

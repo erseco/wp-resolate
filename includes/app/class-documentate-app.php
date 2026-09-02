@@ -296,8 +296,7 @@ class Documentate_App {
 		);
 		$tipos = is_wp_error( $tipos ) ? array() : $tipos;
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flag on a redirect.
-		$error = isset( $_GET['error'] ) ? sanitize_key( wp_unslash( $_GET['error'] ) ) : '';
+		$error = Documentate_App_Detalle::bandera( 'error' );
 
 		$html = Documentate_App_Shell::abrir(
 			'nuevo',

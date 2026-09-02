@@ -46,6 +46,24 @@ class Documentate_App_Shell {
 	const FORM_COMENTARIO_ID = 'dcta-app-comentario';
 
 	/**
+	 * How the application writes a date.
+	 *
+	 * The site options are whatever the installation left them at (WordPress
+	 * ships US defaults), and this interface is Spanish only: a ficha that
+	 * says "septiembre 2, 2026" reads as a bug, so the format is fixed here.
+	 *
+	 * @var string
+	 */
+	const FORMATO_FECHA = 'j \d\e F \d\e Y';
+
+	/**
+	 * How the application writes a time of day.
+	 *
+	 * @var string
+	 */
+	const FORMATO_HORA = 'H:i';
+
+	/**
 	 * Transitions the rule table keeps for wp-admin only.
 	 *
 	 * Archiving is a records-management decision taken from the admin list,

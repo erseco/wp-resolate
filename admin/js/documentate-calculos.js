@@ -216,8 +216,15 @@
 			html += '<dt>' + escapar(capitalizar(fila.slug)) + ' (' + fila.n + ')</dt><dd>' + escapar(formatear(fila.total)) + '</dd>';
 		});
 		suma = redondear(suma);
-		html += '<dt class="documentate-resumen-total">Total de la propuesta</dt>'
-			+ '<dd class="documentate-resumen-total">' + escapar(formatear(suma)) + '</dd></dl>';
+		// Nothing itemised yet: a "Total de la propuesta 0,00 €" above a
+		// figure typed by hand reads as a broken calculation, so the card
+		// says what is actually going on.
+		html += proveedores > 0
+			? '<dt class="documentate-resumen-total">Total de la propuesta</dt>'
+				+ '<dd class="documentate-resumen-total">' + escapar(formatear(suma)) + '</dd>'
+			: '<dt class="documentate-resumen-total">Total de la propuesta</dt>'
+				+ '<dd class="documentate-resumen-total">Sin proveedores todavía</dd>';
+		html += '</dl>';
 
 		if (contenedor) {
 			contenedor.innerHTML = html;

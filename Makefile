@@ -166,6 +166,30 @@ test-e2e-docker: test-e2e
 test-e2e-visual: start-docker-if-not-running setup-e2e-env
 	WP_BASE_URL=http://localhost:$(DOCKER_PORT) npm run test:e2e -- --ui $(ARGS)
 
+# ─── Capturas (informe con capturas del ciclo completo) ──────────────────────
+
+# Recorre la aplicación con Playwright y deja capturas/informe.html: verificación
+# de que el ciclo funciona de punta a punta y base del manual.
+# Admite SOLO=escritorio|movil y DOCUMENTATE_SIN_SEMBRAR=1.
+#
+# El guion siembra la demo y recorre el ciclo en el sitio de desarrollo
+# (puerto $(DOCKER_PORT)), el mismo que usan los E2E: si hay una tanda de
+# pruebas viva se para aquí en vez de pisarle los datos a mitad de una prueba.
+# Los corchetes del patrón evitan que pgrep encuentre el propio shell de esta
+# receta, cuya línea de órdenes contiene el patrón; un servidor MCP de
+# Playwright no cuenta, porque no escribe en el sitio.
+capturas: start-docker-if-not-running setup-e2e-env
+	@if pgrep -f '[t]est-playwright|[p]laywright/cli\.js|[c]apturas\.mjs' > /dev/null 2>&1; then \
+		echo ""; \
+		echo "Error: hay una tanda de Playwright en marcha (¿make test-e2e?, ¿otras capturas?)."; \
+		echo "Las capturas y los E2E escriben en el mismo sitio; espera a que termine."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@npx playwright install chromium
+	@DOCUMENTATE_URL=http://localhost:$(DOCKER_PORT) node scripts/capturas.mjs
+	@echo "Informe: $(CURDIR)/capturas/informe.html"
+
 # ─── WP-CLI helpers (Docker) ─────────────────────────────────────────────────
 
 flush-permalinks:
@@ -403,6 +427,8 @@ help:
 	@echo ""
 	@echo "  test-e2e           - Run E2E tests against Docker (port $(DOCKER_PORT))"
 	@echo "  test-e2e-visual    - Run E2E tests with visual UI (Docker)"
+	@echo "  capturas           - Walk the whole cycle and write capturas/informe.html"
+	@echo "                       SOLO=escritorio|movil (one screen size only)"
 	@echo ""
 	@echo "Translations:"
 	@echo "  pot                - Generate a .pot file for translations"

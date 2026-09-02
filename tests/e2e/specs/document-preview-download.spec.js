@@ -4,7 +4,7 @@
  * Uses Page Object Model, REST API setup, and accessible selectors
  * following WordPress/Gutenberg E2E best practices.
  */
-const { test, expect } = require( '../fixtures' );
+const { test, expect, getDownloadUrlViaAjax } = require( '../fixtures' );
 
 test.describe( 'Document Preview and Download', () => {
 	/**

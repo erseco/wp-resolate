@@ -316,13 +316,15 @@ class SchemaConverter {
 	 * @return string
 	 */
 	private static function resolve_label( $record, $fallback ) {
-		$candidates = array(
+		// title and label are text a person wrote and are used verbatim; the
+		// placeholder name is an identifier, so a one-word block like
+		// "servicios" is humanized instead of rendered raw and lowercase.
+		$escritas = array(
 			isset( $record['title'] ) ? sanitize_text_field( $record['title'] ) : '',
 			isset( $record['label'] ) ? sanitize_text_field( $record['label'] ) : '',
-			isset( $record['name'] ) ? sanitize_text_field( $record['name'] ) : '',
 		);
 
-		foreach ( $candidates as $candidate ) {
+		foreach ( $escritas as $candidate ) {
 			$candidate = trim( $candidate );
 			if ( '' === $candidate ) {
 				continue;
@@ -333,7 +335,9 @@ class SchemaConverter {
 			return $candidate;
 		}
 
-		return self::humanize( $fallback );
+		$name = isset( $record['name'] ) ? trim( sanitize_text_field( $record['name'] ) ) : '';
+
+		return self::humanize( '' !== $name ? $name : $fallback );
 	}
 
 	/**

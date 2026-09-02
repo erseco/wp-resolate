@@ -23,6 +23,97 @@ const { SettingsPage } = require( '../page-objects/settings.page' );
 const { DocumentsListPage } = require( '../page-objects/documents-list.page' );
 
 /**
+ * Call the document generation AJAX endpoint from the page context and return
+ * the download URL.
+ *
+ * The export buttons are anchors with `href="#"` and
+ * `data-documentate-action` attributes: the real URL is what the endpoint
+ * answers, so specs that need the file itself ask for it here.
+ *
+ * @param {import('@playwright/test').Page} page             Page carrying documentateActionsConfig.
+ * @param {string}                          format           'docx', 'odt' or 'pdf'.
+ * @param {string}                          [output='download'] 'download' or 'preview'.
+ * @return {Promise<string|null>} Generated file URL, or null when generation failed.
+ */
+async function getDownloadUrlViaAjax( page, format, output = 'download' ) {
+	return await page.evaluate(
+		async ( { fmt, out } ) => {
+			const cfg = window.documentateActionsConfig;
+			if ( ! cfg || ! cfg.ajaxUrl || ! cfg.postId ) {
+				return null;
+			}
+
+			const body = new URLSearchParams( {
+				action: 'documentate_generate_document',
+				post_id: cfg.postId,
+				format: fmt,
+				output: out,
+				_wpnonce: cfg.nonce,
+			} );
+
+			const resp = await fetch( cfg.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				body,
+			} );
+
+			if ( ! resp.ok ) {
+				return null;
+			}
+
+			const json = await resp.json();
+			return json.success && json.data?.url ? json.data.url : null;
+		},
+		{ fmt: format, out: output }
+	);
+}
+
+/**
+ * Fill every required field of the application editor form so the browser
+ * lets it submit.
+ *
+ * Native controls get `value`; rich editors get it through their code tab,
+ * which is what the form posts while that tab is active. The two fields of
+ * "Datos básicos" are left alone: the specs own them.
+ *
+ * @param {import('@playwright/test').Page} page  Page on the edit view.
+ * @param {string}                          value Text to put in the fields.
+ * @return {Promise<void>}
+ */
+async function fillRequiredAppFields( page, value ) {
+	const form = page.locator( 'form.dcta-editor' );
+
+	// Amounts documentate-calculos.js owns are readonly, and Playwright
+	// refuses to fill those; they already carry the computed value.
+	const basicos = ':not(#documentate-app-titulo):not(#documentate-app-nombre)';
+	const editables = `input[required]:not([type="hidden"]):not([readonly]):not([data-calculado])${ basicos }, textarea[required]:not([readonly])${ basicos }`;
+
+	for ( const control of await form.locator( editables ).all() ) {
+		const type = await control.getAttribute( 'type' );
+		if ( 'checkbox' === type ) {
+			await control.check();
+		} else if ( 'number' === type ) {
+			await control.fill( '1' );
+		} else if ( 'date' === type ) {
+			await control.fill( '2026-09-01' );
+		} else {
+			await control.fill( value );
+		}
+	}
+
+	for ( const select of await form.locator( 'select[required]' ).all() ) {
+		await select.selectOption( { index: 1 } );
+	}
+
+	for ( const wrap of await form
+		.locator( '.documentate-rich-editor-wrap[data-required="true"]' )
+		.all() ) {
+		await wrap.locator( '.switch-html' ).click();
+		await wrap.locator( 'textarea.wp-editor-area' ).fill( `<p>${ value }</p>` );
+	}
+}
+
+/**
  * UI-based helper functions for document creation.
  * Used because documentate_document CPT has show_in_rest => false.
  */
@@ -284,4 +375,11 @@ const test = baseTest.extend( {
 	},
 } );
 
-module.exports = { test, expect: baseExpect, documentHelpers, restApiHelpers };
+module.exports = {
+	test,
+	expect: baseExpect,
+	documentHelpers,
+	restApiHelpers,
+	getDownloadUrlViaAjax,
+	fillRequiredAppFields,
+};

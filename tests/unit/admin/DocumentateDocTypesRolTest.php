@@ -268,7 +268,7 @@ class DocumentateDocTypesRolTest extends Documentate_Test_Base {
 		$html = ob_get_clean();
 
 		$this->assertSame( 3, substr_count( $html, '<span class="documentate-field-rol">gestión</span>' ), 'Field, block and block field carry the badge.' );
-		$this->assertMatchesRegularExpression( '/<li>objeto <span class="documentate-field-type">\(single\)<\/span><\/li>/', $html, 'Área entries carry no badge.' );
+		$this->assertMatchesRegularExpression( '/<li>Objeto <span class="documentate-field-type">\(single\)<\/span><\/li>/', $html, 'Área entries carry no badge.' );
 		$this->assertMatchesRegularExpression( '/Nº de resolución <span class="documentate-field-type">\(single\)<\/span> <span class="documentate-field-rol">gestión<\/span>/', $html );
 	}
 }

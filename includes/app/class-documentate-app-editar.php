@@ -130,12 +130,9 @@ class Documentate_App_Editar {
 	 * @return string
 	 */
 	private static function render_avisos() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flags on a redirect.
-		$guardado = isset( $_GET['guardado'] ) ? sanitize_key( wp_unslash( $_GET['guardado'] ) ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flags on a redirect.
-		$comentado = isset( $_GET['comentado'] ) ? sanitize_key( wp_unslash( $_GET['comentado'] ) ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flags on a redirect.
-		$error = isset( $_GET['error'] ) ? sanitize_key( wp_unslash( $_GET['error'] ) ) : '';
+		$guardado = Documentate_App_Detalle::bandera( 'guardado' );
+		$comentado = Documentate_App_Detalle::bandera( 'comentado' );
+		$error = Documentate_App_Detalle::bandera( 'error' );
 
 		if ( '1' === $guardado ) {
 			return '<div class="dcta-aviso dcta-aviso-ok">Cambios guardados.</div>';
@@ -164,7 +161,7 @@ class Documentate_App_Editar {
 		$devuelto = Documentate_App_Shell::texto_devuelto( $post );
 		if ( '' !== $devuelto ) {
 			return '<div class="dcta-aviso dcta-aviso-devuelto">'
-				. esc_html( $devuelto . ' Corrige lo que haga falta y vuelve a enviarlo.' )
+				. esc_html( rtrim( $devuelto, '.' ) . '. Corrige lo que haga falta y vuelve a enviarlo.' )
 				. '</div>';
 		}
 
@@ -343,7 +340,7 @@ class Documentate_App_Editar {
 					<dt>Tipo</dt>
 					<dd><?php echo esc_html( $nombre_tipo ); ?></dd>
 					<dt>Actualizado</dt>
-					<dd><?php echo esc_html( get_the_modified_date( '', $post ) . ' · ' . get_the_modified_time( '', $post ) ); ?></dd>
+					<dd><?php echo esc_html( get_the_modified_date( Documentate_App_Shell::FORMATO_FECHA, $post ) . ' · ' . get_the_modified_time( Documentate_App_Shell::FORMATO_HORA, $post ) ); ?></dd>
 				</dl>
 			</div>
 			<div class="dcta-card dcta-editor-acciones">

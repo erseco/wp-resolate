@@ -6,12 +6,11 @@
  * visitors. Every string is matched in Spanish and English because the dev
  * site runs in es_ES while the plugin sources are English.
  */
-const { test, expect } = require( '../fixtures' );
+const { test, expect, fillRequiredAppFields } = require( '../fixtures' );
 const {
-	PASSWORD,
-	runWpCmd,
-	runWpCmdSafe,
 	loginAs,
+	crearEscenario,
+	limpiarEscenario,
 } = require( '../fixtures/site' );
 
 const RUN = `app${ Date.now() }`;
@@ -32,185 +31,71 @@ const NAMES = {
 
 const APP_PATH = '/documentate/';
 
-/**
- * Create a document with a scope category, type and author.
- *
- * @param {Object} opts            Options.
- * @param {string} opts.title      Post title.
- * @param {number} opts.categoryId Scope category term ID.
- * @param {number} opts.docTypeId  documentate_doc_type term ID.
- * @param {number} [opts.authorId] Post author.
- * @param {string} [opts.status]   Final post status (draft by default).
- * @return {number} Post ID.
- */
-function createDocument( { title, categoryId, docTypeId, authorId, status = 'draft' } ) {
-	let cmd = `post create --post_type=documentate_document --post_title="${ title }" --post_status=draft --post_category=${ categoryId } --porcelain`;
-	if ( authorId ) {
-		cmd += ` --post_author=${ authorId }`;
-	}
-	const postId = parseInt( runWpCmd( cmd ), 10 );
-
-	runWpCmd( `post term set ${ postId } documentate_doc_type ${ docTypeId } --by=id` );
-	runWpCmd( `post meta update ${ postId } documentate_locked_doc_type ${ docTypeId }` );
-
-	// A type that goes through gestión documental cannot jump from draft to
-	// "en revisión": the workflow refuses the transition, so the fixture walks
-	// the same path a person would. The intermediate step is refused (and
-	// harmless) for types that go straight to administración.
-	if ( 'pending' === status ) {
-		runWpCmd( `post update ${ postId } --post_status=en_gestion --user=1` );
-	}
-
-	if ( 'draft' !== status ) {
-		runWpCmd( `post update ${ postId } --post_status=${ status } --user=1` );
-	}
-
-	return postId;
-}
-
-/**
- * Read one term meta, or an empty string when the term does not carry it.
- *
- * `wp term meta get` exits with an error when the key is absent, which is a
- * perfectly normal answer here.
- *
- * @param {number} termId Term ID.
- * @param {string} key    Meta key.
- * @return {string} Stored value, or an empty string.
- */
-function readTermMeta( termId, key ) {
-	try {
-		return runWpCmd( `term meta get ${ termId } ${ key }` ).trim();
-	} catch ( error ) {
-		return '';
-	}
-}
-
-/**
- * Fill every required field of the editor form so the browser lets it submit.
- * Native controls get `value`; rich editors get it through their code tab,
- * which is what the form posts while that tab is active.
- *
- * @param {import('@playwright/test').Page} page  Page on the edit view.
- * @param {string}                          value Text to put in the fields.
- */
-async function fillRequiredFields( page, value ) {
-	const form = page.locator( 'form.dcta-editor' );
-
-	// Amounts documentate-calculos.js owns are readonly, and Playwright
-	// refuses to fill those; they already carry the computed value. The two
-	// fields of "Datos básicos" are filled by the test itself.
-	const basicos = ':not(#documentate-app-titulo):not(#documentate-app-nombre)';
-	const editables = `input[required]:not([type="hidden"]):not([readonly]):not([data-calculado])${ basicos }, textarea[required]:not([readonly])${ basicos }`;
-
-	for ( const control of await form.locator( editables ).all() ) {
-		const type = await control.getAttribute( 'type' );
-		if ( 'checkbox' === type ) {
-			await control.check();
-		} else if ( 'number' === type ) {
-			await control.fill( '1' );
-		} else if ( 'date' === type ) {
-			await control.fill( '2026-09-01' );
-		} else {
-			await control.fill( value );
-		}
-	}
-
-	for ( const select of await form.locator( 'select[required]' ).all() ) {
-		await select.selectOption( { index: 1 } );
-	}
-
-	for ( const wrap of await form.locator( '.documentate-rich-editor-wrap[data-required="true"]' ).all() ) {
-		await wrap.locator( '.switch-html' ).click();
-		await wrap.locator( 'textarea.wp-editor-area' ).fill( `<p>${ value }</p>` );
-	}
-}
-
 test.describe( 'Documentate app', () => {
-	let scopeCatId, otherCatId, docTypeId, editorId, conGestionPrevia;
-	let createdDocType = false;
+	let escenario;
+	let docTypeId = 0;
 	const docs = {};
+	/** Documents the tests themselves create, cleaned up with the rest. */
 	const docIds = [];
 
 	test.beforeAll( async () => {
-		scopeCatId = parseInt(
-			runWpCmd( `term create category "App Scope ${ RUN }" --porcelain` ),
-			10
-		);
-		otherCatId = parseInt(
-			runWpCmd( `term create category "App Other ${ RUN }" --porcelain` ),
-			10
-		);
+		// Every worker's WP-CLI calls queue on the same lock, so a hook that
+		// waits its turn must not die on the ordinary test budget.
+		test.setTimeout( 300_000 );
 
-		// Prefer the seeded type with a real template so the form has fields.
-		const seeded = runWpCmd(
-			'term list documentate_doc_type --slug=resolucion-administrativa --field=term_id'
-		);
-		docTypeId = parseInt( seeded, 10 );
-		if ( Number.isNaN( docTypeId ) ) {
-			docTypeId = parseInt(
-				runWpCmd( `term create documentate_doc_type "App Type ${ RUN }" --porcelain` ),
-				10
-			);
-			createdDocType = true;
-		}
-
-		editorId = parseInt(
-			runWpCmd(
-				`user create ${ EDITOR_LOGIN } ${ EDITOR_LOGIN }@example.com --role=editor --user_pass=${ PASSWORD } --porcelain`
-			),
-			10
-		);
-		// The application step this spec exercises is "goes through gestión
-		// documental", which the type declares with a term meta. The dev site
-		// may carry an older schema for the seeded type, so the flag is set
-		// explicitly and restored afterwards.
-		conGestionPrevia = readTermMeta( docTypeId, 'documentate_type_con_gestion' );
-		runWpCmd( `term meta update ${ docTypeId } documentate_type_con_gestion 1` );
-
-		runWpCmd( `user meta update ${ editorId } documentate_scope_term_id ${ scopeCatId }` );
-		runWpCmd(
-			`user create ${ SUBSCRIBER_LOGIN } ${ SUBSCRIBER_LOGIN }@example.com --role=subscriber --user_pass=${ PASSWORD }`
-		);
-
-		docs.inScope = createDocument( {
-			title: TITLES.inScope,
-			categoryId: scopeCatId,
-			docTypeId,
-			authorId: editorId,
+		escenario = crearEscenario( {
+			capacidades: [ [ 'editor', 'documentate_gestionar' ] ],
+			categorias: {
+				scope: `App Scope ${ RUN }`,
+				other: `App Other ${ RUN }`,
+			},
+			// The seeded Resolución declares gestión fields in its schema, so
+			// it goes through gestión documental by itself. The shared term is
+			// never written here: parallel workers read the same type.
+			tipos: { res: { slug: 'resolucion-administrativa' } },
+			usuarios: {
+				editor: {
+					login: EDITOR_LOGIN,
+					rol: 'editor',
+					ambito: 'scope',
+				},
+				subscriber: { login: SUBSCRIBER_LOGIN, rol: 'subscriber' },
+			},
+			documentos: {
+				inScope: {
+					titulo: TITLES.inScope,
+					categoria: 'scope',
+					tipo: 'res',
+					autor: 'editor',
+				},
+				outOfScope: {
+					titulo: TITLES.outOfScope,
+					categoria: 'other',
+					tipo: 'res',
+				},
+				pending: {
+					titulo: TITLES.pending,
+					categoria: 'scope',
+					tipo: 'res',
+					autor: 'editor',
+					estado: 'pending',
+				},
+			},
 		} );
-		docs.outOfScope = createDocument( {
-			title: TITLES.outOfScope,
-			categoryId: otherCatId,
-			docTypeId,
-		} );
-		docs.pending = createDocument( {
-			title: TITLES.pending,
-			categoryId: scopeCatId,
-			docTypeId,
-			authorId: editorId,
-			status: 'pending',
-		} );
-		docIds.push( docs.inScope, docs.outOfScope, docs.pending );
+
+		docTypeId = escenario.tipos.res;
+		expect( docTypeId ).toBeGreaterThan( 0 );
+		Object.assign( docs, escenario.documentos );
 	} );
 
 	test.afterAll( async () => {
-		const validDocIds = docIds.filter( ( id ) => ! Number.isNaN( id ) );
-		if ( validDocIds.length ) {
-			runWpCmdSafe( `post delete ${ validDocIds.join( ' ' ) } --force` );
-		}
-		runWpCmdSafe( `user delete ${ EDITOR_LOGIN } --yes --reassign=1` );
-		runWpCmdSafe( `user delete ${ SUBSCRIBER_LOGIN } --yes --reassign=1` );
-		runWpCmdSafe( `term delete category ${ scopeCatId } ${ otherCatId }` );
-		if ( createdDocType ) {
-			runWpCmdSafe( `term delete documentate_doc_type ${ docTypeId }` );
-		} else if ( conGestionPrevia ) {
-			runWpCmdSafe(
-				`term meta update ${ docTypeId } documentate_type_con_gestion ${ conGestionPrevia }`
-			);
-		} else {
-			runWpCmdSafe( `term meta delete ${ docTypeId } documentate_type_con_gestion` );
-		}
+		test.setTimeout( 300_000 );
+
+		limpiarEscenario( {
+			documentos: Object.values( escenario.documentos ).concat( docIds ),
+			usuarios: [ EDITOR_LOGIN, SUBSCRIBER_LOGIN ],
+			categorias: Object.values( escenario.categorias ),
+		} );
 	} );
 
 	test( 'admin bar links to the application', async ( { admin, page } ) => {
@@ -246,7 +131,7 @@ test.describe( 'Documentate app', () => {
 		await expect( page.locator( 'form.dcta-editor input[name="documentate_sections_nonce"]' ) ).toHaveCount( 1 );
 
 		const value = `Valor ${ RUN }`;
-		await fillRequiredFields( page, value );
+		await fillRequiredAppFields( page, value );
 
 		await Promise.all( [
 			page.waitForURL( /guardado=1/ ),
@@ -310,7 +195,7 @@ test.describe( 'Documentate app', () => {
 			const renamed = `${ TITLES.inScope } editado`;
 			await page.fill( '#documentate-app-titulo', renamed );
 			await page.fill( '#documentate-app-nombre', `Corto ${ RUN }` );
-			await fillRequiredFields( page, `Editor ${ RUN }` );
+			await fillRequiredAppFields( page, `Editor ${ RUN }` );
 			await Promise.all( [
 				page.waitForURL( /guardado=1/ ),
 				page.getByRole( 'button', { name: /Guardar borrador|Save draft/ } ).click(),

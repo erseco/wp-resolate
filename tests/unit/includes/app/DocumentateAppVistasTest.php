@@ -271,8 +271,28 @@ class DocumentateAppVistasTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'dcta-aviso-devuelto', $html );
 		$this->assertStringContainsString( 'Devuelto por gestión documental', $html );
 		$this->assertStringContainsString( 'Falta el anexo firmado', $html );
-		$this->assertStringContainsString( 'vuelve a enviarlo', $html );
+		// The reason and the instruction are two sentences, not one run-on line.
+		$this->assertStringContainsString( '». Corrige lo que haga falta y vuelve a enviarlo.', $html );
 		$this->assertStringContainsString( 'dcta-estado-devuelto', $html );
+	}
+
+	/**
+	 * Dates are written the Spanish way, whatever the site options say.
+	 *
+	 * WordPress ships US defaults for date_format, and a Spain-only interface
+	 * that says "septiembre 2, 2026" reads as a bug.
+	 */
+	public function test_dates_are_written_in_spanish_order() {
+		update_option( 'date_format', 'F j, Y' );
+		update_option( 'time_format', 'g:i a' );
+		$doc_id = $this->crear_documento( 'publish' );
+
+		$html = $this->detalle( $this->area_id, $doc_id );
+
+		$esperada = get_the_modified_date( 'j \d\e F \d\e Y', get_post( $doc_id ) );
+		$this->assertStringContainsString( 'actualizado el ' . $esperada, $html );
+		$this->assertStringContainsString( 'Aprobado el ' . $esperada, $html );
+		$this->assertStringNotContainsString( 'actualizado el ' . get_the_modified_date( 'F j, Y', get_post( $doc_id ) ), $html );
 	}
 
 	/**
@@ -441,6 +461,43 @@ class DocumentateAppVistasTest extends WP_UnitTestCase {
 			'error de adjunto' => array( 'error', 'adjunto', 'dcta-aviso-mal', 'solo PDF, ODT o DOCX' ),
 			'error de transición' => array( 'error', 'transicion', 'dcta-aviso-mal', 'no está disponible' ),
 		);
+	}
+
+	/**
+	 * The error flag is read from the URI, not only from $_GET.
+	 *
+	 * "error" is a reserved query variable of WordPress: as soon as a rewrite
+	 * rule matches, WP::parse_request() does unset( $error, $_GET['error'] ),
+	 * so on a site with pretty permalinks the views would never see it.
+	 */
+	public function test_the_error_flag_is_read_from_the_request_uri() {
+		$doc_id = $this->crear_documento( 'pending' );
+		$uri_previa = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : null;
+
+		try {
+			$_SERVER['REQUEST_URI'] = '/documentate/?doc=' . $doc_id . '&error=motivo';
+			$detalle = $this->detalle( $this->admin_id, $doc_id );
+			$this->assertStringContainsString( 'dcta-aviso-mal', $detalle );
+			$this->assertStringContainsString( 'hay que decir por qué', $detalle );
+
+			$_SERVER['REQUEST_URI'] = '/documentate/?doc=' . $doc_id . '&vista=editar&error=adjunto';
+			$editar = $this->editar( $this->admin_id, $doc_id );
+			$this->assertStringContainsString( 'dcta-aviso-mal', $editar );
+			$this->assertStringContainsString( 'solo PDF, ODT o DOCX', $editar );
+
+			// A request without the argument says nothing.
+			$_SERVER['REQUEST_URI'] = '/documentate/?doc=' . $doc_id;
+			$this->assertStringNotContainsString(
+				'dcta-aviso-mal',
+				$this->detalle( $this->admin_id, $doc_id )
+			);
+		} finally {
+			if ( null === $uri_previa ) {
+				unset( $_SERVER['REQUEST_URI'] );
+			} else {
+				$_SERVER['REQUEST_URI'] = $uri_previa;
+			}
+		}
 	}
 
 	/**

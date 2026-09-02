@@ -145,6 +145,16 @@ body.documentate-app .wp-block-post-content {
 	gap: 14px;
 }
 
+/*
+ * Without this the row's min-content width (shield + name + the rol chip)
+ * is wider than a phone, and the page lays itself out at that width: the
+ * captures come out ~431 px wide with a dead band on the right.
+ */
+
+.dcta-top-fila > * {
+	min-width: 0;
+}
+
 .dcta-escudo {
 	width: 30px;
 	height: 38px;
@@ -167,15 +177,19 @@ body.documentate-app .wp-block-post-content {
 
 .dcta-marca small {
 	display: block;
+	overflow: hidden;
 	font-size: 11.5px;
 	color: var(--dcta-texto-2);
 	max-width: 34ch;
 	line-height: 1.25;
+	text-overflow: ellipsis;
 }
 
 .dcta-marca-app {
+	flex: 0 0 auto;
 	margin-left: 12px;
 	padding-left: 14px;
+	white-space: nowrap;
 	border-left: 1px solid var(--dcta-linea);
 	font-size: 18px;
 	font-weight: 700;
@@ -192,11 +206,18 @@ body.documentate-app .wp-block-post-content {
 .dcta-top-derecha {
 	margin-left: auto;
 	display: flex;
+	min-width: 0;
 	align-items: center;
+	justify-content: flex-end;
 	gap: 12px;
 }
 
+.dcta-top-derecha > * {
+	min-width: 0;
+}
+
 .dcta-rol {
+	overflow: hidden;
 	padding: .34em .8em;
 	border-radius: 999px;
 	background: var(--dcta-pri-cont);
@@ -204,6 +225,7 @@ body.documentate-app .wp-block-post-content {
 	font-size: 12.5px;
 	font-weight: 600;
 	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 /* --- tabs ---------------------------------------------------------------- */
@@ -1353,6 +1375,16 @@ body.documentate-app .wp-block-post-content {
 	flex-direction: column;
 	gap: 6px;
 	font-size: 14px;
+}
+
+/*
+ * The destination radios only exist for administración on a document that
+ * went through gestión; the script hides the block with the `hidden`
+ * attribute, which an author `display: flex` would otherwise override.
+ */
+
+.dcta-dialogo-destinos[hidden] {
+	display: none;
 }
 
 .dcta-dialogo textarea {

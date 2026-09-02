@@ -272,6 +272,8 @@ describe( 'summary card and gasto_numero', () => {
 		expect( gasto.readOnly ).toBe( false );
 		expect( gasto.hasAttribute( 'data-calculado' ) ).toBe( false );
 		expect( document.querySelector( '.documentate-resumen' ).textContent ).toContain( 'Servicios (0)' );
+		// Nothing itemised yet: the card says so instead of showing 0,00 €.
+		expect( document.querySelector( 'dd.documentate-resumen-total' ).textContent ).toBe( 'Sin proveedores todavía' );
 	} );
 
 	it( 'takes gasto_numero over again as soon as a concepto row is filled', () => {

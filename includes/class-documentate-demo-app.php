@@ -704,7 +704,9 @@ class Documentate_Demo_App {
 				'email' => 'administracion@talleresdigitales.es',
 				'telefono' => '922334455',
 				'bruto' => '1800',
-				'igic' => '7',
+				// documentate-calculos.js reads IGIC and IRPF as euro
+				// amounts (total = bruto + IGIC - IRPF), not as rates.
+				'igic' => '126',
 				'irpf' => '0',
 				'total' => '1926',
 				'conceptos' => array(
@@ -725,7 +727,7 @@ class Documentate_Demo_App {
 				'email' => 'pedidos@papeleriainsular.es',
 				'telefono' => '922445566',
 				'bruto' => '650',
-				'igic' => '7',
+				'igic' => '45.5',
 				'irpf' => '0',
 				'total' => '695.5',
 				'conceptos' => array(
@@ -747,7 +749,7 @@ class Documentate_Demo_App {
 				'telefono' => '650998877',
 				'bruto' => '400',
 				'igic' => '0',
-				'irpf' => '15',
+				'irpf' => '60',
 				'total' => '340',
 				'conceptos' => array(
 					array(
@@ -773,13 +775,15 @@ class Documentate_Demo_App {
 				'type' => 'array',
 				'value' => wp_json_encode( $expertos, JSON_UNESCAPED_UNICODE ),
 			),
+			// 1926 + 695.50 + 340: the same total the calculator writes when
+			// the editor opens, so figure and letter agree on screen.
 			'gasto_letra' => array(
 				'type' => 'single',
-				'value' => 'dos mil ochocientos sesenta y un euros con cincuenta céntimos',
+				'value' => 'dos mil novecientos sesenta y un euros con cincuenta céntimos',
 			),
 			'gasto_numero' => array(
 				'type' => 'single',
-				'value' => '2861.5',
+				'value' => '2961.5',
 			),
 			'partida' => array(
 				'type' => 'single',

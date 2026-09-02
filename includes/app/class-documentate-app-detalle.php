@@ -80,7 +80,7 @@ class Documentate_App_Detalle {
 				$tipo ? $tipo->name : '',
 				Documentate_Documento::area( $post ),
 				Documentate_Documento::persona( $post ),
-				'actualizado el ' . get_the_modified_date( '', $post ),
+				'actualizado el ' . get_the_modified_date( Documentate_App_Shell::FORMATO_FECHA, $post ),
 			)
 		);
 
@@ -125,7 +125,7 @@ class Documentate_App_Detalle {
 		$devuelto = Documentate_App_Shell::texto_devuelto( $post );
 		if ( '' !== $devuelto ) {
 			$html .= '<div class="dcta-aviso dcta-aviso-devuelto">'
-				. esc_html( $devuelto . ' Corrige lo que haga falta y vuelve a enviarlo.' )
+				. esc_html( rtrim( $devuelto, '.' ) . '. Corrige lo que haga falta y vuelve a enviarlo.' )
 				. '</div>';
 		}
 
@@ -170,7 +170,41 @@ class Documentate_App_Detalle {
 	 */
 	public static function bandera( $nombre ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flag on a redirect.
-		return isset( $_GET[ $nombre ] ) ? sanitize_key( wp_unslash( $_GET[ $nombre ] ) ) : '';
+		if ( isset( $_GET[ $nombre ] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Feedback flag on a redirect.
+			return sanitize_key( wp_unslash( $_GET[ $nombre ] ) );
+		}
+
+		return self::bandera_de_la_uri( $nombre );
+	}
+
+	/**
+	 * The same flag, read from the query string of the request.
+	 *
+	 * "error" is a reserved query variable of WordPress: as soon as a rewrite
+	 * rule matches, `WP::parse_request()` does `unset( $error, $_GET['error'] )`
+	 * (wp-includes/class-wp.php), so on a site with pretty permalinks the
+	 * error flag of a redirect never reaches the views through `$_GET`. The
+	 * request URI is untouched, so it is the reliable source.
+	 *
+	 * @param string $nombre Flag name.
+	 * @return string Empty when the request carries no such argument.
+	 */
+	private static function bandera_de_la_uri( $nombre ) {
+		$uri = isset( $_SERVER['REQUEST_URI'] )
+			? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			: '';
+		$consulta = (string) wp_parse_url( $uri, PHP_URL_QUERY );
+		if ( '' === $consulta ) {
+			return '';
+		}
+
+		$pares = array();
+		wp_parse_str( $consulta, $pares );
+
+		return isset( $pares[ $nombre ] ) && is_scalar( $pares[ $nombre ] )
+			? sanitize_key( (string) $pares[ $nombre ] )
+			: '';
 	}
 
 	/**
@@ -199,7 +233,7 @@ class Documentate_App_Detalle {
 		$textos = array(
 			'en_gestion' => 'En gestión documental: están completando los datos oficiales. Si falta algo te lo devolverán y podrás corregirlo.',
 			'pending' => 'En revisión: administración lo aprobará o lo devolverá.',
-			'publish' => 'Aprobado el ' . get_the_modified_date( '', $post ) . '. Puedes previsualizarlo y descargarlo.',
+			'publish' => 'Aprobado el ' . get_the_modified_date( Documentate_App_Shell::FORMATO_FECHA, $post ) . '. Puedes previsualizarlo y descargarlo.',
 			'archived' => 'Archivado.',
 		);
 
@@ -333,7 +367,7 @@ class Documentate_App_Detalle {
 			. '</p>';
 
 		$html .= '<p class="dcta-ayuda">'
-			. esc_html( 'adjuntado por ' . $quien . ' el ' . get_the_date( '', $adjunto ) )
+			. esc_html( 'adjuntado por ' . $quien . ' el ' . get_the_date( Documentate_App_Shell::FORMATO_FECHA, $adjunto ) )
 			. '</p>';
 
 		return $html . '</div>';

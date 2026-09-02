@@ -436,7 +436,9 @@ class DocumentateDocTypesAdminTest extends Documentate_Test_Base {
 		$method->invoke( $this->admin, $schema );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'items', $output );
+		// The placeholder name has no title of its own, so the preview shows
+		// it humanized instead of raw and lowercase.
+		$this->assertStringContainsString( '<strong>Items</strong>', $output );
 	}
 
 	/**
