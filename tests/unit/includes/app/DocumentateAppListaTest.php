@@ -500,6 +500,9 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 		$html = $this->render( $this->admin_id, array( 'estado' => 'todos' ) );
 
 		$this->assertStringContainsString( 'mostrando 5 de 412 documentos · afina con los filtros', $html );
+		// The quick filter only sees the rows on screen: without the real
+		// total it would answer "0 de 5" for the other 407.
+		$this->assertStringContainsString( 'data-dcta-pie-total="412"', $html );
 	}
 
 	/**
@@ -622,11 +625,82 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The footer keeps the number of drawn rows, so the filter can count.
+	 * The footer publishes the documents the tray holds, not the rows drawn.
 	 */
-	public function test_the_footer_says_how_many_rows_are_drawn() {
+	public function test_the_footer_publishes_the_tray_total() {
 		$html = $this->render( $this->area_id );
 
-		$this->assertMatchesRegularExpression( '/data-dcta-pie data-dcta-pie-total="\d+"/', $html );
+		$this->assertStringContainsString( 'data-dcta-pie-total="3"', $html );
+		$this->assertStringContainsString( '>3 documentos</div>', $html );
+	}
+
+	/**
+	 * The footer is a live region: it is the only thing that changes as the
+	 * quick filter narrows the list, and hidden rows are hidden from assistive
+	 * technology too.
+	 */
+	public function test_the_footer_is_announced_as_it_changes() {
+		$html = $this->render( $this->area_id );
+
+		$this->assertStringContainsString(
+			'<div class="dcta-tabla-pie" role="status" data-dcta-pie',
+			$html
+		);
+	}
+
+	/**
+	 * Outside "mis documentos" the rows show the área and the person, so the
+	 * filter has to match them: they are what a reviewer types.
+	 */
+	public function test_the_filter_text_carries_the_area_and_the_person() {
+		$html = $this->render(
+			$this->gestion_id,
+			array(
+				'bandeja' => 'revisar',
+				'estado' => 'todos',
+			)
+		);
+
+		$area = get_term( $this->cat_a )->name;
+		$this->assertStringContainsString( $area . ' · Ana Área', $html, 'The row draws them.' );
+		$this->assertMatchesRegularExpression(
+			'/data-dcta-texto="[^"]*' . preg_quote( $area, '/' ) . ' Ana Área[^"]*"/u',
+			$html
+		);
+
+		// "Mis documentos" draws neither, so neither belongs in its text.
+		$this->assertDoesNotMatchRegularExpression(
+			'/data-dcta-texto="[^"]*Ana Área[^"]*"/u',
+			$this->render( $this->area_id ),
+			'The own tray shows no person, so the filter must not carry one.'
+		);
+	}
+
+	/**
+	 * A document returned to gestión documental keeps its "En gestión" chip,
+	 * so only the return line puts the word "Devuelto" within reach of the
+	 * filter — with the reason, which is on screen as well.
+	 */
+	public function test_the_filter_text_carries_the_return_line() {
+		Documentate_Documento::marcar_devuelto(
+			$this->docs['gestion'],
+			'Falta la firma de la persona titular',
+			'administracion',
+			'gestion',
+			$this->admin_id
+		);
+
+		$html = $this->render(
+			$this->gestion_id,
+			array(
+				'bandeja' => 'revisar',
+				'estado' => 'todos',
+			)
+		);
+
+		$this->assertMatchesRegularExpression(
+			'/data-dcta-texto="[^"]*En gestión Devuelto por administración[^"]*Falta la firma de la persona titular[^"]*"/u',
+			$html
+		);
 	}
 }

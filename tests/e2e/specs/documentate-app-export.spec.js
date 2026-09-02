@@ -162,6 +162,52 @@ test.describe( 'Documentate app · exportación', () => {
 		}
 	} );
 
+	test( 'el editor avisa de los cambios sin guardar y su modal va vestido', async ( {
+		page,
+	} ) => {
+		await page.goto( `${ APP_PATH }?doc=${ docId }&vista=editar` );
+
+		const aviso = page.locator( '#exportar .documentate-unsaved-indicator' );
+		await expect( aviso ).toHaveCount( 1 );
+		await expect( aviso ).toBeHidden();
+
+		// The guard only subscribes when the indicator is on the page, so this
+		// is what tells the user before the export is blocked.
+		await page.locator( '#documentate-app-nombre' ).fill(
+			`Exportable ${ RUN } tocado`
+		);
+		await expect( aviso ).toBeVisible();
+		await expect( aviso ).toHaveText( 'Cambios sin guardar' );
+
+		await page
+			.locator(
+				'#exportar [data-documentate-action="download"][data-documentate-format="odt"]'
+			)
+			.click();
+
+		const modal = page.locator( '.documentate-unsaved-modal.is-visible' );
+		await expect( modal ).toBeVisible();
+
+		// wp-admin's buttons.css is not loaded here and the modal hangs off
+		// <body>, outside the sheet: without a rule of its own every button in
+		// it renders as a raw OS control.
+		const principal = modal.locator( '.documentate-unsaved-modal__primary' );
+		await expect( principal ).toHaveCSS( 'border-radius', '999px' );
+		await expect( principal ).toHaveCSS( 'background-color', 'rgb(27, 79, 138)' );
+		await expect( principal ).toHaveCSS( 'color', 'rgb(255, 255, 255)' );
+
+		const alto = await principal.evaluate(
+			( boton ) => boton.getBoundingClientRect().height
+		);
+		expect( alto ).toBeGreaterThanOrEqual( 40 );
+
+		const cancelar = modal.locator( '.documentate-unsaved-modal__cancel' );
+		await expect( cancelar ).toHaveCSS( 'border-top-width', '0px' );
+
+		await cancelar.click();
+		await expect( modal ).toHaveCount( 0 );
+	} );
+
 	test( 'la generación ODT devuelve un fichero OpenDocument', async ( {
 		page,
 		request,

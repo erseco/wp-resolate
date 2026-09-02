@@ -242,10 +242,12 @@
 			}
 			try {
 				entrada.files = ficheros;
+				mostrarElegido(zona, ficheros[0]);
 			} catch (error) {
-				// Browsers that refuse the assignment keep the plain input.
+				// Browsers that refuse the assignment keep the plain input,
+				// so nothing is queued and the line must not say otherwise.
+				mostrarElegido(zona, null);
 			}
-			mostrarElegido(zona, ficheros[0]);
 		});
 	}
 
@@ -330,12 +332,14 @@
 	 *
 	 * It is an enhancement on top of the status chips, which do the real
 	 * query; this one only narrows what is already on screen, so the box
-	 * stays hidden when this script does not run.
+	 * stays hidden when this script does not run. The tray is capped at one
+	 * page, so when it holds more the counts say how many rows were looked
+	 * at and keep the warning the server footer carries.
 	 */
 	function iniciarBusqueda() {
 		var caja = document.querySelector('[data-dcta-busqueda]');
 		var tabla = document.querySelector('.dcta-tabla');
-		if (!caja || !tabla) {
+		if (!caja || !tabla || !marcar(caja)) {
 			return;
 		}
 
@@ -351,11 +355,15 @@
 		}
 
 		var total = filas.length;
+		var encontrados = pie ? (parseInt(pie.getAttribute('data-dcta-pie-total'), 10) || total) : total;
+		var truncada = encontrados > total;
 		var pieOriginal = pie ? pie.textContent : '';
 		var vacio = document.createElement('div');
 		vacio.className = 'dcta-vacio';
 		vacio.hidden = true;
-		vacio.textContent = 'Ningún documento de la lista coincide con el filtro.';
+		vacio.textContent = truncada
+			? 'Ningún documento de los ' + total + ' que hay en pantalla coincide con el filtro · la bandeja tiene ' + encontrados + ', afina con los filtros.'
+			: 'Ningún documento de la lista coincide con el filtro.';
 		if (pie) {
 			tabla.insertBefore(vacio, pie);
 		} else {
@@ -382,7 +390,8 @@
 			if (pie) {
 				pie.textContent = '' === busqueda
 					? pieOriginal
-					: visibles + ' de ' + total + (1 === total ? ' documento' : ' documentos');
+					: visibles + ' de ' + total + (1 === total ? ' documento' : ' documentos')
+						+ (truncada ? ' mostrados de ' + encontrados + ' · afina con los filtros' : '');
 			}
 		}
 

@@ -2246,11 +2246,14 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertStringContainsString( 'dcta-exportar', $output );
 		$this->assertStringContainsString( 'Descargar PDF', $output );
 		$this->assertStringContainsString( 'DOCX', $output );
-		$this->assertStringNotContainsString(
-			'documentate-unsaved-indicator',
-			$output,
-			'The application shows its own unsaved state.'
+		// documentate-unsaved-changes.js only subscribes to the dirty state
+		// when the indicator is on the page: without it the application never
+		// warns, and the first the user hears of it is the blocking modal.
+		$this->assertStringContainsString(
+			'<p class="documentate-unsaved-indicator" role="status" hidden>',
+			$output
 		);
+		$this->assertStringContainsString( 'Cambios sin guardar', $output );
 	}
 
 	/**

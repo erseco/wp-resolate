@@ -206,21 +206,112 @@ test.describe( 'Documentate app · roles', () => {
 			const total = await filas.count();
 			expect( total ).toBeGreaterThan( 1 );
 
+			// The footer is the only thing that changes as the filter runs,
+			// so it is what a screen reader is told about.
+			const pie = page.locator( '[data-dcta-pie]' );
+			await expect( pie ).toHaveAttribute( 'role', 'status' );
+
+			// The tray is capped at one page: what it really holds travels in
+			// the footer, and the counts have to keep saying so.
+			const enLaBandeja = parseInt(
+				await pie.getAttribute( 'data-dcta-pie-total' ),
+				10
+			);
+			expect( enLaBandeja ).toBeGreaterThanOrEqual( total );
+			const cola =
+				enLaBandeja > total
+					? ` mostrados de ${ enLaBandeja } · afina con los filtros`
+					: '';
+
 			// A row is a grid, so hiding it takes more than the hidden
 			// property: what matters is that it stops being on screen.
 			await caja.fill( NOMBRES.otroEnGestion );
 			await expect( filas.locator( 'visible=true' ) ).toHaveCount( 1 );
 			await expect( fila( page, NOMBRES.otroEnGestion ) ).toBeVisible();
-			await expect( page.locator( '[data-dcta-pie]' ) ).toHaveText(
-				`1 de ${ total } documentos`
-			);
+			await expect( pie ).toHaveText( `1 de ${ total } documentos${ cola }` );
 
 			await caja.fill( 'zzz sin coincidencias zzz' );
 			await expect( filas.locator( 'visible=true' ) ).toHaveCount( 0 );
-			await expect( page.locator( '.dcta-vacio' ) ).toBeVisible();
+			const vacio = page.locator( '.dcta-vacio' );
+			await expect( vacio ).toBeVisible();
+			if ( enLaBandeja > total ) {
+				// The other rows were never looked at: "nothing matches" would
+				// be a lie for the rest of the tray.
+				await expect( vacio ).toContainText(
+					`la bandeja tiene ${ enLaBandeja }`
+				);
+			}
 
 			await caja.fill( '' );
 			await expect( filas.locator( 'visible=true' ) ).toHaveCount( total );
+		} finally {
+			await context.close();
+		}
+	} );
+
+	test( 'el diálogo de devolución sale centrado en la ventana', async ( {
+		browser,
+		baseURL,
+	} ) => {
+		const { context, page } = await loginAs( browser, baseURL, GESTION_LOGIN );
+
+		try {
+			await page.setViewportSize( { width: 1280, height: 900 } );
+			await page.goto(
+				`${ APP_PATH }?doc=${ docs.otroEnGestion }&vista=editar&bandeja=revisar`
+			);
+
+			await page.locator( 'button[data-motivo]' ).first().click();
+
+			const dialogo = page.getByRole( 'dialog' );
+			await expect( dialogo ).toBeVisible();
+
+			// A modal <dialog> is centred by the `margin: auto` of the browser,
+			// which the block layout of the page zeroes: without a rule of its
+			// own the dialog ends up jammed against the top edge, over the
+			// admin bar.
+			const caja = await dialogo.boundingBox();
+			expect( caja.y ).toBeGreaterThan( 60 );
+			const centro = caja.y + caja.height / 2;
+			expect( Math.abs( centro - 450 ) ).toBeLessThan( 40 );
+		} finally {
+			await context.close();
+		}
+	} );
+
+	test( 'en móvil las acciones no se pintan sobre la tarjeta de estado', async ( {
+		browser,
+		baseURL,
+	} ) => {
+		const { context, page } = await loginAs( browser, baseURL, GESTION_LOGIN );
+
+		try {
+			await page.setViewportSize( { width: 390, height: 780 } );
+			await page.goto(
+				`${ APP_PATH }?doc=${ docs.otroEnGestion }&vista=editar&bandeja=revisar`
+			);
+
+			const estado = page.locator( '.dcta-editor-lado .dcta-card' ).first();
+			const acciones = page.locator( '.dcta-editor-acciones' );
+			await expect( acciones ).toBeVisible();
+
+			// Here the rail is the last item of a single column, below the whole
+			// form: a card stuck to `bottom: 0` never reaches the bottom of the
+			// window and clamps over the «Estado» card instead.
+			await expect( acciones ).toHaveCSS( 'position', 'static' );
+
+			const alto = await page.evaluate(
+				() => document.documentElement.scrollHeight
+			);
+			for ( const destino of [ 0, Math.round( alto / 2 ), alto ] ) {
+				await page.evaluate( ( y ) => window.scrollTo( 0, y ), destino );
+				const arriba = await estado.boundingBox();
+				const abajo = await acciones.boundingBox();
+				expect(
+					arriba.y + arriba.height,
+					`las tarjetas se solapan con scrollY=${ destino }`
+				).toBeLessThanOrEqual( abajo.y );
+			}
 		} finally {
 			await context.close();
 		}

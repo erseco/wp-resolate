@@ -538,7 +538,11 @@ class Documentate_App_Lista {
 			$html .= self::render_fila( $post, $bandeja );
 		}
 
-		$html .= '<div class="dcta-tabla-pie" data-dcta-pie data-dcta-pie-total="' . esc_attr( (string) count( $query->posts ) ) . '">'
+		// The total, not the drawn rows: the quick filter only sees one page,
+		// and without it its counts would claim the tray holds just those. The
+		// live region is what announces every rewrite of this footer, which is
+		// the only signal a screen reader gets while filtering.
+		$html .= '<div class="dcta-tabla-pie" role="status" data-dcta-pie data-dcta-pie-total="' . esc_attr( (string) (int) $query->found_posts ) . '">'
 			. esc_html( self::texto_pie( (int) $query->found_posts, count( $query->posts ) ) ) . '</div>';
 
 		return $html . '</div>';
@@ -594,7 +598,7 @@ class Documentate_App_Lista {
 		$detalle_url = self::url_detalle( $post->ID, $bandeja );
 
 		$html = '<div class="dcta-fila' . ( '' !== $devuelto ? ' dcta-fila-devuelta' : '' ) . '"'
-			. ' data-dcta-texto="' . esc_attr( self::texto_buscable( $post, $tipo, $chip['texto'] ) ) . '">';
+			. ' data-dcta-texto="' . esc_attr( self::texto_buscable( $post, $tipo, $chip['texto'], $devuelto, $bandeja ) ) . '">';
 		$html .= '<div class="dcta-doc-nombre">'
 			. '<a href="' . esc_url( $detalle_url ) . '">' . esc_html( Documentate_Documento::nombre_corto( $post ) ) . '</a>'
 			. self::icono_adjunto( $post )
@@ -612,21 +616,33 @@ class Documentate_App_Lista {
 	/**
 	 * Everything the quick filter matches a row against.
 	 *
-	 * The internal name, the official title, the type and the status, so
-	 * typing "gasto", "devuelto" or "RES" all narrow the list.
+	 * Whatever the row shows, so typing "gasto", "RES" or a status all narrow
+	 * the list. The status chip alone is not enough for "devuelto": a document
+	 * returned to gestión documental stays in `en_gestion` and its chip says so,
+	 * while the row does carry the "Devuelto por …" line — which is added here
+	 * with its reason. The área and the person are only drawn outside "mis
+	 * documentos", and only there do they join the text.
 	 *
-	 * @param WP_Post      $post   Document.
-	 * @param WP_Term|null $tipo   Document type.
-	 * @param string       $estado Status label.
+	 * @param WP_Post      $post     Document.
+	 * @param WP_Term|null $tipo     Document type.
+	 * @param string       $estado   Status label.
+	 * @param string       $devuelto The "Devuelto por … : «…»" line, empty when there is none.
+	 * @param string       $bandeja  Tray key.
 	 * @return string
 	 */
-	private static function texto_buscable( $post, $tipo, $estado ) {
+	private static function texto_buscable( $post, $tipo, $estado, $devuelto = '', $bandeja = 'mis' ) {
 		$partes = array(
 			Documentate_Documento::nombre_corto( $post ),
 			wp_strip_all_tags( (string) $post->post_title ),
 			$tipo ? $tipo->name : '',
 			$estado,
+			$devuelto,
 		);
+
+		if ( 'mis' !== $bandeja ) {
+			$partes[] = Documentate_Documento::area( $post );
+			$partes[] = Documentate_Documento::persona( $post );
+		}
 
 		return trim( implode( ' ', array_filter( $partes ) ) );
 	}

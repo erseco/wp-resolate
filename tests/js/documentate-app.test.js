@@ -334,6 +334,55 @@ describe( 'document file', () => {
 	} );
 } );
 
+/**
+ * Drop a file on the zone, with the given behaviour for `input.files`.
+ *
+ * @param {string}  nombre  File name.
+ * @param {boolean} acepta  Whether the browser lets the assignment through.
+ */
+function soltarFichero( nombre, acepta ) {
+	const entrada = document.getElementById( 'documentate-app-adjunto' );
+	const ficheros = [ { name: nombre, size: 1024 } ];
+	Object.defineProperty( entrada, 'files', {
+		configurable: true,
+		get: () => ( acepta ? ficheros : [] ),
+		set: () => {
+			if ( ! acepta ) {
+				// Safari and friends refuse the assignment outright.
+				throw new TypeError( 'files is read-only' );
+			}
+		},
+	} );
+
+	const evento = new window.Event( 'drop', { bubbles: true, cancelable: true } );
+	evento.dataTransfer = { files: ficheros };
+	document.querySelector( '.dcta-dropzone' ).dispatchEvent( evento );
+}
+
+describe( 'dropped file', () => {
+	beforeEach( () => {
+		montarEditor( '' );
+	} );
+
+	it( 'announces the file the input accepted', () => {
+		soltarFichero( 'resolucion.pdf', true );
+
+		const fila = document.querySelector( '.dcta-dropzone-elegido' );
+		expect( fila.hidden ).toBe( false );
+		expect( fila.textContent ).toBe( 'resolucion.pdf · se subirá al guardar' );
+	} );
+
+	it( 'says nothing when the browser refuses to take the file', () => {
+		soltarFichero( 'resolucion.pdf', false );
+
+		// Nothing is attached to the input, so the plain field is still the
+		// only way to send it: promising it would be posted is a lie.
+		const fila = document.querySelector( '.dcta-dropzone-elegido' );
+		expect( fila.hidden ).toBe( true );
+		expect( fila.textContent ).toBe( '' );
+	} );
+} );
+
 describe( 'new document form', () => {
 	beforeEach( () => {
 		document.body.innerHTML = NUEVO;
@@ -467,5 +516,38 @@ describe( 'quick filter', () => {
 	it( 'does nothing on a page without a tray', () => {
 		document.body.innerHTML = '<div class="dcta-hoja"></div>';
 		expect( () => cargar() ).not.toThrow();
+	} );
+
+	it( 'keeps the truncation warning of a capped tray in every count', () => {
+		document.body.innerHTML = LISTA.replace(
+			'data-dcta-pie-total="3">3 documentos',
+			'data-dcta-pie-total="500">mostrando 3 de 500 documentos · afina con los filtros'
+		);
+		cargar();
+
+		filtrar( 'jornadas' );
+		expect( document.querySelector( '[data-dcta-pie]' ).textContent ).toBe(
+			'1 de 3 documentos mostrados de 500 · afina con los filtros'
+		);
+
+		// The filter never looked at the other 497: saying nothing matches
+		// would be false.
+		filtrar( 'nada de nada' );
+		expect( document.querySelector( '.dcta-vacio' ).hidden ).toBe( false );
+		expect( document.querySelector( '.dcta-vacio' ).textContent ).toBe(
+			'Ningún documento de los 3 que hay en pantalla coincide con el filtro · la bandeja tiene 500, afina con los filtros.'
+		);
+	} );
+
+	it( 'is set up once however often the module runs', () => {
+		montarLista();
+		cargar();
+		cargar();
+
+		filtrar( 'nada de nada' );
+		expect( document.querySelectorAll( '.dcta-vacio' ) ).toHaveLength( 1 );
+		expect( document.querySelector( '[data-dcta-pie]' ).textContent ).toBe(
+			'0 de 3 documentos'
+		);
 	} );
 } );

@@ -143,9 +143,11 @@ because AutoScript requires user activation.
 
 ### Passive indicator
 
-A `● Cambios sin guardar` line inside the actions meta box, fed by
-`subscribe()`, shown only while dirty. It is a `role="status"` live region so the
-change is announced once rather than on every keystroke.
+A `● Cambios sin guardar` line inside the actions block — the wp-admin meta box
+and the export block of the front-end application alike — fed by `subscribe()`
+and shown only while dirty. `subscribe()` is only wired when the line is on the
+page, so a view that leaves it out never warns at all. It is a `role="status"`
+live region so the change is announced once rather than on every keystroke.
 
 ## Files
 

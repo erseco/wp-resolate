@@ -388,6 +388,36 @@ describe( 'the locked state', () => {
 		).toBe( 'true' );
 	} );
 
+	it( 'disables the internal name and the área checkboxes too', async () => {
+		// Both sit outside every meta box the first selectors covered: the
+		// name after the title, the área in the core taxonomy box — and both
+		// stayed writable on a screen that says the document cannot be edited.
+		document.body.innerHTML =
+			pantalla( '' ) +
+			`<div class="documentate-nombre-interno">
+				<span class="documentate-nombre-interno__prefijo">RES</span>
+				<input type="text" id="documentate_nombre_interno" name="documentate_nombre_interno">
+			</div>
+			<div id="categorydiv">
+				<ul id="categorychecklist">
+					<li><label><input value="7" type="checkbox" name="post_category[]"> Área</label></li>
+				</ul>
+			</div>`;
+		await arrancar( {
+			postStatus: 'publish',
+			isAdmin: true,
+			isPublished: true,
+			isLocked: true,
+		} );
+
+		expect(
+			document.getElementById( 'documentate_nombre_interno' ).disabled
+		).toBe( true );
+		expect(
+			document.querySelector( '#categorychecklist input' ).disabled
+		).toBe( true );
+	} );
+
 	it( 'locks again the fields a meta box reload brought back', async () => {
 		document.body.innerHTML =
 			pantalla( '' ) + '<div class="documentate-sections-container"></div>';

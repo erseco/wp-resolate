@@ -27,10 +27,12 @@
 	--dcta-ancho: 1128px;
 }
 
-/* `hidden` has to win over the layout rules below. A row is a grid and a card
-   is a flex box, and a class selector beats the browser's own [hidden] rule,
-   so anything the application hides — filtered rows, the empty message, the
-   drop zone before JavaScript takes it over — stayed on screen. */
+/* `hidden` has to win over the layout rules below: a class selector beats the
+   browser's own [hidden] rule, so every element this stylesheet gives a
+   `display` to stayed on screen while hidden. That is the case of the rows the
+   quick filter hides (`.dcta-fila` is a grid), of the prefix mark of the
+   internal name (`.dcta-prefijo` is an inline-flex box) and of the return
+   destinations of the dialog (a flex column). */
 body.documentate-app [hidden] {
 	display: none !important;
 }
@@ -1386,6 +1388,18 @@ body.documentate-app .wp-block-post-content {
 
 /* --- dialogs ---------------------------------------------------------------- */
 
+/*
+ * The dialogs are printed as direct children of the block wrapper of the page,
+ * and the layout CSS the theme emits for it zeroes the block margins of every
+ * child — including the `margin: auto` a modal dialog is centred by, which
+ * left both of them pinned to the top edge. The body prefix is there to win
+ * over that rule.
+ */
+
+body.documentate-app .dcta-dialogo {
+	margin: auto;
+}
+
 .dcta-dialogo {
 	width: min(520px, calc(100vw - 32px));
 	padding: 22px 24px;
@@ -1423,16 +1437,6 @@ body.documentate-app .wp-block-post-content {
 	flex-direction: column;
 	gap: 6px;
 	font-size: 14px;
-}
-
-/*
- * The destination radios only exist for administración on a document that
- * went through gestión; the script hides the block with the `hidden`
- * attribute, which an author `display: flex` would otherwise override.
- */
-
-.dcta-dialogo-destinos[hidden] {
-	display: none;
 }
 
 .dcta-dialogo textarea {
@@ -1493,12 +1497,16 @@ body.documentate-app .wp-block-post-content {
 	flex-wrap: wrap;
 }
 
-/* wp-admin button styles are not loaded on the front end. */
+/*
+ * wp-admin button styles are not loaded on the front end, and the two modals
+ * of the export flow are appended to <body> instead of to the sheet
+ * (documentate-unsaved-changes.js and documentate-actions.js), so they need
+ * the same treatment as the export block itself.
+ */
 
-.dcta-exportar .button {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+.dcta-exportar .button,
+body.documentate-app .documentate-unsaved-modal .button,
+body.documentate-app .documentate-loading-modal .button {
 	gap: 6px;
 	min-height: 40px;
 	padding: 0 16px;
@@ -1513,32 +1521,77 @@ body.documentate-app .wp-block-post-content {
 	cursor: pointer;
 }
 
-.dcta-exportar .button:hover {
+/*
+ * The box is only laid out where the control is meant to be on screen: the
+ * loading modal runs its own `display` state machine (the close button waits
+ * for an error, the preview link for a blocked pop-up), and an author display
+ * would win over it.
+ */
+
+.dcta-exportar .button,
+body.documentate-app .documentate-unsaved-modal .button,
+body.documentate-app .documentate-loading-modal__open {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.dcta-exportar .button:hover,
+body.documentate-app .documentate-unsaved-modal .button:hover,
+body.documentate-app .documentate-loading-modal .button:hover {
 	border-color: var(--dcta-pri);
 	text-decoration: none;
 }
 
-.dcta-exportar .button-primary {
+.dcta-exportar .button-primary,
+body.documentate-app .documentate-unsaved-modal .button-primary,
+body.documentate-app .documentate-loading-modal .button-primary {
 	border-color: var(--dcta-pri);
 	background: var(--dcta-pri);
 	color: #fff;
 }
 
-.dcta-exportar .button-small {
+.dcta-exportar .button-small,
+body.documentate-app .documentate-unsaved-modal .button-small,
+body.documentate-app .documentate-loading-modal .button-small {
 	min-height: 34px;
 	padding: 0 12px;
 	font-size: 12.5px;
 }
 
-.dcta-exportar .button[disabled] {
+.dcta-exportar .button[disabled],
+body.documentate-app .documentate-unsaved-modal .button[disabled],
+body.documentate-app .documentate-loading-modal .button[disabled] {
 	opacity: .55;
 	cursor: not-allowed;
 }
 
-.dcta-exportar .dashicons {
+.dcta-exportar .dashicons,
+body.documentate-app .documentate-unsaved-modal .dashicons,
+body.documentate-app .documentate-loading-modal .dashicons {
 	width: 17px;
 	height: 17px;
 	font-size: 17px;
+}
+
+/* The «seguir sin guardar» escape of the modal is a text button, not a pill. */
+
+body.documentate-app .documentate-unsaved-modal .button-link {
+	border: 0;
+	background: none;
+	padding: 0 4px;
+	color: var(--dcta-texto-2);
+	font: inherit;
+	font-size: 13.5px;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+/* The indicator the unsaved-changes guard drives, inside the export block. */
+
+.dcta-exportar .documentate-unsaved-indicator {
+	border-radius: 8px;
+	font-size: 12.5px;
 }
 
 body.documentate-app .documentate-loading-modal__content {
@@ -1603,11 +1656,14 @@ body.documentate-app .documentate-loading-modal__content {
 		overflow-x: auto;
 	}
 
+	/*
+	 * The rail is a single-column grid item below the whole form here, so a
+	 * sticky card could never act as a bottom bar: `bottom: 0` only clamped
+	 * it to the top of the rail and painted it over the «Estado» card above.
+	 * It stays an ordinary card, raised a little.
+	 */
+
 	.dcta-editor-acciones {
-		position: sticky;
-		bottom: 0;
-		z-index: 5;
-		border-radius: var(--dcta-r) var(--dcta-r) 0 0;
 		box-shadow: var(--dcta-e2);
 	}
 

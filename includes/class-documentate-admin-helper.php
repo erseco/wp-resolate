@@ -756,8 +756,9 @@ class Documentate_Admin_Helper {
 	/**
 	 * Render the export controls of a document outside the metabox.
 	 *
-	 * Same buttons as the metabox minus the "unsaved changes" indicator (the
-	 * application shows its own), wrapped in the anchor lists link to.
+	 * Same controls as the metabox — the "unsaved changes" indicator included,
+	 * because documentate-unsaved-changes.js only subscribes to the dirty state
+	 * when it finds one — wrapped in the anchor lists link to.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return void
@@ -770,6 +771,7 @@ class Documentate_Admin_Helper {
 		$state = $this->build_actions_state( $post->ID );
 
 		echo '<div id="exportar" class="documentate-actions dcta-exportar">';
+		$this->render_unsaved_indicator();
 		$this->render_primary_actions( $state );
 		$this->render_secondary_actions( $state );
 		echo '</div>';

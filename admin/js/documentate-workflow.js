@@ -44,6 +44,11 @@
 			'#postcustom input',
 			'#postcustom textarea',
 			'#tagsdiv-documentate_doc_type input',
+			// The internal name sits after the title, outside every meta box,
+			// and the área is a core taxonomy box core saves by itself: both
+			// stayed writable on a screen that says the document is locked.
+			'.documentate-nombre-interno input',
+			'#categorychecklist input',
 		],
 
 		/**
