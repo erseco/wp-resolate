@@ -93,6 +93,23 @@ function conBloqueo( callback ) {
  * @param {string} cmd WP-CLI command (without the leading `wp`).
  * @return {string} Trimmed stdout.
  */
+/**
+ * Run a WP-CLI command and swallow a failure.
+ *
+ * For clean-up, where the thing being removed may already be gone and the
+ * report is more useful without the noise.
+ *
+ * @param {string} cmd WP-CLI command (without the leading `wp`).
+ * @return {string} Trimmed stdout, or an empty string when the call failed.
+ */
+function runWpCmdSafe( cmd ) {
+	try {
+		return runWpCmd( cmd );
+	} catch ( error ) {
+		return '';
+	}
+}
+
 function runWpCmd( cmd ) {
 	try {
 		return conBloqueo( () =>
@@ -443,6 +460,7 @@ module.exports = {
 	PASSWORD,
 	PDF_FIXTURE,
 	runWpCmd,
+	runWpCmdSafe,
 	loginAs,
 	crearEscenario,
 	limpiarEscenario,

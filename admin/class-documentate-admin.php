@@ -685,9 +685,13 @@ class Documentate_Admin {
 			$init['paste_remove_styles'] = true;
 			$init['paste_remove_styles_if_webkit'] = true;
 			$init['paste_strip_class_attributes'] = 'all';
-			// Allow desired tags; preserve style/align on p, td, th for user-set formatting (e.g. text-align: justify).
-			$init['valid_elements'] = 'a[href|title|target],strong/b,em/i,u,p[style|class|align],br,ul,ol,li,h1,h2,h3,h4,h5,h6,blockquote,code,pre,table[border|cellpadding|cellspacing|style|class|align],tr,td[colspan|rowspan|style|class|align],th[colspan|rowspan|style|class|align]';
-			$init['invalid_elements'] = 'span,button,form,select,input,textarea,div,iframe,embed,object,label,font,img,video,audio,canvas,svg,script,style,noscript,map,area,applet';
+			// The lists live with the editor that uses them: this filter runs
+			// after wp_editor() has passed its own settings and would silently
+			// win, so a second copy here meant the editor accepted table
+			// sections that TinyMCE then threw away (thead, tbody, tfoot).
+			$config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
+			$init['valid_elements'] = $config['valid_elements'];
+			$init['invalid_elements'] = $config['invalid_elements'];
 		}
 		return $init;
 	}

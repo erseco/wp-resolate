@@ -155,6 +155,15 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 		$this->assertTrue( $init['table_advtab'] );
 		$this->assertTrue( $init['paste_remove_styles'] );
 		$this->assertStringContainsString( 'strong/b', $init['valid_elements'] );
+		// One list, not two: the filter runs after wp_editor() has passed the
+		// editor its own settings, so a second copy here would quietly win and
+		// TinyMCE would drop the table sections the editor had just accepted.
+		$config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
+		$this->assertSame( $config['valid_elements'], $init['valid_elements'] );
+		$this->assertSame( $config['invalid_elements'], $init['invalid_elements'] );
+		foreach ( array( 'thead', 'tbody', 'tfoot' ) as $seccion ) {
+			$this->assertStringContainsString( $seccion, $init['valid_elements'] );
+		}
 		$this->assertStringContainsString( 'script', $init['invalid_elements'] );
 		$this->assertStringNotContainsString( 'iframe|', $init['valid_elements'] );
 	}

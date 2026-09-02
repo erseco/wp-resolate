@@ -5,10 +5,19 @@
  * WordPress/Gutenberg E2E best practices.
  */
 const { test, expect } = require( '../fixtures' );
+const { runWpCmdSafe } = require( '../fixtures/site.js' );
 
 test.describe( 'Settings Page', () => {
 	// Settings modify shared state — run serially to avoid conflicts with parallel workers.
 	test.describe.configure( { mode: 'serial' } );
+
+	// These tests write the plugin settings of the whole site. Leaving a
+	// made-up Collabora URL behind makes the export buttons of every other
+	// spec believe a converter is reachable, so the option goes back to what
+	// it was; an empty URL means "use the default the plugin ships with".
+	test.afterAll( async () => {
+		runWpCmdSafe( 'option patch update documentate_settings collabora_base_url ""' );
+	} );
 
 	test( 'can navigate to settings page', async ( { settingsPage } ) => {
 		await settingsPage.navigate();

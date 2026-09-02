@@ -179,26 +179,29 @@ test.describe( 'Document Fields', () => {
 		await documentEditor.navigateToEdit( postId );
 
 		// Look for an "Add" button for repeater fields
-		const addButton = page.getByRole( 'button', { name: /add|agregar/i } ).first();
+		// The repeater's own button, not whatever else the screen calls "add":
+		// with WordPress core in English, "Add Media" matched first and the
+		// test clicked it five times.
+		const addButton = page.locator( '.documentate-array-add, .documentate-repeater-add' ).first();
 
 		if ( await addButton.count() > 0 && await addButton.isVisible() ) {
 			// Count items before
 			const itemsBefore = await page.locator(
-				'.documentate-repeater-item, .repeater-item'
+				'.documentate-array-item'
 			).count();
 
 			// Click add
 			await addButton.click();
 
 			// Wait for new item to appear
-			await page.locator( '.documentate-repeater-item, .repeater-item' )
+			await page.locator( '.documentate-array-item' )
 				.nth( itemsBefore )
 				.waitFor( { state: 'visible', timeout: 3000 } )
 				.catch( () => {} );
 
 			// Count items after
 			const itemsAfter = await page.locator(
-				'.documentate-repeater-item, .repeater-item'
+				'.documentate-array-item'
 			).count();
 
 			expect( itemsAfter ).toBeGreaterThanOrEqual( itemsBefore );
@@ -223,34 +226,24 @@ test.describe( 'Document Fields', () => {
 
 		await documentEditor.navigateToEdit( postId );
 
-		// Look for remove button on repeater items
-		const removeButton = page.getByRole( 'button', { name: /remove|eliminar/i } ).first();
-
-		if ( await removeButton.count() > 0 && await removeButton.isVisible() ) {
-			const itemsBefore = await page.locator(
-				'.documentate-repeater-item, .repeater-item'
-			).count();
-
-			if ( itemsBefore > 0 ) {
-				await removeButton.click();
-
-				// Wait for item count to decrease
-				await page.waitForFunction(
-					( expected ) => {
-						const items = document.querySelectorAll( '.documentate-repeater-item, .repeater-item' );
-						return items.length < expected;
-					},
-					itemsBefore,
-					{ timeout: 3000 }
-				).catch( () => {} );
-
-				const itemsAfter = await page.locator(
-					'.documentate-repeater-item, .repeater-item'
-				).count();
-
-				expect( itemsAfter ).toBeLessThan( itemsBefore );
-			}
+		// One repeater at a time: a type may declare several, and the editor
+		// keeps every repeater with at least one row, so removing the only row
+		// of one field immediately puts an empty one back.
+		const campo = page.locator( '.documentate-array-field' ).first();
+		if ( await campo.count() === 0 ) {
+			test.skip();
+			return;
 		}
+
+		const filas = campo.locator( '.documentate-array-items > .documentate-array-item' );
+		const antes = await filas.count();
+
+		// Add a row first, so removing one leaves the field with something.
+		await campo.locator( '.documentate-array-add' ).first().click();
+		await expect( filas ).toHaveCount( antes + 1 );
+
+		await filas.last().locator( '.documentate-array-remove' ).first().click();
+		await expect( filas ).toHaveCount( antes );
 	} );
 
 	test( 'field values persist after save and reload', async ( {
@@ -313,14 +306,17 @@ test.describe( 'Document Fields', () => {
 
 		await documentEditor.navigateToEdit( postId );
 
-		const addButton = page.getByRole( 'button', { name: /add|agregar/i } ).first();
+		// The repeater's own button, not whatever else the screen calls "add":
+		// with WordPress core in English, "Add Media" matched first and the
+		// test clicked it five times.
+		const addButton = page.locator( '.documentate-array-add, .documentate-repeater-add' ).first();
 
 		if ( await addButton.count() > 0 && await addButton.isVisible() ) {
 			// Try to add items up to a reasonable number
 			for ( let i = 0; i < 5; i++ ) {
 				if ( await addButton.isEnabled() ) {
 					const countBefore = await page.locator(
-						'.documentate-repeater-item, .repeater-item'
+						'.documentate-array-item'
 					).count();
 
 					await addButton.click();
@@ -328,7 +324,7 @@ test.describe( 'Document Fields', () => {
 					// Wait for item count to change
 					await page.waitForFunction(
 						( expected ) => {
-							const items = document.querySelectorAll( '.documentate-repeater-item, .repeater-item' );
+							const items = document.querySelectorAll( '.documentate-array-item' );
 							return items.length > expected;
 						},
 						countBefore,
@@ -339,7 +335,7 @@ test.describe( 'Document Fields', () => {
 
 			// Verify items were added
 			const itemCount = await page.locator(
-				'.documentate-repeater-item, .repeater-item'
+				'.documentate-array-item'
 			).count();
 
 			expect( itemCount ).toBeGreaterThan( 0 );
