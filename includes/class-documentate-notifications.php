@@ -91,6 +91,13 @@ class Documentate_Notifications {
 			return;
 		}
 
+		// Demo seeding replays a document's whole history through real status
+		// changes; this filter lets it suspend the notifier entirely rather than
+		// relying on wp_mail() being short-circuited after the fact.
+		if ( apply_filters( 'documentate_suspend_notifications', false ) ) {
+			return;
+		}
+
 		$author_id = (int) $post->post_author;
 		$actor_id = get_current_user_id();
 

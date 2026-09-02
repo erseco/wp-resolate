@@ -460,181 +460,6 @@ msgstr "Error en la conversión."
 msgid "Error"
 msgstr "Error"
 
-msgid "Document"
-msgstr "Documento"
-
-msgid "This document does not exist or is outside your scope."
-msgstr "Este documento no existe o está fuera de tu ámbito."
-
-#. translators: 1: document type name, 2: last modified date
-#, php-format
-msgid "%1$s · updated on %2$s"
-msgstr "%1$s · actualizado el %2$s"
-
-msgid "Sent for review. An administrator will approve it or return it to you."
-msgstr "Enviado a revisión. Una persona administradora lo aprobará o te lo devolverá."
-
-msgid "This document has no fields yet."
-msgstr "Este documento aún no tiene campos."
-
-#. translators: %d: number of rows in a repeating field
-#, php-format
-msgid "%d item"
-msgid_plural "%d items"
-msgstr[0] "%d elemento"
-msgstr[1] "%d elementos"
-
-msgid "Edit"
-msgstr "Editar"
-
-msgid "Back to the list"
-msgstr "Volver a la lista"
-
-msgid "Open in wp-admin"
-msgstr "Abrir en wp-admin"
-
-msgid "This document is locked in its current status and cannot be edited."
-msgstr "Este documento está bloqueado en su estado actual y no se puede editar."
-
-msgid "View the document"
-msgstr "Ver el documento"
-
-#. translators: %s: document type name
-#, php-format
-msgid "%s · fill in the fields and save, or send it for review when it is ready."
-msgstr "%s · rellena los campos y guarda, o envíalo a revisión cuando esté listo."
-
-msgid "Document name"
-msgstr "Nombre del documento"
-
-msgid "Changes saved."
-msgstr "Cambios guardados."
-
-msgid "The document needs a name."
-msgstr "El documento necesita un nombre."
-
-msgid "The document could not be saved. Try again."
-msgstr "No se ha podido guardar el documento. Inténtalo de nuevo."
-
-msgid "Type"
-msgstr "Tipo"
-
-msgid "Updated"
-msgstr "Actualizado"
-
-msgid "Save draft"
-msgstr "Guardar borrador"
-
-msgid "Send for review"
-msgstr "Enviar a revisión"
-
-msgid "Once sent, only administrators can change it."
-msgstr "Una vez enviado, solo las personas administradoras podrán cambiarlo."
-
-msgid "Save changes"
-msgstr "Guardar cambios"
-
-msgid "Draft"
-msgstr "Borrador"
-
-msgid "In Review"
-msgstr "En revisión"
-
-msgid "Approved"
-msgstr "Aprobado"
-
-msgid "Archived"
-msgstr "Archivado"
-
-msgid "All documents"
-msgstr "Todos los documentos"
-
-msgid "My documents"
-msgstr "Mis documentos"
-
-msgid "Every area, every status."
-msgstr "Todas las áreas, todos los estados."
-
-msgid "The documents of your area, with their status."
-msgstr "Los documentos de tu área, con su estado."
-
-msgid "Your user has no scope category assigned. Contact an administrator."
-msgstr "Tu usuario no tiene una categoría de ámbito asignada. Contacta con una persona administradora."
-
-msgid "All"
-msgstr "Todos"
-
-msgid "Status"
-msgstr "Estado"
-
-msgid "No documents yet. Create the first one from “New document”."
-msgstr "Aún no hay documentos. Crea el primero desde «Nuevo documento»."
-
-msgid "Continue"
-msgstr "Continuar"
-
-msgid "View"
-msgstr "Ver"
-
-msgid "Administration"
-msgstr "Administración"
-
-#. translators: %s: scope category name
-#, php-format
-msgid "Area · %s"
-msgstr "Área · %s"
-
-msgid "Editing"
-msgstr "Edición"
-
-msgid "New document"
-msgstr "Nuevo documento"
-
-msgid "Sections"
-msgstr "Secciones"
-
-msgid "Home"
-msgstr "Inicio"
-
-msgid "Open the Documentate application"
-msgstr "Abrir la aplicación Documentate"
-
-msgid "Security check failed."
-msgstr "La comprobación de seguridad ha fallado."
-
-msgid "Sign in to work with your documents."
-msgstr "Inicia sesión para trabajar con tus documentos."
-
-msgid "Sign in"
-msgstr "Iniciar sesión"
-
-msgid "Your user cannot edit documents. Contact an administrator."
-msgstr "Tu usuario no puede editar documentos. Contacta con una persona administradora."
-
-msgid "Choose the type and give it a name; the type cannot be changed later."
-msgstr "Elige el tipo y ponle un nombre; el tipo no puede cambiarse después."
-
-msgid "The document could not be created. Check the name and the type."
-msgstr "No se pudo crear el documento. Revisa el nombre y el tipo."
-
-msgid "No document types defined. Create one in Document Types."
-msgstr "No hay tipos de documento definidos. Crea uno en Tipos de documento."
-
-msgid "Document type"
-msgstr "Tipo de documento"
-
-msgid "Select a type…"
-msgstr "Selecciona un tipo…"
-
-msgid "Short: it is what you will see in lists and searches."
-msgstr "Corto: es el que verás en las listas y el buscador."
-
-msgid "Create draft"
-msgstr "Crear borrador"
-
-msgid "Cancel"
-msgstr "Cancelar"
-
 msgid "Could not initialize the WordPress filesystem."
 msgstr "No se pudo inicializar el sistema de archivos de WordPress."
 
@@ -700,6 +525,12 @@ msgstr "Firmar y descargar"
 
 msgid "Editable download:"
 msgstr "Descarga editable:"
+
+msgid "Configure an ODT template in the document type."
+msgstr "Configura una plantilla ODT en el tipo de documento."
+
+msgid "Configure a DOCX template in the document type."
+msgstr "Configura una plantilla DOCX en el tipo de documento."
 
 msgid "Could not determine the generated file."
 msgstr "No se pudo determinar el archivo generado."
@@ -775,6 +606,9 @@ msgstr "Guardar y firmar"
 msgid "Use saved version"
 msgstr "Usar versión guardada"
 
+msgid "Cancel"
+msgstr "Cancelar"
+
 msgid "Saving changes..."
 msgstr "Guardando cambios..."
 
@@ -786,6 +620,9 @@ msgstr "Cambios guardados"
 
 msgid "Your changes were saved. Continue to generate the document."
 msgstr "Tus cambios se han guardado. Continúa para generar el documento."
+
+msgid "Sign and Download"
+msgstr "Firmar y descargar"
 
 msgid "Configure the Collabora Online service base URL in settings."
 msgstr "Configura la URL base del servicio Collabora Online en los ajustes."
@@ -977,73 +814,6 @@ msgstr "Descargando componentes de LibreOffice WASM. Esto puede tardar la primer
 msgid "Processing with LibreOffice WASM."
 msgstr "Procesando con LibreOffice WASM."
 
-msgid "Pendiente de revisión"
-msgstr "Pendiente de revisión"
-
-msgid "Documento enviado a revisión"
-msgstr "Documento enviado a revisión"
-
-msgid "Documento publicado"
-msgstr "Documento publicado"
-
-msgid "Documento devuelto a borrador"
-msgstr "Documento devuelto a borrador"
-
-msgid "Documento archivado"
-msgstr "Documento archivado"
-
-msgid "Documento enviado a la papelera"
-msgstr "Documento enviado a la papelera"
-
-msgid "Cambio de estado del documento"
-msgstr "Cambio de estado del documento"
-
-msgid "Borrador"
-msgstr "Borrador"
-
-msgid "Publicado"
-msgstr "Publicado"
-
-msgid "Archivado"
-msgstr "Archivado"
-
-msgid "Papelera"
-msgstr "Papelera"
-
-msgid "Borrador inicial"
-msgstr "Borrador inicial"
-
-msgid "Nuevo"
-msgstr "Nuevo"
-
-msgid "Sistema"
-msgstr "Sistema"
-
-#. translators: %s: document title
-#, php-format
-msgid "Documento: %s"
-msgstr "Documento: %s"
-
-#. translators: 1: previous status, 2: new status
-#, php-format
-msgid "Cambio de estado: %1$s → %2$s"
-msgstr "Cambio de estado: %1$s → %2$s"
-
-#. translators: %s: post status label
-#, php-format
-msgid "Estado: %s"
-msgstr "Estado: %s"
-
-#. translators: %s: name of the user who made the change
-#, php-format
-msgid "Realizado por: %s"
-msgstr "Realizado por: %s"
-
-#. translators: %s: edit URL of the document
-#, php-format
-msgid "Enlace al documento: %s"
-msgstr "Enlace al documento: %s"
-
 msgid "Cuando uno de mis documentos se envía a revisión."
 msgstr "Cuando uno de mis documentos se envía a revisión."
 
@@ -1151,144 +921,6 @@ msgstr "— Sin ámbito —"
 msgid "Documents in this category (and subcategories) will be visible to this user."
 msgstr "Los documentos en esta categoría (y subcategorías) serán visibles para este usuario."
 
-msgid "Document saved as draft. You must select a document type before publishing."
-msgstr "Documento guardado como borrador. Debes seleccionar un tipo de documento antes de publicar."
-
-msgid "Document set to pending review. Only administrators can publish documents."
-msgstr "Documento establecido como pendiente de revisión. Solo los administradores pueden publicar documentos."
-
-msgid "Published documents can only be modified by administrators."
-msgstr "Los documentos publicados solo pueden ser modificados por administradores."
-
-msgid "Documents pending review can only be modified by administrators."
-msgstr "Los documentos pendientes de revisión solo pueden ser modificados por administradores."
-
-msgid "Only published documents can be archived."
-msgstr "Solo se pueden archivar documentos publicados."
-
-msgid "Only administrators can archive documents."
-msgstr "Solo los administradores pueden archivar documentos."
-
-msgid "Archived documents can only be modified by administrators."
-msgstr "Los documentos archivados solo pueden ser modificados por administradores."
-
-msgctxt "post status"
-msgid "Archived"
-msgstr "Archivado"
-
-#. translators: %s: Number of archived documents
-#, php-format
-msgid "Archived <span class=\"count\">(%s)</span>"
-msgid_plural "Archived <span class=\"count\">(%s)</span>"
-msgstr[0] "Archivado <span class=\"count\">(%s)</span>"
-msgstr[1] "Archivados <span class=\"count\">(%s)</span>"
-
-msgid "Document Locked"
-msgstr "Documento bloqueado"
-
-msgid "This document is published and read-only. Only an administrator can unlock it by reverting to draft."
-msgstr "Este documento está publicado y es de solo lectura. Solo un administrador puede desbloquearlo revirtiendo a borrador."
-
-msgid "This document is archived and read-only. Only an administrator can unarchive it."
-msgstr "Este documento está archivado y es de solo lectura. Solo un administrador puede desarchivarlo."
-
-msgid "This document is pending review and read-only. An administrator will review it."
-msgstr "Este documento está pendiente de revisión y es de solo lectura. Un administrador lo revisará."
-
-msgid "Change status to Draft to enable editing."
-msgstr "Cambia el estado a Borrador para habilitar la edición."
-
-msgid "Unarchive to enable editing."
-msgstr "Desarchiva para habilitar la edición."
-
-msgid "Select a document type before publishing."
-msgstr "Selecciona un tipo de documento antes de publicar."
-
-msgid "Editors can only save as Draft or Pending Review."
-msgstr "Los editores solo pueden guardar como Borrador o Pendiente de revisión."
-
-msgid "Are you sure you want to send this document to review? Once submitted, you will not be able to edit it until an administrator returns it to draft."
-msgstr "¿Estás seguro de que quieres enviar este documento a revisión? Una vez enviado, no podrás editarlo hasta que un administrador lo devuelva a borrador."
-
-msgid "Document Management"
-msgstr "Gestión del documento"
-
-msgid "Save"
-msgstr "Guardar"
-
-msgid "Choose the type when creating the document. It cannot be changed later."
-msgstr "Elige el tipo al crear el documento. No se puede cambiar después."
-
-msgid "Selected type:"
-msgstr "Tipo seleccionado:"
-
-msgid "No document type selected. Must assign a type before publishing."
-msgstr "No hay tipo de documento seleccionado. Debes asignar un tipo antes de publicar."
-
-msgid "Document is read-only. Return to Review to enable editing."
-msgstr "El documento es de solo lectura. Devolver a revisión para habilitar la edición."
-
-msgid "Document is locked. Contact an administrator."
-msgstr "El documento está bloqueado. Contacta a un administrador."
-
-msgid "Document is archived and read-only. Unarchive to enable editing."
-msgstr "El documento está archivado y es de solo lectura. Desarchiva para habilitar la edición."
-
-msgid "Document is archived. Contact an administrator to unarchive."
-msgstr "El documento está archivado. Contacta a un administrador para desarchivarlo."
-
-msgid "Document is pending review. Approve or return to draft."
-msgstr "El documento está pendiente de revisión. Apruébelo o devuélvalo a borrador."
-
-msgid "Document is pending review. An administrator will review it."
-msgstr "El documento está pendiente de revisión. Un administrador lo revisará."
-
-msgid "Submit for Pending Review when ready. An administrator will publish."
-msgstr "Envía a Pendiente de revisión cuando esté listo. Un administrador lo publicará."
-
-msgid "Save Draft"
-msgstr "Guardar borrador"
-
-msgid "Send to Review"
-msgstr "Enviar a revisión"
-
-msgid "Document is pending review. No actions available."
-msgstr "El documento está pendiente de revisión. No hay acciones disponibles."
-
-msgid "Return to Draft"
-msgstr "Devolver a borrador"
-
-msgid "Save Review"
-msgstr "Guardar revisión"
-
-msgid "Approve & Publish"
-msgstr "Aprobar y publicar"
-
-msgid "Document is published and locked."
-msgstr "El documento está publicado y bloqueado."
-
-msgid "Return to Review"
-msgstr "Devolver a revisión"
-
-msgid "Document is archived and locked."
-msgstr "El documento está archivado y bloqueado."
-
-msgid "Move to Trash"
-msgstr "Mover a la papelera"
-
-msgid "You do not have permission to restore revisions for this document."
-msgstr "No tiene permiso para restaurar revisiones de este documento."
-
-msgid "Revision Restore Blocked"
-msgstr "Restauración de revisión bloqueada"
-
-#. translators: %d: Number of revisions
-#, php-format
-msgid "%d Revision"
-msgid_plural "%d Revisions"
-msgstr[0] "%d revisión"
-msgstr[1] "%d revisiones"
-
 msgid "Document Type"
 msgstr "Tipo de documento"
 
@@ -1301,6 +933,9 @@ msgstr "Todos los tipos de documento"
 msgid "All categories"
 msgstr "Todas las categorías"
 
+msgid "Archived"
+msgstr "Archivado"
+
 msgid "All authors"
 msgstr "Todos los autores"
 
@@ -1309,6 +944,18 @@ msgstr "Secciones del documento"
 
 msgid "Author"
 msgstr "Autor"
+
+msgid "No document types defined. Create one in Document Types."
+msgstr "No hay tipos de documento definidos. Crea uno en Tipos de documento."
+
+msgid "Choose the type when creating the document. It cannot be changed later."
+msgstr "Elige el tipo al crear el documento. No se puede cambiar después."
+
+msgid "Selected type:"
+msgstr "Tipo seleccionado:"
+
+msgid "Select a type…"
+msgstr "Selecciona un tipo…"
 
 msgid "Configure a document type with fields to edit its content."
 msgstr "Configura un tipo de documento con campos para editar su contenido."
@@ -1374,6 +1021,9 @@ msgstr "Lista separada por comas."
 
 msgid "Documents"
 msgstr "Documentos"
+
+msgid "Document"
+msgstr "Documento"
 
 msgid "Add New"
 msgstr "Añadir nuevo"

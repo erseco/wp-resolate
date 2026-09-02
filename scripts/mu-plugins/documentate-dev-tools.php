@@ -31,22 +31,22 @@ if ( ! function_exists( 'documentate_dev_demo_accounts' ) ) {
 			array(
 				'login' => 'admin',
 				'pass'  => 'password',
-				'label' => 'Administrador (todos los ámbitos)',
+				'label' => 'Administración (aprueba y publica)',
 			),
 			array(
 				'login' => 'editor1',
 				'pass'  => 'password',
-				'label' => 'Editor · Subdirección de Administración',
+				'label' => 'Gestión documental · Subdirección de Administración (revisa y completa)',
 			),
 			array(
 				'login' => 'author1',
 				'pass'  => 'password',
-				'label' => 'Autor · Departamento de Proyectos',
+				'label' => 'Área · Departamento de Proyectos (crea y envía)',
 			),
 			array(
 				'login' => 'subscriber1',
 				'pass'  => 'password',
-				'label' => 'Suscriptor · Departamento de Personal (sin acceso a la app)',
+				'label' => 'Suscriptor · sin acceso a la app',
 			),
 		);
 	}

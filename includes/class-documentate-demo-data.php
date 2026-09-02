@@ -520,6 +520,8 @@ class Documentate_Demo_Data {
 
 		self::assign_demo_document_metadata();
 
+		Documentate_Demo_App::seed();
+
 		delete_option( 'documentate_seed_demo_documents' );
 	}
 

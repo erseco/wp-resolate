@@ -60,3 +60,50 @@
 .documentate-sections input[data-calculado] {
 	background: #f6f7f7;
 }
+
+/* "Nombre interno" input under the title. */
+.documentate-nombre-interno {
+	margin: 8px 0 0;
+}
+
+.documentate-nombre-interno__grupo {
+	display: flex;
+	align-items: stretch;
+}
+
+.documentate-nombre-interno__prefijo {
+	display: flex;
+	align-items: center;
+	padding: 0 10px;
+	border: 1px solid #8c8f94;
+	border-right: none;
+	border-radius: 4px 0 0 4px;
+	background: #f0f0f1;
+	color: #50575e;
+	font-weight: 600;
+}
+
+.documentate-nombre-interno__grupo .documentate-nombre-interno__prefijo + input {
+	border-radius: 0 4px 4px 0;
+}
+
+/* Read-only activity list (side metabox). */
+.documentate-actividad-lista {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.documentate-actividad-lista__item {
+	padding: 6px 0;
+	border-top: 1px solid #f0f0f1;
+	font-size: 13px;
+}
+
+.documentate-actividad-lista__item:first-child {
+	border-top: none;
+}
+
+.documentate-actividad-lista__item--comentario {
+	background: #f6f7f7;
+}

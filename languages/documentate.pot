@@ -459,181 +459,6 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
-msgid "Document"
-msgstr ""
-
-msgid "This document does not exist or is outside your scope."
-msgstr ""
-
-#. translators: 1: document type name, 2: last modified date
-#, php-format
-msgid "%1$s · updated on %2$s"
-msgstr ""
-
-msgid "Sent for review. An administrator will approve it or return it to you."
-msgstr ""
-
-msgid "This document has no fields yet."
-msgstr ""
-
-#. translators: %d: number of rows in a repeating field
-#, php-format
-msgid "%d item"
-msgid_plural "%d items"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Edit"
-msgstr ""
-
-msgid "Back to the list"
-msgstr ""
-
-msgid "Open in wp-admin"
-msgstr ""
-
-msgid "This document is locked in its current status and cannot be edited."
-msgstr ""
-
-msgid "View the document"
-msgstr ""
-
-#. translators: %s: document type name
-#, php-format
-msgid "%s · fill in the fields and save, or send it for review when it is ready."
-msgstr ""
-
-msgid "Document name"
-msgstr ""
-
-msgid "Changes saved."
-msgstr ""
-
-msgid "The document needs a name."
-msgstr ""
-
-msgid "The document could not be saved. Try again."
-msgstr ""
-
-msgid "Type"
-msgstr ""
-
-msgid "Updated"
-msgstr ""
-
-msgid "Save draft"
-msgstr ""
-
-msgid "Send for review"
-msgstr ""
-
-msgid "Once sent, only administrators can change it."
-msgstr ""
-
-msgid "Save changes"
-msgstr ""
-
-msgid "Draft"
-msgstr ""
-
-msgid "In Review"
-msgstr ""
-
-msgid "Approved"
-msgstr ""
-
-msgid "Archived"
-msgstr ""
-
-msgid "All documents"
-msgstr ""
-
-msgid "My documents"
-msgstr ""
-
-msgid "Every area, every status."
-msgstr ""
-
-msgid "The documents of your area, with their status."
-msgstr ""
-
-msgid "Your user has no scope category assigned. Contact an administrator."
-msgstr ""
-
-msgid "All"
-msgstr ""
-
-msgid "Status"
-msgstr ""
-
-msgid "No documents yet. Create the first one from “New document”."
-msgstr ""
-
-msgid "Continue"
-msgstr ""
-
-msgid "View"
-msgstr ""
-
-msgid "Administration"
-msgstr ""
-
-#. translators: %s: scope category name
-#, php-format
-msgid "Area · %s"
-msgstr ""
-
-msgid "Editing"
-msgstr ""
-
-msgid "New document"
-msgstr ""
-
-msgid "Sections"
-msgstr ""
-
-msgid "Home"
-msgstr ""
-
-msgid "Open the Documentate application"
-msgstr ""
-
-msgid "Security check failed."
-msgstr ""
-
-msgid "Sign in to work with your documents."
-msgstr ""
-
-msgid "Sign in"
-msgstr ""
-
-msgid "Your user cannot edit documents. Contact an administrator."
-msgstr ""
-
-msgid "Choose the type and give it a name; the type cannot be changed later."
-msgstr ""
-
-msgid "The document could not be created. Check the name and the type."
-msgstr ""
-
-msgid "No document types defined. Create one in Document Types."
-msgstr ""
-
-msgid "Document type"
-msgstr ""
-
-msgid "Select a type…"
-msgstr ""
-
-msgid "Short: it is what you will see in lists and searches."
-msgstr ""
-
-msgid "Create draft"
-msgstr ""
-
-msgid "Cancel"
-msgstr ""
-
 msgid "Could not initialize the WordPress filesystem."
 msgstr ""
 
@@ -698,6 +523,12 @@ msgid "Sign and Download"
 msgstr ""
 
 msgid "Editable download:"
+msgstr ""
+
+msgid "Configure an ODT template in the document type."
+msgstr ""
+
+msgid "Configure a DOCX template in the document type."
 msgstr ""
 
 msgid "Could not determine the generated file."
@@ -774,6 +605,9 @@ msgstr ""
 msgid "Use saved version"
 msgstr ""
 
+msgid "Cancel"
+msgstr ""
+
 msgid "Saving changes..."
 msgstr ""
 
@@ -784,6 +618,9 @@ msgid "Changes saved"
 msgstr ""
 
 msgid "Your changes were saved. Continue to generate the document."
+msgstr ""
+
+msgid "Sign and Download"
 msgstr ""
 
 msgid "Configure the Collabora Online service base URL in settings."
@@ -976,73 +813,6 @@ msgstr ""
 msgid "Processing with LibreOffice WASM."
 msgstr ""
 
-msgid "Pendiente de revisión"
-msgstr ""
-
-msgid "Documento enviado a revisión"
-msgstr ""
-
-msgid "Documento publicado"
-msgstr ""
-
-msgid "Documento devuelto a borrador"
-msgstr ""
-
-msgid "Documento archivado"
-msgstr ""
-
-msgid "Documento enviado a la papelera"
-msgstr ""
-
-msgid "Cambio de estado del documento"
-msgstr ""
-
-msgid "Borrador"
-msgstr ""
-
-msgid "Publicado"
-msgstr ""
-
-msgid "Archivado"
-msgstr ""
-
-msgid "Papelera"
-msgstr ""
-
-msgid "Borrador inicial"
-msgstr ""
-
-msgid "Nuevo"
-msgstr ""
-
-msgid "Sistema"
-msgstr ""
-
-#. translators: %s: document title
-#, php-format
-msgid "Documento: %s"
-msgstr ""
-
-#. translators: 1: previous status, 2: new status
-#, php-format
-msgid "Cambio de estado: %1$s → %2$s"
-msgstr ""
-
-#. translators: %s: post status label
-#, php-format
-msgid "Estado: %s"
-msgstr ""
-
-#. translators: %s: name of the user who made the change
-#, php-format
-msgid "Realizado por: %s"
-msgstr ""
-
-#. translators: %s: edit URL of the document
-#, php-format
-msgid "Enlace al documento: %s"
-msgstr ""
-
 msgid "Cuando uno de mis documentos se envía a revisión."
 msgstr ""
 
@@ -1150,144 +920,6 @@ msgstr ""
 msgid "Documents in this category (and subcategories) will be visible to this user."
 msgstr ""
 
-msgid "Document saved as draft. You must select a document type before publishing."
-msgstr ""
-
-msgid "Document set to pending review. Only administrators can publish documents."
-msgstr ""
-
-msgid "Published documents can only be modified by administrators."
-msgstr ""
-
-msgid "Documents pending review can only be modified by administrators."
-msgstr ""
-
-msgid "Only published documents can be archived."
-msgstr ""
-
-msgid "Only administrators can archive documents."
-msgstr ""
-
-msgid "Archived documents can only be modified by administrators."
-msgstr ""
-
-msgctxt "post status"
-msgid "Archived"
-msgstr ""
-
-#. translators: %s: Number of archived documents
-#, php-format
-msgid "Archived <span class=\"count\">(%s)</span>"
-msgid_plural "Archived <span class=\"count\">(%s)</span>"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Document Locked"
-msgstr ""
-
-msgid "This document is published and read-only. Only an administrator can unlock it by reverting to draft."
-msgstr ""
-
-msgid "This document is archived and read-only. Only an administrator can unarchive it."
-msgstr ""
-
-msgid "This document is pending review and read-only. An administrator will review it."
-msgstr ""
-
-msgid "Change status to Draft to enable editing."
-msgstr ""
-
-msgid "Unarchive to enable editing."
-msgstr ""
-
-msgid "Select a document type before publishing."
-msgstr ""
-
-msgid "Editors can only save as Draft or Pending Review."
-msgstr ""
-
-msgid "Are you sure you want to send this document to review? Once submitted, you will not be able to edit it until an administrator returns it to draft."
-msgstr ""
-
-msgid "Document Management"
-msgstr ""
-
-msgid "Save"
-msgstr ""
-
-msgid "Choose the type when creating the document. It cannot be changed later."
-msgstr ""
-
-msgid "Selected type:"
-msgstr ""
-
-msgid "No document type selected. Must assign a type before publishing."
-msgstr ""
-
-msgid "Document is read-only. Return to Review to enable editing."
-msgstr ""
-
-msgid "Document is locked. Contact an administrator."
-msgstr ""
-
-msgid "Document is archived and read-only. Unarchive to enable editing."
-msgstr ""
-
-msgid "Document is archived. Contact an administrator to unarchive."
-msgstr ""
-
-msgid "Document is pending review. Approve or return to draft."
-msgstr ""
-
-msgid "Document is pending review. An administrator will review it."
-msgstr ""
-
-msgid "Submit for Pending Review when ready. An administrator will publish."
-msgstr ""
-
-msgid "Save Draft"
-msgstr ""
-
-msgid "Send to Review"
-msgstr ""
-
-msgid "Document is pending review. No actions available."
-msgstr ""
-
-msgid "Return to Draft"
-msgstr ""
-
-msgid "Save Review"
-msgstr ""
-
-msgid "Approve & Publish"
-msgstr ""
-
-msgid "Document is published and locked."
-msgstr ""
-
-msgid "Return to Review"
-msgstr ""
-
-msgid "Document is archived and locked."
-msgstr ""
-
-msgid "Move to Trash"
-msgstr ""
-
-msgid "You do not have permission to restore revisions for this document."
-msgstr ""
-
-msgid "Revision Restore Blocked"
-msgstr ""
-
-#. translators: %d: Number of revisions
-#, php-format
-msgid "%d Revision"
-msgid_plural "%d Revisions"
-msgstr[0] ""
-msgstr[1] ""
-
 msgid "Document Type"
 msgstr ""
 
@@ -1300,6 +932,9 @@ msgstr ""
 msgid "All categories"
 msgstr ""
 
+msgid "Archived"
+msgstr ""
+
 msgid "All authors"
 msgstr ""
 
@@ -1307,6 +942,18 @@ msgid "Document Sections"
 msgstr ""
 
 msgid "Author"
+msgstr ""
+
+msgid "No document types defined. Create one in Document Types."
+msgstr ""
+
+msgid "Choose the type when creating the document. It cannot be changed later."
+msgstr ""
+
+msgid "Selected type:"
+msgstr ""
+
+msgid "Select a type…"
 msgstr ""
 
 msgid "Configure a document type with fields to edit its content."
@@ -1372,6 +1019,9 @@ msgid "Comma-separated list."
 msgstr ""
 
 msgid "Documents"
+msgstr ""
+
+msgid "Document"
 msgstr ""
 
 msgid "Add New"

@@ -48,8 +48,9 @@ class Documentate_Document_Admin_List {
 		foreach ( $columns as $key => $label ) {
 			$new_columns[ $key ] = $label;
 
-			// Insert doc_type column after title.
+			// Insert doc_type and nombre_interno columns after title.
 			if ( 'title' === $key ) {
+				$new_columns['nombre_interno'] = 'Nombre interno';
 				$new_columns['doc_type'] = __( 'Document Type', 'documentate' );
 			}
 
@@ -267,6 +268,13 @@ class Documentate_Document_Admin_List {
 	 * @return void
 	 */
 	public function render_admin_column( $column, $post_id ) {
+		if ( 'nombre_interno' === $column ) {
+			// nombre_corto() falls back to the post title, which would just repeat
+			// the adjacent Title column: only show it when an internal name is set.
+			$nombre = '' === Documentate_Documento::nombre_interno( $post_id ) ? '' : Documentate_Documento::nombre_corto( $post_id );
+			echo '' === $nombre ? '—' : esc_html( $nombre );
+		}
+
 		if ( 'doc_type' === $column ) {
 			$terms = get_the_terms( $post_id, 'documentate_doc_type' );
 			if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {

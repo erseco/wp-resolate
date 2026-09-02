@@ -31,6 +31,8 @@ class Documentate_Document_Meta_Saver {
 		// Handle type selection (lock after set).
 		$this->save_doc_type_selection( $post_id );
 
+		$this->save_nombre_interno( $post_id );
+		$this->save_anotaciones( $post_id );
 		$this->save_dynamic_fields_meta( $post_id );
 
 		// post_content is composed in wp_insert_post_data filter; avoid recursion here.
@@ -123,6 +125,39 @@ class Documentate_Document_Meta_Saver {
 		if ( $posted > 0 ) {
 			wp_set_post_terms( $post_id, array( $posted ), 'documentate_doc_type', false );
 		}
+	}
+	/**
+	 * Persist the "Nombre interno" input rendered under the title.
+	 *
+	 * Reachable from can_save_meta_boxes() only, so a locked document (the
+	 * role-aware lock inside that gate) never has it overwritten either.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	private function save_nombre_interno( $post_id ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in can_save_meta_boxes().
+		if ( ! isset( $_POST['documentate_nombre_interno'] ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside guardar_nombre_interno().
+		Documentate_Documento::guardar_nombre_interno( $post_id, wp_unslash( $_POST['documentate_nombre_interno'] ) );
+	}
+	/**
+	 * Persist the "Anotaciones internas" textarea (gestión / administración only).
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	private function save_anotaciones( $post_id ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in can_save_meta_boxes().
+		if ( ! isset( $_POST['documentate_anotaciones'] ) || ! Documentate_Roles::es_gestion() ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside guardar_anotaciones().
+		Documentate_Documento::guardar_anotaciones( $post_id, wp_unslash( $_POST['documentate_anotaciones'] ) );
 	}
 	/**
 	 * Persist dynamic field values posted from the sections metabox.

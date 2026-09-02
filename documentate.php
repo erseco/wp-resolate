@@ -62,6 +62,8 @@ if ( interface_exists( 'Erseco\AutoFirma\IntermediateServer\Storage\StoreInterfa
 }
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-data.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app-reloj.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-roles.php';
 
 /**

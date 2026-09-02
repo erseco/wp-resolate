@@ -132,6 +132,7 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-meta-boxes.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-meta-saver.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-admin-list.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-document-admin-extras.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/custom-post-types/class-documentate-documents.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/document/meta/class-document-meta-box.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/document/meta/class-document-meta.php';

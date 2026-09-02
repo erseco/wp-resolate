@@ -84,6 +84,14 @@ class Documentate_Documents {
 	private $meta_saver;
 
 	/**
+	 * Small editor additions unrelated to the schema: nombre interno,
+	 * anotaciones internas, actividad.
+	 *
+	 * @var Documentate_Document_Admin_Extras
+	 */
+	private $admin_extras;
+
+	/**
 	 * Hard cap on how many rows a repeater stores.
 	 *
 	 * @var int
@@ -98,6 +106,8 @@ class Documentate_Documents {
 		$this->admin_list->register_hooks();
 		$this->meta_saver = new Documentate_Document_Meta_Saver();
 		$this->meta_boxes = new Documentate_Document_Meta_Boxes();
+		$this->admin_extras = new Documentate_Document_Admin_Extras();
+		$this->admin_extras->register_hooks();
 		$this->cpt_registration = new Documents_CPT_Registration();
 		$this->revision_handler = new Documents_Revision_Handler();
 		( new Documents_Comments_Handler() )->register_hooks();
