@@ -94,6 +94,7 @@ class Documentate {
 		 * The class responsible for orchestrating the actions and filters of the
 		 * core plugin.
 		 */
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-ficheros.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-loader.php';
 
 		/**

@@ -327,7 +327,7 @@ class Documentate_App_Adjuntos {
 		nocache_headers();
 		header( 'Content-Type: ' . get_post_mime_type( $adjunto_id ) );
 		header( 'Content-Length: ' . filesize( $ruta ) );
-		header( 'Content-Disposition: inline; filename="' . self::nombre( $adjunto_id ) . '"' );
+		header( 'Content-Disposition: inline; filename="' . Documentate_Ficheros::nombre_para_cabecera( self::nombre( $adjunto_id ) ) . '"' );
 		header( 'X-Content-Type-Options: nosniff' );
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Streaming a file to the browser; WP_Filesystem would read it all into memory.
@@ -352,9 +352,7 @@ class Documentate_App_Adjuntos {
 			return '';
 		}
 
-		$ruta = (string) get_attached_file( $adjunto_id );
-
-		return '' !== $ruta && file_exists( $ruta ) ? $ruta : '';
+		return Documentate_Ficheros::ruta_de_adjunto( $adjunto_id );
 	}
 
 	/**

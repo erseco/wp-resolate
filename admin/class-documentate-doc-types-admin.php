@@ -613,8 +613,8 @@ class Documentate_Doc_Types_Admin {
 			wp_send_json_error( array( 'message' => 'ID de plantilla no válido.' ) );
 		}
 
-		$path = get_attached_file( $attachment_id );
-		if ( ! $path || ! file_exists( $path ) ) {
+		$path = Documentate_Ficheros::ruta_de_adjunto( $attachment_id );
+		if ( '' === $path ) {
 			wp_send_json_error( array( 'message' => 'Plantilla seleccionada no encontrada.' ) );
 		}
 
@@ -673,8 +673,8 @@ class Documentate_Doc_Types_Admin {
 			exit();
 		}
 
-		$path = get_attached_file( $template_id );
-		if ( ! $path || ! file_exists( $path ) ) {
+		$path = Documentate_Ficheros::ruta_de_adjunto( $template_id );
+		if ( '' === $path ) {
 			$this->store_flash_message( 'Archivo de plantilla no encontrado.', 'error' );
 			wp_safe_redirect( $redirect );
 			exit();
