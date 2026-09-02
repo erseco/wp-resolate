@@ -28,7 +28,6 @@ const { test, expect } = require( '../fixtures' );
 const {
 	runWpCmd,
 	loginAs,
-	ensureGestionCap,
 	crearEscenario,
 	limpiarEscenario,
 } = require( '../fixtures/site' );
@@ -90,11 +89,6 @@ test.describe( 'Roles and Scope Filtering', () => {
 		// waits its turn must not die on the ordinary test budget.
 		test.setTimeout( 300_000 );
 
-		// The editor role only reviews other áreas while it carries the
-		// gestión documental capability; the plugin grants it on activation,
-		// but a site whose roles were edited would fail here in a confusing way.
-		ensureGestionCap();
-
 		escenario = crearEscenario( {
 			categorias: {
 				// Categories: parent -> child, plus an out-of-scope category.
@@ -115,6 +109,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 				editor: {
 					login: EDITOR_LOGIN,
 					rol: 'editor',
+					gestion: true,
 					ambito: 'parent',
 				},
 			},

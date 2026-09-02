@@ -138,7 +138,6 @@ test.describe.serial( 'Documentate app · flujo completo', () => {
 		test.setTimeout( 300_000 );
 
 		escenario = crearEscenario( {
-			capacidades: [ [ 'editor', 'documentate_gestionar' ] ],
 			categorias: {
 				area: `Área ${ RUN }`,
 				gestion: `Gestión ${ RUN }`,
@@ -153,6 +152,7 @@ test.describe.serial( 'Documentate app · flujo completo', () => {
 					login: GESTION_LOGIN,
 					rol: 'editor',
 					ambito: 'gestion',
+					gestion: true,
 				},
 			},
 			documentos: {

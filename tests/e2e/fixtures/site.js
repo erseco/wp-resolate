@@ -202,19 +202,6 @@ const PDF_FIXTURE = Buffer.from(
 );
 
 /**
- * Grant the gestión documental capability to the editor role.
- *
- * The plugin does this on activation, but a site installed before the role
- * existed (or reset between runs) may not carry it. `wp cap add` is
- * idempotent, so this can run in every `beforeAll` that needs the role.
- *
- * @return {void}
- */
-function ensureGestionCap() {
-	runWpCmd( 'cap add editor documentate_gestionar' );
-}
-
-/**
  * PHP that builds a whole spec fixture in one go.
  *
  * The plan travels base64-encoded so nothing has to be quoted twice (shell,
@@ -232,13 +219,6 @@ $out = array(
 	'documentos' => array(),
 	'estados' => array(),
 );
-
-foreach ( (array) $plan['capacidades'] as $par ) {
-	$rol = get_role( $par[0] );
-	if ( $rol ) {
-		$rol->add_cap( $par[1] );
-	}
-}
 
 foreach ( (array) $plan['categorias'] as $clave => $def ) {
 	$nombre = is_array( $def ) ? $def['nombre'] : $def;
@@ -270,6 +250,9 @@ foreach ( (array) $plan['usuarios'] as $clave => $u ) {
 	$out['usuarios'][ $clave ] = $id;
 	if ( $id && isset( $u['ambito'] ) ) {
 		update_user_meta( $id, 'documentate_scope_term_id', (int) $out['categorias'][ $u['ambito'] ] );
+	}
+	if ( $id && ! empty( $u['gestion'] ) && class_exists( 'Documentate_Roles' ) ) {
+		Documentate_Roles::conceder_gestion( $id );
 	}
 }
 
@@ -391,16 +374,15 @@ function ejecutarPhp( php, plan ) {
  * Build the categories, document types, users and documents a spec needs.
  *
  * @param {Object}          plan               Fixture plan.
- * @param {Array<string[]>} [plan.capacidades] Pairs of role and capability to grant.
  * @param {Object}          [plan.categorias]  Category name, or `{ nombre, padre }`, by key.
  * @param {Object}          [plan.tipos]       Type name to create, or `{ slug }` to look up, by key.
- * @param {Object}          [plan.usuarios]    `{ login, rol, ambito }` by key (the password is PASSWORD).
+ * @param {Object}          [plan.usuarios]    `{ login, rol, ambito, gestion }` by key (the password is PASSWORD);
+ *                                             `gestion: true` appoints that account gestión documental.
  * @param {Object}          [plan.documentos]  `{ titulo, categoria, tipo, autor, estado, nombre }` by key.
  * @return {{categorias: Object, tipos: Object, usuarios: Object, documentos: Object, estados: Object}} Created IDs.
  */
 function crearEscenario( plan ) {
 	const completo = {
-		capacidades: plan.capacidades || [],
 		categorias: plan.categorias || {},
 		tipos: plan.tipos || {},
 		usuarios: plan.usuarios || {},
@@ -462,7 +444,6 @@ module.exports = {
 	PDF_FIXTURE,
 	runWpCmd,
 	loginAs,
-	ensureGestionCap,
 	crearEscenario,
 	limpiarEscenario,
 };

@@ -44,7 +44,6 @@ test.describe( 'Documentate app', () => {
 		test.setTimeout( 300_000 );
 
 		escenario = crearEscenario( {
-			capacidades: [ [ 'editor', 'documentate_gestionar' ] ],
 			categorias: {
 				scope: `App Scope ${ RUN }`,
 				other: `App Other ${ RUN }`,
@@ -58,6 +57,7 @@ test.describe( 'Documentate app', () => {
 					login: EDITOR_LOGIN,
 					rol: 'editor',
 					ambito: 'scope',
+					gestion: true,
 				},
 				subscriber: { login: SUBSCRIBER_LOGIN, rol: 'subscriber' },
 			},

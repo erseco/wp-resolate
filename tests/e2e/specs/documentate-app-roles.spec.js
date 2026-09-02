@@ -66,7 +66,6 @@ test.describe( 'Documentate app · roles', () => {
 		test.setTimeout( 300_000 );
 
 		escenario = crearEscenario( {
-			capacidades: [ [ 'editor', 'documentate_gestionar' ] ],
 			categorias: {
 				area: `Área ${ RUN }`,
 				otra: `Otra área ${ RUN }`,
@@ -82,6 +81,7 @@ test.describe( 'Documentate app · roles', () => {
 					login: GESTION_LOGIN,
 					rol: 'editor',
 					ambito: 'gestion',
+					gestion: true,
 				},
 			},
 			documentos: {

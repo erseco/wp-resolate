@@ -9,6 +9,13 @@
   },
   "steps": [
     {
+      "step": "defineWpConfigConsts",
+      "consts": {
+        "WP_ENVIRONMENT_TYPE": "development",
+        "WORDPRESS_PLAYGROUND": true
+      }
+    },
+    {
       "step": "setSiteLanguage",
       "language": "es_ES"
     },
@@ -49,6 +56,10 @@
     {
       "step": "runPHP",
       "code": "<?php require_once('/wordpress/wp-load.php'); update_option('documentate_settings', array('conversion_engine' => 'collabora', 'collabora_base_url' => 'https://documentate-collabora-proxy.erseco.workers.dev')); ?>"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require_once('/wordpress/wp-load.php'); if ( class_exists('Documentate_Demo_App') ) { Documentate_Demo_App::asegurar_entorno(); Documentate_Demo_App::seed(); } ?>"
     }
   ],
   "features": {
