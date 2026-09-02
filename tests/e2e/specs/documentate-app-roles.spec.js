@@ -188,6 +188,44 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
+	test( 'el filtro rápido esconde de verdad las filas que no coinciden', async ( {
+		browser,
+		baseURL,
+	} ) => {
+		const { context, page } = await loginAs( browser, baseURL, GESTION_LOGIN );
+
+		try {
+			await page.goto( `${ APP_PATH }?bandeja=revisar&estado=todos` );
+
+			const filas = page.locator( '.dcta-fila:not(.dcta-fila-cab)' );
+			const caja = page.locator( '.dcta-busqueda-campo' );
+
+			// Without the script the box would not be there: it only narrows
+			// what the chips already brought.
+			await expect( caja ).toBeVisible();
+			const total = await filas.count();
+			expect( total ).toBeGreaterThan( 1 );
+
+			// A row is a grid, so hiding it takes more than the hidden
+			// property: what matters is that it stops being on screen.
+			await caja.fill( NOMBRES.otroEnGestion );
+			await expect( filas.locator( 'visible=true' ) ).toHaveCount( 1 );
+			await expect( fila( page, NOMBRES.otroEnGestion ) ).toBeVisible();
+			await expect( page.locator( '[data-dcta-pie]' ) ).toHaveText(
+				`1 de ${ total } documentos`
+			);
+
+			await caja.fill( 'zzz sin coincidencias zzz' );
+			await expect( filas.locator( 'visible=true' ) ).toHaveCount( 0 );
+			await expect( page.locator( '.dcta-vacio' ) ).toBeVisible();
+
+			await caja.fill( '' );
+			await expect( filas.locator( 'visible=true' ) ).toHaveCount( total );
+		} finally {
+			await context.close();
+		}
+	} );
+
 	test( 'gestión tiene tres pestañas, aviso en «Para revisar» y ve los datos oficiales', async ( {
 		browser,
 		baseURL,

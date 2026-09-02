@@ -27,6 +27,14 @@
 	--dcta-ancho: 1128px;
 }
 
+/* `hidden` has to win over the layout rules below. A row is a grid and a card
+   is a flex box, and a class selector beats the browser's own [hidden] rule,
+   so anything the application hides — filtered rows, the empty message, the
+   drop zone before JavaScript takes it over — stayed on screen. */
+body.documentate-app [hidden] {
+	display: none !important;
+}
+
 /* --- flat page: the theme chrome steps aside on app pages ---------------- */
 
 body.documentate-app #main-header,
