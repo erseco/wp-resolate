@@ -127,7 +127,7 @@ class DocumentateDemoDocumentsTest extends WP_UnitTestCase {
 	 * A document built from the schema (instead of from the fixed demo data)
 	 * would otherwise print "Resolución n.º , de ." in the ODT.
 	 *
-	 * @dataProvider gestion_slug_provider
+	 * @dataProvider management_slug_provider
 	 *
 	 * @param string $slug  Field slug.
 	 * @param string $type  Control type.
@@ -145,12 +145,12 @@ class DocumentateDemoDocumentsTest extends WP_UnitTestCase {
 	 *
 	 * @return array<string,array{0:string,1:string,2:string}>
 	 */
-	public function gestion_slug_provider() {
+	public function management_slug_provider() {
 		return array(
-			'número' => array( 'numero_resolucion', 'single', 'text' ),
+			'number' => array( 'numero_resolucion', 'single', 'text' ),
 			'fecha' => array( 'fecha_resolucion', 'single', 'date' ),
 			'expediente' => array( 'expediente', 'single', 'text' ),
-			'órgano' => array( 'organo_firmante', 'single', 'text' ),
+			'signing body' => array( 'organo_firmante', 'single', 'text' ),
 		);
 	}
 

@@ -43,7 +43,7 @@ class Documentate_App_Shell {
 	 *
 	 * @var string
 	 */
-	const FORM_COMENTARIO_ID = 'dcta-app-comentario';
+	const FORM_COMMENT_ID = 'dcta-app-comentario';
 
 	/**
 	 * How the application writes a date.
@@ -54,14 +54,14 @@ class Documentate_App_Shell {
 	 *
 	 * @var string
 	 */
-	const FORMATO_FECHA = 'j \d\e F \d\e Y';
+	const DATE_FORMAT = 'j \d\e F \d\e Y';
 
 	/**
 	 * How the application writes a time of day.
 	 *
 	 * @var string
 	 */
-	const FORMATO_HORA = 'H:i';
+	const TIME_FORMAT = 'H:i';
 
 	/**
 	 * Transitions the rule table keeps for wp-admin only.
@@ -74,18 +74,18 @@ class Documentate_App_Shell {
 	 *
 	 * @var string[]
 	 */
-	const SOLO_WP_ADMIN = array( 'archivar', 'desarchivar', 'devolver_revision' );
+	const WP_ADMIN_ONLY = array( 'archivar', 'desarchivar', 'devolver_revision' );
 
 	/**
 	 * Tabs already built in this request, keyed by user ID.
 	 *
 	 * The badge of the actionable tab costs a count query and every view asks
 	 * for the tabs twice (the tab bar and the back link), so they are built
-	 * once per page: abrir() empties the cache as a page starts rendering.
+	 * once per page: open() empties the cache as a page starts rendering.
 	 *
 	 * @var array<int,array<string,array{tab:string,url:string,n:int}>>
 	 */
-	private static $secciones = array();
+	private static $sections = array();
 
 	/**
 	 * URL of the application page, optionally with view arguments.
@@ -113,18 +113,18 @@ class Documentate_App_Shell {
 	 *
 	 * @return string Empty when the permalink carries no query string.
 	 */
-	public static function campos_de_la_pagina() {
-		$consulta = (string) wp_parse_url( self::page_url(), PHP_URL_QUERY );
-		if ( '' === $consulta ) {
+	public static function page_query_fields() {
+		$query_string = (string) wp_parse_url( self::page_url(), PHP_URL_QUERY );
+		if ( '' === $query_string ) {
 			return '';
 		}
 
-		$pares = array();
-		wp_parse_str( $consulta, $pares );
+		$pairs = array();
+		wp_parse_str( $query_string, $pairs );
 
 		$html = '';
-		foreach ( array_filter( $pares, 'is_scalar' ) as $nombre => $valor ) {
-			$html .= '<input type="hidden" name="' . esc_attr( (string) $nombre ) . '" value="' . esc_attr( (string) $valor ) . '" />';
+		foreach ( array_filter( $pairs, 'is_scalar' ) as $name => $value ) {
+			$html .= '<input type="hidden" name="' . esc_attr( (string) $name ) . '" value="' . esc_attr( (string) $value ) . '" />';
 		}
 
 		return $html;
@@ -166,8 +166,8 @@ class Documentate_App_Shell {
 	 *
 	 * @return string
 	 */
-	public static function rol() {
-		return Documentate_Roles::etiqueta_rol();
+	public static function role() {
+		return Documentate_Roles::role_label();
 	}
 
 	/**
@@ -178,13 +178,13 @@ class Documentate_App_Shell {
 	 *
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
-	public static function secciones() {
-		$usuario = get_current_user_id();
-		if ( ! isset( self::$secciones[ $usuario ] ) ) {
-			self::$secciones[ $usuario ] = self::construir_secciones();
+	public static function sections() {
+		$user = get_current_user_id();
+		if ( ! isset( self::$sections[ $user ] ) ) {
+			self::$sections[ $user ] = self::build_sections();
 		}
 
-		return self::$secciones[ $usuario ];
+		return self::$sections[ $user ];
 	}
 
 	/**
@@ -192,18 +192,18 @@ class Documentate_App_Shell {
 	 *
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
-	private static function construir_secciones() {
-		if ( Documentate_Roles::es_administracion() ) {
-			return self::secciones_administracion();
+	private static function build_sections() {
+		if ( Documentate_Roles::is_administration() ) {
+			return self::admin_sections();
 		}
 
-		if ( Documentate_Roles::es_gestion() ) {
-			return self::secciones_gestion();
+		if ( Documentate_Roles::is_management() ) {
+			return self::management_sections();
 		}
 
 		return array(
-			'lista' => self::seccion( 'Mis documentos', self::page_url() ),
-			'nuevo' => self::seccion( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
+			'lista' => self::section( 'Mis documentos', self::page_url() ),
+			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
 	}
 
@@ -216,15 +216,15 @@ class Documentate_App_Shell {
 	 *
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
-	private static function secciones_administracion() {
+	private static function admin_sections() {
 		return array(
-			'lista' => self::seccion( 'Todos los documentos', self::page_url() ),
-			'revision' => self::seccion(
+			'lista' => self::section( 'Todos los documentos', self::page_url() ),
+			'revision' => self::section(
 				'Para revisar',
 				self::page_url( array( 'bandeja' => 'revision' ) ),
-				Documentate_App_Lista::contar( array( 'post_status' => 'pending' ) )
+				Documentate_App_List::count_documents( array( 'post_status' => 'pending' ) )
 			),
-			'nuevo' => self::seccion( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
+			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
 	}
 
@@ -233,83 +233,83 @@ class Documentate_App_Shell {
 	 *
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
-	private static function secciones_gestion() {
+	private static function management_sections() {
 		return array(
-			'lista' => self::seccion( 'Mis documentos', self::page_url() ),
-			'revisar' => self::seccion(
+			'lista' => self::section( 'Mis documentos', self::page_url() ),
+			'revisar' => self::section(
 				'Para revisar',
 				self::page_url( array( 'bandeja' => 'revisar' ) ),
-				Documentate_App_Lista::contar( array( 'post_status' => 'en_gestion' ) )
+				Documentate_App_List::count_documents( array( 'post_status' => 'en_gestion' ) )
 			),
-			'nuevo' => self::seccion( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
+			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
 	}
 
 	/**
 	 * One tab row.
 	 *
-	 * @param string $tab    Tab label.
-	 * @param string $url    Destination.
-	 * @param int    $numero Badge count (0 hides the badge).
+	 * @param string $tab   Tab label.
+	 * @param string $url   Destination.
+	 * @param int    $count Badge count (0 hides the badge).
 	 * @return array{tab:string,url:string,n:int}
 	 */
-	private static function seccion( $tab, $url, $numero = 0 ) {
+	private static function section( $tab, $url, $count = 0 ) {
 		return array(
 			'tab' => $tab,
 			'url' => $url,
-			'n' => (int) $numero,
+			'n' => (int) $count,
 		);
 	}
 
 	/**
 	 * Section key a tray belongs to, so the right tab lights up.
 	 *
-	 * @param string $bandeja Tray key (mis, revisar, revision, todos).
+	 * @param string $tray Tray key (mis, revisar, revision, todos).
 	 * @return string
 	 */
-	public static function seccion_de_bandeja( $bandeja ) {
-		$mapa = array(
+	public static function section_for_tray( $tray ) {
+		$map = array(
 			'revisar' => 'revisar',
 			'revision' => 'revision',
 		);
 
-		return isset( $mapa[ $bandeja ] ) ? $mapa[ $bandeja ] : 'lista';
+		return isset( $map[ $tray ] ) ? $map[ $tray ] : 'lista';
 	}
 
 	/**
 	 * Link back to the tray the visitor came from, named after its tab.
 	 *
-	 * @param string $bandeja Tray key; empty reads it from the request.
+	 * @param string $tray Tray key; empty reads it from the request.
 	 * @return string
 	 */
-	public static function enlace_volver( $bandeja = '' ) {
-		if ( '' === $bandeja ) {
+	public static function back_link( $tray = '' ) {
+		if ( '' === $tray ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-			$bandeja = isset( $_GET['bandeja'] ) ? sanitize_key( wp_unslash( $_GET['bandeja'] ) ) : '';
+			$tray = isset( $_GET['bandeja'] ) ? sanitize_key( wp_unslash( $_GET['bandeja'] ) ) : '';
 		}
 
-		$secciones = self::secciones();
-		$clave = self::seccion_de_bandeja( $bandeja );
-		if ( ! isset( $secciones[ $clave ] ) ) {
-			$clave = 'lista';
+		$sections = self::sections();
+		$key = self::section_for_tray( $tray );
+		if ( ! isset( $sections[ $key ] ) ) {
+			$key = 'lista';
 		}
 
-		if ( ! isset( $secciones[ $clave ] ) ) {
+		if ( ! isset( $sections[ $key ] ) ) {
 			return '';
 		}
 
-		return '<a class="dcta-editor-volver" href="' . esc_url( $secciones[ $clave ]['url'] ) . '">'
-			. '← ' . esc_html( $secciones[ $clave ]['tab'] ) . '</a>';
+		return '<a class="dcta-editor-volver" href="' . esc_url( $sections[ $key ]['url'] ) . '">'
+			. '← ' . esc_html( $sections[ $key ]['tab'] ) . '</a>';
 	}
 
 	/**
 	 * Chip class and label for a document status.
 	 *
 	 * @param string $post_status Post status.
-	 * @return array{clase:string,texto:string}
+	 * @return array{class:string,text:string}
 	 */
-	public static function estado_chip( $post_status ) {
-		$estados = array(
+	public static function status_chip( $post_status ) {
+		$statuses = array(
 			'draft' => array( 'borrador', 'Borrador' ),
 			'auto-draft' => array( 'borrador', 'Borrador' ),
 			'en_gestion' => array( 'gestion', 'En gestión' ),
@@ -318,11 +318,11 @@ class Documentate_App_Shell {
 			'archived' => array( 'archivado', 'Archivado' ),
 		);
 
-		$estado = isset( $estados[ $post_status ] ) ? $estados[ $post_status ] : $estados['draft'];
+		$status = isset( $statuses[ $post_status ] ) ? $statuses[ $post_status ] : $statuses['draft'];
 
 		return array(
-			'clase' => 'dcta-estado dcta-estado-' . $estado[0],
-			'texto' => $estado[1],
+			'class' => 'dcta-estado dcta-estado-' . $status[0],
+			'text' => $status[1],
 		);
 	}
 
@@ -333,17 +333,17 @@ class Documentate_App_Shell {
 	 * the returned line under the name is what tells gestión to correct it.
 	 *
 	 * @param WP_Post $post Document.
-	 * @return array{clase:string,texto:string}
+	 * @return array{class:string,text:string}
 	 */
 	public static function chip( $post ) {
-		if ( 'draft' === $post->post_status && null !== Documentate_Documento::devuelto( $post ) ) {
+		if ( 'draft' === $post->post_status && null !== Documentate_Document_Data::returned( $post ) ) {
 			return array(
-				'clase' => 'dcta-estado dcta-estado-devuelto',
-				'texto' => 'Devuelto',
+				'class' => 'dcta-estado dcta-estado-devuelto',
+				'text' => 'Devuelto',
 			);
 		}
 
-		return self::estado_chip( $post->post_status );
+		return self::status_chip( $post->post_status );
 	}
 
 	/**
@@ -358,17 +358,17 @@ class Documentate_App_Shell {
 	 * @return string Empty when the document was not returned, or when it was
 	 *                returned to somebody else.
 	 */
-	public static function texto_devuelto( $post ) {
-		$devuelto = Documentate_Documento::devuelto( $post );
-		if ( null === $devuelto || ( 'gestion' === $devuelto['a'] && ! Documentate_Roles::es_gestion() ) ) {
+	public static function returned_text( $post ) {
+		$returned = Documentate_Document_Data::returned( $post );
+		if ( null === $returned || ( 'gestion' === $returned['a'] && ! Documentate_Roles::is_management() ) ) {
 			return '';
 		}
 
-		$quien = 'administracion' === $devuelto['desde'] ? 'administración' : 'gestión documental';
-		$marca = strtotime( $devuelto['fecha'] );
-		$fecha = false === $marca ? '' : ' el ' . date_i18n( 'j M', $marca );
+		$who = 'administracion' === $returned['desde'] ? 'administración' : 'gestión documental';
+		$timestamp = strtotime( $returned['fecha'] );
+		$date = false === $timestamp ? '' : ' el ' . date_i18n( 'j M', $timestamp );
 
-		return 'Devuelto por ' . $quien . $fecha . ': «' . $devuelto['motivo'] . '»';
+		return 'Devuelto por ' . $who . $date . ': «' . $returned['motivo'] . '»';
 	}
 
 	/**
@@ -382,17 +382,17 @@ class Documentate_App_Shell {
 	 * @param WP_Post $post Document.
 	 * @return string Empty when there is nothing to show this person.
 	 */
-	public static function aviso_devuelto( $post ) {
-		$texto = self::texto_devuelto( $post );
-		if ( '' === $texto ) {
+	public static function returned_notice( $post ) {
+		$text = self::returned_text( $post );
+		if ( '' === $text ) {
 			return '';
 		}
 
-		$texto = rtrim( $texto, '.' ) . '.';
+		$text = rtrim( $text, '.' ) . '.';
 
-		return Documentate_App_Editar::puede_editar( $post )
-			? $texto . ' Corrige lo que haga falta y vuelve a enviarlo.'
-			: $texto;
+		return Documentate_App_Edit::can_edit( $post )
+			? $text . ' Corrige lo que haga falta y vuelve a enviarlo.'
+			: $text;
 	}
 
 	/**
@@ -404,14 +404,14 @@ class Documentate_App_Shell {
 	 * @param WP_Post $post Document.
 	 * @return array<string,array<string,mixed>>
 	 */
-	public static function transiciones_app( WP_Post $post ) {
-		$disponibles = Documentate_Transiciones::disponibles( $post );
+	public static function app_transitions( WP_Post $post ) {
+		$available = Documentate_Transitions::available( $post );
 
-		foreach ( self::SOLO_WP_ADMIN as $clave ) {
-			unset( $disponibles[ $clave ] );
+		foreach ( self::WP_ADMIN_ONLY as $key ) {
+			unset( $available[ $key ] );
 		}
 
-		return $disponibles;
+		return $available;
 	}
 
 	/**
@@ -424,29 +424,29 @@ class Documentate_App_Shell {
 	 * @param WP_Post $post Document.
 	 * @return string Empty when no transition is available.
 	 */
-	public static function botones_transicion( $post ) {
-		$disponibles = self::transiciones_app( $post );
-		if ( empty( $disponibles ) ) {
+	public static function transition_buttons( $post ) {
+		$available = self::app_transitions( $post );
+		if ( empty( $available ) ) {
 			return '';
 		}
 
-		$devoluciones = array();
+		$returns = array();
 		$html = '';
-		foreach ( $disponibles as $clave => $regla ) {
-			if ( $regla['motivo'] ) {
-				$devoluciones[ $clave ] = $regla;
+		foreach ( $available as $key => $rule ) {
+			if ( $rule['reason'] ) {
+				$returns[ $key ] = $rule;
 				continue;
 			}
 
-			$html .= self::boton_transicion(
-				$clave,
-				(string) $regla['etiqueta'],
+			$html .= self::transition_button(
+				$key,
+				(string) $rule['label'],
 				'dcta-btn-pri',
-				' data-confirmar="' . esc_attr( (string) $regla['confirmar'] ) . '"'
+				' data-confirmar="' . esc_attr( (string) $rule['confirm'] ) . '"'
 			);
 		}
 
-		return $html . self::botones_devolucion( $devoluciones );
+		return $html . self::return_buttons( $returns );
 	}
 
 	/**
@@ -456,25 +456,25 @@ class Documentate_App_Shell {
 	 * document that went through gestión) there is a single "Devolver…"
 	 * button and the dialog asks where to.
 	 *
-	 * @param array<string,array<string,mixed>> $devoluciones Return rules available.
+	 * @param array<string,array<string,mixed>> $returns Return rules available.
 	 * @return string
 	 */
-	private static function botones_devolucion( array $devoluciones ) {
-		if ( empty( $devoluciones ) ) {
+	private static function return_buttons( array $returns ) {
+		if ( empty( $returns ) ) {
 			return '';
 		}
 
-		if ( count( $devoluciones ) > 1 ) {
-			return self::boton_transicion( 'devolver_area', 'Devolver…', 'dcta-btn-ton', ' data-motivo="1" data-destinos="1"' )
-				. self::fallback_motivo( $devoluciones );
+		if ( count( $returns ) > 1 ) {
+			return self::transition_button( 'devolver_area', 'Devolver…', 'dcta-btn-ton', ' data-motivo="1" data-destinos="1"' )
+				. self::reason_fallback( $returns );
 		}
 
 		$html = '';
-		foreach ( $devoluciones as $clave => $regla ) {
-			$html .= self::boton_transicion( $clave, (string) $regla['etiqueta'], 'dcta-btn-ton', ' data-motivo="1"' );
+		foreach ( $returns as $key => $rule ) {
+			$html .= self::transition_button( $key, (string) $rule['label'], 'dcta-btn-ton', ' data-motivo="1"' );
 		}
 
-		return $html . self::fallback_motivo( array() );
+		return $html . self::reason_fallback( array() );
 	}
 
 	/**
@@ -486,15 +486,15 @@ class Documentate_App_Shell {
 	 * @param array<string,array<string,mixed>> $extra Return rules needing their own button here.
 	 * @return string
 	 */
-	private static function fallback_motivo( array $extra ) {
+	private static function reason_fallback( array $extra ) {
 		$html = '<details class="dcta-motivo-fallback">'
 			. '<summary>Motivo de la devolución</summary>'
 			. '<label for="dcta-motivo-fallback-texto">Motivo de la devolución</label>'
 			. '<textarea id="dcta-motivo-fallback-texto" name="documentate_app_motivo" rows="3" placeholder="Qué falta o qué hay que corregir"></textarea>'
 			. '<p class="dcta-ayuda">El motivo se envía por correo y queda en la actividad.</p>';
 
-		foreach ( $extra as $clave => $regla ) {
-			$html .= self::boton_transicion( $clave, (string) $regla['etiqueta'], 'dcta-btn-ton', '' );
+		foreach ( $extra as $key => $rule ) {
+			$html .= self::transition_button( $key, (string) $rule['label'], 'dcta-btn-ton', '' );
 		}
 
 		return $html . '</details>';
@@ -503,32 +503,32 @@ class Documentate_App_Shell {
 	/**
 	 * One transition button.
 	 *
-	 * @param string $clave    Transition key posted by the button.
-	 * @param string $etiqueta Button label.
-	 * @param string $clase    Button modifier class.
-	 * @param string $extra    Extra attributes, already escaped.
+	 * @param string $key       Transition key posted by the button.
+	 * @param string $label     Button label.
+	 * @param string $css_class Button modifier class.
+	 * @param string $extra     Extra attributes, already escaped.
 	 * @return string
 	 */
-	private static function boton_transicion( $clave, $etiqueta, $clase, $extra ) {
-		return '<button type="submit" class="dcta-btn ' . esc_attr( $clase ) . '"'
-			. ' name="documentate_app_transicion" value="' . esc_attr( $clave ) . '"' . $extra . '>'
-			. esc_html( $etiqueta ) . '</button>';
+	private static function transition_button( $key, $label, $css_class, $extra ) {
+		return '<button type="submit" class="dcta-btn ' . esc_attr( $css_class ) . '"'
+			. ' name="documentate_app_transicion" value="' . esc_attr( $key ) . '"' . $extra . '>'
+			. esc_html( $label ) . '</button>';
 	}
 
 	/**
 	 * Open the page: header, tabs and the sheet the content goes in.
 	 *
-	 * @param string $seccion Active section key.
-	 * @param string $titulo  Page heading.
+	 * @param string $section Active section key.
+	 * @param string $title   Page heading.
 	 * @param string $sub     One line under the heading.
 	 * @return string
 	 */
-	public static function abrir( $seccion, $titulo, $sub = '' ) {
-		self::$secciones = array();
-		$secciones = self::secciones();
-		$rol = self::rol();
-		$inicio = self::page_url();
-		$inicio = '' !== $inicio ? $inicio : home_url( '/' );
+	public static function open( $section, $title, $sub = '' ) {
+		self::$sections = array();
+		$sections = self::sections();
+		$role = self::role();
+		$home_url = self::page_url();
+		$home_url = '' !== $home_url ? $home_url : home_url( '/' );
 
 		ob_start();
 		?>
@@ -538,10 +538,10 @@ class Documentate_App_Shell {
 				<span class="dcta-marca">
 					<small>Consejería de Educación, Formación Profesional, Actividad Física y Deportes</small>
 				</span>
-				<a class="dcta-marca-app" href="<?php echo esc_url( $inicio ); ?>">Documentate</a>
+				<a class="dcta-marca-app" href="<?php echo esc_url( $home_url ); ?>">Documentate</a>
 				<span class="dcta-top-derecha">
-					<?php if ( '' !== $rol ) : ?>
-						<span class="dcta-rol"><?php echo esc_html( $rol ); ?></span>
+					<?php if ( '' !== $role ) : ?>
+						<span class="dcta-rol"><?php echo esc_html( $role ); ?></span>
 					<?php endif; ?>
 				</span>
 			</div>
@@ -549,9 +549,9 @@ class Documentate_App_Shell {
 
 		<nav class="dcta-tabs" aria-label="Secciones">
 			<div class="dcta-tabs-fila">
-				<?php foreach ( $secciones as $clave => $s ) : ?>
-					<a class="dcta-tab<?php echo $clave === $seccion ? ' dcta-tab-on' : ''; ?>"
-						<?php echo $clave === $seccion ? ' aria-current="page"' : ''; ?>
+				<?php foreach ( $sections as $key => $s ) : ?>
+					<a class="dcta-tab<?php echo $key === $section ? ' dcta-tab-on' : ''; ?>"
+						<?php echo $key === $section ? ' aria-current="page"' : ''; ?>
 						href="<?php echo esc_url( $s['url'] ); ?>"><?php echo esc_html( $s['tab'] ); ?>
 						<?php if ( $s['n'] > 0 ) : ?>
 							<span class="dcta-tab-n"><?php echo esc_html( (string) $s['n'] ); ?></span>
@@ -562,8 +562,8 @@ class Documentate_App_Shell {
 		</nav>
 
 		<div class="dcta-hoja">
-			<?php if ( '' !== $titulo ) : ?>
-				<h1 class="dcta-h1"><?php echo esc_html( $titulo ); ?></h1>
+			<?php if ( '' !== $title ) : ?>
+				<h1 class="dcta-h1"><?php echo esc_html( $title ); ?></h1>
 			<?php endif; ?>
 			<?php if ( '' !== $sub ) : ?>
 				<p class="dcta-sub"><?php echo esc_html( $sub ); ?></p>
@@ -575,24 +575,24 @@ class Documentate_App_Shell {
 	/**
 	 * Close the page: the sheet, the one-line footer and the dialogs.
 	 *
-	 * @param bool $dialogos Whether the view has a form the dialogs post through.
+	 * @param bool $dialogs Whether the view has a form the dialogs post through.
 	 * @return string
 	 */
-	public static function cerrar( $dialogos = false ) {
-		$inicio = self::page_url();
-		$inicio = '' !== $inicio ? $inicio : home_url( '/' );
+	public static function close( $dialogs = false ) {
+		$home_url = self::page_url();
+		$home_url = '' !== $home_url ? $home_url : home_url( '/' );
 
 		ob_start();
 		echo '</div>';
 		?>
 		<div class="dcta-pie"><div>
 			<span>Dirección General de Ordenación de las Enseñanzas, Inclusión e Innovación</span>
-			<a href="<?php echo esc_url( $inicio ); ?>">Inicio</a>
+			<a href="<?php echo esc_url( $home_url ); ?>">Inicio</a>
 		</div></div>
 		<?php
 		$html = (string) ob_get_clean();
 
-		return $dialogos ? $html . self::dialogos() : $html;
+		return $dialogs ? $html . self::dialogs() : $html;
 	}
 
 	/**
@@ -606,7 +606,7 @@ class Documentate_App_Shell {
 	 *
 	 * @return string
 	 */
-	public static function dialogos() {
+	public static function dialogs() {
 		$form = self::FORM_ID;
 
 		ob_start();

@@ -1,25 +1,25 @@
 /**
- * Guion de capturas del ciclo completo de un documento.
+ * Screenshot script for the full life cycle of a document.
  *
- * Recorre la aplicación con Playwright en dos tamaños de pantalla y deja un
- * informe HTML con las capturas comentadas: sirve para verificar que el ciclo
- * funciona de punta a punta después de cada cambio, y como base del manual.
+ * Walks the application with Playwright at two screen sizes and leaves an HTML
+ * report with the annotated screenshots: it verifies that the cycle works end
+ * to end after every change, and doubles as the basis of the user manual.
  *
- * El guion es la constante ESCENAS de abajo. Cada escena dice quién entra, a
- * dónde va, qué hace y qué se está enseñando; añadir un paso al manual es
- * añadir una escena, no tocar el motor.
+ * The script is the SCENES constant below. Every scene says who logs in, where
+ * they go, what they do and what is being shown; adding a step to the manual
+ * means adding a scene, not touching the engine.
  *
- * El documento que recorre el ciclo es el de la demo «PG · Material aulas
- * digitales»: el área lo completa y lo envía, gestión documental rellena los
- * datos oficiales y lo devuelve, el área lo corrige, gestión lo pasa a
- * administración y administración lo aprueba. Antes de cada tamaño de pantalla
- * se vuelve a sembrar la demo, así que las dos pasadas parten del mismo estado.
+ * The document that walks the cycle is the demo one, «PG · Material aulas
+ * digitales»: the área completes and sends it, gestión documental fills in the
+ * official data and returns it, the área corrects it, gestión passes it to
+ * administración and administración approves it. The demo is seeded again
+ * before each screen size, so both passes start from the same state.
  *
- * Uso:  make capturas                      (todo)
- *       make capturas SOLO=movil           (solo el móvil)
- *       DOCUMENTATE_SIN_SEMBRAR=1 …        (no resembrar; usa los datos que haya)
+ * Usage:  make capturas                      (everything)
+ *         make capturas SOLO=movil           (mobile only)
+ *         DOCUMENTATE_SIN_SEMBRAR=1 …        (do not reseed; use existing data)
  *
- * Nunca a la vez que los E2E: los dos escriben en el sitio de desarrollo.
+ * Never at the same time as the E2E suite: both write to the development site.
  */
 
 import { chromium, devices } from '@playwright/test';
@@ -31,35 +31,35 @@ const BASE = process.env.DOCUMENTATE_URL || 'http://localhost:8989';
 const OUT = process.env.DOCUMENTATE_CAPTURAS || 'capturas';
 const SOLO = process.env.SOLO || '';
 
-const USUARIOS = {
-	area: { user: 'author1', pass: 'password', etiqueta: 'Área · Departamento de Proyectos' },
-	gestion: { user: 'editor1', pass: 'password', etiqueta: 'Gestión documental' },
-	admin: { user: 'admin', pass: 'password', etiqueta: 'Administración' },
+const USERS = {
+	area: { user: 'author1', pass: 'password', label: 'Área · Departamento de Proyectos' },
+	gestion: { user: 'editor1', pass: 'password', label: 'Gestión documental' },
+	admin: { user: 'admin', pass: 'password', label: 'Administración' },
 };
 
-const PANTALLAS = [
-	{ id: 'escritorio', etiqueta: 'Ordenador', viewport: { width: 1440, height: 900 } },
-	{ id: 'movil', etiqueta: 'Móvil', ...devices[ 'iPhone 13' ], deviceScaleFactor: 2 },
+const SCREENS = [
+	{ id: 'escritorio', label: 'Ordenador', viewport: { width: 1440, height: 900 } },
+	{ id: 'movil', label: 'Móvil', ...devices[ 'iPhone 13' ], deviceScaleFactor: 2 },
 ];
 
-/** Documento de la demo que recorre el ciclo entero. */
-const CICLO = 'Material aulas digitales';
+/** Demo document that walks the whole cycle. */
+const CYCLE = 'Material aulas digitales';
 
-/** Documento de la demo con proveedores y totales calculados («documento 0»). */
-const PROVEEDORES = 'Renovación licencias aulas virtuales';
+/** Demo document with providers and computed totals ("document 0"). */
+const PROVIDERS = 'Renovación licencias aulas virtuales';
 
-/** Documento de la demo que sigue en gestión cuando se llega a wp-admin. */
-const EN_GESTION = 'Listado definitivo piloto innovación';
+/** Demo document still in gestión by the time wp-admin is reached. */
+const IN_MANAGEMENT = 'Listado definitivo piloto innovación';
 
-/** Motivo con el que gestión documental devuelve el documento del ciclo. */
-const MOTIVO = 'Falta el desglose por proveedores y la partida presupuestaria.';
+/** Reason gestión documental gives when returning the cycle document. */
+const REASON = 'Falta el desglose por proveedores y la partida presupuestaria.';
 
-/** Documento pendiente que administración devuelve, eligiendo destino. */
-const PENDIENTE = 'Formación profesorado metodologías';
+/** Pending document that administración returns, picking a target. */
+const PENDING = 'Formación profesorado metodologías';
 
 /**
- * PDF mínimo pero real: la validación del adjunto olfatea el contenido, así
- * que no vale una cadena cualquiera.
+ * Minimal but real PDF: attachment validation sniffs the content, so any old
+ * string will not do.
  */
 const PDF = Buffer.from(
 	'%PDF-1.4\n' +
@@ -70,64 +70,64 @@ const PDF = Buffer.from(
 );
 
 /**
- * El guion. `hacer` recibe la página y puede navegar, rellenar y pulsar; si
- * devuelve false la escena queda marcada «revisar» en el informe (por ejemplo,
- * un botón que no está porque el paso anterior no llegó a completarse).
+ * The script. `run` receives the page and may navigate, fill and click; if it
+ * returns false the scene is marked "revisar" in the report (for instance, a
+ * button that is missing because the previous step never completed).
  *
- * `pantallaSola: true` captura solo la ventana visible en vez de la página
- * entera: es lo que necesitan las escenas que enseñan un diálogo, porque un
- * <dialog> modal y su fondo viven en la capa superior y miden lo que mide la
- * ventana, no lo que mide la página.
+ * `viewportOnly: true` captures only the visible window instead of the whole
+ * page: that is what the scenes showing a dialog need, because a modal
+ * <dialog> and its backdrop live in the top layer and are the size of the
+ * window, not the size of the page.
  */
-const ESCENAS = [
+const SCENES = [
 	{
-		capitulo: 'Entrada',
-		titulo: 'Una sola dirección para todo el mundo',
-		texto: 'Todo el mundo entra por /documentate/. El área aparece directamente en sus documentos, con el rol y el ámbito escritos en la cabecera; no hay que acordarse de qué pantalla tocaba.',
-		como: 'area',
-		hacer: async ( p ) => {
-			return await ir( p, '/documentate/' );
+		chapter: 'Entrada',
+		title: 'Una sola dirección para todo el mundo',
+		text: 'Todo el mundo entra por /documentate/. El área aparece directamente en sus documentos, con el rol y el ámbito escritos en la cabecera; no hay que acordarse de qué pantalla tocaba.',
+		as: 'area',
+		run: async ( p ) => {
+			return await goTo( p, '/documentate/' );
 		},
 	},
 	{
-		capitulo: 'Entrada',
-		titulo: 'La misma puerta, para gestión documental',
-		texto: 'Gestión documental entra por la misma URL y ve, además de sus propios documentos y de «Nuevo documento», la bandeja «Para revisar», con el número de los que esperan a que complete los datos oficiales.',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			return await ir( p, '/documentate/' );
+		chapter: 'Entrada',
+		title: 'La misma puerta, para gestión documental',
+		text: 'Gestión documental entra por la misma URL y ve, además de sus propios documentos y de «Nuevo documento», la bandeja «Para revisar», con el número de los que esperan a que complete los datos oficiales.',
+		as: 'gestion',
+		run: async ( p ) => {
+			return await goTo( p, '/documentate/' );
 		},
 	},
 	{
-		capitulo: 'Entrada',
-		titulo: 'La misma puerta, para administración',
-		texto: 'Administración aterriza en todos los documentos de todas las áreas; como los ve todos, tiene un selector de área —aquí acotado al Departamento de Proyectos— y un acceso directo a los tipos y plantillas de wp-admin. El aviso de la pestaña cuenta todo lo que espera revisión; los contadores de debajo obedecen al filtro.',
-		como: 'admin',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/documentate/' ) ) ) return false;
+		chapter: 'Entrada',
+		title: 'La misma puerta, para administración',
+		text: 'Administración aterriza en todos los documentos de todas las áreas; como los ve todos, tiene un selector de área —aquí acotado al Departamento de Proyectos— y un acceso directo a los tipos y plantillas de wp-admin. El aviso de la pestaña cuenta todo lo que espera revisión; los contadores de debajo obedecen al filtro.',
+		as: 'admin',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/documentate/' ) ) ) return false;
 			const select = p.locator( '#dcta-area' );
 			if ( ! ( await select.count() ) ) return false;
 			await select.selectOption( { label: 'Departamento de Proyectos' } );
-			return await pulsar( p, p.locator( '.dcta-areas button[type="submit"]' ) );
+			return await click( p, p.locator( '.dcta-areas button[type="submit"]' ) );
 		},
 	},
 
 	{
-		capitulo: 'El área prepara el documento',
-		titulo: 'Mis documentos: contadores y filtros',
-		texto: 'Los contadores dicen qué hay por enviar, qué está en gestión, qué espera aprobación y qué se aprobó ya; los chips filtran la lista sin salir de la página. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.',
-		como: 'area',
-		hacer: async ( p ) => {
-			return await ir( p, '/documentate/?estado=draft' );
+		chapter: 'El área prepara el documento',
+		title: 'Mis documentos: contadores y filtros',
+		text: 'Los contadores dicen qué hay por enviar, qué está en gestión, qué espera aprobación y qué se aprobó ya; los chips filtran la lista sin salir de la página. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.',
+		as: 'area',
+		run: async ( p ) => {
+			return await goTo( p, '/documentate/?estado=draft' );
 		},
 	},
 	{
-		capitulo: 'El área prepara el documento',
-		titulo: 'Nuevo documento',
-		texto: 'Crear un documento son tres decisiones: el tipo (que ya no se cambia), un nombre corto para las listas y el título oficial que saldrá en el papel. Al elegir el tipo, la ayuda dice si pasa por gestión documental y aparece el prefijo delante del nombre.',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/documentate/?vista=nuevo' ) ) ) return false;
+		chapter: 'El área prepara el documento',
+		title: 'Nuevo documento',
+		text: 'Crear un documento son tres decisiones: el tipo (que ya no se cambia), un nombre corto para las listas y el título oficial que saldrá en el papel. Al elegir el tipo, la ayuda dice si pasa por gestión documental y aparece el prefijo delante del nombre.',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/documentate/?vista=nuevo' ) ) ) return false;
 			await p.selectOption( '#documentate-app-tipo', { label: 'Resolución Administrativa' } );
 			await p.fill( '#documentate-app-nombre', 'Ayudas al transporte escolar' );
 			await p.fill(
@@ -139,299 +139,299 @@ const ESCENAS = [
 		},
 	},
 	{
-		capitulo: 'El área prepara el documento',
-		titulo: 'Completar el borrador y adjuntar el fichero',
-		texto: 'El editor del área tiene los datos básicos, los campos de la plantilla y el fichero del documento: se arrastra al recuadro o se elige a mano, y se sube al guardar. Los campos que solo rellena gestión documental no están aquí.',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO ) ) ) return false;
-			// La letra del decreto es de una sola letra: el dato de demo no
-			// vale y el navegador no dejaría enviar el formulario.
-			await escribirCampo( p, '#documentate_field_letra_decreto', 'B' );
-			// Un fichero recién elegido, para que se vea el estado «se subirá
-			// al guardar» del que habla el texto.
-			const adjunto = p.locator( 'input[name="documentate_app_adjunto"]' );
-			if ( await adjunto.count() ) {
-				await adjunto.first().setInputFiles( {
+		chapter: 'El área prepara el documento',
+		title: 'Completar el borrador y adjuntar el fichero',
+		text: 'El editor del área tiene los datos básicos, los campos de la plantilla y el fichero del documento: se arrastra al recuadro o se elige a mano, y se sube al guardar. Los campos que solo rellena gestión documental no están aquí.',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
+			// The decree letter is a single letter: the demo value does not
+			// qualify and the browser would refuse to submit the form.
+			await fillField( p, '#documentate_field_letra_decreto', 'B' );
+			// A freshly picked file, so the "will be uploaded on save" state
+			// the caption talks about is visible.
+			const attachment = p.locator( 'input[name="documentate_app_adjunto"]' );
+			if ( await attachment.count() ) {
+				await attachment.first().setInputFiles( {
 					name: 'acta-material-aulas-digitales.pdf',
 					mimeType: 'application/pdf',
 					buffer: PDF,
 				} );
 			}
-			return await guardar( p );
+			return await save( p );
 		},
 	},
 	{
-		capitulo: 'El área prepara el documento',
-		titulo: 'Enviar a gestión, con confirmación',
-		texto: 'Enviar es la decisión que cierra el documento para el área, así que se pregunta antes. La ventana dice exactamente qué va a pasar: lo completará gestión documental y ya no se podrá modificar hasta que lo devuelvan.',
-		como: 'area',
-		pantallaSola: true,
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO ) ) ) return false;
-			return await abrirConfirmacion( p, 'enviar_gestion' );
+		chapter: 'El área prepara el documento',
+		title: 'Enviar a gestión, con confirmación',
+		text: 'Enviar es la decisión que cierra el documento para el área, así que se pregunta antes. La ventana dice exactamente qué va a pasar: lo completará gestión documental y ya no se podrá modificar hasta que lo devuelvan.',
+		as: 'area',
+		viewportOnly: true,
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
+			return await openConfirmation( p, 'enviar_gestion' );
 		},
 	},
 	{
-		capitulo: 'El área prepara el documento',
-		titulo: 'El documento queda en gestión documental',
-		texto: 'Confirmado, el documento sale del área. La ficha lo dice arriba y el indicador de estado marca en qué punto del recorrido está: borrador, en gestión, en revisión, aprobado.',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO ) ) ) return false;
-			if ( ! ( await abrirConfirmacion( p, 'enviar_gestion' ) ) ) return false;
-			return await pulsar( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
+		chapter: 'El área prepara el documento',
+		title: 'El documento queda en gestión documental',
+		text: 'Confirmado, el documento sale del área. La ficha lo dice arriba y el indicador de estado marca en qué punto del recorrido está: borrador, en gestión, en revisión, aprobado.',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
+			if ( ! ( await openConfirmation( p, 'enviar_gestion' ) ) ) return false;
+			return await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
 		},
 	},
 
 	{
-		capitulo: 'Gestión documental completa',
-		titulo: 'La bandeja de gestión',
-		texto: 'La bandeja «Para revisar» reúne los documentos de todas las áreas que ya salieron de su borrador. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			return await ir( p, '/documentate/?bandeja=revisar' );
+		chapter: 'Gestión documental completa',
+		title: 'La bandeja de gestión',
+		text: 'La bandeja «Para revisar» reúne los documentos de todas las áreas que ya salieron de su borrador. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.',
+		as: 'gestion',
+		run: async ( p ) => {
+			return await goTo( p, '/documentate/?bandeja=revisar' );
 		},
 	},
 	{
-		capitulo: 'Gestión documental completa',
-		titulo: 'Los datos oficiales, que solo ve gestión',
-		texto: 'Gestión abre el mismo editor con una sección más: los campos marcados como de gestión en la plantilla —el gasto en letra y en cifra, la partida presupuestaria— y unas anotaciones internas que no salen en el documento. Los datos del área quedan plegados, a la vista pero fuera del camino.',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO, 'revisar' ) ) ) return false;
-			await elegirCampo( p, '#documentate_field_partida', '18.03.322B.229.0100' );
-			await escribirCampo( p, '#documentate_field_gasto_numero', '1875' );
-			await escribirCampo(
+		chapter: 'Gestión documental completa',
+		title: 'Los datos oficiales, que solo ve gestión',
+		text: 'Gestión abre el mismo editor con una sección más: los campos marcados como de gestión en la plantilla —el gasto en letra y en cifra, la partida presupuestaria— y unas anotaciones internas que no salen en el documento. Los datos del área quedan plegados, a la vista pero fuera del camino.',
+		as: 'gestion',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			await pickField( p, '#documentate_field_partida', '18.03.322B.229.0100' );
+			await fillField( p, '#documentate_field_gasto_numero', '1875' );
+			await fillField(
 				p,
 				'#documentate_field_gasto_letra',
 				'mil ochocientos setenta y cinco euros'
 			);
-			await escribirCampo(
+			await fillField(
 				p,
 				'#documentate-app-anotaciones',
 				'Comprobado con intervención: falta el desglose por proveedores antes de pasarlo a administración.'
 			);
-			if ( ! ( await guardar( p ) ) ) return false;
-			await enfocarGestion( p );
+			if ( ! ( await save( p ) ) ) return false;
+			await focusManagement( p );
 			return true;
 		},
 	},
 	{
-		capitulo: 'Gestión documental completa',
-		titulo: 'Proveedores y totales que se calculan solos',
-		texto: 'En la propuesta de gasto cada proveedor lleva sus conceptos: cantidad por precio da el total de la línea, la suma de líneas el bruto, y con el IGIC y el IRPF sale el total del proveedor. El resumen de la propuesta y el importe en cifra se escriben solos.',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, PROVEEDORES ) ) ) return false;
-			await enfocarGestion( p );
-			const resumen = p.locator( '.dcta-resumen' );
-			if ( ! ( await resumen.count() ) ) return false;
-			await resumen.first().waitFor();
+		chapter: 'Gestión documental completa',
+		title: 'Proveedores y totales que se calculan solos',
+		text: 'En la propuesta de gasto cada proveedor lleva sus conceptos: cantidad por precio da el total de la línea, la suma de líneas el bruto, y con el IGIC y el IRPF sale el total del proveedor. El resumen de la propuesta y el importe en cifra se escriben solos.',
+		as: 'gestion',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, PROVIDERS ) ) ) return false;
+			await focusManagement( p );
+			const summary = p.locator( '.dcta-resumen' );
+			if ( ! ( await summary.count() ) ) return false;
+			await summary.first().waitFor();
 		},
 	},
 	{
-		capitulo: 'Gestión documental completa',
-		titulo: 'Devolver al área, diciendo por qué',
-		texto: 'Si falta algo, el documento vuelve al área. El motivo es obligatorio: se manda por correo, queda en la actividad y es lo primero que ve quien lo escribió.',
-		como: 'gestion',
-		pantallaSola: true,
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO, 'revisar' ) ) ) return false;
-			await enfocarGestion( p );
-			return await abrirMotivo( p, 'devolver_area', MOTIVO );
+		chapter: 'Gestión documental completa',
+		title: 'Devolver al área, diciendo por qué',
+		text: 'Si falta algo, el documento vuelve al área. El motivo es obligatorio: se manda por correo, queda en la actividad y es lo primero que ve quien lo escribió.',
+		as: 'gestion',
+		viewportOnly: true,
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			await focusManagement( p );
+			return await openReasonDialog( p, 'devolver_area', REASON );
 		},
 	},
 	{
-		capitulo: 'Gestión documental completa',
-		titulo: 'Devuelto',
-		texto: 'Tras devolverlo, gestión vuelve a su bandeja con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO, 'revisar' ) ) ) return false;
-			if ( ! ( await abrirMotivo( p, 'devolver_area', MOTIVO ) ) ) return false;
-			return await pulsar( p, p.locator( '#dcta-dialogo-motivo-ok' ) );
+		chapter: 'Gestión documental completa',
+		title: 'Devuelto',
+		text: 'Tras devolverlo, gestión vuelve a su bandeja con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.',
+		as: 'gestion',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await openReasonDialog( p, 'devolver_area', REASON ) ) ) return false;
+			return await click( p, p.locator( '#dcta-dialogo-motivo-ok' ) );
 		},
 	},
 
 	{
-		capitulo: 'El área corrige',
-		titulo: 'El documento vuelve, con su motivo',
-		texto: 'En la lista del área la fila devuelta se tiñe y lleva debajo quién lo devolvió, cuándo y por qué. La acción de la fila deja de ser «Continuar» y pasa a ser «Corregir».',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/documentate/' ) ) ) return false;
-			const fila = filaDe( p, CICLO );
-			if ( ! ( await fila.count() ) ) return false;
-			return ( await fila.locator( '.dcta-doc-motivo' ).count() ) > 0;
+		chapter: 'El área corrige',
+		title: 'El documento vuelve, con su motivo',
+		text: 'En la lista del área la fila devuelta se tiñe y lleva debajo quién lo devolvió, cuándo y por qué. La acción de la fila deja de ser «Continuar» y pasa a ser «Corregir».',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/documentate/' ) ) ) return false;
+			const row = rowOf( p, CYCLE );
+			if ( ! ( await row.count() ) ) return false;
+			return ( await row.locator( '.dcta-doc-motivo' ).count() ) > 0;
 		},
 	},
 	{
-		capitulo: 'El área corrige',
-		titulo: 'Corregir lo que falta',
-		texto: 'El editor vuelve a abrirse con el motivo arriba del todo y los campos otra vez editables. Los datos oficiales que rellenó gestión siguen ahí, pero el área no los ve ni los puede tocar.',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO ) ) ) return false;
+		chapter: 'El área corrige',
+		title: 'Corregir lo que falta',
+		text: 'El editor vuelve a abrirse con el motivo arriba del todo y los campos otra vez editables. Los datos oficiales que rellenó gestión siguen ahí, pero el área no los ve ni los puede tocar.',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
 			return ( await p.locator( '.dcta-aviso-devuelto' ).count() ) > 0;
 		},
 	},
 	{
-		capitulo: 'El área corrige',
-		titulo: 'Reenviado a gestión',
-		texto: 'Corregido, se vuelve a enviar por el mismo camino y con la misma confirmación. La marca de devuelto desaparece: el documento está otra vez en gestión documental.',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO ) ) ) return false;
-			if ( ! ( await abrirConfirmacion( p, 'enviar_gestion' ) ) ) return false;
-			return await pulsar( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
+		chapter: 'El área corrige',
+		title: 'Reenviado a gestión',
+		text: 'Corregido, se vuelve a enviar por el mismo camino y con la misma confirmación. La marca de devuelto desaparece: el documento está otra vez en gestión documental.',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
+			if ( ! ( await openConfirmation( p, 'enviar_gestion' ) ) ) return false;
+			return await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
 		},
 	},
 
 	{
-		capitulo: 'De gestión a administración',
-		titulo: 'Pasar a administración',
-		texto: 'Cuando los datos oficiales están completos, gestión lo pasa a administración —también con su confirmación, como al enviarlo—. Hecho eso, gestión tampoco puede modificarlo: la ficha ya dice «En revisión».',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO, 'revisar' ) ) ) return false;
-			if ( ! ( await abrirConfirmacion( p, 'pasar_admin' ) ) ) return false;
-			return await pulsar( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
+		chapter: 'De gestión a administración',
+		title: 'Pasar a administración',
+		text: 'Cuando los datos oficiales están completos, gestión lo pasa a administración —también con su confirmación, como al enviarlo—. Hecho eso, gestión tampoco puede modificarlo: la ficha ya dice «En revisión».',
+		as: 'gestion',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await openConfirmation( p, 'pasar_admin' ) ) ) return false;
+			return await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
 		},
 	},
 	{
-		capitulo: 'De gestión a administración',
-		titulo: 'La bandeja de revisión',
-		texto: 'Administración tiene su propia bandeja con lo que espera aprobación, los mismos chips de estado y un selector de área para acotar cuando hay muchos: aquí, el Departamento de Proyectos.',
-		como: 'admin',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/documentate/?bandeja=revision' ) ) ) return false;
+		chapter: 'De gestión a administración',
+		title: 'La bandeja de revisión',
+		text: 'Administración tiene su propia bandeja con lo que espera aprobación, los mismos chips de estado y un selector de área para acotar cuando hay muchos: aquí, el Departamento de Proyectos.',
+		as: 'admin',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/documentate/?bandeja=revision' ) ) ) return false;
 			const select = p.locator( '#dcta-area' );
 			if ( ! ( await select.count() ) ) return false;
 			await select.selectOption( { label: 'Departamento de Proyectos' } );
-			return await pulsar( p, p.locator( '.dcta-areas button[type="submit"]' ) );
+			return await click( p, p.locator( '.dcta-areas button[type="submit"]' ) );
 		},
 	},
 	{
-		capitulo: 'De gestión a administración',
-		titulo: 'Devolver, eligiendo a quién',
-		texto: 'Administración es la única que puede devolver a dos sitios: a gestión documental, para que rehaga los datos oficiales, o directamente al área. Una sola ventana pregunta a quién y por qué; el motivo sigue siendo obligatorio.',
-		como: 'admin',
-		pantallaSola: true,
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, PENDIENTE, 'revision' ) ) ) return false;
-			if ( ! ( await abrirMotivo( p, 'devolver_area', 'Falta el desglose por partidas del capítulo II.' ) ) ) {
+		chapter: 'De gestión a administración',
+		title: 'Devolver, eligiendo a quién',
+		text: 'Administración es la única que puede devolver a dos sitios: a gestión documental, para que rehaga los datos oficiales, o directamente al área. Una sola ventana pregunta a quién y por qué; el motivo sigue siendo obligatorio.',
+		as: 'admin',
+		viewportOnly: true,
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, PENDING, 'revision' ) ) ) return false;
+			if ( ! ( await openReasonDialog( p, 'devolver_area', 'Falta el desglose por partidas del capítulo II.' ) ) ) {
 				return false;
 			}
-			// La ventana se queda abierta: la escena la enseña, no la envía.
+			// The dialog stays open: the scene shows it, it does not submit it.
 			return ( await p.locator( '.dcta-dialogo-destinos input[type="radio"]:not([disabled])' ).count() ) === 2;
 		},
 	},
 	{
-		capitulo: 'De gestión a administración',
-		titulo: 'Aprobar y publicar',
-		texto: 'Aprobar publica el documento y lo cierra: a partir de ahí solo se consulta y se descarga. La ficha lo dice arriba y el indicador de estado llega al final del recorrido.',
-		como: 'admin',
-		hacer: async ( p ) => {
-			if ( ! ( await irEditar( p, CICLO, 'revision' ) ) ) return false;
-			if ( ! ( await abrirConfirmacion( p, 'aprobar' ) ) ) return false;
-			return await pulsar( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
+		chapter: 'De gestión a administración',
+		title: 'Aprobar y publicar',
+		text: 'Aprobar publica el documento y lo cierra: a partir de ahí solo se consulta y se descarga. La ficha lo dice arriba y el indicador de estado llega al final del recorrido.',
+		as: 'admin',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, CYCLE, 'revision' ) ) ) return false;
+			if ( ! ( await openConfirmation( p, 'aprobar' ) ) ) return false;
+			return await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
 		},
 	},
 
 	{
-		capitulo: 'El documento terminado',
-		titulo: 'Previsualizar y descargar',
-		texto: 'El documento aprobado se genera desde su plantilla: vista previa en PDF y descarga en PDF, ODT o DOCX. Los formatos que necesitan conversor aparecen desactivados y con el motivo en el título cuando el entorno no lo tiene.',
-		como: 'area',
-		hacer: async ( p ) => {
-			if ( ! ( await irDetalle( p, CICLO ) ) ) return false;
+		chapter: 'El documento terminado',
+		title: 'Previsualizar y descargar',
+		text: 'El documento aprobado se genera desde su plantilla: vista previa en PDF y descarga en PDF, ODT o DOCX. Los formatos que necesitan conversor aparecen desactivados y con el motivo en el título cuando el entorno no lo tiene.',
+		as: 'area',
+		run: async ( p ) => {
+			if ( ! ( await goToDetail( p, CYCLE ) ) ) return false;
 			return ( await p.locator( '#exportar' ).count() ) > 0;
 		},
 	},
 	{
-		capitulo: 'El documento terminado',
-		titulo: 'La actividad del documento',
-		texto: 'Todo lo que le pasó al documento queda escrito: quién creó el borrador, quién adjuntó el fichero, quién lo envió, quién lo devolvió y con qué motivo, quién lo aprobó. Debajo, cualquiera de los tres roles puede dejar un comentario.',
-		como: 'gestion',
-		hacer: async ( p ) => {
-			if ( ! ( await irDetalle( p, CICLO, 'revisar' ) ) ) return false;
+		chapter: 'El documento terminado',
+		title: 'La actividad del documento',
+		text: 'Todo lo que le pasó al documento queda escrito: quién creó el borrador, quién adjuntó el fichero, quién lo envió, quién lo devolvió y con qué motivo, quién lo aprobó. Debajo, cualquiera de los tres roles puede dejar un comentario.',
+		as: 'gestion',
+		run: async ( p ) => {
+			if ( ! ( await goToDetail( p, CYCLE, 'revisar' ) ) ) return false;
 			await p.fill(
 				'#documentate-app-comentario',
 				'Publicado y comunicado al centro; el original firmado queda en el expediente.'
 			);
-			return await pulsar( p, p.locator( 'button[form="dcta-app-comentario"]' ) );
+			return await click( p, p.locator( 'button[form="dcta-app-comentario"]' ) );
 		},
 	},
 
 	{
-		capitulo: 'La otra cara: wp-admin',
-		titulo: 'La lista de documentos',
-		texto: 'La aplicación no sustituye a wp-admin: es la misma base de datos. Administración conserva la lista de siempre con el nombre interno, el estado, el área y los filtros por estado.',
-		como: 'admin',
-		hacer: async ( p ) => {
-			return await ir( p, '/wp-admin/edit.php?post_type=documentate_document' );
+		chapter: 'La otra cara: wp-admin',
+		title: 'La lista de documentos',
+		text: 'La aplicación no sustituye a wp-admin: es la misma base de datos. Administración conserva la lista de siempre con el nombre interno, el estado, el área y los filtros por estado.',
+		as: 'admin',
+		run: async ( p ) => {
+			return await goTo( p, '/wp-admin/edit.php?post_type=documentate_document' );
 		},
 	},
 	{
-		capitulo: 'La otra cara: wp-admin',
-		titulo: 'El tipo de documento: prefijo y gestión',
-		texto: 'Cada tipo lleva su plantilla, un prefijo de hasta seis letras para las listas y la marca de si pasa por gestión documental. Debajo, los campos que la plantilla declara, con la etiqueta «gestión» en los que solo completa gestión documental.',
-		como: 'admin',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/wp-admin/edit-tags.php?taxonomy=documentate_doc_type&post_type=documentate_document' ) ) ) {
+		chapter: 'La otra cara: wp-admin',
+		title: 'El tipo de documento: prefijo y gestión',
+		text: 'Cada tipo lleva su plantilla, un prefijo de hasta seis letras para las listas y la marca de si pasa por gestión documental. Debajo, los campos que la plantilla declara, con la etiqueta «gestión» en los que solo completa gestión documental.',
+		as: 'admin',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/wp-admin/edit-tags.php?taxonomy=documentate_doc_type&post_type=documentate_document' ) ) ) {
 				return false;
 			}
-			const fila = p.locator( '#the-list tr' ).filter( { hasText: 'Resolución Administrativa' } ).first();
-			if ( ! ( await fila.count() ) ) return false;
-			return await seguir( p, fila.locator( 'a.row-title' ).first() );
+			const row = p.locator( '#the-list tr' ).filter( { hasText: 'Resolución Administrativa' } ).first();
+			if ( ! ( await row.count() ) ) return false;
+			return await follow( p, row.locator( 'a.row-title' ).first() );
 		},
 	},
 	{
-		capitulo: 'La otra cara: wp-admin',
-		titulo: 'El metabox de gestión del documento',
-		texto: 'En la pantalla clásica del documento, «Gestión del documento» resume el recorrido y ofrece las mismas acciones que la aplicación. Las secciones de contenido se pliegan para verlo entero.',
-		como: 'admin',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/wp-admin/edit.php?post_type=documentate_document' ) ) ) return false;
-			const fila = p.locator( '#the-list tr' ).filter( { hasText: EN_GESTION } ).first();
-			if ( ! ( await fila.count() ) ) return false;
-			if ( ! ( await seguir( p, fila.locator( 'a.row-title' ).first() ) ) ) return false;
-			return await plegarMetaboxes( p, 'documentate_document_management' );
+		chapter: 'La otra cara: wp-admin',
+		title: 'El metabox de gestión del documento',
+		text: 'En la pantalla clásica del documento, «Gestión del documento» resume el recorrido y ofrece las mismas acciones que la aplicación. Las secciones de contenido se pliegan para verlo entero.',
+		as: 'admin',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/wp-admin/edit.php?post_type=documentate_document' ) ) ) return false;
+			const row = p.locator( '#the-list tr' ).filter( { hasText: IN_MANAGEMENT } ).first();
+			if ( ! ( await row.count() ) ) return false;
+			if ( ! ( await follow( p, row.locator( 'a.row-title' ).first() ) ) ) return false;
+			return await collapseMetaboxes( p, 'documentate_document_management' );
 		},
 	},
 
 	{
-		capitulo: 'Herramientas de desarrollo',
-		titulo: 'El selector de perfiles',
-		texto: 'Solo en wp-env y en Playground: la pantalla de acceso lista las cuentas de prueba de los tres roles y las rellena con un clic. Su pareja es el menú «Probar como…» de la barra de administración —a la vista en las capturas de wp-admin—, que cambia de cuenta sin cerrar sesión y devuelve a la aplicación. Nada de esto se despliega: /scripts no entra en el ZIP.',
-		como: 'admin',
-		quien: 'Sin sesión',
-		hacer: async ( p ) => {
-			if ( ! ( await ir( p, '/wp-login.php' ) ) ) return false;
-			const caja = p.locator( '.documentate-dev-login-accounts' );
-			if ( ! ( await caja.count() ) ) return false;
-			await caja.first().waitFor( { state: 'visible', timeout: 5000 } );
+		chapter: 'Herramientas de desarrollo',
+		title: 'El selector de perfiles',
+		text: 'Solo en wp-env y en Playground: la pantalla de acceso lista las cuentas de prueba de los tres roles y las rellena con un clic. Su pareja es el menú «Probar como…» de la barra de administración —a la vista en las capturas de wp-admin—, que cambia de cuenta sin cerrar sesión y devuelve a la aplicación. Nada de esto se despliega: /scripts no entra en el ZIP.',
+		as: 'admin',
+		who: 'Sin sesión',
+		run: async ( p ) => {
+			if ( ! ( await goTo( p, '/wp-login.php' ) ) ) return false;
+			const box = p.locator( '.documentate-dev-login-accounts' );
+			if ( ! ( await box.count() ) ) return false;
+			await box.first().waitFor( { state: 'visible', timeout: 5000 } );
 			return true;
 		},
 	},
 ];
 
-// ─── Motor ────────────────────────────────────────────────────────────────────
+// ─── Engine ───────────────────────────────────────────────────────────────────
 
-/** ID del documento del ciclo en la pasada actual; se resuelve una sola vez. */
-let DOC_CICLO = 0;
+/** ID of the cycle document in the current pass; resolved only once. */
+let DOC_CYCLE = 0;
 
 /**
- * Vuelve a dejar los documentos de demo como estaban antes de empezar.
+ * Puts the demo documents back the way they were before starting.
  *
- * Cada tamaño de pantalla recorre el ciclo entero, y el ciclo cambia el estado:
- * lo que aprueba el ordenador ya no está pendiente para el móvil. Sin este
- * reinicio la segunda pasada fotografía bandejas vacías.
+ * Each screen size walks the whole cycle, and the cycle changes state: what
+ * the desktop pass approves is no longer pending for the mobile one. Without
+ * this reset the second pass photographs empty trays.
  *
  * @return {void}
  */
-function reiniciarDatos() {
+function reseedData() {
 	if ( process.env.DOCUMENTATE_SIN_SEMBRAR ) return;
 	try {
 		execFileSync(
@@ -448,8 +448,8 @@ function reiniciarDatos() {
 			{ stdio: 'ignore' }
 		);
 	} catch ( e ) {
-		// Sin resembrar, la segunda pasada partiría de los datos que dejó la
-		// primera y las dos tandas de capturas no serían comparables.
+		// Without reseeding, the second pass would start from what the first
+		// one left behind and the two sets of screenshots would not compare.
 		throw new Error(
 			'No se pudo resembrar la demo (wp eval-file seed-demo-app.php). ¿Está levantado el entorno de desarrollo? Usa DOCUMENTATE_SIN_SEMBRAR=1 para saltarlo a propósito.'
 		);
@@ -457,16 +457,16 @@ function reiniciarDatos() {
 }
 
 /**
- * Navega a una ruta del sitio.
+ * Navigates to a site path.
  *
- * @param {import('@playwright/test').Page} p    Página.
- * @param {string}                          ruta Ruta absoluta del sitio o URL completa.
+ * @param {import('@playwright/test').Page} p    Page.
+ * @param {string}                          path Absolute site path or full URL.
  * @return {Promise<void>}
  */
-async function ir( p, ruta ) {
-	const url = ruta.startsWith( 'http' ) ? ruta : BASE + ruta;
-	const respuesta = await p.goto( url, { waitUntil: 'networkidle' } );
-	if ( ! respuesta || respuesta.status() >= 400 ) return false;
+async function goTo( p, path ) {
+	const url = path.startsWith( 'http' ) ? path : BASE + path;
+	const response = await p.goto( url, { waitUntil: 'networkidle' } );
+	if ( ! response || response.status() >= 400 ) return false;
 
 	// A 200 is not proof of anything: a login wall, a PHP fatal with
 	// WP_DEBUG_DISPLAY off and a theme 404 all answer 200 with no application
@@ -475,137 +475,137 @@ async function ir( p, ruta ) {
 }
 
 /**
- * Sigue un enlace por su href, sin depender de que el clic no se solape con
- * otra navegación.
+ * Follows a link by its href, without relying on the click not overlapping
+ * another navigation.
  *
- * @param {import('@playwright/test').Page}    p       Página.
- * @param {import('@playwright/test').Locator} enlace  Enlace.
- * @return {Promise<boolean>} false si el enlace no existe o no lleva a ningún sitio.
+ * @param {import('@playwright/test').Page}    p       Page.
+ * @param {import('@playwright/test').Locator} link    Link.
+ * @return {Promise<boolean>} false if the link is missing or leads nowhere.
  */
-async function seguir( p, enlace ) {
-	if ( ! ( await enlace.count() ) ) return false;
-	const href = await enlace.first().getAttribute( 'href' );
+async function follow( p, link ) {
+	if ( ! ( await link.count() ) ) return false;
+	const href = await link.first().getAttribute( 'href' );
 	if ( ! href ) return false;
-	return await ir( p, href );
+	return await goTo( p, href );
 }
 
 /**
- * Pulsa un botón que envía un formulario y espera al redirect posterior.
+ * Clicks a button that submits a form and waits for the redirect after it.
  *
- * Todos los handlers de la aplicación redirigen a otra URL con su bandera de
- * feedback, así que basta con esperar a que la dirección cambie.
+ * Every handler of the application redirects to another URL with its feedback
+ * flag, so waiting for the address to change is enough.
  *
- * @param {import('@playwright/test').Page}    p     Página.
- * @param {import('@playwright/test').Locator} boton Botón.
- * @return {Promise<boolean>} false si el botón no existe.
+ * @param {import('@playwright/test').Page}    p     Page.
+ * @param {import('@playwright/test').Locator} button Button.
+ * @return {Promise<boolean>} false if the button is missing.
  */
-async function pulsar( p, boton ) {
-	if ( ! ( await boton.count() ) ) return false;
-	const antes = p.url();
-	let navegó = true;
+async function click( p, button ) {
+	if ( ! ( await button.count() ) ) return false;
+	const before = p.url();
+	let navigated = true;
 	await Promise.all( [
 		p
-			.waitForURL( ( url ) => String( url ) !== antes, { timeout: 20000 } )
+			.waitForURL( ( url ) => String( url ) !== before, { timeout: 20000 } )
 			.catch( () => {
-				navegó = false;
+				navigated = false;
 			} ),
-		boton.first().click(),
+		button.first().click(),
 	] );
 	await p.waitForLoadState( 'networkidle' );
 
 	// Every handler of the application redirects with its feedback flag: no
 	// new address means the form never went through (a blocked required
 	// field, a button that does nothing), and the scene has to say so.
-	return navegó;
+	return navigated;
 }
 
 /**
- * Fila de la lista de documentos cuyo nombre contiene el texto dado.
+ * Row of the document list whose name contains the given text.
  *
- * @param {import('@playwright/test').Page} p      Página.
- * @param {string}                          nombre Trozo del nombre interno.
+ * @param {import('@playwright/test').Page} p      Page.
+ * @param {string}                          name Fragment of the internal name.
  * @return {import('@playwright/test').Locator}
  */
-function filaDe( p, nombre ) {
-	return p.locator( '.dcta-fila' ).filter( { hasText: nombre } ).first();
+function rowOf( p, name ) {
+	return p.locator( '.dcta-fila' ).filter( { hasText: name } ).first();
 }
 
 /**
- * Resuelve el ID del documento que recorre el ciclo, mirándolo en la lista del
- * área una sola vez por pasada (la siembra cambia los IDs).
+ * Resolves the ID of the document that walks the cycle, reading it from the
+ * área list once per pass (seeding changes the IDs).
  *
- * @param {import('@playwright/test').Page} p Página de cualquier rol con acceso.
- * @return {Promise<number>} 0 si no aparece.
+ * @param {import('@playwright/test').Page} p Page of any role with access.
+ * @return {Promise<number>} 0 if it does not show up.
  */
-async function idCiclo( p ) {
-	if ( DOC_CICLO ) return DOC_CICLO;
+async function cycleId( p ) {
+	if ( DOC_CYCLE ) return DOC_CYCLE;
 
-	for ( const ruta of [ '/documentate/', '/documentate/?bandeja=revisar', '/documentate/?estado=todos' ] ) {
-		await ir( p, ruta );
-		const enlace = filaDe( p, CICLO ).locator( '.dcta-doc-nombre a' ).first();
-		if ( ! ( await enlace.count() ) ) continue;
-		const href = await enlace.getAttribute( 'href' );
-		DOC_CICLO = Number( new URL( href, BASE ).searchParams.get( 'doc' ) ) || 0;
-		if ( DOC_CICLO ) return DOC_CICLO;
+	for ( const path of [ '/documentate/', '/documentate/?bandeja=revisar', '/documentate/?estado=todos' ] ) {
+		await goTo( p, path );
+		const link = rowOf( p, CYCLE ).locator( '.dcta-doc-nombre a' ).first();
+		if ( ! ( await link.count() ) ) continue;
+		const href = await link.getAttribute( 'href' );
+		DOC_CYCLE = Number( new URL( href, BASE ).searchParams.get( 'doc' ) ) || 0;
+		if ( DOC_CYCLE ) return DOC_CYCLE;
 	}
 
 	return 0;
 }
 
 /**
- * Abre el editor de un documento buscándolo por su nombre en las listas.
+ * Opens the editor of a document, finding it by name in the lists.
  *
- * @param {import('@playwright/test').Page} p       Página.
- * @param {string}                          nombre  Trozo del nombre interno.
- * @param {string}                          bandeja Bandeja de la que se viene.
- * @return {Promise<boolean>} false si el documento no aparece o no es editable.
+ * @param {import('@playwright/test').Page} p       Page.
+ * @param {string}                          name    Fragment of the internal name.
+ * @param {string}                          tray    Tray the visit comes from.
+ * @return {Promise<boolean>} false if the document is missing or not editable.
  */
-async function irEditar( p, nombre, bandeja = '' ) {
-	const id = CICLO === nombre ? await idCiclo( p ) : await idDe( p, nombre, bandeja );
+async function goToEdit( p, name, tray = '' ) {
+	const id = CYCLE === name ? await cycleId( p ) : await idOf( p, name, tray );
 	if ( ! id ) return false;
 
-	const cola = '' !== bandeja ? '&bandeja=' + bandeja : '';
-	await ir( p, '/documentate/?doc=' + id + '&vista=editar' + cola );
+	const queue = '' !== tray ? '&bandeja=' + tray : '';
+	await goTo( p, '/documentate/?doc=' + id + '&vista=editar' + queue );
 
 	return ( await p.locator( 'form.dcta-editor' ).count() ) > 0;
 }
 
 /**
- * Abre la ficha de un documento buscándolo por su nombre en las listas.
+ * Opens the detail view of a document, finding it by name in the lists.
  *
- * @param {import('@playwright/test').Page} p       Página.
- * @param {string}                          nombre  Trozo del nombre interno.
- * @param {string}                          bandeja Bandeja de la que se viene.
- * @return {Promise<boolean>} false si el documento no aparece.
+ * @param {import('@playwright/test').Page} p       Page.
+ * @param {string}                          name    Fragment of the internal name.
+ * @param {string}                          tray    Tray the visit comes from.
+ * @return {Promise<boolean>} false if the document does not show up.
  */
-async function irDetalle( p, nombre, bandeja = '' ) {
-	const id = CICLO === nombre ? await idCiclo( p ) : await idDe( p, nombre, bandeja );
+async function goToDetail( p, name, tray = '' ) {
+	const id = CYCLE === name ? await cycleId( p ) : await idOf( p, name, tray );
 	if ( ! id ) return false;
 
-	const cola = '' !== bandeja ? '&bandeja=' + bandeja : '';
-	await ir( p, '/documentate/?doc=' + id + cola );
+	const queue = '' !== tray ? '&bandeja=' + tray : '';
+	await goTo( p, '/documentate/?doc=' + id + queue );
 
 	return ( await p.locator( '.dcta-detalle' ).count() ) > 0;
 }
 
 /**
- * ID de un documento cualquiera, buscándolo en la bandeja indicada.
+ * ID of any document, looking for it in the given tray.
  *
- * @param {import('@playwright/test').Page} p       Página.
- * @param {string}                          nombre  Trozo del nombre interno.
- * @param {string}                          bandeja Bandeja donde mirar.
- * @return {Promise<number>} 0 si no aparece.
+ * @param {import('@playwright/test').Page} p       Page.
+ * @param {string}                          name    Fragment of the internal name.
+ * @param {string}                          tray    Tray to look in.
+ * @return {Promise<number>} 0 if it does not show up.
  */
-async function idDe( p, nombre, bandeja ) {
-	const rutas = '' !== bandeja
-		? [ '/documentate/?bandeja=' + bandeja + '&estado=todos', '/documentate/' ]
+async function idOf( p, name, tray ) {
+	const paths = '' !== tray
+		? [ '/documentate/?bandeja=' + tray + '&estado=todos', '/documentate/' ]
 		: [ '/documentate/', '/documentate/?estado=todos' ];
 
-	for ( const ruta of rutas ) {
-		await ir( p, ruta );
-		const enlace = filaDe( p, nombre ).locator( '.dcta-doc-nombre a' ).first();
-		if ( ! ( await enlace.count() ) ) continue;
-		const href = await enlace.getAttribute( 'href' );
+	for ( const path of paths ) {
+		await goTo( p, path );
+		const link = rowOf( p, name ).locator( '.dcta-doc-nombre a' ).first();
+		if ( ! ( await link.count() ) ) continue;
+		const href = await link.getAttribute( 'href' );
 		const id = Number( new URL( href, BASE ).searchParams.get( 'doc' ) ) || 0;
 		if ( id ) return id;
 	}
@@ -614,63 +614,63 @@ async function idDe( p, nombre, bandeja ) {
 }
 
 /**
- * Escribe en un campo del editor si está presente.
+ * Types into an editor field if it is present.
  *
- * @param {import('@playwright/test').Page} p        Página.
- * @param {string}                          selector Selector del campo.
- * @param {string}                          valor    Valor a escribir.
- * @return {Promise<boolean>} false si el campo no está en esta vista.
+ * @param {import('@playwright/test').Page} p        Page.
+ * @param {string}                          selector Field selector.
+ * @param {string}                          value    Value to type.
+ * @return {Promise<boolean>} false if the field is not in this view.
  */
-async function escribirCampo( p, selector, valor ) {
-	const campo = p.locator( selector );
-	if ( ! ( await campo.count() ) ) return false;
-	await campo.first().fill( valor );
+async function fillField( p, selector, value ) {
+	const field = p.locator( selector );
+	if ( ! ( await field.count() ) ) return false;
+	await field.first().fill( value );
 	return true;
 }
 
 /**
- * Elige una opción de un desplegable del editor si está presente.
+ * Picks an option from an editor dropdown if it is present.
  *
- * @param {import('@playwright/test').Page} p        Página.
- * @param {string}                          selector Selector del desplegable.
- * @param {string}                          valor    Valor de la opción.
- * @return {Promise<boolean>} false si el desplegable no está en esta vista.
+ * @param {import('@playwright/test').Page} p        Page.
+ * @param {string}                          selector Dropdown selector.
+ * @param {string}                          value    Option value.
+ * @return {Promise<boolean>} false if the dropdown is not in this view.
  */
-async function elegirCampo( p, selector, valor ) {
-	const campo = p.locator( selector );
-	if ( ! ( await campo.count() ) ) return false;
-	await campo.first().selectOption( valor );
+async function pickField( p, selector, value ) {
+	const field = p.locator( selector );
+	if ( ! ( await field.count() ) ) return false;
+	await field.first().selectOption( value );
 	return true;
 }
 
 /**
- * Guarda el editor y espera al aviso de confirmación.
+ * Saves the editor and waits for the confirmation notice.
  *
- * @param {import('@playwright/test').Page} p Página.
- * @return {Promise<boolean>} false si no hay botón de guardar.
+ * @param {import('@playwright/test').Page} p Page.
+ * @return {Promise<boolean>} false if there is no save button.
  */
-async function guardar( p ) {
-	if ( ! ( await pulsar( p, p.locator( 'button[name="documentate_app_estado"][value="guardar"]' ) ) ) ) {
+async function save( p ) {
+	if ( ! ( await click( p, p.locator( 'button[name="documentate_app_estado"][value="guardar"]' ) ) ) ) {
 		return false;
 	}
 	return ( await p.locator( '.dcta-aviso-ok' ).count() ) > 0;
 }
 
 /**
- * Pulsa un botón de transición y deja abierta su ventana de confirmación.
+ * Clicks a transition button and leaves its confirmation dialog open.
  *
- * @param {import('@playwright/test').Page} p     Página.
- * @param {string}                          clave Clave de la transición.
- * @return {Promise<boolean>} false si el botón no está o la ventana no se abre.
+ * @param {import('@playwright/test').Page} p     Page.
+ * @param {string}                          key   Transition key.
+ * @return {Promise<boolean>} false if the button is missing or the dialog stays shut.
  */
-async function abrirConfirmacion( p, clave ) {
-	const boton = p.locator( 'button[name="documentate_app_transicion"][value="' + clave + '"]' );
-	if ( ! ( await boton.count() ) ) return false;
+async function openConfirmation( p, key ) {
+	const button = p.locator( 'button[name="documentate_app_transicion"][value="' + key + '"]' );
+	if ( ! ( await button.count() ) ) return false;
 
-	await boton.first().click();
-	const dialogo = p.locator( '#dcta-dialogo-confirmar' );
+	await button.first().click();
+	const dialog = p.locator( '#dcta-dialogo-confirmar' );
 	try {
-		await dialogo.waitFor( { state: 'visible', timeout: 5000 } );
+		await dialog.waitFor( { state: 'visible', timeout: 5000 } );
 	} catch {
 		return false;
 	}
@@ -679,40 +679,40 @@ async function abrirConfirmacion( p, clave ) {
 }
 
 /**
- * Pulsa un botón de devolución, deja abierta la ventana del motivo y lo escribe.
+ * Clicks a return button, leaves the reason dialog open and types the reason.
  *
- * @param {import('@playwright/test').Page} p      Página.
- * @param {string}                          clave  Clave de la transición.
- * @param {string}                          motivo Motivo de la devolución.
- * @return {Promise<boolean>} false si el botón no está o la ventana no se abre.
+ * @param {import('@playwright/test').Page} p      Page.
+ * @param {string}                          key    Transition key.
+ * @param {string}                          reason Reason for the return.
+ * @return {Promise<boolean>} false if the button is missing or the dialog stays shut.
  */
-async function abrirMotivo( p, clave, motivo ) {
-	const boton = p.locator( 'button[data-motivo][name="documentate_app_transicion"][value="' + clave + '"]' );
-	if ( ! ( await boton.count() ) ) return false;
+async function openReasonDialog( p, key, reason ) {
+	const button = p.locator( 'button[data-motivo][name="documentate_app_transicion"][value="' + key + '"]' );
+	if ( ! ( await button.count() ) ) return false;
 
-	await boton.first().click();
-	const dialogo = p.locator( '#dcta-dialogo-motivo' );
+	await button.first().click();
+	const dialog = p.locator( '#dcta-dialogo-motivo' );
 	try {
-		await dialogo.waitFor( { state: 'visible', timeout: 5000 } );
+		await dialog.waitFor( { state: 'visible', timeout: 5000 } );
 	} catch {
 		return false;
 	}
 
-	await p.fill( '#dcta-dialogo-motivo-texto', motivo );
+	await p.fill( '#dcta-dialogo-motivo-texto', reason );
 	return true;
 }
 
 /**
- * Deja a la vista la parte de gestión documental del editor.
+ * Brings the gestión documental half of the editor into view.
  *
- * Despliega las fichas de proveedor y pliega «Datos del área», que es como se
- * trabaja cuando lo que toca es completar los datos oficiales: sin plegarlos,
- * la captura de página completa mide diez pantallas y no se lee nada.
+ * Expands the provider cards and folds «Datos del área» away, which is how the
+ * work is done when the official data is what has to be filled in: unfolded,
+ * the full-page screenshot is ten screens tall and nothing can be read.
  *
- * @param {import('@playwright/test').Page} p Página.
+ * @param {import('@playwright/test').Page} p Page.
  * @return {Promise<void>}
  */
-async function enfocarGestion( p ) {
+async function focusManagement( p ) {
 	await p.evaluate( () => {
 		document.querySelectorAll( 'details' ).forEach( ( d ) => {
 			d.open = true;
@@ -721,26 +721,26 @@ async function enfocarGestion( p ) {
 		if ( area ) {
 			area.open = false;
 		}
-		// El resumen se recalcula al escribir; al desplegar hay que pedirlo.
-		if ( window.documentateCalculos ) {
-			window.documentateCalculos.recalcular();
+		// The summary recomputes on input; expanding has to ask for it.
+		if ( window.documentateCalculations ) {
+			window.documentateCalculations.recalculate();
 		}
 	} );
 }
 
 /**
- * Pliega todos los metaboxes de wp-admin menos el que interesa enseñar.
+ * Folds every wp-admin metabox except the one worth showing.
  *
- * La pantalla clásica del documento mide varias pantallas de alto; plegada, la
- * captura entera cabe y se ve lo que se está explicando.
+ * The classic document screen is several screens tall; folded, the whole
+ * screenshot fits and what is being explained is visible.
  *
- * @param {import('@playwright/test').Page} p     Página.
- * @param {string}                          dejar ID del metabox que se deja abierto.
- * @return {Promise<boolean>} false si la pantalla no es la del editor clásico.
+ * @param {import('@playwright/test').Page} p     Page.
+ * @param {string}                          keepOpen ID of the metabox left open.
+ * @return {Promise<boolean>} false if this is not the classic editor screen.
  */
-async function plegarMetaboxes( p, dejar ) {
-	const caja = p.locator( '#' + dejar );
-	if ( ! ( await caja.count() ) ) return false;
+async function collapseMetaboxes( p, keepOpen ) {
+	const box = p.locator( '#' + keepOpen );
+	if ( ! ( await box.count() ) ) return false;
 
 	await p.evaluate( ( id ) => {
 		document.querySelectorAll( '#poststuff .postbox' ).forEach( ( box ) => {
@@ -748,24 +748,24 @@ async function plegarMetaboxes( p, dejar ) {
 				box.classList.add( 'closed' );
 			}
 		} );
-	}, dejar );
+	}, keepOpen );
 
 	return true;
 }
 
 /**
- * Anchura en píxeles CSS de la captura que se acaba de hacer.
+ * Width in CSS pixels of the screenshot just taken.
  *
- * El informe dibuja cada figura a esa anchura, así que una página que se
- * ensancha (o una ventana de móvil) sale a su tamaño real y no reescalada.
+ * The report draws every figure at that width, so a page that widens (or a
+ * mobile window) comes out at its real size instead of rescaled.
  *
- * @param {import('@playwright/test').Page} p           Página.
- * @param {boolean}                         soloVentana Si se capturó solo la ventana.
- * @return {Promise<number>} Anchura en píxeles CSS.
+ * @param {import('@playwright/test').Page} p           Page.
+ * @param {boolean}                         viewportOnly Whether only the window was captured.
+ * @return {Promise<number>} Width in CSS pixels.
  */
-async function anchoCss( p, soloVentana ) {
-	const ventana = p.viewportSize();
-	if ( soloVentana ) return ventana ? ventana.width : 0;
+async function cssWidth( p, viewportOnly ) {
+	const viewport = p.viewportSize();
+	if ( viewportOnly ) return viewport ? viewport.width : 0;
 
 	return await p.evaluate( () =>
 		Math.max(
@@ -776,100 +776,100 @@ async function anchoCss( p, soloVentana ) {
 }
 
 /**
- * Inicia sesión con una de las cuentas de demo.
+ * Logs in with one of the demo accounts.
  *
- * @param {import('@playwright/test').BrowserContext} contexto Contexto propio del rol.
- * @param {string}                                    quien    Clave de USUARIOS.
+ * @param {import('@playwright/test').BrowserContext} context  Context of the role.
+ * @param {string}                                    who      USERS key.
  * @return {Promise<import('@playwright/test').Page>}
  */
-async function entrar( contexto, quien ) {
-	const { user, pass } = USUARIOS[ quien ];
-	const p = await contexto.newPage();
+async function logIn( context, who ) {
+	const { user, pass } = USERS[ who ];
+	const p = await context.newPage();
 	await p.goto( BASE + '/wp-login.php', { waitUntil: 'networkidle' } );
 	await p.fill( '#user_login', user );
 	await p.fill( '#user_pass', pass );
 	await Promise.all( [ p.waitForLoadState( 'networkidle' ), p.click( '#wp-submit' ) ] );
-	const dentro = ! ( await p.locator( '#loginform' ).count() );
-	if ( ! dentro ) {
+	const inside = ! ( await p.locator( '#loginform' ).count() );
+	if ( ! inside ) {
 		throw new Error( `No se pudo iniciar sesión como «${ user }». ¿Está el entorno de desarrollo levantado?` );
 	}
 	return p;
 }
 
 /**
- * Recorre el guion entero en cada tamaño de pantalla y escribe el informe.
+ * Walks the whole script at each screen size and writes the report.
  *
  * @return {Promise<void>}
  */
 async function main() {
-	const navegador = await chromium.launch();
+	const browser = await chromium.launch();
 	await rm( OUT, { recursive: true, force: true } );
 	await mkdir( path.join( OUT, 'img' ), { recursive: true } );
 
-	const pantallas = SOLO ? PANTALLAS.filter( ( s ) => s.id === SOLO ) : PANTALLAS;
-	if ( ! pantallas.length ) {
-		throw new Error( `SOLO=${ SOLO } no existe. Usa: ${ PANTALLAS.map( ( s ) => s.id ).join( ', ' ) }` );
+	const screens = SOLO ? SCREENS.filter( ( s ) => s.id === SOLO ) : SCREENS;
+	if ( ! screens.length ) {
+		throw new Error( `SOLO=${ SOLO } no existe. Usa: ${ SCREENS.map( ( s ) => s.id ).join( ', ' ) }` );
 	}
 
-	const hechas = [];
+	const done = [];
 
-	for ( const pantalla of pantallas ) {
-		const { id, etiqueta, ...opciones } = pantalla;
-		console.log( `\n▸ ${ etiqueta }` );
-		reiniciarDatos();
-		DOC_CICLO = 0;
+	for ( const screen of screens ) {
+		const { id, label, ...options } = screen;
+		console.log( `\n▸ ${ label }` );
+		reseedData();
+		DOC_CYCLE = 0;
 
-		// Una sesión por rol y pantalla: cambiar de usuario a mitad de guion
-		// obligaría a reiniciar la sesión en cada escena.
-		const sesiones = {};
-		for ( const quien of Object.keys( USUARIOS ) ) {
-			const contexto = await navegador.newContext( { ...opciones, locale: 'es-ES' } );
-			sesiones[ quien ] = { contexto, pagina: await entrar( contexto, quien ) };
+		// One session per role and screen: switching user mid-script would
+		// force a fresh login on every scene.
+		const sessions = {};
+		for ( const who of Object.keys( USERS ) ) {
+			const context = await browser.newContext( { ...options, locale: 'es-ES' } );
+			sessions[ who ] = { context, page: await logIn( context, who ) };
 		}
 
-		for ( const [ i, escena ] of ESCENAS.entries() ) {
-			const { pagina } = sesiones[ escena.como ];
+		for ( const [ i, scene ] of SCENES.entries() ) {
+			const { page } = sessions[ scene.as ];
 			let ok = true;
 			let error = '';
 			try {
-				ok = ( await escena.hacer( pagina ) ) !== false;
+				ok = ( await scene.run( page ) ) !== false;
 			} catch ( e ) {
 				ok = false;
 				error = String( e.message || e ).split( '\n' )[ 0 ];
 			}
 
-			const nombre = `${ String( i + 1 ).padStart( 2, '0' ) }-${ id }-${ slug( escena.titulo ) }.png`;
-			// Un <dialog> modal y su fondo miden lo que mide la ventana: en una
-			// captura de página completa el fondo oscurece solo la primera
-			// pantalla y en el móvil el diálogo acaba a miles de píxeles.
-			await pagina.screenshot( {
-				path: path.join( OUT, 'img', nombre ),
-				fullPage: ! escena.pantallaSola,
+			const name = `${ String( i + 1 ).padStart( 2, '0' ) }-${ id }-${ slug( scene.title ) }.png`;
+			// A modal <dialog> and its backdrop are the size of the window: in a
+			// full-page screenshot the backdrop darkens only the first screen
+			// and on mobile the dialog ends up thousands of pixels down.
+			await page.screenshot( {
+				path: path.join( OUT, 'img', name ),
+				fullPage: ! scene.viewportOnly,
 			} );
-			const ancho = await anchoCss( pagina, escena.pantallaSola );
-			hechas.push( {
-				...escena,
-				pantalla: etiqueta,
-				pantallaId: id,
-				img: `img/${ nombre }`,
-				ancho,
-				url: pagina.url().replace( BASE, '' ),
+			const width = await cssWidth( page, scene.viewportOnly );
+			done.push( {
+				...scene,
+				screen: label,
+				screenId: id,
+				img: `img/${ name }`,
+				width,
+				url: page.url().replace( BASE, '' ),
 				ok,
 				error,
 			} );
-			console.log( `  ${ ok ? '✓' : '✗' } ${ escena.capitulo } — ${ escena.titulo }${ error ? ` (${ error })` : '' }` );
+			console.log( `  ${ ok ? '✓' : '✗' } ${ scene.chapter } — ${ scene.title }${ error ? ` (${ error })` : '' }` );
 		}
 
-		for ( const s of Object.values( sesiones ) ) await s.contexto.close();
+		for ( const s of Object.values( sessions ) ) await s.context.close();
 	}
 
-	await navegador.close();
-	await writeFile( path.join( OUT, 'informe.html' ), informe( hechas ), 'utf8' );
+	await browser.close();
+	await writeFile( path.join( OUT, 'informe.html' ), report( done ), 'utf8' );
 
-	const fallos = hechas.filter( ( c ) => ! c.ok );
-	console.log( `\n${ hechas.length } capturas en ${ OUT }/informe.html` );
-	if ( fallos.length ) {
-		console.log( `${ fallos.length } escenas no se pudieron completar (siguen capturadas, marcadas en el informe).` );
+	const failures = done.filter( ( c ) => ! c.ok );
+	console.log( `\n${ done.length } capturas en ${ OUT }/informe.html` );
+	if ( failures.length ) {
+		console.log( `${ failures.length } escenas no se pudieron completar (siguen capturadas, marcadas en el informe).` );
 		process.exitCode = 1;
 	}
 }
@@ -886,37 +886,37 @@ const esc = ( t ) =>
 	String( t ).replace( /[&<>"]/g, ( c ) => ( { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ c ] ) );
 
 /**
- * Compone el informe HTML: un capítulo por bloque del guion y, en cada paso,
- * las dos pantallas una al lado de la otra.
+ * Builds the HTML report: one chapter per block of the script and, at each
+ * step, the two screens side by side.
  *
- * @param {Array<Object>} capturas Capturas hechas, en orden.
- * @return {string} HTML completo del informe.
+ * @param {Array<Object>} shots Screenshots taken, in order.
+ * @return {string} Full HTML of the report.
  */
-function informe( capturas ) {
-	const capitulos = [ ...new Set( capturas.map( ( c ) => c.capitulo ) ) ];
-	const fecha = new Date().toLocaleString( 'es-ES' );
-	const fallos = capturas.filter( ( c ) => ! c.ok ).length;
+function report( shots ) {
+	const chapters = [ ...new Set( shots.map( ( c ) => c.chapter ) ) ];
+	const date = new Date().toLocaleString( 'es-ES' );
+	const failures = shots.filter( ( c ) => ! c.ok ).length;
 
-	const indice = `<nav class="indice"><ol>${ capitulos
+	const index = `<nav class="indice"><ol>${ chapters
 		.map(
-			( capitulo ) =>
-				`<li><a href="#${ slug( capitulo ) }">${ esc( capitulo ) }</a></li>`
+			( chapter ) =>
+				`<li><a href="#${ slug( chapter ) }">${ esc( chapter ) }</a></li>`
 		)
 		.join( '' ) }</ol></nav>`;
 
-	const cuerpo = capitulos
-		.map( ( capitulo ) => {
-			const suyas = capturas.filter( ( c ) => c.capitulo === capitulo );
-			const titulos = [ ...new Set( suyas.map( ( c ) => c.titulo ) ) ];
-			return `<section id="${ slug( capitulo ) }"><h2>${ esc( capitulo ) }</h2>${ titulos
-				.map( ( titulo ) => {
-					const paso = suyas.filter( ( c ) => c.titulo === titulo );
-					const quien = paso[ 0 ].quien || USUARIOS[ paso[ 0 ].como ].etiqueta;
-					return `<article id="${ slug( titulo ) }">
-	<h3><a class="ancla" href="#${ slug( titulo ) }">§</a> ${ esc( titulo ) }${ paso.every( ( c ) => c.ok ) ? '' : ' <span class="ko">revisar</span>' }</h3>
-	<p class="quien">${ esc( quien ) }</p>
-	<p>${ esc( paso[ 0 ].texto ) }</p>
-	${ paso.map( figura ).join( '' ) }
+	const body = chapters
+		.map( ( chapter ) => {
+			const theirs = shots.filter( ( c ) => c.chapter === chapter );
+			const titles = [ ...new Set( theirs.map( ( c ) => c.title ) ) ];
+			return `<section id="${ slug( chapter ) }"><h2>${ esc( chapter ) }</h2>${ titles
+				.map( ( title ) => {
+					const step = theirs.filter( ( c ) => c.title === title );
+					const who = step[ 0 ].who || USERS[ step[ 0 ].as ].label;
+					return `<article id="${ slug( title ) }">
+	<h3><a class="ancla" href="#${ slug( title ) }">§</a> ${ esc( title ) }${ step.every( ( c ) => c.ok ) ? '' : ' <span class="ko">revisar</span>' }</h3>
+	<p class="who">${ esc( who ) }</p>
+	<p>${ esc( step[ 0 ].text ) }</p>
+	${ step.map( figure ).join( '' ) }
 </article>`;
 				} )
 				.join( '' ) }</section>`;
@@ -947,7 +947,7 @@ h3 { font-size:21px; margin:0 0 4px; letter-spacing:-.01em; }
 .quien { margin:0 0 10px; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
   color:var(--suave); font-family:ui-monospace,Menlo,monospace; }
 article p { margin:0 0 18px; color:var(--suave); max-width:62ch; }
-/* Las dos pantallas van una debajo de otra: en dos columnas, la captura de
+/* The two screens stack one under the other: in two columns, the
    ordenador se dibujaba al 44 % y su texto de 16 px quedaba ilegible. */
 figure { margin:0 0 22px; background:#fff; border:1px solid var(--linea); }
 figure img { display:block; width:100%; height:auto;
@@ -961,26 +961,26 @@ figcaption code { font-family:inherit; }
 </style></head><body><div class="wrap">
 <h1>Documentate</h1>
 <p class="sub">El ciclo completo de un documento: el área lo prepara, gestión documental completa los datos oficiales y administración lo aprueba.</p>
-<p class="meta">${ esc( fecha ) } · ${ esc( BASE ) } · ${ capturas.length } capturas${
-		fallos ? ` · <span class="ko">${ fallos } por revisar</span>` : ''
+<p class="meta">${ esc( date ) } · ${ esc( BASE ) } · ${ shots.length } capturas${
+		failures ? ` · <span class="ko">${ failures } por revisar</span>` : ''
 	}</p>
-${ indice }
-${ cuerpo }
+${ index }
+${ body }
 </div></body></html>`;
 }
 
 /**
- * Una figura del informe, dibujada a la anchura real de su captura.
+ * One figure of the report, drawn at the real width of its screenshot.
  *
- * @param {Object} c Captura.
- * @return {string} HTML de la figura.
+ * @param {Object} c Screenshot record.
+ * @return {string} HTML of the figure.
  */
-function figura( c ) {
-	const ancho = c.ancho > 0 ? ` style="max-width:${ c.ancho }px"` : '';
+function figure( c ) {
+	const width = c.width > 0 ? ` style="max-width:${ c.width }px"` : '';
 
-	return `<figure class="${ c.pantallaId }"${ ancho }>
-		<img src="${ c.img }" alt="${ esc( c.titulo ) } en ${ esc( c.pantalla ) }" loading="lazy" />
-		<figcaption>${ esc( c.pantalla ) } · <code>${ esc( c.url || '' ) }</code> · <a href="${ c.img }">captura completa</a>${
+	return `<figure class="${ c.screenId }"${ width }>
+		<img src="${ c.img }" alt="${ esc( c.title ) } en ${ esc( c.screen ) }" loading="lazy" />
+		<figcaption>${ esc( c.screen ) } · <code>${ esc( c.url || '' ) }</code> · <a href="${ c.img }">captura completa</a>${
 			c.error ? ` — <span class="ko">${ esc( c.error ) }</span>` : ''
 		}</figcaption>
 	</figure>`;

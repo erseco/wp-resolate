@@ -26,7 +26,7 @@ const LOCK_DIR = path.join( os.tmpdir(), 'documentate-e2e-wp-cli.lock' );
 const LOCK_TTL = 180_000;
 
 /** How long a worker waits for the lock before giving up loudly (ms). */
-const LOCK_ESPERA = 240_000;
+const LOCK_WAIT = 240_000;
 
 /**
  * Sleep without yielding to the event loop.
@@ -37,7 +37,7 @@ const LOCK_ESPERA = 240_000;
  * @param {number} ms Milliseconds to wait.
  * @return {void}
  */
-function dormir( ms ) {
+function sleep( ms ) {
 	Atomics.wait( new Int32Array( new SharedArrayBuffer( 4 ) ), 0, 0, ms );
 }
 
@@ -47,8 +47,8 @@ function dormir( ms ) {
  * @param {Function} callback What to run.
  * @return {*} Whatever the callback returns.
  */
-function conBloqueo( callback ) {
-	const limite = Date.now() + LOCK_ESPERA;
+function withLock( callback ) {
+	const deadline = Date.now() + LOCK_WAIT;
 
 	for (;;) {
 		try {
@@ -61,18 +61,18 @@ function conBloqueo( callback ) {
 			// Only an abandoned lock is taken away: a worker that is merely
 			// slow still holds it, and stealing it would put two `wp-env run`
 			// calls in flight — the very thing the lock prevents.
-			const nacido = fs.statSync( LOCK_DIR, { throwIfNoEntry: false } );
-			if ( ! nacido || Date.now() - nacido.mtimeMs > LOCK_TTL ) {
+			const created = fs.statSync( LOCK_DIR, { throwIfNoEntry: false } );
+			if ( ! created || Date.now() - created.mtimeMs > LOCK_TTL ) {
 				fs.rmSync( LOCK_DIR, { recursive: true, force: true } );
 				continue;
 			}
-			if ( Date.now() > limite ) {
-				const segundos = Math.round( LOCK_ESPERA / 1000 );
+			if ( Date.now() > deadline ) {
+				const seconds = Math.round( LOCK_WAIT / 1000 );
 				throw new Error(
-					`The WP-CLI lock (${ LOCK_DIR }) has been held by another worker for more than ${ segundos } s.`
+					`The WP-CLI lock (${ LOCK_DIR }) has been held by another worker for more than ${ seconds } s.`
 				);
 			}
-			dormir( 100 );
+			sleep( 100 );
 		}
 	}
 
@@ -112,7 +112,7 @@ function runWpCmdSafe( cmd ) {
 
 function runWpCmd( cmd ) {
 	try {
-		return conBloqueo( () =>
+		return withLock( () =>
 			execSync(
 				`npx @wordpress/env run cli --config=.wp-env.docker.json wp ${ cmd }`,
 				// wp-env narrates every call on stderr, echoing the whole
@@ -163,13 +163,13 @@ async function loginAs( browser, baseURL, username ) {
 			await page
 				.waitForFunction(
 					() => {
-						const campo = document.getElementById( 'user_pass' );
-						const activo =
-							campo && campo.ownerDocument.activeElement;
+						const field = document.getElementById( 'user_pass' );
+						const active =
+							field && field.ownerDocument.activeElement;
 
 						return (
-							!! activo &&
-							[ 'user_login', 'user_pass' ].includes( activo.id )
+							!! active &&
+							[ 'user_login', 'user_pass' ].includes( active.id )
 						);
 					},
 					undefined,
@@ -203,9 +203,9 @@ async function loginAs( browser, baseURL, username ) {
 }
 
 /**
- * Bytes of a minimal but structurally real PDF.
+ * Bytes of a minimal but structurally actual PDF.
  *
- * `Documentate_App_Adjuntos::validar()` runs `wp_check_filetype_and_ext()`,
+ * `Documentate_App_Attachments::validar()` runs `wp_check_filetype_and_ext()`,
  * which sniffs the content, so the fixture cannot be an arbitrary string.
  *
  * @type {Buffer}
@@ -227,91 +227,91 @@ const PDF_FIXTURE = Buffer.from(
  *
  * @type {string}
  */
-const PHP_ESCENARIO = `
+const PHP_FIXTURE = `
 $plan = json_decode( base64_decode( '__PLAN__' ), true );
 $out = array(
-	'categorias' => array(),
-	'tipos' => array(),
-	'usuarios' => array(),
-	'documentos' => array(),
-	'estados' => array(),
+	'categories' => array(),
+	'types' => array(),
+	'users' => array(),
+	'documents' => array(),
+	'statuses' => array(),
 );
 
-foreach ( (array) $plan['categorias'] as $clave => $def ) {
-	$nombre = is_array( $def ) ? $def['nombre'] : $def;
-	$padre = is_array( $def ) && isset( $def['padre'] ) ? (int) $out['categorias'][ $def['padre'] ] : 0;
-	$term = wp_insert_term( $nombre, 'category', array( 'parent' => $padre ) );
-	$out['categorias'][ $clave ] = is_wp_error( $term ) ? 0 : (int) $term['term_id'];
+foreach ( (array) $plan['categories'] as $key => $def ) {
+	$name = is_array( $def ) ? $def['name'] : $def;
+	$parent = is_array( $def ) && isset( $def['parent'] ) ? (int) $out['categories'][ $def['parent'] ] : 0;
+	$term = wp_insert_term( $name, 'category', array( 'parent' => $parent ) );
+	$out['categories'][ $key ] = is_wp_error( $term ) ? 0 : (int) $term['term_id'];
 }
 
-foreach ( (array) $plan['tipos'] as $clave => $def ) {
+foreach ( (array) $plan['types'] as $key => $def ) {
 	if ( is_array( $def ) ) {
 		$term = get_term_by( 'slug', $def['slug'], 'documentate_doc_type' );
-		$out['tipos'][ $clave ] = $term ? (int) $term->term_id : 0;
+		$out['types'][ $key ] = $term ? (int) $term->term_id : 0;
 		continue;
 	}
 	$term = wp_insert_term( $def, 'documentate_doc_type' );
-	$out['tipos'][ $clave ] = is_wp_error( $term ) ? 0 : (int) $term['term_id'];
+	$out['types'][ $key ] = is_wp_error( $term ) ? 0 : (int) $term['term_id'];
 }
 
-foreach ( (array) $plan['usuarios'] as $clave => $u ) {
+foreach ( (array) $plan['users'] as $key => $u ) {
 	$id = wp_insert_user(
 		array(
 			'user_login' => $u['login'],
 			'user_email' => $u['login'] . '@example.com',
 			'user_pass' => $u['pass'],
-			'role' => $u['rol'],
+			'role' => $u['role'],
 		)
 	);
 	$id = is_wp_error( $id ) ? 0 : (int) $id;
-	$out['usuarios'][ $clave ] = $id;
-	if ( $id && isset( $u['ambito'] ) ) {
-		update_user_meta( $id, 'documentate_scope_term_id', (int) $out['categorias'][ $u['ambito'] ] );
+	$out['users'][ $key ] = $id;
+	if ( $id && isset( $u['scope'] ) ) {
+		update_user_meta( $id, 'documentate_scope_term_id', (int) $out['categories'][ $u['scope'] ] );
 	}
-	if ( $id && ! empty( $u['gestion'] ) && class_exists( 'Documentate_Roles' ) ) {
-		Documentate_Roles::conceder_gestion( $id );
+	if ( $id && ! empty( $u['management'] ) && class_exists( 'Documentate_Roles' ) ) {
+		Documentate_Roles::grant_management( $id );
 	}
 }
 
-foreach ( (array) $plan['documentos'] as $clave => $d ) {
-	$autor = isset( $d['autor'] ) ? (int) $out['usuarios'][ $d['autor'] ] : 1;
+foreach ( (array) $plan['documents'] as $key => $d ) {
+	$author = isset( $d['author'] ) ? (int) $out['users'][ $d['author'] ] : 1;
 	$id = wp_insert_post(
 		array(
 			'post_type' => 'documentate_document',
-			'post_title' => $d['titulo'],
+			'post_title' => $d['title'],
 			'post_status' => 'draft',
-			'post_author' => $autor > 0 ? $autor : 1,
+			'post_author' => $author > 0 ? $author : 1,
 		)
 	);
 	$id = is_wp_error( $id ) ? 0 : (int) $id;
-	$out['documentos'][ $clave ] = $id;
+	$out['documents'][ $key ] = $id;
 	if ( ! $id ) {
 		continue;
 	}
 
-	if ( isset( $d['categoria'] ) ) {
-		wp_set_post_categories( $id, array( (int) $out['categorias'][ $d['categoria'] ] ) );
+	if ( isset( $d['category'] ) ) {
+		wp_set_post_categories( $id, array( (int) $out['categories'][ $d['category'] ] ) );
 	}
-	if ( isset( $d['tipo'] ) ) {
-		$tipo = (int) $out['tipos'][ $d['tipo'] ];
-		wp_set_object_terms( $id, array( $tipo ), 'documentate_doc_type' );
-		update_post_meta( $id, 'documentate_locked_doc_type', (string) $tipo );
+	if ( isset( $d['type'] ) ) {
+		$type = (int) $out['types'][ $d['type'] ];
+		wp_set_object_terms( $id, array( $type ), 'documentate_doc_type' );
+		update_post_meta( $id, 'documentate_locked_doc_type', (string) $type );
 	}
-	if ( isset( $d['nombre'] ) ) {
-		update_post_meta( $id, '_documentate_nombre_interno', $d['nombre'] );
+	if ( isset( $d['name'] ) ) {
+		update_post_meta( $id, '_documentate_nombre_interno', $d['name'] );
 	}
 
-	$estado = isset( $d['estado'] ) ? $d['estado'] : 'draft';
+	$status = isset( $d['status'] ) ? $d['status'] : 'draft';
 	// Only "en revisión" needs the intermediate stop: a type that goes
 	// through gestión documental has no draft -> pending rule, while
 	// draft -> publish is a move administración may always make.
-	if ( 'pending' === $estado ) {
+	if ( 'pending' === $status ) {
 		wp_update_post( array( 'ID' => $id, 'post_status' => 'en_gestion' ) );
 	}
-	if ( 'draft' !== $estado ) {
-		wp_update_post( array( 'ID' => $id, 'post_status' => $estado ) );
+	if ( 'draft' !== $status ) {
+		wp_update_post( array( 'ID' => $id, 'post_status' => $status ) );
 	}
-	$out['estados'][ $clave ] = get_post_status( $id );
+	$out['statuses'][ $key ] = get_post_status( $id );
 }
 
 echo '<<<DOCUMENTATE>>>' . wp_json_encode( $out ) . '<<</DOCUMENTATE>>>';
@@ -322,33 +322,33 @@ echo '<<<DOCUMENTATE>>>' . wp_json_encode( $out ) . '<<</DOCUMENTATE>>>';
  *
  * @type {string}
  */
-const PHP_LIMPIEZA = `
+const PHP_CLEANUP = `
 $plan = json_decode( base64_decode( '__PLAN__' ), true );
 
-foreach ( (array) $plan['documentos'] as $id ) {
+foreach ( (array) $plan['documents'] as $id ) {
 	$id = (int) $id;
 	if ( $id <= 0 ) {
 		continue;
 	}
-	$adjuntos = get_children( array( 'post_parent' => $id, 'post_type' => 'attachment', 'fields' => 'ids' ) );
-	foreach ( (array) $adjuntos as $adjunto ) {
-		wp_delete_attachment( (int) $adjunto, true );
+	$attachments = get_children( array( 'post_parent' => $id, 'post_type' => 'attachment', 'fields' => 'ids' ) );
+	foreach ( (array) $attachments as $attachment ) {
+		wp_delete_attachment( (int) $attachment, true );
 	}
 	wp_delete_post( $id, true );
 }
 
-foreach ( (array) $plan['usuarios'] as $login ) {
-	$usuario = get_user_by( 'login', $login );
-	if ( $usuario ) {
-		wp_delete_user( (int) $usuario->ID, 1 );
+foreach ( (array) $plan['users'] as $login ) {
+	$user = get_user_by( 'login', $login );
+	if ( $user ) {
+		wp_delete_user( (int) $user->ID, 1 );
 	}
 }
 
-foreach ( (array) $plan['categorias'] as $id ) {
+foreach ( (array) $plan['categories'] as $id ) {
 	wp_delete_term( (int) $id, 'category' );
 }
 
-foreach ( (array) $plan['tipos'] as $id ) {
+foreach ( (array) $plan['types'] as $id ) {
 	wp_delete_term( (int) $id, 'documentate_doc_type' );
 }
 
@@ -366,90 +366,90 @@ echo '<<<DOCUMENTATE>>>{"ok":1}<<</DOCUMENTATE>>>';
  * @param {Object} plan Data the PHP reads.
  * @return {Object} Decoded answer.
  */
-function ejecutarPhp( php, plan ) {
-	const datos = Buffer.from( JSON.stringify( plan ), 'utf8' ).toString(
+function runPhp( php, plan ) {
+	const data = Buffer.from( JSON.stringify( plan ), 'utf8' ).toString(
 		'base64'
 	);
-	const codigo = Buffer.from(
-		php.replace( '__PLAN__', datos ),
+	const code = Buffer.from(
+		php.replace( '__PLAN__', data ),
 		'utf8'
 	).toString( 'base64' );
-	const salida = runWpCmd(
-		`eval "eval( base64_decode( '${ codigo }' ) );" --user=1`
+	const output = runWpCmd(
+		`eval "eval( base64_decode( '${ code }' ) );" --user=1`
 	);
 
-	const inicio = salida.indexOf( '<<<DOCUMENTATE>>>' );
-	const fin = salida.indexOf( '<<</DOCUMENTATE>>>' );
-	if ( inicio < 0 || fin < inicio ) {
-		throw new Error( `Unexpected WP-CLI answer: ${ salida }` );
+	const start = output.indexOf( '<<<DOCUMENTATE>>>' );
+	const end = output.indexOf( '<<</DOCUMENTATE>>>' );
+	if ( start < 0 || end < start ) {
+		throw new Error( `Unexpected WP-CLI answer: ${ output }` );
 	}
 
-	return JSON.parse( salida.slice( inicio + 17, fin ) );
+	return JSON.parse( output.slice( start + 17, end ) );
 }
 
 /**
  * Build the categories, document types, users and documents a spec needs.
  *
  * @param {Object}          plan               Fixture plan.
- * @param {Object}          [plan.categorias]  Category name, or `{ nombre, padre }`, by key.
- * @param {Object}          [plan.tipos]       Type name to create, or `{ slug }` to look up, by key.
- * @param {Object}          [plan.usuarios]    `{ login, rol, ambito, gestion }` by key (the password is PASSWORD);
- *                                             `gestion: true` appoints that account gestión documental.
- * @param {Object}          [plan.documentos]  `{ titulo, categoria, tipo, autor, estado, nombre }` by key.
- * @return {{categorias: Object, tipos: Object, usuarios: Object, documentos: Object, estados: Object}} Created IDs.
+ * @param {Object}          [plan.categories]  Category name, or `{ name, parent }`, by key.
+ * @param {Object}          [plan.types]       Type name to create, or `{ slug }` to look up, by key.
+ * @param {Object}          [plan.users]    `{ login, role, scope, management }` by key (the password is PASSWORD);
+ *                                             `management: true` appoints that account gestión documental.
+ * @param {Object}          [plan.documents]  `{ title, category, type, author, status, name }` by key.
+ * @return {{categories: Object, types: Object, users: Object, documents: Object, statuses: Object}} Created IDs.
  */
-function crearEscenario( plan ) {
-	const completo = {
-		categorias: plan.categorias || {},
-		tipos: plan.tipos || {},
-		usuarios: plan.usuarios || {},
-		documentos: plan.documentos || {},
+function createFixture( plan ) {
+	const full = {
+		categories: plan.categories || {},
+		types: plan.types || {},
+		users: plan.users || {},
+		documents: plan.documents || {},
 	};
 
-	Object.keys( completo.usuarios ).forEach( ( clave ) => {
-		completo.usuarios[ clave ] = {
+	Object.keys( full.users ).forEach( ( key ) => {
+		full.users[ key ] = {
 			pass: PASSWORD,
-			...completo.usuarios[ clave ],
+			...full.users[ key ],
 		};
 	} );
 
-	const hecho = ejecutarPhp( PHP_ESCENARIO, completo );
+	const done = runPhp( PHP_FIXTURE, full );
 
-	Object.keys( completo.documentos ).forEach( ( clave ) => {
-		const pedido = completo.documentos[ clave ].estado || 'draft';
-		const real = hecho.estados[ clave ];
-		if ( real !== pedido ) {
+	Object.keys( full.documents ).forEach( ( key ) => {
+		const requested = full.documents[ key ].status || 'draft';
+		const actual = done.statuses[ key ];
+		if ( actual !== requested ) {
 			throw new Error(
-				`Fixture "${ clave }" was asked for status "${ pedido }" and the site stored "${ real }".`
+				`Fixture "${ key }" was asked for status "${ requested }" and the site stored "${ actual }".`
 			);
 		}
 	} );
 
-	return hecho;
+	return done;
 }
 
 /**
- * Remove everything crearEscenario() built, in one WP-CLI round trip.
+ * Remove everything createFixture() built, in one WP-CLI round trip.
  *
  * Cleanup is best effort: a failure here must not turn a green run red.
  *
- * @param {Object}   limpieza              What to remove.
- * @param {number[]} [limpieza.documentos] Document IDs (their attachments go too).
- * @param {string[]} [limpieza.usuarios]   User logins.
- * @param {number[]} [limpieza.categorias] Category term IDs.
- * @param {number[]} [limpieza.tipos]      Document type term IDs.
+ * @param {Object}   cleanup              What to remove.
+ * @param {number[]} [cleanup.documents] Document IDs (their attachments go too).
+ * @param {string[]} [cleanup.users]   User logins.
+ * @param {number[]} [cleanup.categories] Category term IDs.
+ * @param {number[]} [cleanup.types]      Document type term IDs.
  * @return {void}
  */
-function limpiarEscenario( limpieza ) {
-	const numeros = ( valores ) =>
-		( valores || [] ).map( ( v ) => parseInt( v, 10 ) ).filter( Boolean );
+function removeFixture( cleanup ) {
+	const numbers = ( values ) =>
+		( values || [] ).map( ( v ) => parseInt( v, 10 ) ).filter( Boolean );
 
 	try {
-		ejecutarPhp( PHP_LIMPIEZA, {
-			documentos: numeros( limpieza.documentos ),
-			usuarios: ( limpieza.usuarios || [] ).filter( Boolean ),
-			categorias: numeros( limpieza.categorias ),
-			tipos: numeros( limpieza.tipos ),
+		runPhp( PHP_CLEANUP, {
+			documents: numbers( cleanup.documents ),
+			users: ( cleanup.users || [] ).filter( Boolean ),
+			categories: numbers( cleanup.categories ),
+			types: numbers( cleanup.types ),
 		} );
 	} catch {
 		// Ignore: the entities may already be gone.
@@ -462,6 +462,6 @@ module.exports = {
 	runWpCmd,
 	runWpCmdSafe,
 	loginAs,
-	crearEscenario,
-	limpiarEscenario,
+	createFixture,
+	removeFixture,
 };

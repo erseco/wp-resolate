@@ -9,7 +9,7 @@
  * disabled with a reason the user can read.
  */
 const { test, expect, getDownloadUrlViaAjax } = require( '../fixtures' );
-const { crearEscenario, limpiarEscenario } = require( '../fixtures/site' );
+const { createFixture, removeFixture } = require( '../fixtures/site' );
 
 const RUN = `export${ Date.now() }`;
 const APP_PATH = '/documentate/';
@@ -17,23 +17,23 @@ const APP_PATH = '/documentate/';
 /**
  * The controls the export block draws, and how each looks in both states.
  *
- * @type {Array<{nombre: string, activo: string, inactivo: string, texto: string}>}
+ * @type {Array<{name: string, activo: string, inactivo: string, texto: string}>}
  */
-const CONTROLES = [
+const CONTROLS = [
 	{
-		nombre: 'Previsualizar PDF',
+		name: 'Previsualizar PDF',
 		activo: 'a[data-documentate-action="preview"][data-documentate-format="pdf"]',
 		inactivo: 'button.documentate-action-btn--preview[disabled]',
 		texto: '',
 	},
 	{
-		nombre: 'Descargar PDF',
+		name: 'Descargar PDF',
 		activo: 'a[data-documentate-action="download"][data-documentate-format="pdf"]',
 		inactivo: 'button.documentate-action-btn--pdf[disabled]',
 		texto: '',
 	},
 	{
-		nombre: 'DOCX',
+		name: 'DOCX',
 		activo: 'a[data-documentate-action="download"][data-documentate-format="docx"]',
 		inactivo: '.documentate-actions-secondary button[disabled]',
 		texto: 'DOCX',
@@ -43,33 +43,33 @@ const CONTROLES = [
 /**
  * Assert that one export control is either usable or disabled with a reason.
  *
- * @param {import('@playwright/test').Locator} bloque   The `#exportar` block.
- * @param {Object}                             control  One row of CONTROLES.
+ * @param {import('@playwright/test').Locator} block   The `#exportar` block.
+ * @param {Object}                             control  One row of CONTROLS.
  * @return {Promise<void>}
  */
-async function comprobarControl( bloque, control ) {
-	const enlace = bloque.locator( control.activo );
-	if ( await enlace.count() ) {
-		await expect( enlace ).toHaveCount( 1 );
+async function checkControl( block, control ) {
+	const link = block.locator( control.activo );
+	if ( await link.count() ) {
+		await expect( link ).toHaveCount( 1 );
 		// The buttons are AJAX driven: the real URL comes from the endpoint.
-		await expect( enlace ).toHaveAttribute( 'href', '#' );
+		await expect( link ).toHaveAttribute( 'href', '#' );
 		return;
 	}
 
-	let boton = bloque.locator( control.inactivo );
+	let button = block.locator( control.inactivo );
 	if ( '' !== control.texto ) {
-		boton = boton.filter( { hasText: control.texto } );
+		button = button.filter( { hasText: control.texto } );
 	}
 
-	await expect( boton ).toHaveCount( 1 );
-	const razon = await boton.getAttribute( 'title' );
-	expect( razon, `«${ control.nombre }» deshabilitado sin explicación` )
+	await expect( button ).toHaveCount( 1 );
+	const reason = await button.getAttribute( 'title' );
+	expect( reason, `«${ control.name }» deshabilitado sin explicación` )
 		.toBeTruthy();
-	expect( razon.trim().length ).toBeGreaterThan( 0 );
+	expect( reason.trim().length ).toBeGreaterThan( 0 );
 }
 
-test.describe( 'Documentate app · exportación', () => {
-	let escenario;
+test.describe( 'Documentate app · export', () => {
+	let fixture;
 	let docId = 0;
 
 	test.beforeAll( async () => {
@@ -77,21 +77,21 @@ test.describe( 'Documentate app · exportación', () => {
 		// waits its turn must not die on the ordinary test budget.
 		test.setTimeout( 300_000 );
 
-		escenario = crearEscenario( {
-			categorias: { export: `Export ${ RUN }` },
-			tipos: { res: { slug: 'resolucion-administrativa' } },
-			documentos: {
+		fixture = createFixture( {
+			categories: { export: `Export ${ RUN }` },
+			types: { res: { slug: 'resolucion-administrativa' } },
+			documents: {
 				exportable: {
-					titulo: `Documento exportable ${ RUN }`,
-					categoria: 'export',
-					tipo: 'res',
-					nombre: `Exportable ${ RUN }`,
+					title: `Documento exportable ${ RUN }`,
+					category: 'export',
+					type: 'res',
+					name: `Exportable ${ RUN }`,
 				},
 			},
 		} );
 
-		expect( escenario.tipos.res ).toBeGreaterThan( 0 );
-		docId = escenario.documentos.exportable;
+		expect( fixture.types.res ).toBeGreaterThan( 0 );
+		docId = fixture.documents.exportable;
 	} );
 
 	test.afterAll( async () => {
@@ -101,35 +101,35 @@ test.describe( 'Documentate app · exportación', () => {
 		// unexpected answer) leaves the fixture unbuilt, and Playwright still
 		// runs this hook: without the guard it dies dereferencing it and the
 		// report shows that TypeError instead of the real failure.
-		if ( ! escenario ) {
+		if ( ! fixture ) {
 			return;
 		}
 
-		limpiarEscenario( {
-			documentos: [ docId ],
-			categorias: Object.values( escenario.categorias ),
+		removeFixture( {
+			documents: [ docId ],
+			categories: Object.values( fixture.categories ),
 		} );
 	} );
 
-	test( 'el detalle lleva el bloque de exportación con sus atributos', async ( {
+	test( 'the document view carries the export block with its attributes', async ( {
 		page,
 	} ) => {
 		await page.goto( `${ APP_PATH }?doc=${ docId }` );
 
-		const bloque = page.locator( '#exportar' );
-		await expect( bloque ).toBeVisible();
-		await expect( bloque ).toHaveClass( /documentate-actions/ );
-		await expect( bloque ).toHaveClass( /dcta-exportar/ );
+		const block = page.locator( '#exportar' );
+		await expect( block ).toBeVisible();
+		await expect( block ).toHaveClass( /documentate-actions/ );
+		await expect( block ).toHaveClass( /dcta-exportar/ );
 
 		// The ODT comes from the template of the type, with no converter.
-		const odt = bloque.locator(
+		const odt = block.locator(
 			'a[data-documentate-action="download"][data-documentate-format="odt"]'
 		);
 		await expect( odt ).toHaveCount( 1 );
 		await expect( odt ).toHaveText( 'ODT' );
 
-		for ( const control of CONTROLES ) {
-			await comprobarControl( bloque, control );
+		for ( const control of CONTROLS ) {
+			await checkControl( block, control );
 		}
 
 		// The script that turns those attributes into a download is configured.
@@ -141,43 +141,43 @@ test.describe( 'Documentate app · exportación', () => {
 		expect( config.nonce ).toBeTruthy();
 	} );
 
-	test( 'el editor lleva el mismo bloque de exportación', async ( { page } ) => {
+	test( 'the editor carries the same export block', async ( { page } ) => {
 		await page.goto( `${ APP_PATH }?doc=${ docId }&vista=editar` );
 
-		const bloque = page.locator( '#exportar' );
-		await expect( bloque ).toBeVisible();
+		const block = page.locator( '#exportar' );
+		await expect( block ).toBeVisible();
 		// The block lives inside the editor form, so an export can save first.
 		await expect(
 			page.locator( 'form.dcta-editor #exportar' )
 		).toHaveCount( 1 );
 
 		await expect(
-			bloque.locator(
+			block.locator(
 				'a[data-documentate-action="download"][data-documentate-format="odt"]'
 			)
 		).toHaveCount( 1 );
 
-		for ( const control of CONTROLES ) {
-			await comprobarControl( bloque, control );
+		for ( const control of CONTROLS ) {
+			await checkControl( block, control );
 		}
 	} );
 
-	test( 'el editor avisa de los cambios sin guardar y su modal va vestido', async ( {
+	test( 'the editor warns about unsaved changes and its modal is styled', async ( {
 		page,
 	} ) => {
 		await page.goto( `${ APP_PATH }?doc=${ docId }&vista=editar` );
 
-		const aviso = page.locator( '#exportar .documentate-unsaved-indicator' );
-		await expect( aviso ).toHaveCount( 1 );
-		await expect( aviso ).toBeHidden();
+		const notice = page.locator( '#exportar .documentate-unsaved-indicator' );
+		await expect( notice ).toHaveCount( 1 );
+		await expect( notice ).toBeHidden();
 
 		// The guard only subscribes when the indicator is on the page, so this
 		// is what tells the user before the export is blocked.
 		await page.locator( '#documentate-app-nombre' ).fill(
 			`Exportable ${ RUN } tocado`
 		);
-		await expect( aviso ).toBeVisible();
-		await expect( aviso ).toHaveText( 'Cambios sin guardar' );
+		await expect( notice ).toBeVisible();
+		await expect( notice ).toHaveText( 'Cambios sin guardar' );
 
 		await page
 			.locator(
@@ -191,24 +191,24 @@ test.describe( 'Documentate app · exportación', () => {
 		// wp-admin's buttons.css is not loaded here and the modal hangs off
 		// <body>, outside the sheet: without a rule of its own every button in
 		// it renders as a raw OS control.
-		const principal = modal.locator( '.documentate-unsaved-modal__primary' );
-		await expect( principal ).toHaveCSS( 'border-radius', '999px' );
-		await expect( principal ).toHaveCSS( 'background-color', 'rgb(27, 79, 138)' );
-		await expect( principal ).toHaveCSS( 'color', 'rgb(255, 255, 255)' );
+		const main = modal.locator( '.documentate-unsaved-modal__primary' );
+		await expect( main ).toHaveCSS( 'border-radius', '999px' );
+		await expect( main ).toHaveCSS( 'background-color', 'rgb(27, 79, 138)' );
+		await expect( main ).toHaveCSS( 'color', 'rgb(255, 255, 255)' );
 
-		const alto = await principal.evaluate(
-			( boton ) => boton.getBoundingClientRect().height
+		const height = await main.evaluate(
+			( button ) => button.getBoundingClientRect().height
 		);
-		expect( alto ).toBeGreaterThanOrEqual( 40 );
+		expect( height ).toBeGreaterThanOrEqual( 40 );
 
-		const cancelar = modal.locator( '.documentate-unsaved-modal__cancel' );
-		await expect( cancelar ).toHaveCSS( 'border-top-width', '0px' );
+		const cancelButton = modal.locator( '.documentate-unsaved-modal__cancel' );
+		await expect( cancelButton ).toHaveCSS( 'border-top-width', '0px' );
 
-		await cancelar.click();
+		await cancelButton.click();
 		await expect( modal ).toHaveCount( 0 );
 	} );
 
-	test( 'la generación ODT devuelve un fichero OpenDocument', async ( {
+	test( 'ODT generation returns an OpenDocument file', async ( {
 		page,
 		request,
 	} ) => {
@@ -217,14 +217,14 @@ test.describe( 'Documentate app · exportación', () => {
 		const url = await getDownloadUrlViaAjax( page, 'odt' );
 		expect( url ).toBeTruthy();
 
-		const respuesta = await request.get( url );
-		expect( respuesta.status() ).toBe( 200 );
+		const response = await request.get( url );
+		expect( response.status() ).toBe( 200 );
 
-		const tipo = respuesta.headers()[ 'content-type' ];
+		const type = response.headers()[ 'content-type' ];
 		expect(
-			tipo.startsWith( 'application/vnd.oasis.opendocument.text' )
+			type.startsWith( 'application/vnd.oasis.opendocument.text' )
 		).toBe( true );
-		expect( respuesta.headers()[ 'content-disposition' ] ).toContain(
+		expect( response.headers()[ 'content-disposition' ] ).toContain(
 			'attachment'
 		);
 	} );

@@ -63,7 +63,7 @@ class UninstallTest extends WP_UnitTestCase {
 		}
 
 		Documentate_Roles::ensure_caps( true );
-		$this->assertTrue( get_role( Documentate_Roles::ROL_GESTION )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertTrue( get_role( Documentate_Roles::ROLE_MANAGEMENT )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
 		$this->assertSame( Documentate_Roles::VERSION, get_option( Documentate_Roles::OPTION_VERSION ) );
 
 		$file = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'uninstall.php';
@@ -74,9 +74,9 @@ class UninstallTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
-		$this->assertNull( get_role( Documentate_Roles::ROL_GESTION ) );
-		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_GESTION ) );
-		$this->assertFalse( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_GESTION ) );
+		$this->assertNull( get_role( Documentate_Roles::ROLE_MANAGEMENT ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
+		$this->assertFalse( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
 		$this->assertFalse( get_option( Documentate_Roles::OPTION_VERSION ) );
 	}
 }

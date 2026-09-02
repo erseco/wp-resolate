@@ -54,7 +54,7 @@ por correo a quien tiene que corregir.
 
 La tabla completa de transiciones — de qué estado a qué estado, para qué rol,
 si hace falta motivo — vive en una única tabla de datos en el código
-(`Documentate_Transiciones::reglas()`, `includes/class-documentate-transiciones.php`).
+(`Documentate_Transitions::rules()`, `includes/class-documentate-transitions.php`).
 Es la fuente única de la verdad: tanto la aplicación (`/documentate/`) como
 wp-admin la consultan para decidir qué botones mostrar y qué guardados
 aceptar. Si algo de este documento y el comportamiento real de la aplicación

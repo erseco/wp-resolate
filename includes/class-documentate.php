@@ -94,7 +94,7 @@ class Documentate {
 		 * The class responsible for orchestrating the actions and filters of the
 		 * core plugin.
 		 */
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-ficheros.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-files.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-loader.php';
 
 		/**
@@ -212,14 +212,14 @@ class Documentate {
 
 		// Workflow foundation: roles, statuses, document helpers, activity and transitions.
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-roles.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-estados.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-documento.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-campos-rol.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-actividad.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-transiciones.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-statuses.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-document-data.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-field-roles.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-activity.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-transitions.php';
 		Documentate_Roles::init();
-		Documentate_Estados::init();
-		Documentate_Transiciones::init();
+		Documentate_Statuses::init();
+		Documentate_Transitions::init();
 
 		// Workflow management (role-based restrictions, read-only published state) and its metabox.
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-workflow-metabox.php';
@@ -227,14 +227,14 @@ class Documentate {
 		new Documentate_Workflow();
 
 		// Front-end application under /documentate/ (shell, list, detail, edit, new).
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-adjuntos.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-acciones.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-attachments.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-actions.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-shell.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-bandeja.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lista-fila.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lista.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detalle.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-editar.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-tray.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-list-row.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-list.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detail.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-edit.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app.php';
 		( new Documentate_App() )->register();
 

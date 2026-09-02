@@ -355,10 +355,10 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	 *
 	 * @return int
 	 */
-	private function create_gestion_user() {
+	private function create_management_user() {
 		Documentate_Roles::ensure_caps( true );
 
-		$gestion_id = $this->factory->user->create(
+		$management_id = $this->factory->user->create(
 			array(
 				'role'         => 'editor',
 				'user_email'   => 'gestion@example.com',
@@ -368,10 +368,10 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		// Gestión documental is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
-		( new WP_User( $gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
-		update_user_meta( $gestion_id, Documentate_Scope_Filter::SCOPE_META_KEY, $this->cat_id );
+		( new WP_User( $management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		update_user_meta( $management_id, Documentate_Scope_Filter::SCOPE_META_KEY, $this->cat_id );
 
-		return $gestion_id;
+		return $management_id;
 	}
 
 	/**
@@ -381,12 +381,12 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	 * @param string $title  Title.
 	 * @return int
 	 */
-	private function create_document_con_gestion( $status, $title = 'Doc con gestión' ) {
-		Documentate_Estados::registrar();
-		$tipo = wp_insert_term( 'Resolución N ' . wp_generate_password( 4, false ), 'documentate_doc_type' );
-		update_term_meta( $tipo['term_id'], 'documentate_type_con_gestion', '1' );
+	private function create_document_with_management( $status, $title = 'Doc con gestión' ) {
+		Documentate_Statuses::register();
+		$type = wp_insert_term( 'Resolución N ' . wp_generate_password( 4, false ), 'documentate_doc_type' );
+		update_term_meta( $type['term_id'], 'documentate_type_con_gestion', '1' );
 
-		$actual = get_current_user_id();
+		$current = get_current_user_id();
 		wp_set_current_user( $this->admin_id );
 		$post_id = wp_insert_post(
 			array(
@@ -394,12 +394,12 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 				'post_status' => $status,
 				'post_author' => $this->author_id,
 				'post_title'  => $title,
-				'tax_input'   => array( 'documentate_doc_type' => array( (int) $tipo['term_id'] ) ),
+				'tax_input'   => array( 'documentate_doc_type' => array( (int) $type['term_id'] ) ),
 			)
 		);
-		update_post_meta( $post_id, 'documentate_locked_doc_type', (int) $tipo['term_id'] );
+		update_post_meta( $post_id, 'documentate_locked_doc_type', (int) $type['term_id'] );
 		wp_set_object_terms( $post_id, array( $this->cat_id ), 'category' );
-		wp_set_current_user( $actual );
+		wp_set_current_user( $current );
 		$this->sent_emails = array();
 
 		return $post_id;
@@ -408,12 +408,12 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	/**
 	 * Sending to gestión mails every gestión user except the actor; never the author.
 	 */
-	public function test_send_to_gestion_mails_gestion_users_not_the_author() {
-		$gestion_id = $this->create_gestion_user();
+	public function test_send_to_management_mails_management_users_not_the_author() {
+		$management_id = $this->create_management_user();
 		wp_set_current_user( $this->author_id );
-		$post_id = $this->create_document_con_gestion( 'draft', 'Listado piloto' );
+		$post_id = $this->create_document_with_management( 'draft', 'Listado piloto' );
 
-		$this->assertTrue( Documentate_Transiciones::aplicar( $post_id, 'enviar_gestion' ) );
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'enviar_gestion' ) );
 
 		$mail = $this->find_email_to( 'gestion@example.com' );
 		$this->assertNotNull( $mail );
@@ -421,37 +421,37 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Borrador → En gestión', $mail['message'] );
 		$this->assertStringContainsString( 'Realizado por: Author User', $mail['message'] );
 		$this->assertNull( $this->find_email_to( 'author@example.com' ), 'The author did it: no mail.' );
-		unset( $gestion_id );
+		unset( $management_id );
 	}
 
 	/**
 	 * Gestión recipients are selected by capability, whatever their role.
 	 */
-	public function test_send_to_gestion_mails_the_capability_on_any_role() {
+	public function test_send_to_management_mails_the_capability_on_any_role() {
 		Documentate_Roles::ensure_caps( true );
-		$capacitado = $this->factory->user->create(
+		$capable = $this->factory->user->create(
 			array(
 				'role'       => 'author',
 				'user_email' => 'capacitado@example.com',
 			)
 		);
-		$usuario = get_user_by( 'id', $capacitado );
-		$usuario->add_cap( Documentate_Roles::CAP_GESTION );
-		$usuario->add_cap( 'edit_others_posts' );
+		$user = get_user_by( 'id', $capable );
+		$user->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		$user->add_cap( 'edit_others_posts' );
 
 		// The capability alone (without edit_others_posts) is not gestión.
-		$a_medias = $this->factory->user->create(
+		$half_filled = $this->factory->user->create(
 			array(
 				'role'       => 'subscriber',
 				'user_email' => 'a-medias@example.com',
 			)
 		);
-		get_user_by( 'id', $a_medias )->add_cap( Documentate_Roles::CAP_GESTION );
+		get_user_by( 'id', $half_filled )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
 
 		wp_set_current_user( $this->author_id );
-		$post_id = $this->create_document_con_gestion( 'draft', 'Por capacidad' );
+		$post_id = $this->create_document_with_management( 'draft', 'Por capacidad' );
 
-		$this->assertTrue( Documentate_Transiciones::aplicar( $post_id, 'enviar_gestion' ) );
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'enviar_gestion' ) );
 
 		$mail = $this->find_email_to( 'capacitado@example.com' );
 		$this->assertNotNull( $mail );
@@ -462,17 +462,17 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	/**
 	 * The actor is skipped, and an author who did not send it is told.
 	 */
-	public function test_send_to_gestion_by_someone_else_tells_the_author_and_skips_the_actor() {
-		$gestion_id = $this->create_gestion_user();
-		wp_set_current_user( $gestion_id );
-		$post_id = $this->create_document_con_gestion( 'draft', 'Enviado por gestión' );
+	public function test_send_to_management_by_someone_else_tells_the_author_and_skips_the_actor() {
+		$management_id = $this->create_management_user();
+		wp_set_current_user( $management_id );
+		$post_id = $this->create_document_with_management( 'draft', 'Enviado por gestión' );
 
-		$this->assertTrue( Documentate_Transiciones::aplicar( $post_id, 'enviar_gestion' ) );
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'enviar_gestion' ) );
 
 		$this->assertNull( $this->find_email_to( 'gestion@example.com' ), 'The actor is not mailed.' );
-		$autor = $this->find_email_to( 'author@example.com' );
-		$this->assertNotNull( $autor );
-		$this->assertSame( 'Documentate · Documento enviado a gestión: Enviado por gestión', $autor['subject'] );
+		$author = $this->find_email_to( 'author@example.com' );
+		$this->assertNotNull( $author );
+		$this->assertSame( 'Documentate · Documento enviado a gestión: Enviado por gestión', $author['subject'] );
 	}
 
 	/**
@@ -481,9 +481,9 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	public function test_return_to_draft_mails_the_author_with_the_reason() {
 		( new Documentate_App() )->ensure_page();
 		wp_set_current_user( $this->admin_id );
-		$post_id = $this->create_document_con_gestion( 'pending', 'Bases plan' );
+		$post_id = $this->create_document_with_management( 'pending', 'Bases plan' );
 
-		$this->assertTrue( Documentate_Transiciones::aplicar( $post_id, 'devolver_area', 'Falta el anexo firmado' ) );
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'devolver_area', 'Falta el anexo firmado' ) );
 
 		$mail = $this->find_email_to( 'author@example.com' );
 		$this->assertNotNull( $mail );
@@ -496,53 +496,53 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	/**
 	 * A return from administración to gestión mails gestión, not the author.
 	 */
-	public function test_return_to_gestion_mails_gestion_not_the_author() {
-		$gestion_id = $this->create_gestion_user();
+	public function test_return_to_management_mails_management_not_the_author() {
+		$management_id = $this->create_management_user();
 		wp_set_current_user( $this->admin_id );
-		$post_id = $this->create_document_con_gestion( 'pending', 'Calendario admisión' );
+		$post_id = $this->create_document_with_management( 'pending', 'Calendario admisión' );
 
-		$this->assertTrue( Documentate_Transiciones::aplicar( $post_id, 'devolver_gestion', 'Falta el número de expediente' ) );
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'devolver_gestion', 'Falta el número de expediente' ) );
 
 		$mail = $this->find_email_to( 'gestion@example.com' );
 		$this->assertNotNull( $mail );
 		$this->assertSame( 'Documentate · Devuelto por administración: Calendario admisión', $mail['subject'] );
 		$this->assertStringContainsString( 'Motivo: «Falta el número de expediente»', $mail['message'] );
 		$this->assertNull( $this->find_email_to( 'author@example.com' ) );
-		unset( $gestion_id );
+		unset( $management_id );
 	}
 
 	/**
 	 * Approval mails gestión only when the type went through gestión.
 	 */
-	public function test_approval_mails_gestion_for_con_gestion_types_only() {
-		$gestion_id = $this->create_gestion_user();
+	public function test_approval_mails_management_for_management_types_only() {
+		$management_id = $this->create_management_user();
 		wp_set_current_user( $this->admin_id );
 
-		$con_gestion = $this->create_document_con_gestion( 'pending', 'Con gestión' );
-		$this->assertTrue( Documentate_Transiciones::aplicar( $con_gestion, 'aprobar' ) );
+		$has_management = $this->create_document_with_management( 'pending', 'Con gestión' );
+		$this->assertTrue( Documentate_Transitions::apply( $has_management, 'aprobar' ) );
 		$mail = $this->find_email_to( 'gestion@example.com' );
 		$this->assertNotNull( $mail );
 		$this->assertSame( 'Documentate · Documento aprobado: Con gestión', $mail['subject'] );
 		$this->assertSame( 'Documentate · Documento aprobado: Con gestión', $this->find_email_to( 'author@example.com' )['subject'] );
 
-		$directo = $this->create_document( array( 'post_title' => 'Directo' ) );
-		wp_update_post( array( 'ID' => $directo, 'post_status' => 'pending' ) );
+		$direct = $this->create_document( array( 'post_title' => 'Directo' ) );
+		wp_update_post( array( 'ID' => $direct, 'post_status' => 'pending' ) );
 		$this->sent_emails = array();
-		wp_update_post( array( 'ID' => $directo, 'post_status' => 'publish' ) );
+		wp_update_post( array( 'ID' => $direct, 'post_status' => 'publish' ) );
 		$this->assertNull( $this->find_email_to( 'gestion@example.com' ) );
 		$this->assertNotNull( $this->find_email_to( 'author@example.com' ) );
-		unset( $gestion_id );
+		unset( $management_id );
 	}
 
 	/**
 	 * Passing from gestión to administración mails the admins and the author.
 	 */
 	public function test_pass_to_admin_mails_admins() {
-		$gestion_id = $this->create_gestion_user();
-		wp_set_current_user( $gestion_id );
-		$post_id = $this->create_document_con_gestion( 'en_gestion', 'Pasado a admin' );
+		$management_id = $this->create_management_user();
+		wp_set_current_user( $management_id );
+		$post_id = $this->create_document_with_management( 'en_gestion', 'Pasado a admin' );
 
-		$this->assertTrue( Documentate_Transiciones::aplicar( $post_id, 'pasar_admin' ) );
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'pasar_admin' ) );
 
 		$this->assertSame( 'Documentate · Pendiente de aprobar: Pasado a admin', $this->find_email_to( 'admin@example.com' )['subject'] );
 		$this->assertSame( 'Documentate · Documento enviado a revisión: Pasado a admin', $this->find_email_to( 'author@example.com' )['subject'] );

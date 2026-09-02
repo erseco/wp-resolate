@@ -1,7 +1,7 @@
 /**
  * Progressive enhancement of the Documentate application.
  *
- * Three small jobs, all optional: the confirmation and "motivo" dialogs of the
+ * Three small jobs, all optional: the confirmation and reason dialogs of the
  * workflow buttons, the drag-and-drop area of the document file and the hint
  * under the document type of the "new document" form. Without JavaScript the
  * buttons submit their form as they are, the plain file input takes the file
@@ -15,182 +15,182 @@
 	'use strict';
 
 	var MAX_BYTES = 20971520;
-	var EXTENSIONES = ['pdf', 'odt', 'docx'];
-	var ERROR_FICHERO = 'No se pudo subir el fichero: solo PDF, ODT o DOCX de hasta 20 MB.';
-	var ID_FORM = 'dcta-app-form';
+	var EXTENSIONS = ['pdf', 'odt', 'docx'];
+	var FILE_ERROR = 'No se pudo subir el fichero: solo PDF, ODT o DOCX de hasta 20 MB.';
+	var FORM_ID = 'dcta-app-form';
 
-	function porId(id) {
+	function byId(id) {
 		return document.getElementById(id);
 	}
 
-	function cada(selector, callback, raiz) {
-		var nodos = (raiz || document).querySelectorAll(selector);
-		Array.prototype.forEach.call(nodos, callback);
+	function each(selector, callback, root) {
+		var nodes = (root || document).querySelectorAll(selector);
+		Array.prototype.forEach.call(nodes, callback);
 	}
 
-	function marcar(elemento) {
-		if (!elemento || elemento.getAttribute('data-dcta-listo')) {
+	function mark(element) {
+		if (!element || element.getAttribute('data-dcta-listo')) {
 			return false;
 		}
-		elemento.setAttribute('data-dcta-listo', '1');
+		element.setAttribute('data-dcta-listo', '1');
 		return true;
 	}
 
-	function texto(elemento) {
-		return String(elemento.textContent || '').trim();
+	function text(element) {
+		return String(element.textContent || '').trim();
 	}
 
 	// --- dialogs -------------------------------------------------------------
 
-	function hayDialogos(dialogo) {
-		return !!dialogo && typeof dialogo.showModal === 'function';
+	function hasDialogs(dialog) {
+		return !!dialog && typeof dialog.showModal === 'function';
 	}
 
-	function desactivarFallback() {
-		cada('.dcta-motivo-fallback', function (detalle) {
-			detalle.hidden = true;
-			cada('textarea, input, button', function (control) {
+	function disableFallback() {
+		each('.dcta-motivo-fallback', function (details) {
+			details.hidden = true;
+			each('textarea, input, button', function (control) {
 				control.disabled = true;
-			}, detalle);
+			}, details);
 		});
 	}
 
-	function desactivar(dialogo) {
-		cada('textarea, input', function (control) {
+	function disable(dialog) {
+		each('textarea, input', function (control) {
 			control.disabled = true;
-		}, dialogo);
-		var destinos = dialogo.querySelector('.dcta-dialogo-destinos');
-		if (destinos) {
-			destinos.hidden = true;
+		}, dialog);
+		var targets = dialog.querySelector('.dcta-dialogo-destinos');
+		if (targets) {
+			targets.hidden = true;
 		}
 	}
 
-	function cerrar(dialogo) {
-		if (!dialogo) {
+	function close(dialog) {
+		if (!dialog) {
 			return;
 		}
-		desactivar(dialogo);
-		if (typeof dialogo.close === 'function') {
-			dialogo.close();
+		disable(dialog);
+		if (typeof dialog.close === 'function') {
+			dialog.close();
 		}
 	}
 
-	function abrirMotivo(boton, dialogo) {
-		var conDestinos = boton.hasAttribute('data-destinos');
-		var titulo = dialogo.querySelector('.dcta-dialogo-titulo');
-		var destinos = dialogo.querySelector('.dcta-dialogo-destinos');
-		var area = porId('dcta-dialogo-motivo-texto');
-		var clave = porId('dcta-dialogo-motivo-clave');
+	function openReasonDialog(button, dialog) {
+		var withTargets = button.hasAttribute('data-destinos');
+		var title = dialog.querySelector('.dcta-dialogo-titulo');
+		var targets = dialog.querySelector('.dcta-dialogo-destinos');
+		var textarea = byId('dcta-dialogo-motivo-texto');
+		var key = byId('dcta-dialogo-motivo-clave');
 
-		if (titulo) {
-			titulo.textContent = conDestinos ? 'Devolver el documento' : texto(boton);
+		if (title) {
+			title.textContent = withTargets ? 'Devolver el documento' : text(button);
 		}
-		if (destinos) {
-			destinos.hidden = !conDestinos;
-			cada('input[type="radio"]', function (radio) {
-				radio.disabled = !conDestinos;
-			}, destinos);
+		if (targets) {
+			targets.hidden = !withTargets;
+			each('input[type="radio"]', function (radio) {
+				radio.disabled = !withTargets;
+			}, targets);
 		}
-		if (area) {
-			area.disabled = false;
-			area.value = '';
+		if (textarea) {
+			textarea.disabled = false;
+			textarea.value = '';
 		}
-		if (clave) {
-			clave.disabled = conDestinos;
-			clave.value = boton.value;
+		if (key) {
+			key.disabled = withTargets;
+			key.value = button.value;
 		}
 
-		dialogo.showModal();
-		if (area && typeof area.focus === 'function') {
-			area.focus();
+		dialog.showModal();
+		if (textarea && typeof textarea.focus === 'function') {
+			textarea.focus();
 		}
 	}
 
-	function formularioValido() {
-		var form = porId(ID_FORM);
+	function formIsValid() {
+		var form = byId(FORM_ID);
 
 		return !form || typeof form.reportValidity !== 'function' || form.reportValidity();
 	}
 
-	function abrirConfirmar(boton, dialogo, mensaje) {
-		var titulo = dialogo.querySelector('.dcta-dialogo-titulo');
-		var parrafo = porId('dcta-dialogo-confirmar-texto');
-		var aceptar = porId('dcta-dialogo-confirmar-ok');
-		var clave = porId('dcta-dialogo-confirmar-clave');
+	function openConfirmDialog(button, dialog, message) {
+		var title = dialog.querySelector('.dcta-dialogo-titulo');
+		var paragraph = byId('dcta-dialogo-confirmar-texto');
+		var accept = byId('dcta-dialogo-confirmar-ok');
+		var key = byId('dcta-dialogo-confirmar-clave');
 
-		if (titulo) {
-			titulo.textContent = texto(boton);
+		if (title) {
+			title.textContent = text(button);
 		}
-		if (parrafo) {
-			parrafo.textContent = mensaje;
+		if (paragraph) {
+			paragraph.textContent = message;
 		}
-		if (aceptar) {
-			aceptar.textContent = texto(boton);
+		if (accept) {
+			accept.textContent = text(button);
 		}
-		if (clave) {
-			clave.disabled = false;
-			clave.value = boton.value;
+		if (key) {
+			key.disabled = false;
+			key.value = button.value;
 		}
 
-		dialogo.showModal();
+		dialog.showModal();
 	}
 
-	function iniciarDialogos() {
-		var motivo = porId('dcta-dialogo-motivo');
-		var confirmar = porId('dcta-dialogo-confirmar');
-		if (!hayDialogos(motivo) || !hayDialogos(confirmar)) {
+	function initDialogs() {
+		var reasonDialog = byId('dcta-dialogo-motivo');
+		var confirmDialog = byId('dcta-dialogo-confirmar');
+		if (!hasDialogs(reasonDialog) || !hasDialogs(confirmDialog)) {
 			return;
 		}
 
-		desactivarFallback();
+		disableFallback();
 
-		cada('[data-dcta-cerrar]', function (boton) {
-			if (marcar(boton)) {
-				boton.addEventListener('click', function () {
-					cerrar(boton.closest('dialog'));
+		each('[data-dcta-cerrar]', function (button) {
+			if (mark(button)) {
+				button.addEventListener('click', function () {
+					close(button.closest('dialog'));
 				});
 			}
 		});
 
 		// A return must not be blocked by fields the reviewer is not filling in.
-		var aceptarMotivo = porId('dcta-dialogo-motivo-ok');
-		if (aceptarMotivo && marcar(aceptarMotivo)) {
-			aceptarMotivo.addEventListener('click', function () {
-				var form = porId(ID_FORM);
+		var reasonAccept = byId('dcta-dialogo-motivo-ok');
+		if (reasonAccept && mark(reasonAccept)) {
+			reasonAccept.addEventListener('click', function () {
+				var form = byId(FORM_ID);
 				if (form) {
 					form.noValidate = true;
 				}
 			});
 		}
 
-		cada('button[data-motivo], button[data-confirmar]', function (boton) {
-			if (!marcar(boton)) {
+		each('button[data-motivo], button[data-confirmar]', function (button) {
+			if (!mark(button)) {
 				return;
 			}
-			boton.addEventListener('click', function (evento) {
-				if (boton.hasAttribute('data-motivo')) {
-					evento.preventDefault();
-					abrirMotivo(boton, motivo);
+			button.addEventListener('click', function (event) {
+				if (button.hasAttribute('data-motivo')) {
+					event.preventDefault();
+					openReasonDialog(button, reasonDialog);
 					return;
 				}
-				var mensaje = boton.getAttribute('data-confirmar') || '';
-				if ('' === mensaje) {
+				var message = button.getAttribute('data-confirmar') || '';
+				if ('' === message) {
 					return;
 				}
-				evento.preventDefault();
+				event.preventDefault();
 				// While a modal is open everything outside it is inert, so the
 				// browser could not point at an invalid field: ask first.
-				if (!formularioValido()) {
+				if (!formIsValid()) {
 					return;
 				}
-				abrirConfirmar(boton, confirmar, mensaje);
+				openConfirmDialog(button, confirmDialog, message);
 			});
 		});
 
-		[motivo, confirmar].forEach(function (dialogo) {
-			if (marcar(dialogo)) {
-				dialogo.addEventListener('close', function () {
-					desactivar(dialogo);
+		[reasonDialog, confirmDialog].forEach(function (dialog) {
+			if (mark(dialog)) {
+				dialog.addEventListener('close', function () {
+					disable(dialog);
 				});
 			}
 		});
@@ -198,133 +198,133 @@
 
 	// --- document file -------------------------------------------------------
 
-	function extension(nombre) {
-		var partes = String(nombre || '').split('.');
-		return partes.length > 1 ? partes.pop().toLowerCase() : '';
+	function extension(name) {
+		var parts = String(name || '').split('.');
+		return parts.length > 1 ? parts.pop().toLowerCase() : '';
 	}
 
-	function aceptable(zona, fichero) {
-		var valido = EXTENSIONES.indexOf(extension(fichero.name)) !== -1 && fichero.size <= MAX_BYTES;
-		var error = zona.querySelector('.dcta-dropzone-error');
+	function isAcceptable(zone, file) {
+		var valid = EXTENSIONS.indexOf(extension(file.name)) !== -1 && file.size <= MAX_BYTES;
+		var error = zone.querySelector('.dcta-dropzone-error');
 		if (error) {
-			error.textContent = valido ? '' : ERROR_FICHERO;
-			error.hidden = valido;
+			error.textContent = valid ? '' : FILE_ERROR;
+			error.hidden = valid;
 		}
-		return valido;
+		return valid;
 	}
 
-	function mostrarElegido(zona, fichero) {
-		var fila = zona.querySelector('.dcta-dropzone-elegido');
-		if (!fila) {
+	function showChosen(zone, file) {
+		var row = zone.querySelector('.dcta-dropzone-elegido');
+		if (!row) {
 			return;
 		}
-		fila.textContent = fichero ? fichero.name + ' · se subirá al guardar' : '';
-		fila.hidden = !fichero;
+		row.textContent = file ? file.name + ' · se subirá al guardar' : '';
+		row.hidden = !file;
 	}
 
-	function iniciarSoltar(zona, entrada) {
-		['dragenter', 'dragover'].forEach(function (evento) {
-			zona.addEventListener(evento, function (e) {
+	function initDropZone(zone, input) {
+		['dragenter', 'dragover'].forEach(function (event) {
+			zone.addEventListener(event, function (e) {
 				e.preventDefault();
-				zona.classList.add('dcta-dropzone-on');
+				zone.classList.add('dcta-dropzone-on');
 			});
 		});
-		['dragleave', 'drop'].forEach(function (evento) {
-			zona.addEventListener(evento, function (e) {
+		['dragleave', 'drop'].forEach(function (event) {
+			zone.addEventListener(event, function (e) {
 				e.preventDefault();
-				zona.classList.remove('dcta-dropzone-on');
+				zone.classList.remove('dcta-dropzone-on');
 			});
 		});
-		zona.addEventListener('drop', function (e) {
-			var ficheros = e.dataTransfer && e.dataTransfer.files;
-			if (!ficheros || !ficheros.length || !aceptable(zona, ficheros[0])) {
+		zone.addEventListener('drop', function (e) {
+			var files = e.dataTransfer && e.dataTransfer.files;
+			if (!files || !files.length || !isAcceptable(zone, files[0])) {
 				return;
 			}
 			try {
-				entrada.files = ficheros;
-				mostrarElegido(zona, ficheros[0]);
+				input.files = files;
+				showChosen(zone, files[0]);
 			} catch (error) {
 				// Browsers that refuse the assignment keep the plain input,
 				// so nothing is queued and the line must not say otherwise.
-				mostrarElegido(zona, null);
+				showChosen(zone, null);
 			}
 		});
 	}
 
-	function iniciarAdjunto() {
-		cada('[data-dcta-dropzone]', function (zona) {
-			var entrada = porId('documentate-app-adjunto');
-			if (!entrada || !marcar(zona)) {
+	function initAttachment() {
+		each('[data-dcta-dropzone]', function (zone) {
+			var input = byId('documentate-app-adjunto');
+			if (!input || !mark(zone)) {
 				return;
 			}
 
-			zona.hidden = false;
-			entrada.classList.add('dcta-oculto-visual');
+			zone.hidden = false;
+			input.classList.add('dcta-oculto-visual');
 
-			var elegir = zona.querySelector('[data-dcta-elegir]');
-			if (elegir) {
-				elegir.addEventListener('click', function () {
-					entrada.click();
+			var choose = zone.querySelector('[data-dcta-elegir]');
+			if (choose) {
+				choose.addEventListener('click', function () {
+					input.click();
 				});
 			}
 
-			entrada.addEventListener('change', function () {
-				if (!entrada.files || !entrada.files.length) {
-					mostrarElegido(zona, null);
+			input.addEventListener('change', function () {
+				if (!input.files || !input.files.length) {
+					showChosen(zone, null);
 					return;
 				}
-				var fichero = entrada.files[0];
-				if (!aceptable(zona, fichero)) {
-					entrada.value = '';
-					mostrarElegido(zona, null);
+				var file = input.files[0];
+				if (!isAcceptable(zone, file)) {
+					input.value = '';
+					showChosen(zone, null);
 					return;
 				}
-				mostrarElegido(zona, fichero);
+				showChosen(zone, file);
 			});
 
-			iniciarSoltar(zona, entrada);
+			initDropZone(zone, input);
 		});
 	}
 
 	// --- new document --------------------------------------------------------
 
-	function iniciarTipo() {
-		var select = porId('documentate-app-tipo');
-		if (!select || !marcar(select)) {
+	function initTypeHint() {
+		var select = byId('documentate-app-tipo');
+		if (!select || !mark(select)) {
 			return;
 		}
 
-		var nota = porId('documentate-app-tipo-nota');
-		var prefijo = porId('documentate-app-prefijo');
+		var note = byId('documentate-app-tipo-nota');
+		var prefix = byId('documentate-app-prefijo');
 
-		function pintar() {
-			var opcion = select.options[select.selectedIndex];
-			var valor = opcion ? opcion.value : '';
-			var gestion = opcion ? opcion.getAttribute('data-gestion') : '';
-			var marca = opcion ? opcion.getAttribute('data-prefijo') : '';
+		function paint() {
+			var option = select.options[select.selectedIndex];
+			var value = option ? option.value : '';
+			var management = option ? option.getAttribute('data-gestion') : '';
+			var prefixMark = option ? option.getAttribute('data-prefijo') : '';
 
-			if (nota) {
-				nota.textContent = '' === valor
+			if (note) {
+				note.textContent = '' === value
 					? ''
-					: (gestion ? 'Pasa por gestión documental.' : 'Va directo a administración.');
+					: (management ? 'Pasa por gestión documental.' : 'Va directo a administración.');
 			}
-			if (prefijo) {
-				prefijo.textContent = marca || '';
-				prefijo.hidden = !marca;
+			if (prefix) {
+				prefix.textContent = prefixMark || '';
+				prefix.hidden = !prefixMark;
 			}
 		}
 
-		select.addEventListener('change', pintar);
-		pintar();
+		select.addEventListener('change', paint);
+		paint();
 	}
 
 	/**
 	 * Strip accents and case so «gestión» also matches «gestion».
 	 */
-	function normalizar(texto) {
-		var plano = String(texto || '').toLowerCase();
+	function normalize(text) {
+		var plain = String(text || '').toLowerCase();
 
-		return plano.normalize ? plano.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : plano;
+		return plain.normalize ? plain.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : plain;
 	}
 
 	/**
@@ -336,78 +336,78 @@
 	 * page, so when it holds more the counts say how many rows were looked
 	 * at and keep the warning the server footer carries.
 	 */
-	function iniciarBusqueda() {
-		var caja = document.querySelector('[data-dcta-busqueda]');
-		var tabla = document.querySelector('.dcta-tabla');
-		if (!caja || !tabla || !marcar(caja)) {
+	function initSearch() {
+		var box = document.querySelector('[data-dcta-busqueda]');
+		var table = document.querySelector('.dcta-tabla');
+		if (!box || !table || !mark(box)) {
 			return;
 		}
 
-		var campo = caja.querySelector('.dcta-busqueda-campo');
-		var pie = tabla.querySelector('[data-dcta-pie]');
-		var filas = [];
-		cada('.dcta-fila:not(.dcta-fila-cab)', function (fila) {
-			filas.push(fila);
-		}, tabla);
+		var field = box.querySelector('.dcta-busqueda-campo');
+		var footer = table.querySelector('[data-dcta-pie]');
+		var rows = [];
+		each('.dcta-fila:not(.dcta-fila-cab)', function (row) {
+			rows.push(row);
+		}, table);
 
-		if (!campo || !filas.length) {
+		if (!field || !rows.length) {
 			return;
 		}
 
-		var total = filas.length;
-		var encontrados = pie ? (parseInt(pie.getAttribute('data-dcta-pie-total'), 10) || total) : total;
-		var truncada = encontrados > total;
-		var pieOriginal = pie ? pie.textContent : '';
-		var vacio = document.createElement('div');
-		vacio.className = 'dcta-vacio';
-		vacio.hidden = true;
-		vacio.textContent = truncada
-			? 'Ningún documento de los ' + total + ' que hay en pantalla coincide con el filtro · la bandeja tiene ' + encontrados + ', afina con los filtros.'
+		var total = rows.length;
+		var found = footer ? (parseInt(footer.getAttribute('data-dcta-pie-total'), 10) || total) : total;
+		var truncated = found > total;
+		var originalFooter = footer ? footer.textContent : '';
+		var emptyRow = document.createElement('div');
+		emptyRow.className = 'dcta-vacio';
+		emptyRow.hidden = true;
+		emptyRow.textContent = truncated
+			? 'Ningún documento de los ' + total + ' que hay en pantalla coincide con el filtro · la bandeja tiene ' + found + ', afina con los filtros.'
 			: 'Ningún documento de la lista coincide con el filtro.';
-		if (pie) {
-			tabla.insertBefore(vacio, pie);
+		if (footer) {
+			table.insertBefore(emptyRow, footer);
 		} else {
-			tabla.appendChild(vacio);
+			table.appendChild(emptyRow);
 		}
 
-		caja.hidden = false;
+		box.hidden = false;
 
-		function filtrar() {
-			var busqueda = normalizar(campo.value).trim();
-			var visibles = 0;
+		function filter() {
+			var search = normalize(field.value).trim();
+			var visible = 0;
 
-			for (var i = 0; i < filas.length; i++) {
-				var texto = normalizar(filas[i].getAttribute('data-dcta-texto') || filas[i].textContent);
-				var coincide = '' === busqueda || texto.indexOf(busqueda) !== -1;
-				filas[i].hidden = !coincide;
-				if (coincide) {
-					visibles++;
+			for (var i = 0; i < rows.length; i++) {
+				var text = normalize(rows[i].getAttribute('data-dcta-texto') || rows[i].textContent);
+				var matches = '' === search || text.indexOf(search) !== -1;
+				rows[i].hidden = !matches;
+				if (matches) {
+					visible++;
 				}
 			}
 
-			vacio.hidden = 0 !== visibles;
+			emptyRow.hidden = 0 !== visible;
 
-			if (pie) {
-				pie.textContent = '' === busqueda
-					? pieOriginal
-					: visibles + ' de ' + total + (1 === total ? ' documento' : ' documentos')
-						+ (truncada ? ' mostrados de ' + encontrados + ' · afina con los filtros' : '');
+			if (footer) {
+				footer.textContent = '' === search
+					? originalFooter
+					: visible + ' de ' + total + (1 === total ? ' documento' : ' documentos')
+						+ (truncated ? ' mostrados de ' + found + ' · afina con los filtros' : '');
 			}
 		}
 
-		campo.addEventListener('input', filtrar);
-		campo.addEventListener('search', filtrar);
-		filtrar();
+		field.addEventListener('input', filter);
+		field.addEventListener('search', filter);
+		filter();
 	}
 
 	function init() {
-		iniciarDialogos();
-		iniciarAdjunto();
-		iniciarTipo();
-		iniciarBusqueda();
+		initDialogs();
+		initAttachment();
+		initTypeHint();
+		initSearch();
 	}
 
-	window.documentateApp = { init: init, iniciarBusqueda: iniciarBusqueda };
+	window.documentateApp = { init: init, initSearch: initSearch };
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);

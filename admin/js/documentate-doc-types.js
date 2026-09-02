@@ -61,14 +61,14 @@
     var placeholder = normalizeText(field.placeholder, slug).trim();
     var type = normalizeText(field.type || field.data_type, 'text').trim() || 'text';
     var group = normalizeText(field.group, '').trim();
-    var rol = normalizeText(field.rol, '').trim().toLowerCase();
+    var role = normalizeText(field.rol, '').trim().toLowerCase();
     return {
       slug: slug,
       label: label,
       placeholder: placeholder,
       data_type: type,
       group: group,
-      rol: rol
+      rol: role
     };
   }
 

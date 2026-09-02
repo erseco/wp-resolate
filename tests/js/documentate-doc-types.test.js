@@ -13,7 +13,7 @@ const jQuery = require( 'jquery' );
  *
  * @return {Object} The documentateDocTypes global used by the script.
  */
-function configuracion() {
+function config() {
 	return {
 		ajax: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce' },
 		fieldTypes: { number: 'Número' },
@@ -38,21 +38,21 @@ function configuracion() {
  * @param {Object} schema Schema v2 structure.
  * @return {Promise<HTMLElement>} The preview container.
  */
-async function pintar( schema ) {
+async function render( schema ) {
 	document.body.innerHTML =
 		'<div id="documentate_type_schema_preview" data-schema-v2=\'' +
 		JSON.stringify( schema ) +
 		"'></div>";
 
-	const escape = ( texto ) =>
-		String( texto ).replace( /[&<>"']/g, ( caracter ) => {
+	const escape = ( text ) =>
+		String( text ).replace( /[&<>"']/g, ( character ) => {
 			return {
 				'&': '&amp;',
 				'<': '&lt;',
 				'>': '&gt;',
 				'"': '&quot;',
 				"'": '&#x27;',
-			}[ caracter ];
+			}[ character ];
 		} );
 
 	// The script reads the globals wp-admin defines, so they are put where it
@@ -62,7 +62,7 @@ async function pintar( schema ) {
 	global.jQuery = jQuery;
 	global.wp = {};
 	global._ = { escape };
-	global.documentateDocTypes = configuracion();
+	global.documentateDocTypes = config();
 
 	jest.isolateModules( () => {
 		require( '../../admin/js/documentate-doc-types.js' );
@@ -76,8 +76,8 @@ async function pintar( schema ) {
 }
 
 describe( 'schema preview', () => {
-	it( 'badges the fields gestión documental fills in, whatever their case', async () => {
-		const preview = await pintar( {
+	it( 'badges the fields document management fills in, whatever their case', async () => {
+		const preview = await render( {
 			version: 2,
 			fields: [
 				{ slug: 'objeto', name: 'objeto', title: 'Objeto', type: 'text' },
@@ -99,8 +99,8 @@ describe( 'schema preview', () => {
 		);
 	} );
 
-	it( 'leaves área entries and entries without rol unbadged', async () => {
-		const preview = await pintar( {
+	it( 'leaves area entries and entries without a rol attribute unbadged', async () => {
+		const preview = await render( {
 			version: 2,
 			fields: [
 				{ slug: 'curso', name: 'curso', title: 'Curso', type: 'text', rol: 'area' },
@@ -112,7 +112,7 @@ describe( 'schema preview', () => {
 	} );
 
 	it( 'badges the fields of a repeater and escapes the labels', async () => {
-		const preview = await pintar( {
+		const preview = await render( {
 			version: 2,
 			fields: [],
 			repeaters: [
@@ -139,7 +139,7 @@ describe( 'schema preview', () => {
 	} );
 
 	it( 'says so when the type has no fields', async () => {
-		const preview = await pintar( { version: 2, fields: [], repeaters: [] } );
+		const preview = await render( { version: 2, fields: [], repeaters: [] } );
 
 		expect( preview.querySelector( '.documentate-schema-empty' ).textContent ).toBe(
 			'Sin campos'

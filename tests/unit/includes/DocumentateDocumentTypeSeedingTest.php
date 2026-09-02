@@ -29,22 +29,22 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $storage = new SchemaStorage();
 
         // Test the main resolution template (resolucion.odt).
-        $resolucion = get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' );
-        $this->assertInstanceOf( WP_Term::class, $resolucion );
-        $this->assertSame( 'resolucion-administrativa', get_term_meta( $resolucion->term_id, '_documentate_fixture', true ) );
-        $resolucion_schema = $storage->get_schema( $resolucion->term_id );
-        $this->assertIsArray( $resolucion_schema );
-        $this->assertSame( 2, $resolucion_schema['version'], 'Resolution schema must be version 2.' );
+        $resolution = get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' );
+        $this->assertInstanceOf( WP_Term::class, $resolution );
+        $this->assertSame( 'resolucion-administrativa', get_term_meta( $resolution->term_id, '_documentate_fixture', true ) );
+        $resolution_schema = $storage->get_schema( $resolution->term_id );
+        $this->assertIsArray( $resolution_schema );
+        $this->assertSame( 2, $resolution_schema['version'], 'Resolution schema must be version 2.' );
         $this->assertSchemaHasFields(
-            $resolucion_schema,
+            $resolution_schema,
             array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante' )
         );
-        $this->assertSchemaFieldMatches( $resolucion_schema, 'numero_resolucion', array( 'type' => 'text', 'rol' => 'gestion' ) );
-        $this->assertSchemaFieldMatches( $resolucion_schema, 'antecedentes', array( 'type' => 'html', 'rol' => 'gestion' ) );
-        $this->assertSchemaFieldMatches( $resolucion_schema, 'objeto', array( 'rol' => '' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'numero_resolucion', array( 'type' => 'text', 'rol' => 'gestion' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'antecedentes', array( 'type' => 'html', 'rol' => 'gestion' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'objeto', array( 'rol' => '' ) );
 
         // Prefixes and the gestión flag of the seeded types.
-        $prefijos = array(
+        $prefixes = array(
             'resolucion-administrativa' => 'RES',
             'propuesta-gasto' => 'PG',
             'convocatoria-reunion' => 'CONV',
@@ -56,13 +56,13 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
             'modelo-informe' => 'INF',
             'documentate-demo-wp-documentate-odt' => '',
         );
-        foreach ( $prefijos as $slug => $prefijo ) {
+        foreach ( $prefixes as $slug => $prefix ) {
             $term = get_term_by( 'slug', $slug, 'documentate_doc_type' );
             $this->assertInstanceOf( WP_Term::class, $term, $slug );
-            $this->assertSame( $prefijo, get_term_meta( $term->term_id, 'documentate_type_prefijo', true ), $slug );
-            $con_gestion = in_array( $slug, array( 'resolucion-administrativa', 'propuesta-gasto' ), true );
-            $this->assertSame( $con_gestion ? '1' : '', get_term_meta( $term->term_id, 'documentate_type_con_gestion', true ), $slug );
-            $this->assertSame( $con_gestion, Documentate_Documento::tipo_con_gestion( $term->term_id ), $slug );
+            $this->assertSame( $prefix, get_term_meta( $term->term_id, 'documentate_type_prefijo', true ), $slug );
+            $has_management = in_array( $slug, array( 'resolucion-administrativa', 'propuesta-gasto' ), true );
+            $this->assertSame( $has_management ? '1' : '', get_term_meta( $term->term_id, 'documentate_type_con_gestion', true ), $slug );
+            $this->assertSame( $has_management, Documentate_Document_Data::type_has_management( $term->term_id ), $slug );
         }
 
         $advanced_odt = get_term_by( 'slug', 'documentate-demo-wp-documentate-odt', 'documentate_doc_type' );
@@ -128,8 +128,8 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $this->assertNotEmpty( $converted_schema );
 
         Documentate_Demo_Data::maybe_seed_default_doc_types();
-        $resolucion_after = get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' );
-        $this->assertSame( $resolucion->term_id, $resolucion_after->term_id );
+        $resolution_after = get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' );
+        $this->assertSame( $resolution->term_id, $resolution_after->term_id );
         $advanced_odt_after = get_term_by( 'slug', 'documentate-demo-wp-documentate-odt', 'documentate_doc_type' );
         $this->assertSame( $advanced_odt->term_id, $advanced_odt_after->term_id );
         $advanced_docx_after = get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' );

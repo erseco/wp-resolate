@@ -112,6 +112,41 @@ A task is **not complete** if any of the following remain:
 
 ## Coding Expectations
 
+### Language: English code, Spanish interface
+
+Two languages live in this repository and the line between them is not a
+matter of taste:
+
+- **English** — everything the compiler, the test runner or another developer
+  reads as a name: file names, class names, method and function names,
+  constants, properties, local variables, parameters, array keys that are only
+  internal state, PHPUnit test method names and data-set names, and the titles
+  of Jest `it()` and Playwright `test()` cases. Comments and PHPDoc are English
+  too, and so is the developer documentation: `README.md`, `ARCHITECTURE.md`
+  and `AGENTS.md` are written in English throughout.
+- **Spanish** — everything a person using the plugin reads: labels, notices,
+  dialogs, emails, activity sentences, the assertion strings that pin those
+  texts down in the tests, and the functional guides written for the team under
+  `docs/` (`docs/flujo-documentos.md`, `docs/campos-por-rol.md`). The rest of
+  `docs/` is reference material and stays in the language it was written in.
+- **Never renamed for language reasons** — anything that is part of a contract
+  with the browser, the database or a bookmark: CSS classes (`dcta-*`,
+  `documentate-*`), `data-*` attributes, DOM ids, query-string keys and their
+  values (`vista`, `doc`, `bandeja`, `estado`, `area`, `guardado`, `enviado`,
+  `devuelto`, `error`), `name` attributes of form fields (`documentate_app_*`),
+  post meta and term meta keys, option names, capability and role names, hook
+  names, the `en_gestion` post status, schema attributes such as `rol`, and the
+  Spanish slugs of the document types. Those stay exactly as they are, in
+  Spanish, however English the code around them becomes.
+
+  wp-admin list-table column ids belong to this group whatever language they
+  are in: `WP_List_Table` renders each one as a CSS class on every header and
+  cell, WordPress persists it per user in the `manageedit-<post_type>columnshidden`
+  user meta once somebody hides the column in Screen Options, and third parties
+  read it through the `manage_<post_type>_posts_columns` filter. The document
+  list's ids (`doc_type`, `doc_category`, `internal_name`) are English because
+  that is how they were introduced, and they are frozen at that spelling.
+
 ### PHP
 
 - **Indentation**: tab characters (tab-width = 4), as required by WordPress Coding Standards and
@@ -213,7 +248,7 @@ de traducción.
   baselined — the gate — while the dashboard keeps reporting the whole
   picture (48 violations today).
 - Check a single file or directory by hand with
-  `php -d error_reporting=E_ALL^E_DEPRECATED vendor/bin/phpmd includes/app/class-documentate-app-detalle.php text phpmd.xml`
+  `php -d error_reporting=E_ALL^E_DEPRECATED vendor/bin/phpmd includes/app/class-documentate-app-detail.php text phpmd.xml`
   — no baseline, so everything the file carries shows up. Add
   `--baseline-file phpmd-baseline.xml` to ask the gate's question instead.
 - When a method approaches either threshold, extract pure helpers (input
@@ -387,7 +422,7 @@ Read `ARCHITECTURE.md` for details on:
 - Fields by role in templates and the document data model
 - The front-end application under `/documentate/`
 
-`Documentate_Transiciones::reglas()` (`includes/class-documentate-transiciones.php`)
+`Documentate_Transitions::rules()` (`includes/class-documentate-transitions.php`)
 is the **single source of truth** for which status a document can move to,
 from which status, for which role, and whether a reason is required. Both
 wp-admin and the front-end app read it to draw their buttons and to validate

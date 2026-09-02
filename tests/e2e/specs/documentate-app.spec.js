@@ -9,8 +9,8 @@
 const { test, expect, fillRequiredAppFields } = require( '../fixtures' );
 const {
 	loginAs,
-	crearEscenario,
-	limpiarEscenario,
+	createFixture,
+	removeFixture,
 } = require( '../fixtures/site' );
 
 const RUN = `app${ Date.now() }`;
@@ -32,7 +32,7 @@ const NAMES = {
 const APP_PATH = '/documentate/';
 
 test.describe( 'Documentate app', () => {
-	let escenario;
+	let fixture;
 	let docTypeId = 0;
 	const docs = {};
 	/** Documents the tests themselves create, cleaned up with the rest. */
@@ -43,49 +43,49 @@ test.describe( 'Documentate app', () => {
 		// waits its turn must not die on the ordinary test budget.
 		test.setTimeout( 300_000 );
 
-		escenario = crearEscenario( {
-			categorias: {
+		fixture = createFixture( {
+			categories: {
 				scope: `App Scope ${ RUN }`,
 				other: `App Other ${ RUN }`,
 			},
 			// The seeded Resolución declares gestión fields in its schema, so
 			// it goes through gestión documental by itself. The shared term is
 			// never written here: parallel workers read the same type.
-			tipos: { res: { slug: 'resolucion-administrativa' } },
-			usuarios: {
+			types: { res: { slug: 'resolucion-administrativa' } },
+			users: {
 				editor: {
 					login: EDITOR_LOGIN,
-					rol: 'editor',
-					ambito: 'scope',
-					gestion: true,
+					role: 'editor',
+					scope: 'scope',
+					management: true,
 				},
-				subscriber: { login: SUBSCRIBER_LOGIN, rol: 'subscriber' },
+				subscriber: { login: SUBSCRIBER_LOGIN, role: 'subscriber' },
 			},
-			documentos: {
+			documents: {
 				inScope: {
-					titulo: TITLES.inScope,
-					categoria: 'scope',
-					tipo: 'res',
-					autor: 'editor',
+					title: TITLES.inScope,
+					category: 'scope',
+					type: 'res',
+					author: 'editor',
 				},
 				outOfScope: {
-					titulo: TITLES.outOfScope,
-					categoria: 'other',
-					tipo: 'res',
+					title: TITLES.outOfScope,
+					category: 'other',
+					type: 'res',
 				},
 				pending: {
-					titulo: TITLES.pending,
-					categoria: 'scope',
-					tipo: 'res',
-					autor: 'editor',
-					estado: 'pending',
+					title: TITLES.pending,
+					category: 'scope',
+					type: 'res',
+					author: 'editor',
+					status: 'pending',
 				},
 			},
 		} );
 
-		docTypeId = escenario.tipos.res;
+		docTypeId = fixture.types.res;
 		expect( docTypeId ).toBeGreaterThan( 0 );
-		Object.assign( docs, escenario.documentos );
+		Object.assign( docs, fixture.documents );
 	} );
 
 	test.afterAll( async () => {
@@ -95,14 +95,14 @@ test.describe( 'Documentate app', () => {
 		// unexpected answer) leaves the fixture unbuilt, and Playwright still
 		// runs this hook: without the guard it dies dereferencing it and the
 		// report shows that TypeError instead of the real failure.
-		if ( ! escenario ) {
+		if ( ! fixture ) {
 			return;
 		}
 
-		limpiarEscenario( {
-			documentos: Object.values( escenario.documentos ).concat( docIds ),
-			usuarios: [ EDITOR_LOGIN, SUBSCRIBER_LOGIN ],
-			categorias: Object.values( escenario.categorias ),
+		removeFixture( {
+			documents: Object.values( fixture.documents ).concat( docIds ),
+			users: [ EDITOR_LOGIN, SUBSCRIBER_LOGIN ],
+			categories: Object.values( fixture.categories ),
 		} );
 	} );
 
@@ -161,13 +161,13 @@ test.describe( 'Documentate app', () => {
 
 		// Sending asks for confirmation in a native dialog first.
 		await page.getByRole( 'button', { name: 'Enviar a gestión' } ).click();
-		const confirmacion = page.getByRole( 'dialog' );
-		await expect( confirmacion ).toBeVisible();
-		await expect( confirmacion ).toContainText( /Ya no podrás modificarlo/ );
+		const confirmDialog = page.getByRole( 'dialog' );
+		await expect( confirmDialog ).toBeVisible();
+		await expect( confirmDialog ).toContainText( /Ya no podrás modificarlo/ );
 
 		await Promise.all( [
 			page.waitForURL( /enviado=1/ ),
-			confirmacion.getByRole( 'button', { name: 'Enviar a gestión' } ).click(),
+			confirmDialog.getByRole( 'button', { name: 'Enviar a gestión' } ).click(),
 		] );
 		// The type goes through gestión documental, so it stops there before
 		// reaching administración.

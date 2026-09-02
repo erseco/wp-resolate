@@ -68,9 +68,14 @@ A task is **not done** until all relevant checks pass.
 - Linter: PHPCS / WPCS via `make lint` / `make fix` (canonical). Mago is optional.
 - Escape output, sanitise and unslash input, use nonces, check capabilities.
 - UI text in **Spanish**; code, comments, docblocks in **English**.
+  Identifiers are English too — file, class, method, property, variable and
+  test names (PHPUnit methods, Jest `it()`, Playwright `test()`) — while CSS
+  classes, `data-*` attributes, query args and stored keys (meta, options,
+  capabilities, `en_gestion`) are contracts and are never renamed for
+  language reasons. See *Coding Expectations → Language* in `AGENTS.md`.
 - La interfaz está en español directamente en el código; no hay i18n ni
   ficheros de traducción.
-- `Documentate_Transiciones::reglas()` is the single source of truth for
+- `Documentate_Transitions::rules()` is the single source of truth for
   document statuses/transitions (área → gestión documental → administración);
   extend that table, never hard-code a status/transition elsewhere. See
   `ARCHITECTURE.md` §3.

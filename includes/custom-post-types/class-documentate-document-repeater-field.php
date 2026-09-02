@@ -76,7 +76,7 @@ class Documentate_Document_Repeater_Field {
 		$items = is_array( $items ) ? $items : array();
 		// Columns gestión documental owns are not drawn for the área, exactly
 		// like the top-level fields of the sections metabox.
-		$item_schema = Documentate_Campos_Rol::filtrar_item_schema( is_array( $item_schema ) ? $item_schema : array() );
+		$item_schema = Documentate_Field_Roles::filter_item_schema( is_array( $item_schema ) ? $item_schema : array() );
 		$raw_fields = isset( $raw_repeater['fields'] ) && is_array( $raw_repeater['fields'] )
 			? $raw_repeater['fields']
 			: array();
@@ -161,12 +161,12 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a single repeatable array item row.
 	 *
-	 * @param string $slug         Field slug.
-	 * @param string $index        Item index.
-	 * @param array  $item_schema  Item schema definition.
-	 * @param array  $values       Current values.
-	 * @param bool   $is_template  Whether the row is a template placeholder.
-	 * @param array  $raw_fields   Raw schema definitions for the repeater items.
+	 * @param string $slug        Field slug.
+	 * @param string $index       Item index.
+	 * @param array  $item_schema Item schema definition.
+	 * @param array  $values      Current values.
+	 * @param bool   $is_template Whether the row is a template placeholder.
+	 * @param array  $raw_fields  Raw schema definitions for the repeater items.
 	 * @return void
 	 */
 	private static function render_array_field_item(
@@ -407,12 +407,12 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a rich text control for one repeater field.
 	 *
-	 * @param string $item_key     Key of the field inside the repeater row.
-	 * @param string $field_name   Submitted input name.
-	 * @param string $field_id     DOM id shared by the control and its descriptions.
-	 * @param array  $raw_field    Raw schema definition for the field.
-	 * @param string $value        Current value.
-	 * @param bool   $is_template  Whether this is the hidden row the JS clones,
+	 * @param string $item_key    Key of the field inside the repeater row.
+	 * @param string $field_name  Submitted input name.
+	 * @param string $field_id    DOM id shared by the control and its descriptions.
+	 * @param array  $raw_field   Raw schema definition for the field.
+	 * @param string $value       Current value.
+	 * @param bool   $is_template Whether this is the hidden row the JS clones,
 	 *                             which must carry the template marker class.
 	 * @return void
 	 */
@@ -477,13 +477,13 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a single-line control for one repeater field.
 	 *
-	 * @param string $item_key     Key of the field inside the repeater row.
-	 * @param string $field_name   Submitted input name.
-	 * @param string $field_id     DOM id shared by the control and its descriptions.
-	 * @param string $label        Visible label, reused by the screen-reader text.
-	 * @param array  $raw_field    Raw schema definition for the field.
-	 * @param string $value        Current value.
-	 * @param array  $definition   Item schema entry, read for its data_type hint.
+	 * @param string $item_key   Key of the field inside the repeater row.
+	 * @param string $field_name Submitted input name.
+	 * @param string $field_id   DOM id shared by the control and its descriptions.
+	 * @param string $label      Visible label, reused by the screen-reader text.
+	 * @param array  $raw_field  Raw schema definition for the field.
+	 * @param string $value      Current value.
+	 * @param array  $definition Item schema entry, read for its data_type hint.
 	 * @return void
 	 */
 	private static function render_array_item_single( $item_key, $field_name, $field_id, $label, $raw_field, $value, $definition ) {
@@ -554,11 +554,11 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a textarea control for one repeater field.
 	 *
-	 * @param string $item_key     Key of the field inside the repeater row.
-	 * @param string $field_name   Submitted input name.
-	 * @param string $field_id     DOM id shared by the control and its descriptions.
-	 * @param array  $raw_field    Raw schema definition for the field.
-	 * @param string $value        Current value.
+	 * @param string $item_key   Key of the field inside the repeater row.
+	 * @param string $field_name Submitted input name.
+	 * @param string $field_id   DOM id shared by the control and its descriptions.
+	 * @param array  $raw_field  Raw schema definition for the field.
+	 * @param string $value      Current value.
 	 * @return void
 	 */
 	private static function render_array_item_textarea( $item_key, $field_name, $field_id, $raw_field, $value ) {

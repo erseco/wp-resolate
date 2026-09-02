@@ -23,7 +23,7 @@ class Documentate_Doc_Type_Workflow_Fields {
 	 *
 	 * @var int
 	 */
-	const PREFIJO_MAX = 6;
+	const PREFIX_MAX = 6;
 
 	/**
 	 * Register hooks. Priority 5 draws these fields before the template ones.
@@ -43,10 +43,10 @@ class Documentate_Doc_Type_Workflow_Fields {
 	public function add_fields() {
 		echo '<div class="form-field">';
 		echo '<label for="documentate_type_prefijo">' . esc_html( 'Prefijo' ) . '</label>';
-		$this->render_prefijo_control( '' );
+		$this->render_prefix_control( '' );
 		echo '</div>';
 		echo '<div class="form-field">';
-		$this->render_con_gestion_control( false );
+		$this->render_management_control( false );
 		echo '</div>';
 	}
 
@@ -57,29 +57,29 @@ class Documentate_Doc_Type_Workflow_Fields {
 	 * @return void
 	 */
 	public function edit_fields( $term ) {
-		$prefijo = (string) get_term_meta( $term->term_id, Documentate_Documento::TERM_META_PREFIJO, true );
-		$con_gestion = '1' === (string) get_term_meta( $term->term_id, Documentate_Documento::TERM_META_CON_GESTION, true );
+		$prefix = (string) get_term_meta( $term->term_id, Documentate_Document_Data::TERM_META_PREFIX, true );
+		$has_management = '1' === (string) get_term_meta( $term->term_id, Documentate_Document_Data::TERM_META_HAS_MANAGEMENT, true );
 
 		echo '<tr class="form-field">';
 		echo '<th scope="row"><label for="documentate_type_prefijo">' . esc_html( 'Prefijo' ) . '</label></th><td>';
-		$this->render_prefijo_control( $prefijo );
+		$this->render_prefix_control( $prefix );
 		echo '</td></tr>';
 		echo '<tr class="form-field">';
 		echo '<th scope="row">' . esc_html( 'Gestión documental' ) . '</th><td>';
-		$this->render_con_gestion_control( $con_gestion );
+		$this->render_management_control( $has_management );
 		echo '</td></tr>';
 	}
 
 	/**
 	 * Render the prefix input with its help text.
 	 *
-	 * @param string $prefijo Stored prefix.
+	 * @param string $prefix Stored prefix.
 	 * @return void
 	 */
-	private function render_prefijo_control( $prefijo ) {
+	private function render_prefix_control( $prefix ) {
 		echo '<input type="text" id="documentate_type_prefijo" name="documentate_type_prefijo" value="'
-			. esc_attr( $prefijo )
-			. '" maxlength="' . esc_attr( (string) self::PREFIJO_MAX ) . '" class="documentate-prefijo-field" style="text-transform:uppercase;width:8em" autocomplete="off" />';
+			. esc_attr( $prefix )
+			. '" maxlength="' . esc_attr( (string) self::PREFIX_MAX ) . '" class="documentate-prefijo-field" style="text-transform:uppercase;width:8em" autocomplete="off" />';
 		echo '<p class="description">'
 			. esc_html( 'Hasta 6 letras o números en mayúsculas. Precede al nombre interno en las listas (RES · Bases del programa); no aparece en el documento.' )
 			. '</p>';
@@ -88,13 +88,13 @@ class Documentate_Doc_Type_Workflow_Fields {
 	/**
 	 * Render the "pasa por gestión documental" checkbox with its note.
 	 *
-	 * @param bool $con_gestion Whether the type is flagged.
+	 * @param bool $has_management Whether the type is flagged.
 	 * @return void
 	 */
-	private function render_con_gestion_control( $con_gestion ) {
+	private function render_management_control( $has_management ) {
 		echo '<label for="documentate_type_con_gestion">'
 			. '<input type="checkbox" id="documentate_type_con_gestion" name="documentate_type_con_gestion" value="1"'
-			. checked( $con_gestion, true, false )
+			. checked( $has_management, true, false )
 			. ' /> '
 			. esc_html( 'Pasa por gestión documental' )
 			. '</label>';
@@ -104,15 +104,15 @@ class Documentate_Doc_Type_Workflow_Fields {
 	}
 
 	/**
-	 * Normalise a prefix: letters and digits only, uppercase, at most PREFIJO_MAX characters.
+	 * Normalise a prefix: letters and digits only, uppercase, at most PREFIX_MAX characters.
 	 *
-	 * @param string $prefijo Raw prefix.
+	 * @param string $prefix Raw prefix.
 	 * @return string
 	 */
-	public static function normalize_prefijo( $prefijo ) {
-		$prefijo = (string) preg_replace( '/[^\p{L}\p{N}]/u', '', (string) $prefijo );
+	public static function normalize_prefix( $prefix ) {
+		$prefix = (string) preg_replace( '/[^\p{L}\p{N}]/u', '', (string) $prefix );
 
-		return mb_strtoupper( mb_substr( $prefijo, 0, self::PREFIJO_MAX ) );
+		return mb_strtoupper( mb_substr( $prefix, 0, self::PREFIX_MAX ) );
 	}
 
 	/**
@@ -128,14 +128,14 @@ class Documentate_Doc_Type_Workflow_Fields {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Verified in verify_term_save_nonce().
-		$prefijo = isset( $_POST['documentate_type_prefijo'] )
+		$prefix = isset( $_POST['documentate_type_prefijo'] )
 			? sanitize_text_field( wp_unslash( $_POST['documentate_type_prefijo'] ) )
 			: '';
-		$con_gestion = empty( $_POST['documentate_type_con_gestion'] ) ? '' : '1';
+		$has_management = empty( $_POST['documentate_type_con_gestion'] ) ? '' : '1';
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-		update_term_meta( $term_id, Documentate_Documento::TERM_META_PREFIJO, self::normalize_prefijo( $prefijo ) );
-		update_term_meta( $term_id, Documentate_Documento::TERM_META_CON_GESTION, $con_gestion );
+		update_term_meta( $term_id, Documentate_Document_Data::TERM_META_PREFIX, self::normalize_prefix( $prefix ) );
+		update_term_meta( $term_id, Documentate_Document_Data::TERM_META_HAS_MANAGEMENT, $has_management );
 	}
 
 	/**
@@ -183,8 +183,8 @@ class Documentate_Doc_Type_Workflow_Fields {
 	 * @param array $entry Legacy field, repeater or item definition.
 	 * @return void
 	 */
-	public static function render_rol_badge( array $entry ) {
-		if ( Documentate_Campos_Rol::ROL_GESTION !== Documentate_Campos_Rol::rol_del_campo( $entry ) ) {
+	public static function render_role_badge( array $entry ) {
+		if ( Documentate_Field_Roles::ROLE_MANAGEMENT !== Documentate_Field_Roles::field_role( $entry ) ) {
 			return;
 		}
 		echo ' <span class="documentate-field-rol">' . esc_html( 'gestión' ) . '</span>';

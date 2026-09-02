@@ -17,23 +17,23 @@ const STRINGS = {
 	lockedMessage: 'Aprobado y de solo lectura.',
 	archivedMessage: 'Archivado y de solo lectura.',
 	pendingMessage: 'En revisión y de solo lectura.',
-	gestionMessage: 'En gestión documental y de solo lectura.',
+	managementMessage: 'En gestión documental y de solo lectura.',
 	adminUnlock: 'Devuélvelo a revisión.',
 	adminUnarchive: 'Desarchívalo.',
 	needsDocType: 'Selecciona un tipo de documento antes de enviarlo.',
 	confirmSendReview: '¿Enviar el documento a revisión de administración?',
-	confirmSendGestion: '¿Enviar el documento a gestión documental?',
+	confirmSendManagement: '¿Enviar el documento a gestión documental?',
 	confirmPassAdmin: '¿Pasar el documento a administración?',
-	motivoRequired: 'Escribe el motivo de la devolución antes de devolver el documento.',
+	reasonRequired: 'Escribe el motivo de la devolución antes de devolver el documento.',
 };
 
 /**
  * The markup the meta box renders, plus the fields the submit touches.
  *
- * @param {string} botones Buttons of the status being rendered.
+ * @param {string} buttons Buttons of the status being rendered.
  * @return {string} HTML.
  */
-function pantalla( botones ) {
+function renderScreen( buttons ) {
 	return `
 		<div id="poststuff">
 			<form id="post">
@@ -41,7 +41,7 @@ function pantalla( botones ) {
 				<input type="hidden" id="hidden_post_status" name="hidden_post_status" value="draft">
 				<div id="documentate_document_management">
 					<span class="spinner"></span>
-					${ botones }
+					${ buttons }
 					<div class="documentate-mgmt-motivo" style="display:none;">
 						<label for="documentate-return-draft-motivo">Motivo de la devolución</label>
 						<textarea id="documentate-return-draft-motivo" name="documentate_motivo"></textarea>
@@ -56,12 +56,12 @@ function pantalla( botones ) {
  * One button of the meta box.
  *
  * @param {string} id    Button id.
- * @param {Object} datos Data attributes.
+ * @param {Object} data Data attributes.
  * @return {string} HTML.
  */
-function boton( id, datos = {} ) {
-	const attrs = Object.keys( datos )
-		.map( ( clave ) => ` data-${ clave }="${ datos[ clave ] }"` )
+function buttonMarkup( id, data = {} ) {
+	const attrs = Object.keys( data )
+		.map( ( key ) => ` data-${ key }="${ data[ key ] }"` )
 		.join( '' );
 
 	return `<button type="button" id="${ id }"${ attrs }>${ id }</button>`;
@@ -77,13 +77,13 @@ function boton( id, datos = {} ) {
  * @param {Object} config The documentateWorkflow global.
  * @return {Promise<void>} Resolves once jQuery's ready queue has drained.
  */
-async function arrancar( config = {} ) {
+async function boot( config = {} ) {
 	window.documentateWorkflow = {
 		postId: POST_ID,
 		postStatus: 'draft',
 		isAdmin: false,
 		hasDocType: true,
-		conGestion: false,
+		hasManagement: false,
 		isPublished: false,
 		isArchived: false,
 		isPending: false,
@@ -108,7 +108,7 @@ async function arrancar( config = {} ) {
  * @param {string} id Button id.
  * @return {void}
  */
-function clic( id ) {
+function clickOn( id ) {
 	document.getElementById( id ).dispatchEvent(
 		new window.MouseEvent( 'click', { bubbles: true, cancelable: true } )
 	);
@@ -144,16 +144,16 @@ afterEach( () => {
 	delete window.documentateWorkflow;
 } );
 
-describe( 'devolver: the reason box', () => {
+describe( 'return: the reason box', () => {
 	beforeEach( async () => {
-		document.body.innerHTML = pantalla(
-			boton( 'documentate-return-draft' ) + boton( 'documentate-return-gestion' )
+		document.body.innerHTML = renderScreen(
+			buttonMarkup( 'documentate-return-draft' ) + buttonMarkup( 'documentate-return-gestion' )
 		);
-		await arrancar( { postStatus: 'en_gestion', isEnGestion: true } );
+		await boot( { postStatus: 'en_gestion', isEnGestion: true } );
 	} );
 
 	it( 'reveals the box on the first click and submits nothing', () => {
-		clic( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
 
 		expect(
 			document.querySelector( '.documentate-mgmt-motivo' ).style.display
@@ -164,27 +164,27 @@ describe( 'devolver: the reason box', () => {
 	} );
 
 	it( 'refuses to submit while the reason is empty, and says so', () => {
-		clic( 'documentate-return-draft' );
-		clic( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
 
-		expect( window.alert ).toHaveBeenCalledWith( STRINGS.motivoRequired );
+		expect( window.alert ).toHaveBeenCalledWith( STRINGS.reasonRequired );
 		expect( submits ).toBe( 0 );
 	} );
 
 	it( 'refuses a reason made of spaces', () => {
-		clic( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
 		document.getElementById( 'documentate-return-draft-motivo' ).value = '   ';
-		clic( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
 
-		expect( window.alert ).toHaveBeenCalledWith( STRINGS.motivoRequired );
+		expect( window.alert ).toHaveBeenCalledWith( STRINGS.reasonRequired );
 		expect( submits ).toBe( 0 );
 	} );
 
 	it( 'submits as a draft once the reason is written', () => {
-		clic( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
 		document.getElementById( 'documentate-return-draft-motivo' ).value =
 			'Falta el anexo firmado';
-		clic( 'documentate-return-draft' );
+		clickOn( 'documentate-return-draft' );
 
 		expect( window.alert ).not.toHaveBeenCalled();
 		expect( submits ).toBe( 1 );
@@ -194,11 +194,11 @@ describe( 'devolver: the reason box', () => {
 		);
 	} );
 
-	it( 'sends the document back to gestión with its own reason', () => {
-		clic( 'documentate-return-gestion' );
+	it( 'sends the document back to management with its own reason', () => {
+		clickOn( 'documentate-return-gestion' );
 		document.getElementById( 'documentate-return-draft-motivo' ).value =
 			'Falta el número de expediente';
-		clic( 'documentate-return-gestion' );
+		clickOn( 'documentate-return-gestion' );
 
 		expect( submits ).toBe( 1 );
 		expect( document.getElementById( 'post_status' ).value ).toBe(
@@ -208,13 +208,13 @@ describe( 'devolver: the reason box', () => {
 } );
 
 describe( 'the buttons of each status', () => {
-	it( 'passes an en_gestion document to administración after confirming', async () => {
-		document.body.innerHTML = pantalla(
-			boton( 'documentate-pass-admin' ) + boton( 'documentate-save-gestion' )
+	it( 'passes an en_gestion document to administration after confirming', async () => {
+		document.body.innerHTML = renderScreen(
+			buttonMarkup( 'documentate-pass-admin' ) + buttonMarkup( 'documentate-save-gestion' )
 		);
-		await arrancar( { postStatus: 'en_gestion', isEnGestion: true } );
+		await boot( { postStatus: 'en_gestion', isEnGestion: true } );
 
-		clic( 'documentate-pass-admin' );
+		clickOn( 'documentate-pass-admin' );
 
 		expect( window.confirm ).toHaveBeenCalledWith( STRINGS.confirmPassAdmin );
 		expect( submits ).toBe( 1 );
@@ -222,21 +222,21 @@ describe( 'the buttons of each status', () => {
 	} );
 
 	it( 'does nothing when the confirmation is dismissed', async () => {
-		document.body.innerHTML = pantalla( boton( 'documentate-pass-admin' ) );
-		await arrancar( { postStatus: 'en_gestion', isEnGestion: true } );
+		document.body.innerHTML = renderScreen( buttonMarkup( 'documentate-pass-admin' ) );
+		await boot( { postStatus: 'en_gestion', isEnGestion: true } );
 		window.confirm = jest.fn( () => false );
 
-		clic( 'documentate-pass-admin' );
+		clickOn( 'documentate-pass-admin' );
 
 		expect( submits ).toBe( 0 );
 		expect( document.getElementById( 'post_status' ).value ).toBe( 'draft' );
 	} );
 
 	it( 'saves without moving the document out of en_gestion', async () => {
-		document.body.innerHTML = pantalla( boton( 'documentate-save-gestion' ) );
-		await arrancar( { postStatus: 'en_gestion', isEnGestion: true } );
+		document.body.innerHTML = renderScreen( buttonMarkup( 'documentate-save-gestion' ) );
+		await boot( { postStatus: 'en_gestion', isEnGestion: true } );
 
-		clic( 'documentate-save-gestion' );
+		clickOn( 'documentate-save-gestion' );
 
 		expect( submits ).toBe( 1 );
 		expect( document.getElementById( 'post_status' ).value ).toBe(
@@ -244,62 +244,62 @@ describe( 'the buttons of each status', () => {
 		);
 	} );
 
-	it( 'sends a draft where its type says: gestión documental', async () => {
-		document.body.innerHTML = pantalla(
-			boton( 'documentate-send-review', { estado: 'en_gestion' } )
+	it( 'sends a draft where its type says: document management', async () => {
+		document.body.innerHTML = renderScreen(
+			buttonMarkup( 'documentate-send-review', { estado: 'en_gestion' } )
 		);
-		await arrancar( { conGestion: true } );
+		await boot( { hasManagement: true } );
 
-		clic( 'documentate-send-review' );
+		clickOn( 'documentate-send-review' );
 
-		expect( window.confirm ).toHaveBeenCalledWith( STRINGS.confirmSendGestion );
+		expect( window.confirm ).toHaveBeenCalledWith( STRINGS.confirmSendManagement );
 		expect( document.getElementById( 'post_status' ).value ).toBe(
 			'en_gestion'
 		);
 	} );
 
-	it( 'sends a draft of a direct type to revisión', async () => {
-		document.body.innerHTML = pantalla(
-			boton( 'documentate-send-review', { estado: 'pending' } )
+	it( 'sends a draft of a direct type to review', async () => {
+		document.body.innerHTML = renderScreen(
+			buttonMarkup( 'documentate-send-review', { estado: 'pending' } )
 		);
-		await arrancar();
+		await boot();
 
-		clic( 'documentate-send-review' );
+		clickOn( 'documentate-send-review' );
 
 		expect( window.confirm ).toHaveBeenCalledWith( STRINGS.confirmSendReview );
 		expect( document.getElementById( 'post_status' ).value ).toBe( 'pending' );
 	} );
 
-	it( 'never asks administración to confirm', async () => {
-		document.body.innerHTML = pantalla(
-			boton( 'documentate-send-review', { estado: 'pending' } ) +
-				boton( 'documentate-approve-publish' ) +
-				boton( 'documentate-save-draft' )
+	it( 'never asks administration to confirm', async () => {
+		document.body.innerHTML = renderScreen(
+			buttonMarkup( 'documentate-send-review', { estado: 'pending' } ) +
+				buttonMarkup( 'documentate-approve-publish' ) +
+				buttonMarkup( 'documentate-save-draft' )
 		);
-		await arrancar( { isAdmin: true } );
+		await boot( { isAdmin: true } );
 
-		clic( 'documentate-send-review' );
+		clickOn( 'documentate-send-review' );
 		expect( window.confirm ).not.toHaveBeenCalled();
 
-		clic( 'documentate-approve-publish' );
+		clickOn( 'documentate-approve-publish' );
 		expect( document.getElementById( 'post_status' ).value ).toBe( 'publish' );
 
-		clic( 'documentate-save-draft' );
+		clickOn( 'documentate-save-draft' );
 		expect( document.getElementById( 'post_status' ).value ).toBe( 'draft' );
 		expect( submits ).toBe( 3 );
 	} );
 
 	it( 'un-approves a published document from the same rail', async () => {
-		document.body.innerHTML = pantalla(
-			boton( 'documentate-return-review' ) + boton( 'documentate-save-pending' )
+		document.body.innerHTML = renderScreen(
+			buttonMarkup( 'documentate-return-review' ) + buttonMarkup( 'documentate-save-pending' )
 		);
-		await arrancar( {
+		await boot( {
 			postStatus: 'publish',
 			isAdmin: true,
 			isPublished: true,
 		} );
 
-		clic( 'documentate-return-review' );
+		clickOn( 'documentate-return-review' );
 
 		expect( submits ).toBe( 1 );
 		expect( document.getElementById( 'post_status' ).value ).toBe( 'pending' );
@@ -307,28 +307,28 @@ describe( 'the buttons of each status', () => {
 } );
 
 describe( 'the locked state', () => {
-	it( 'tells the área that gestión documental has the document', async () => {
-		document.body.innerHTML = pantalla( '' );
-		await arrancar( {
+	it( 'tells the area that document management has the document', async () => {
+		document.body.innerHTML = renderScreen( '' );
+		await boot( {
 			postStatus: 'en_gestion',
 			isEnGestion: true,
 			isLocked: true,
 		} );
 
-		const aviso = document.querySelector( '.documentate-workflow-notice' );
-		expect( aviso.textContent ).toContain( STRINGS.gestionMessage );
+		const notice = document.querySelector( '.documentate-workflow-notice' );
+		expect( notice.textContent ).toContain( STRINGS.managementMessage );
 		expect(
 			document.querySelector( '#documentate_sections .locked-overlay' )
 				.textContent
-		).toContain( STRINGS.gestionMessage );
+		).toContain( STRINGS.managementMessage );
 		expect( document.body.classList ).toContain(
 			'documentate-document-locked'
 		);
 	} );
 
-	it( 'tells administración how to unlock an approved document', async () => {
-		document.body.innerHTML = pantalla( '' );
-		await arrancar( {
+	it( 'tells administration how to unlock an approved document', async () => {
+		document.body.innerHTML = renderScreen( '' );
+		await boot( {
 			postStatus: 'publish',
 			isAdmin: true,
 			isPublished: true,
@@ -341,8 +341,8 @@ describe( 'the locked state', () => {
 	} );
 
 	it( 'asks for a document type before anything can be sent', async () => {
-		document.body.innerHTML = pantalla( '' );
-		await arrancar( { hasDocType: false } );
+		document.body.innerHTML = renderScreen( '' );
+		await boot( { hasDocType: false } );
 
 		expect(
 			document.querySelector( '.documentate-doctype-warning' ).textContent
@@ -351,7 +351,7 @@ describe( 'the locked state', () => {
 
 	it( 'disables every control of a locked document', async () => {
 		document.body.innerHTML =
-			pantalla( '' ) +
+			renderScreen( '' ) +
 			`<div class="documentate-sections-container">
 				<input type="text" id="campo" name="documentate_field[a]">
 				<div class="ProseMirror" contenteditable="true"></div>
@@ -367,7 +367,7 @@ describe( 'the locked state', () => {
 				</div>
 				<div class="wp-editor-tabs"></div>
 			</div>`;
-		await arrancar( { postStatus: 'publish', isPublished: true, isLocked: true } );
+		await boot( { postStatus: 'publish', isPublished: true, isLocked: true } );
 
 		expect( document.getElementById( 'campo' ).disabled ).toBe( true );
 		expect( document.getElementById( 'fila' ).disabled ).toBe( true );
@@ -388,12 +388,12 @@ describe( 'the locked state', () => {
 		).toBe( 'true' );
 	} );
 
-	it( 'disables the internal name and the área checkboxes too', async () => {
+	it( 'disables the internal name and the area checkboxes too', async () => {
 		// Both sit outside every meta box the first selectors covered: the
 		// name after the title, the área in the core taxonomy box — and both
 		// stayed writable on a screen that says the document cannot be edited.
 		document.body.innerHTML =
-			pantalla( '' ) +
+			renderScreen( '' ) +
 			`<div class="documentate-nombre-interno">
 				<span class="documentate-nombre-interno__prefijo">RES</span>
 				<input type="text" id="documentate_nombre_interno" name="documentate_nombre_interno">
@@ -403,7 +403,7 @@ describe( 'the locked state', () => {
 					<li><label><input value="7" type="checkbox" name="post_category[]"> Área</label></li>
 				</ul>
 			</div>`;
-		await arrancar( {
+		await boot( {
 			postStatus: 'publish',
 			isAdmin: true,
 			isPublished: true,
@@ -420,8 +420,8 @@ describe( 'the locked state', () => {
 
 	it( 'locks again the fields a meta box reload brought back', async () => {
 		document.body.innerHTML =
-			pantalla( '' ) + '<div class="documentate-sections-container"></div>';
-		await arrancar( {
+			renderScreen( '' ) + '<div class="documentate-sections-container"></div>';
+		await boot( {
 			postStatus: 'archived',
 			isArchived: true,
 			isLocked: true,
@@ -439,10 +439,10 @@ describe( 'the locked state', () => {
 	} );
 
 	it( 'does nothing at all without a post id', async () => {
-		document.body.innerHTML = pantalla( boton( 'documentate-save-draft' ) );
-		await arrancar( { postId: 0, isLocked: true } );
+		document.body.innerHTML = renderScreen( buttonMarkup( 'documentate-save-draft' ) );
+		await boot( { postId: 0, isLocked: true } );
 
-		clic( 'documentate-save-draft' );
+		clickOn( 'documentate-save-draft' );
 
 		expect( submits ).toBe( 0 );
 		expect( document.querySelector( '.locked-overlay' ) ).toBeNull();

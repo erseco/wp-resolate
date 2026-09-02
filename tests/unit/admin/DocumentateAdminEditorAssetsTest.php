@@ -161,8 +161,8 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 		$config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
 		$this->assertSame( $config['valid_elements'], $init['valid_elements'] );
 		$this->assertSame( $config['invalid_elements'], $init['invalid_elements'] );
-		foreach ( array( 'thead', 'tbody', 'tfoot' ) as $seccion ) {
-			$this->assertStringContainsString( $seccion, $init['valid_elements'] );
+		foreach ( array( 'thead', 'tbody', 'tfoot' ) as $section ) {
+			$this->assertStringContainsString( $section, $init['valid_elements'] );
 		}
 		$this->assertStringContainsString( 'script', $init['invalid_elements'] );
 		$this->assertStringNotContainsString( 'iframe|', $init['valid_elements'] );

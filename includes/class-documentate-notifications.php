@@ -113,7 +113,7 @@ class Documentate_Notifications {
 		}
 
 		// Notify gestión documental about the documents that reach or leave them.
-		$this->notify_gestion( $post, $old_status, $new_status, $actor_id );
+		$this->notify_management( $post, $old_status, $new_status, $actor_id );
 	}
 
 	/**
@@ -221,26 +221,26 @@ class Documentate_Notifications {
 	 * @param int     $actor_id   ID of the user who triggered the change.
 	 * @return void
 	 */
-	private function notify_gestion( $post, $old_status, $new_status, $actor_id ) {
-		$transicion = $old_status . '>' . $new_status;
-		$asuntos = array(
+	private function notify_management( $post, $old_status, $new_status, $actor_id ) {
+		$transition = $old_status . '>' . $new_status;
+		$subjects = array(
 			'draft>en_gestion' => 'Nuevo documento en gestión',
 			'pending>en_gestion' => 'Devuelto por administración',
 			'pending>publish' => 'Documento aprobado',
 		);
 
-		if ( ! isset( $asuntos[ $transicion ] ) ) {
+		if ( ! isset( $subjects[ $transition ] ) ) {
 			return;
 		}
 
-		if ( 'pending>publish' === $transicion && ! Documentate_Documento::con_gestion( $post ) ) {
+		if ( 'pending>publish' === $transition && ! Documentate_Document_Data::has_management( $post ) ) {
 			return;
 		}
 
-		$subject = $this->build_subject( $asuntos[ $transicion ], $post );
+		$subject = $this->build_subject( $subjects[ $transition ], $post );
 		$body = $this->build_body( $post, $old_status, $new_status, $actor_id );
 
-		foreach ( $this->gestion_recipients( $actor_id ) as $email ) {
+		foreach ( $this->management_recipients( $actor_id ) as $email ) {
 			wp_mail( $email, $subject, $body );
 		}
 	}
@@ -249,16 +249,16 @@ class Documentate_Notifications {
 	 * Email addresses of every gestión documental user except the actor.
 	 *
 	 * Selected by capability, not by role: the site owner may grant
-	 * CAP_GESTION to any role or user, and only those who also hold
+	 * CAP_MANAGEMENT to any role or user, and only those who also hold
 	 * edit_others_posts can actually open the documents.
 	 *
 	 * @param int $actor_id ID of the user who triggered the change.
 	 * @return string[]
 	 */
-	private function gestion_recipients( $actor_id ) {
+	private function management_recipients( $actor_id ) {
 		$users = get_users(
 			array(
-				'capability' => Documentate_Roles::CAP_GESTION,
+				'capability' => Documentate_Roles::CAP_MANAGEMENT,
 				'fields' => array( 'ID', 'user_email' ),
 			)
 		);
@@ -269,7 +269,7 @@ class Documentate_Notifications {
 			if ( $user_id === $actor_id || empty( $user->user_email ) ) {
 				continue;
 			}
-			if ( ! user_can( $user_id, Documentate_Roles::CAP_GESTION ) || ! user_can( $user_id, 'edit_others_posts' ) ) {
+			if ( ! user_can( $user_id, Documentate_Roles::CAP_MANAGEMENT ) || ! user_can( $user_id, 'edit_others_posts' ) ) {
 				continue;
 			}
 			$emails[] = (string) $user->user_email;
@@ -286,7 +286,7 @@ class Documentate_Notifications {
 	 * @return string Final subject line.
 	 */
 	private function build_subject( $reason, $post ) {
-		return sprintf( 'Documentate · %1$s: %2$s', $reason, Documentate_Documento::nombre_corto( $post ) );
+		return sprintf( 'Documentate · %1$s: %2$s', $reason, Documentate_Document_Data::short_name( $post ) );
 	}
 
 	/**
@@ -297,7 +297,7 @@ class Documentate_Notifications {
 	 * @return string
 	 */
 	private function get_state_change_reason( $post, $new_status ) {
-		if ( 'draft' === $new_status && Documentate_Documento::devuelto( $post ) ) {
+		if ( 'draft' === $new_status && Documentate_Document_Data::returned( $post ) ) {
 			return 'Documento devuelto';
 		}
 
@@ -320,7 +320,7 @@ class Documentate_Notifications {
 	 * @return string Label, or the raw status if unknown.
 	 */
 	private function status_label( $status ) {
-		$labels = Documentate_Estados::etiquetas() + array(
+		$labels = Documentate_Statuses::labels() + array(
 			'trash' => 'Papelera',
 			'auto-draft' => 'Borrador inicial',
 			'new' => 'Nuevo',
@@ -335,28 +335,28 @@ class Documentate_Notifications {
 	 * @param WP_Post $post Document.
 	 * @return string Empty when the change is not a return.
 	 */
-	private function motivo( $post ) {
-		$motivo = Documentate_Transiciones::motivo_en_curso( $post->ID );
-		if ( '' !== $motivo ) {
-			return $motivo;
+	private function reason( $post ) {
+		$reason = Documentate_Transitions::reason_in_progress( $post->ID );
+		if ( '' !== $reason ) {
+			return $reason;
 		}
 
-		$devuelto = Documentate_Documento::devuelto( $post );
+		$returned = Documentate_Document_Data::returned( $post );
 
-		return $devuelto ? $devuelto['motivo'] : '';
+		return $returned ? $returned['motivo'] : '';
 	}
 
 	/**
 	 * Link to the document: the application when it exists, wp-admin otherwise.
 	 *
-	 * @param WP_Post $post   Document.
-	 * @param bool    $editar Whether to point at the edit view.
+	 * @param WP_Post $post Document.
+	 * @param bool    $edit Whether to point at the edit view.
 	 * @return string
 	 */
-	private function enlace( $post, $editar ) {
+	private function link( $post, $edit ) {
 		if ( class_exists( 'Documentate_App_Shell' ) ) {
 			$args = array( 'doc' => $post->ID );
-			if ( $editar ) {
+			if ( $edit ) {
 				$args['vista'] = 'editar';
 			}
 			$url = Documentate_App_Shell::page_url( $args );
@@ -382,8 +382,8 @@ class Documentate_Notifications {
 	private function build_body( $post, $old_status, $new_status, $actor_id ) {
 		$actor = $actor_id > 0 ? get_userdata( $actor_id ) : null;
 		$actor_name = $actor && ! empty( $actor->display_name ) ? $actor->display_name : 'Sistema';
-		$es_devolucion = in_array( $new_status, array( 'draft', 'en_gestion' ), true ) && '' !== $old_status;
-		$motivo = $es_devolucion ? $this->motivo( $post ) : '';
+		$is_return = in_array( $new_status, array( 'draft', 'en_gestion' ), true ) && '' !== $old_status;
+		$reason = $is_return ? $this->reason( $post ) : '';
 
 		$lines = array();
 		$lines[] = sprintf( 'Documento: %s', wp_strip_all_tags( (string) $post->post_title ) );
@@ -395,11 +395,11 @@ class Documentate_Notifications {
 		}
 
 		$lines[] = sprintf( 'Realizado por: %s', $actor_name );
-		if ( '' !== $motivo ) {
-			$lines[] = sprintf( 'Motivo: «%s»', $motivo );
+		if ( '' !== $reason ) {
+			$lines[] = sprintf( 'Motivo: «%s»', $reason );
 		}
 		$lines[] = '';
-		$lines[] = sprintf( 'Enlace al documento: %s', $this->enlace( $post, '' !== $motivo ) );
+		$lines[] = sprintf( 'Enlace al documento: %s', $this->link( $post, '' !== $reason ) );
 
 		return implode( "\n", $lines );
 	}

@@ -28,8 +28,8 @@ const { test, expect } = require( '../fixtures' );
 const {
 	runWpCmd,
 	loginAs,
-	crearEscenario,
-	limpiarEscenario,
+	createFixture,
+	removeFixture,
 } = require( '../fixtures/site' );
 
 // Unique id for this run so fixtures never collide across parallel specs/retries.
@@ -77,7 +77,7 @@ function rowByTitle( page, title ) {
 }
 
 test.describe( 'Roles and Scope Filtering', () => {
-	let escenario;
+	let fixture;
 	let parentCatId = 0;
 	let otherCatId = 0;
 	let editorId = 0;
@@ -89,79 +89,79 @@ test.describe( 'Roles and Scope Filtering', () => {
 		// waits its turn must not die on the ordinary test budget.
 		test.setTimeout( 300_000 );
 
-		escenario = crearEscenario( {
-			categorias: {
+		fixture = createFixture( {
+			categories: {
 				// Categories: parent -> child, plus an out-of-scope category.
 				parent: `Scope Parent ${ RUN }`,
-				child: { nombre: `Scope Child ${ RUN }`, padre: 'parent' },
+				child: { name: `Scope Child ${ RUN }`, parent: 'parent' },
 				other: `Other Category ${ RUN }`,
 			},
 			// Document type so published fixtures stay published under the workflow.
-			tipos: { propio: `Scope Doc Type ${ RUN }` },
+			types: { propio: `Scope Doc Type ${ RUN }` },
 			// Users (unique logins so parallel runs never collide).
-			usuarios: {
-				subscriber: { login: SUBSCRIBER_LOGIN, rol: 'subscriber' },
+			users: {
+				subscriber: { login: SUBSCRIBER_LOGIN, role: 'subscriber' },
 				author: {
 					login: AUTHOR_LOGIN,
-					rol: 'author',
-					ambito: 'parent',
+					role: 'author',
+					scope: 'parent',
 				},
 				editor: {
 					login: EDITOR_LOGIN,
-					rol: 'editor',
-					gestion: true,
-					ambito: 'parent',
+					role: 'editor',
+					management: true,
+					scope: 'parent',
 				},
 			},
-			documentos: {
+			documents: {
 				adminParent: {
-					titulo: TITLES.adminParent,
-					categoria: 'parent',
-					tipo: 'propio',
-					estado: 'publish',
+					title: TITLES.adminParent,
+					category: 'parent',
+					type: 'propio',
+					status: 'publish',
 				},
 				adminChild: {
-					titulo: TITLES.adminChild,
-					categoria: 'child',
-					tipo: 'propio',
-					estado: 'publish',
+					title: TITLES.adminChild,
+					category: 'child',
+					type: 'propio',
+					status: 'publish',
 				},
 				authorParent: {
-					titulo: TITLES.authorParent,
-					categoria: 'parent',
-					tipo: 'propio',
-					autor: 'author',
-					estado: 'publish',
+					title: TITLES.authorParent,
+					category: 'parent',
+					type: 'propio',
+					author: 'author',
+					status: 'publish',
 				},
 				// Out of scope and still in its own área: nobody outside it may see it.
 				adminOther: {
-					titulo: TITLES.adminOther,
-					categoria: 'other',
-					tipo: 'propio',
+					title: TITLES.adminOther,
+					category: 'other',
+					type: 'propio',
 				},
 				// Out of scope but already published: gestión documental reviews
 				// every área, so a document that has left its own is theirs to
 				// look at.
 				adminOtherPublished: {
-					titulo: TITLES.adminOtherPublished,
-					categoria: 'other',
-					tipo: 'propio',
-					estado: 'publish',
+					title: TITLES.adminOtherPublished,
+					category: 'other',
+					type: 'propio',
+					status: 'publish',
 				},
 				// Editable draft owned by the editor, in-scope (export/open checks).
 				editorDraft: {
-					titulo: TITLES.editorDraft,
-					categoria: 'parent',
-					tipo: 'propio',
-					autor: 'editor',
+					title: TITLES.editorDraft,
+					category: 'parent',
+					type: 'propio',
+					author: 'editor',
 				},
 			},
 		} );
 
-		parentCatId = escenario.categorias.parent;
-		otherCatId = escenario.categorias.other;
-		editorId = escenario.usuarios.editor;
-		Object.assign( docs, escenario.documentos );
+		parentCatId = fixture.categories.parent;
+		otherCatId = fixture.categories.other;
+		editorId = fixture.users.editor;
+		Object.assign( docs, fixture.documents );
 	} );
 
 	test.afterAll( async () => {
@@ -172,15 +172,15 @@ test.describe( 'Roles and Scope Filtering', () => {
 		// unexpected answer) leaves the fixture unbuilt, and Playwright still
 		// runs this hook: without the guard it dies dereferencing it and the
 		// report shows that TypeError instead of the real failure.
-		if ( ! escenario ) {
+		if ( ! fixture ) {
 			return;
 		}
 
-		limpiarEscenario( {
-			documentos: Object.values( escenario.documentos ),
-			usuarios: [ SUBSCRIBER_LOGIN, AUTHOR_LOGIN, EDITOR_LOGIN ],
-			categorias: Object.values( escenario.categorias ),
-			tipos: Object.values( escenario.tipos ),
+		removeFixture( {
+			documents: Object.values( fixture.documents ),
+			users: [ SUBSCRIBER_LOGIN, AUTHOR_LOGIN, EDITOR_LOGIN ],
+			categories: Object.values( fixture.categories ),
+			types: Object.values( fixture.types ),
 		} );
 	} );
 
@@ -199,7 +199,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 		).toBeVisible();
 	} );
 
-	test( 'Editor sees their scope, and as gestión what has left its área', async ( {
+	test( 'Editor sees their scope, and as management what has left its area', async ( {
 		browser,
 		baseURL,
 	} ) => {

@@ -126,7 +126,7 @@ class Documentate_Document_Save_Context {
 			}
 
 			$slug = sanitize_key( $row['slug'] );
-			if ( '' !== $slug && ! Documentate_Campos_Rol::puede_ver( $row ) ) {
+			if ( '' !== $slug && ! Documentate_Field_Roles::can_view( $row ) ) {
 				$hidden[ $slug ] = true;
 			}
 		}
@@ -144,8 +144,8 @@ class Documentate_Document_Save_Context {
 	 *
 	 * @return array<string,bool> Empty for gestión documental and administración.
 	 */
-	public static function gestion_slugs() {
-		if ( Documentate_Roles::es_gestion() ) {
+	public static function management_slugs() {
+		if ( Documentate_Roles::is_management() ) {
 			return array();
 		}
 
@@ -163,7 +163,7 @@ class Documentate_Document_Save_Context {
 		$slugs = array();
 		foreach ( (array) $term_ids as $term_id ) {
 			foreach ( (array) Documents_Meta_Handler::get_term_schema( (int) $term_id ) as $row ) {
-				if ( ! is_array( $row ) || empty( $row['slug'] ) || Documentate_Campos_Rol::puede_ver( $row ) ) {
+				if ( ! is_array( $row ) || empty( $row['slug'] ) || Documentate_Field_Roles::can_view( $row ) ) {
 					continue;
 				}
 

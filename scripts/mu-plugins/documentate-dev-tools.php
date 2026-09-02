@@ -99,12 +99,12 @@ if ( ! function_exists( 'documentate_dev_switch_to_user_url' ) ) {
 			return null;
 		}
 
-		$destino = documentate_dev_app_url();
+		$target = documentate_dev_app_url();
 
 		if ( method_exists( 'user_switching', 'maybe_switch_url' ) ) {
 			$url = user_switching::maybe_switch_url( $user );
 			if ( is_string( $url ) && '' !== $url ) {
-				return add_query_arg( 'redirect_to', rawurlencode( $destino ), $url );
+				return add_query_arg( 'redirect_to', rawurlencode( $target ), $url );
 			}
 		}
 
@@ -115,7 +115,7 @@ if ( ! function_exists( 'documentate_dev_switch_to_user_url' ) ) {
 					'action'      => 'switch_to_user',
 					'user_id'     => $user->ID,
 					'nr'          => 1,
-					'redirect_to' => rawurlencode( $destino ),
+					'redirect_to' => rawurlencode( $target ),
 				),
 				wp_login_url()
 			),

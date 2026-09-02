@@ -78,7 +78,7 @@ class DocumentateScopeCountsTest extends WP_UnitTestCase {
 
 		// The editor role carries the gestión capability; these tests model a
 		// plain área user, so deny it for this user (gestión has its own tests).
-		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_GESTION, false );
+		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT, false );
 
 		$parent = wp_insert_term( 'Scope A', 'category' );
 		$child  = wp_insert_term( 'Scope A Child', 'category', array( 'parent' => $parent['term_id'] ) );

@@ -38,7 +38,7 @@ module.exports = {
 	coverageReporters: [ 'lcov', 'text-summary' ],
 	coverageThreshold: {
 		'./public/js/documentate-app.js': { lines: 88 },
-		'./admin/js/documentate-calculos.js': { lines: 90 },
+		'./admin/js/documentate-calculations.js': { lines: 90 },
 		'./admin/js/documentate-workflow.js': { lines: 84 },
 		'./admin/js/documentate-unsaved-changes.js': { lines: 78 },
 		'./admin/js/documentate-libreoffice-wasm.js': { lines: 65 },

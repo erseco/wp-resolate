@@ -126,9 +126,9 @@ class Documentate_Workflow_Metabox {
 				'postId' => $post_id,
 				'postStatus' => $post_status,
 				'isAdmin' => $is_admin,
-				'isGestion' => Documentate_Roles::es_gestion(),
+				'isManagement' => Documentate_Roles::is_management(),
 				'hasDocType' => $has_doc_type,
-				'conGestion' => $post_id > 0 && Documentate_Documento::con_gestion( $post_id ),
+				'hasManagement' => $post_id > 0 && Documentate_Document_Data::has_management( $post_id ),
 				'isPublished' => 'publish' === $post_status,
 				'isArchived' => 'archived' === $post_status,
 				'isPending' => 'pending' === $post_status,
@@ -150,15 +150,15 @@ class Documentate_Workflow_Metabox {
 			'lockedMessage' => 'Este documento está aprobado y es de solo lectura. Solo administración puede desbloquearlo devolviéndolo a revisión.',
 			'archivedMessage' => 'Este documento está archivado y es de solo lectura. Solo administración puede desarchivarlo.',
 			'pendingMessage' => 'Este documento está en revisión y es de solo lectura. Administración lo revisará.',
-			'gestionMessage' => 'Este documento está en gestión documental y es de solo lectura. Si falta algo, gestión te lo devolverá.',
+			'managementMessage' => 'Este documento está en gestión documental y es de solo lectura. Si falta algo, gestión te lo devolverá.',
 			'adminUnlock' => 'Devuélvelo a revisión o al área para habilitar la edición.',
 			'adminUnarchive' => 'Desarchívalo para habilitar la edición.',
 			'needsDocType' => 'Selecciona un tipo de documento antes de enviarlo.',
 			'editorRestriction' => 'Solo administración puede aprobar y publicar.',
-			'confirmSendReview' => Documentate_Transiciones::confirmacion( 'enviar_revision' ),
-			'confirmSendGestion' => Documentate_Transiciones::confirmacion( 'enviar_gestion' ),
-			'confirmPassAdmin' => Documentate_Transiciones::confirmacion( 'pasar_admin' ),
-			'motivoRequired' => 'Escribe el motivo de la devolución antes de devolver el documento.',
+			'confirmSendReview' => Documentate_Transitions::confirmation( 'enviar_revision' ),
+			'confirmSendManagement' => Documentate_Transitions::confirmation( 'enviar_gestion' ),
+			'confirmPassAdmin' => Documentate_Transitions::confirmation( 'pasar_admin' ),
+			'reasonRequired' => 'Escribe el motivo de la devolución antes de devolver el documento.',
 		);
 	}
 
@@ -211,8 +211,8 @@ class Documentate_Workflow_Metabox {
 		$status = $post->post_status;
 		$is_admin = current_user_can( 'manage_options' );
 		$has_doc_type = $this->post_has_doc_type( $post->ID );
-		$con_gestion = Documentate_Documento::con_gestion( $post );
-		$puede_modificar = Documentate_Workflow::user_can_modify_status( (string) $status, get_current_user_id() );
+		$has_management = Documentate_Document_Data::has_management( $post );
+		$can_modify = Documentate_Workflow::user_can_modify_status( (string) $status, get_current_user_id() );
 
 		// Hidden inputs WordPress needs (lost when submitdiv is removed).
 		$this->render_hidden_inputs( $post );
@@ -221,13 +221,13 @@ class Documentate_Workflow_Metabox {
 		$this->render_doc_type_section( $post );
 
 		// Visual stepper.
-		$this->render_stepper( $status, $con_gestion );
+		$this->render_stepper( $status, $has_management );
 
 		// Status messages.
-		$this->render_status_messages( $status, $is_admin, $has_doc_type, $con_gestion, $puede_modificar );
+		$this->render_status_messages( $status, $is_admin, $has_doc_type, $has_management, $can_modify );
 
 		// Action buttons.
-		$this->render_action_buttons( $post, $status, $is_admin, $con_gestion, $puede_modificar );
+		$this->render_action_buttons( $post, $status, $is_admin, $has_management, $can_modify );
 
 		// Revision link.
 		$this->render_revision_link( $post );
@@ -249,7 +249,7 @@ class Documentate_Workflow_Metabox {
 	 */
 	private function render_hidden_inputs( $post ) {
 		$status = $post->post_status;
-		wp_nonce_field( Documentate_Transiciones::NONCE, Documentate_Transiciones::NONCE );
+		wp_nonce_field( Documentate_Transitions::NONCE, Documentate_Transitions::NONCE );
 		?>
 		<div style="display:none;">
 			<?php submit_button( 'Guardar', '', 'save', false ); ?>
@@ -326,16 +326,16 @@ class Documentate_Workflow_Metabox {
 	 *
 	 * Steps: Borrador -> [En gestión] -> En revisión -> Aprobado
 	 *
-	 * @param string $status      Current post status.
-	 * @param bool   $con_gestion Whether the type goes through gestión documental.
+	 * @param string $status         Current post status.
+	 * @param bool   $has_management Whether the type goes through gestión documental.
 	 */
-	private function render_stepper( $status, $con_gestion ) {
-		$steps = Documentate_Estados::etiquetas();
+	private function render_stepper( $status, $has_management ) {
+		$steps = Documentate_Statuses::labels();
 		unset( $steps['archived'] );
 		// The step the document is standing on always stays: a type can stop
 		// going through gestión documental while a document of that type is
 		// already in en_gestion, and the stepper must not answer "Borrador".
-		if ( ! $con_gestion && 'en_gestion' !== $status ) {
+		if ( ! $has_management && 'en_gestion' !== $status ) {
 			unset( $steps['en_gestion'] );
 		}
 
@@ -371,60 +371,60 @@ class Documentate_Workflow_Metabox {
 	/**
 	 * Render status messages based on current state.
 	 *
-	 * @param string $status          Current post status.
-	 * @param bool   $is_admin        Whether current user is admin.
-	 * @param bool   $has_doc_type    Whether post has a document type.
-	 * @param bool   $con_gestion     Whether the type goes through gestión documental.
-	 * @param bool   $puede_modificar Whether the current user may modify the document.
+	 * @param string $status         Current post status.
+	 * @param bool   $is_admin       Whether current user is admin.
+	 * @param bool   $has_doc_type   Whether post has a document type.
+	 * @param bool   $has_management Whether the type goes through gestión documental.
+	 * @param bool   $can_modify     Whether the current user may modify the document.
 	 */
-	private function render_status_messages( $status, $is_admin, $has_doc_type, $con_gestion, $puede_modificar ) {
+	private function render_status_messages( $status, $is_admin, $has_doc_type, $has_management, $can_modify ) {
 		if ( ! $has_doc_type && 'auto-draft' !== $status ) {
 			$this->render_message( 'warning', 'warning', 'No hay tipo de documento seleccionado. Debes asignar un tipo antes de enviarlo.' );
 		}
 
-		$clave = 'auto-draft' === $status ? 'draft' : $status;
-		if ( 'draft' === $clave && $is_admin ) {
+		$key = 'auto-draft' === $status ? 'draft' : $status;
+		if ( 'draft' === $key && $is_admin ) {
 			return;
 		}
 
-		$mensaje = Documentate_Estados::mensaje_metabox( $clave, $is_admin, $con_gestion, $puede_modificar );
-		if ( $mensaje ) {
-			$this->render_message( $mensaje[0], $mensaje[1], $mensaje[2] );
+		$message = Documentate_Statuses::metabox_message( $key, $is_admin, $has_management, $can_modify );
+		if ( $message ) {
+			$this->render_message( $message[0], $message[1], $message[2] );
 		}
 	}
 
 	/**
 	 * Print one status message paragraph.
 	 *
-	 * @param string $tipo  Message modifier (warning, success, pending, draft).
-	 * @param string $icono Dashicon name without prefix.
-	 * @param string $texto Message text.
+	 * @param string $type Message modifier (warning, success, pending, draft).
+	 * @param string $icon Dashicon name without prefix.
+	 * @param string $text Message text.
 	 */
-	private function render_message( $tipo, $icono, $texto ) {
-		echo '<p class="documentate-mgmt-message documentate-mgmt-message--' . esc_attr( $tipo ) . '">';
-		echo '<span class="dashicons dashicons-' . esc_attr( $icono ) . '"></span> ';
-		echo esc_html( $texto );
+	private function render_message( $type, $icon, $text ) {
+		echo '<p class="documentate-mgmt-message documentate-mgmt-message--' . esc_attr( $type ) . '">';
+		echo '<span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ';
+		echo esc_html( $text );
 		echo '</p>';
 	}
 
 	/**
 	 * Render context-sensitive action buttons.
 	 *
-	 * @param WP_Post $post            Current post object.
-	 * @param string  $status          Current post status.
-	 * @param bool    $is_admin        Whether current user is admin.
-	 * @param bool    $con_gestion     Whether the type goes through gestión documental.
-	 * @param bool    $puede_modificar Whether the current user may modify the document.
+	 * @param WP_Post $post           Current post object.
+	 * @param string  $status         Current post status.
+	 * @param bool    $is_admin       Whether current user is admin.
+	 * @param bool    $has_management Whether the type goes through gestión documental.
+	 * @param bool    $can_modify     Whether the current user may modify the document.
 	 */
-	private function render_action_buttons( $post, $status, $is_admin, $con_gestion, $puede_modificar ) {
+	private function render_action_buttons( $post, $status, $is_admin, $has_management, $can_modify ) {
 		echo '<div class="documentate-mgmt-actions">';
 
 		if ( in_array( $status, array( 'auto-draft', 'draft' ), true ) ) {
-			$this->render_draft_buttons( $status, $con_gestion );
+			$this->render_draft_buttons( $status, $has_management );
 		} elseif ( 'en_gestion' === $status ) {
-			$this->render_gestion_buttons( $puede_modificar );
+			$this->render_management_buttons( $can_modify );
 		} elseif ( 'pending' === $status ) {
-			$this->render_pending_buttons( $is_admin, $con_gestion );
+			$this->render_pending_buttons( $is_admin, $has_management );
 		} elseif ( 'publish' === $status ) {
 			$this->render_published_buttons( $post, $is_admin );
 		} elseif ( 'archived' === $status ) {
@@ -441,28 +441,28 @@ class Documentate_Workflow_Metabox {
 	 * @param string $modifier Button modifier (danger, warning, success, primary).
 	 * @param string $icon     Dashicon name without prefix.
 	 * @param string $label    Button text.
-	 * @param string $estado   Optional status the button posts (data-estado).
+	 * @param string $status   Optional status the button posts (data-estado).
 	 */
-	private function render_button( $id, $modifier, $icon, $label, $estado = '' ) {
+	private function render_button( $id, $modifier, $icon, $label, $status = '' ) {
 		printf(
 			'<button type="button" id="%1$s" class="button documentate-mgmt-btn documentate-mgmt-btn--%2$s"%5$s><span class="dashicons dashicons-%3$s"></span> %4$s</button>',
 			esc_attr( $id ),
 			esc_attr( $modifier ),
 			esc_attr( $icon ),
 			esc_html( $label ),
-			'' !== $estado ? ' data-estado="' . esc_attr( $estado ) . '"' : ''
+			'' !== $status ? ' data-estado="' . esc_attr( $status ) . '"' : ''
 		);
 	}
 
 	/**
 	 * Print a locked notice instead of buttons.
 	 *
-	 * @param string $texto Notice text.
+	 * @param string $text Notice text.
 	 */
-	private function render_locked_notice( $texto ) {
+	private function render_locked_notice( $text ) {
 		echo '<p class="documentate-mgmt-locked-notice">';
 		echo '<span class="dashicons dashicons-lock"></span> ';
-		echo esc_html( $texto );
+		echo esc_html( $text );
 		echo '</p>';
 	}
 
@@ -471,7 +471,7 @@ class Documentate_Workflow_Metabox {
 	 *
 	 * Hidden until the workflow script reveals it; the no-JS form still posts it.
 	 */
-	private function render_motivo_field() {
+	private function render_reason_field() {
 		?>
 		<div class="documentate-mgmt-motivo" style="display:none;">
 			<label for="documentate-return-draft-motivo"><?php echo esc_html( 'Motivo de la devolución' ); ?></label>
@@ -487,10 +487,10 @@ class Documentate_Workflow_Metabox {
 	 * A brand-new document (auto-draft) only offers "Guardar borrador": it
 	 * cannot be sent until it has been saved at least once.
 	 *
-	 * @param string $status      Current post status (auto-draft or draft).
-	 * @param bool   $con_gestion Whether the type goes through gestión documental.
+	 * @param string $status         Current post status (auto-draft or draft).
+	 * @param bool   $has_management Whether the type goes through gestión documental.
 	 */
-	private function render_draft_buttons( $status, $con_gestion ) {
+	private function render_draft_buttons( $status, $has_management ) {
 		$this->render_button( 'documentate-save-draft', 'danger', 'cloud-saved', 'Guardar borrador' );
 
 		if ( 'draft' === $status ) {
@@ -498,8 +498,8 @@ class Documentate_Workflow_Metabox {
 				'documentate-send-review',
 				'warning',
 				'share-alt2',
-				Documentate_Transiciones::etiqueta( $con_gestion ? 'enviar_gestion' : 'enviar_revision' ),
-				$con_gestion ? 'en_gestion' : 'pending'
+				Documentate_Transitions::label( $has_management ? 'enviar_gestion' : 'enviar_revision' ),
+				$has_management ? 'en_gestion' : 'pending'
 			);
 		}
 	}
@@ -507,39 +507,39 @@ class Documentate_Workflow_Metabox {
 	/**
 	 * Render buttons for the en_gestion status.
 	 *
-	 * @param bool $puede_modificar Whether the current user (gestión/admin) may act.
+	 * @param bool $can_modify Whether the current user (gestión/admin) may act.
 	 */
-	private function render_gestion_buttons( $puede_modificar ) {
-		if ( ! $puede_modificar ) {
+	private function render_management_buttons( $can_modify ) {
+		if ( ! $can_modify ) {
 			$this->render_locked_notice( 'El documento está en gestión documental. No hay acciones disponibles.' );
 			return;
 		}
 
 		$this->render_button( 'documentate-save-gestion', 'warning', 'cloud-saved', 'Guardar' );
-		$this->render_button( 'documentate-pass-admin', 'success', 'share-alt2', Documentate_Transiciones::etiqueta( 'pasar_admin' ) );
-		$this->render_button( 'documentate-return-draft', 'danger', 'undo', Documentate_Transiciones::etiqueta( 'devolver_area', 'en_gestion' ) );
-		$this->render_motivo_field();
+		$this->render_button( 'documentate-pass-admin', 'success', 'share-alt2', Documentate_Transitions::label( 'pasar_admin' ) );
+		$this->render_button( 'documentate-return-draft', 'danger', 'undo', Documentate_Transitions::label( 'devolver_area', 'en_gestion' ) );
+		$this->render_reason_field();
 	}
 
 	/**
 	 * Render buttons for pending status.
 	 *
-	 * @param bool $is_admin    Whether current user is admin.
-	 * @param bool $con_gestion Whether the type goes through gestión documental.
+	 * @param bool $is_admin       Whether current user is admin.
+	 * @param bool $has_management Whether the type goes through gestión documental.
 	 */
-	private function render_pending_buttons( $is_admin, $con_gestion ) {
+	private function render_pending_buttons( $is_admin, $has_management ) {
 		if ( ! $is_admin ) {
 			$this->render_locked_notice( 'El documento está en revisión. No hay acciones disponibles.' );
 			return;
 		}
 
-		$this->render_button( 'documentate-return-draft', 'danger', 'undo', Documentate_Transiciones::etiqueta( 'devolver_area', 'pending' ) );
-		if ( $con_gestion ) {
-			$this->render_button( 'documentate-return-gestion', 'danger', 'undo', Documentate_Transiciones::etiqueta( 'devolver_gestion' ) );
+		$this->render_button( 'documentate-return-draft', 'danger', 'undo', Documentate_Transitions::label( 'devolver_area', 'pending' ) );
+		if ( $has_management ) {
+			$this->render_button( 'documentate-return-gestion', 'danger', 'undo', Documentate_Transitions::label( 'devolver_gestion' ) );
 		}
 		$this->render_button( 'documentate-save-pending', 'warning', 'cloud-saved', 'Guardar' );
-		$this->render_button( 'documentate-approve-publish', 'success', 'saved', Documentate_Transiciones::etiqueta( 'aprobar' ) );
-		$this->render_motivo_field();
+		$this->render_button( 'documentate-approve-publish', 'success', 'saved', Documentate_Transitions::label( 'aprobar' ) );
+		$this->render_reason_field();
 	}
 
 	/**
@@ -554,10 +554,10 @@ class Documentate_Workflow_Metabox {
 			return;
 		}
 
-		$this->render_button( 'documentate-return-review', 'warning', 'undo', Documentate_Transiciones::etiqueta( 'devolver_revision' ) );
+		$this->render_button( 'documentate-return-review', 'warning', 'undo', Documentate_Transitions::label( 'devolver_revision' ) );
 		?>
 		<a href="<?php echo esc_url( $this->get_archive_action_url( $post->ID, 'archive' ) ); ?>" class="documentate-mgmt-link">
-			<?php echo esc_html( Documentate_Transiciones::etiqueta( 'archivar' ) ); ?>
+			<?php echo esc_html( Documentate_Transitions::label( 'archivar' ) ); ?>
 		</a>
 		<?php
 	}
@@ -575,7 +575,7 @@ class Documentate_Workflow_Metabox {
 		}
 		?>
 		<a href="<?php echo esc_url( $this->get_archive_action_url( $post->ID, 'unarchive' ) ); ?>" class="documentate-mgmt-link">
-			<?php echo esc_html( Documentate_Transiciones::etiqueta( 'desarchivar' ) ); ?>
+			<?php echo esc_html( Documentate_Transitions::label( 'desarchivar' ) ); ?>
 		</a>
 		<?php
 	}

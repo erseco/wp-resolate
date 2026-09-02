@@ -31,8 +31,8 @@ class Documentate_Document_Meta_Saver {
 		// Handle type selection (lock after set).
 		$this->save_doc_type_selection( $post_id );
 
-		$this->save_nombre_interno( $post_id );
-		$this->save_anotaciones( $post_id );
+		$this->save_internal_name( $post_id );
+		$this->save_notes( $post_id );
 		$this->save_dynamic_fields_meta( $post_id );
 
 		// post_content is composed in wp_insert_post_data filter; avoid recursion here.
@@ -135,14 +135,14 @@ class Documentate_Document_Meta_Saver {
 	 * @param int $post_id Post ID.
 	 * @return void
 	 */
-	private function save_nombre_interno( $post_id ) {
+	private function save_internal_name( $post_id ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in can_save_meta_boxes().
 		if ( ! isset( $_POST['documentate_nombre_interno'] ) ) {
 			return;
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside guardar_nombre_interno().
-		Documentate_Documento::guardar_nombre_interno( $post_id, wp_unslash( $_POST['documentate_nombre_interno'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside save_internal_name().
+		Documentate_Document_Data::save_internal_name( $post_id, wp_unslash( $_POST['documentate_nombre_interno'] ) );
 	}
 	/**
 	 * Persist the "Anotaciones internas" textarea (gestión / administración only).
@@ -150,14 +150,14 @@ class Documentate_Document_Meta_Saver {
 	 * @param int $post_id Post ID.
 	 * @return void
 	 */
-	private function save_anotaciones( $post_id ) {
+	private function save_notes( $post_id ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in can_save_meta_boxes().
-		if ( ! isset( $_POST['documentate_anotaciones'] ) || ! Documentate_Roles::es_gestion() ) {
+		if ( ! isset( $_POST['documentate_anotaciones'] ) || ! Documentate_Roles::is_management() ) {
 			return;
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside guardar_anotaciones().
-		Documentate_Documento::guardar_anotaciones( $post_id, wp_unslash( $_POST['documentate_anotaciones'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside save_notes().
+		Documentate_Document_Data::save_notes( $post_id, wp_unslash( $_POST['documentate_anotaciones'] ) );
 	}
 	/**
 	 * Persist dynamic field values posted from the sections metabox.
@@ -207,7 +207,7 @@ class Documentate_Document_Meta_Saver {
 	 * @return void
 	 */
 	private function save_schema_field( $post_id, $definition, $slug, $meta_key, array $post_values, array $posted_array_fields ) {
-		if ( ! Documentate_Campos_Rol::puede_ver( (array) $definition ) ) {
+		if ( ! Documentate_Field_Roles::can_view( (array) $definition ) ) {
 			return;
 		}
 
@@ -271,7 +271,7 @@ class Documentate_Document_Meta_Saver {
 			// Looked up once, and only for a request that carries unknown
 			// fields at all: for gestión it is an empty list anyway.
 			if ( null === $hidden ) {
-				$hidden = Documentate_Document_Save_Context::gestion_slugs();
+				$hidden = Documentate_Document_Save_Context::management_slugs();
 			}
 
 			if ( isset( $hidden[ sanitize_key( substr( $key, strlen( 'documentate_field_' ) ) ) ] ) ) {

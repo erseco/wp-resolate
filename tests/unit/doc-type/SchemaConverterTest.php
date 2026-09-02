@@ -311,7 +311,7 @@ class SchemaConverterTest extends WP_UnitTestCase {
 	/**
 	 * The rol of fields, blocks and block items reaches the legacy rows (default area).
 	 */
-	public function test_to_legacy_passes_rol_through() {
+	public function test_to_legacy_passes_role_through() {
 		$schema = array(
 			'version' => 2,
 			'fields' => array(
@@ -369,9 +369,9 @@ class SchemaConverterTest extends WP_UnitTestCase {
 	 *
 	 * A schema written by hand, by an older version or by a test does not go
 	 * through the extractor's normalisation, so the converter must not be
-	 * stricter than Documentate_Campos_Rol::rol_del_campo().
+	 * stricter than Documentate_Field_Roles::field_role().
 	 */
-	public function test_to_legacy_normalises_the_rol_like_the_single_normaliser() {
+	public function test_to_legacy_normalises_the_role_like_the_single_normaliser() {
 		$schema = array(
 			'version' => 2,
 			'fields' => array(
@@ -392,7 +392,7 @@ class SchemaConverterTest extends WP_UnitTestCase {
 	/**
 	 * The entries of a block inherit its rol when they declare none.
 	 */
-	public function test_to_legacy_inherits_the_block_rol_in_the_item_schema() {
+	public function test_to_legacy_inherits_the_block_role_in_the_item_schema() {
 		$schema = array(
 			'version' => 2,
 			'repeaters' => array(

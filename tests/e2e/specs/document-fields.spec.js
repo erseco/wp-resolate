@@ -229,21 +229,21 @@ test.describe( 'Document Fields', () => {
 		// One repeater at a time: a type may declare several, and the editor
 		// keeps every repeater with at least one row, so removing the only row
 		// of one field immediately puts an empty one back.
-		const campo = page.locator( '.documentate-array-field' ).first();
-		if ( await campo.count() === 0 ) {
+		const field = page.locator( '.documentate-array-field' ).first();
+		if ( await field.count() === 0 ) {
 			test.skip();
 			return;
 		}
 
-		const filas = campo.locator( '.documentate-array-items > .documentate-array-item' );
-		const antes = await filas.count();
+		const rows = field.locator( '.documentate-array-items > .documentate-array-item' );
+		const before = await rows.count();
 
 		// Add a row first, so removing one leaves the field with something.
-		await campo.locator( '.documentate-array-add' ).first().click();
-		await expect( filas ).toHaveCount( antes + 1 );
+		await field.locator( '.documentate-array-add' ).first().click();
+		await expect( rows ).toHaveCount( before + 1 );
 
-		await filas.last().locator( '.documentate-array-remove' ).first().click();
-		await expect( filas ).toHaveCount( antes );
+		await rows.last().locator( '.documentate-array-remove' ).first().click();
+		await expect( rows ).toHaveCount( before );
 	} );
 
 	test( 'field values persist after save and reload', async ( {

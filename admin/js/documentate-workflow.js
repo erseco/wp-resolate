@@ -104,17 +104,17 @@
 			// status travels in data-estado (en_gestion or pending).
 			$('#documentate-send-review').on('click', function (e) {
 				e.preventDefault();
-				var estado = $(this).data('estado') || 'pending';
+				var status = $(this).data('estado') || 'pending';
 				if (!self.config.isAdmin) {
 					var strings = self.config.strings || {};
-					var msg = estado === 'en_gestion'
-						? (strings.confirmSendGestion || '¿Enviar el documento a gestión documental?')
+					var msg = status === 'en_gestion'
+						? (strings.confirmSendManagement || '¿Enviar el documento a gestión documental?')
 						: (strings.confirmSendReview || '¿Enviar el documento a revisión?');
 					if (!window.confirm(msg)) {
 						return;
 					}
 				}
-				self.submitWithStatus(estado);
+				self.submitWithStatus(status);
 			});
 
 			// "Pasar a administración" button (from en_gestion to pending).
@@ -171,18 +171,18 @@
 		 */
 		submitReturn: function (newStatus) {
 			var $box = $('.documentate-mgmt-motivo');
-			var $motivo = $('#documentate-return-draft-motivo');
+			var $reason = $('#documentate-return-draft-motivo');
 
 			if ($box.length && !$box.is(':visible')) {
 				$box.show();
-				$motivo.trigger('focus');
+				$reason.trigger('focus');
 				return;
 			}
 
-			if (!$motivo.length || $.trim($motivo.val()) === '') {
+			if (!$reason.length || $.trim($reason.val()) === '') {
 				var strings = this.config.strings || {};
-				window.alert(strings.motivoRequired || 'Escribe el motivo de la devolución.');
-				$motivo.trigger('focus');
+				window.alert(strings.reasonRequired || 'Escribe el motivo de la devolución.');
+				$reason.trigger('focus');
 				return;
 			}
 
@@ -356,8 +356,8 @@
 						? self.config.strings.pendingMessage
 						: 'Este documento está en revisión y no se puede editar.';
 				} else if (self.config.isEnGestion && self.config.isLocked) {
-					message = self.config.strings && self.config.strings.gestionMessage
-						? self.config.strings.gestionMessage
+					message = self.config.strings && self.config.strings.managementMessage
+						? self.config.strings.managementMessage
 						: 'Este documento está en gestión documental y no se puede editar.';
 				} else {
 					message = self.config.strings && self.config.strings.lockedMessage
@@ -391,7 +391,7 @@
 			} else if (this.config.isPending && !this.config.isAdmin) {
 				message = this.config.strings.pendingMessage;
 			} else if (this.config.isEnGestion && this.config.isLocked) {
-				message = this.config.strings.gestionMessage;
+				message = this.config.strings.managementMessage;
 			} else {
 				message = this.config.isAdmin
 					? this.config.strings.adminUnlock

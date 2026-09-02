@@ -418,7 +418,7 @@ class Documents_Meta_Handler {
 						'label' => $label,
 						'type' => 'array',
 						'data_type' => 'array',
-						'rol' => \Documentate_Campos_Rol::rol_del_campo( (array) $item ),
+						'rol' => \Documentate_Field_Roles::field_role( (array) $item ),
 						'item_schema' => self::normalize_array_item_schema( $item ),
 					);
 					continue;
@@ -437,7 +437,7 @@ class Documents_Meta_Handler {
 					'label' => $label,
 					'type' => $type,
 					'data_type' => $data_type,
-					'rol' => \Documentate_Campos_Rol::rol_del_campo( (array) $item ),
+					'rol' => \Documentate_Field_Roles::field_role( (array) $item ),
 				);
 			}
 		}
@@ -447,7 +447,7 @@ class Documents_Meta_Handler {
 				'label' => 'Contenido',
 				'type' => 'textarea',
 				'data_type' => 'text',
-				'rol' => \Documentate_Campos_Rol::ROL_AREA,
+				'rol' => \Documentate_Field_Roles::ROLE_AREA,
 			);
 		}
 

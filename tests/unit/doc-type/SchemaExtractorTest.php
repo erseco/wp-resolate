@@ -333,16 +333,16 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 				$this->assertStringNotContainsString( '_sub1', (string) $field_name, sprintf( '%s must not leak sub-block fields.', $kind ) );
 			}
 
-			$conceptos = null;
+			$concepts = null;
 			foreach ( $repeater['fields'] as $field ) {
 				if ( isset( $field['name'] ) && 'conceptos' === $field['name'] ) {
-					$conceptos = $field;
+					$concepts = $field;
 					break;
 				}
 			}
-			$this->assertNotNull( $conceptos );
-			$this->assertSame( 'array', $conceptos['type'], 'conceptos must be a nested array field.' );
-			$sub_field_names = array_column( $conceptos['fields'], 'name' );
+			$this->assertNotNull( $concepts );
+			$this->assertSame( 'array', $concepts['type'], 'conceptos must be a nested array field.' );
+			$sub_field_names = array_column( $concepts['fields'], 'name' );
 			foreach ( array( 'concepto', 'cantidad', 'unitario', 'total' ) as $expected_sub ) {
 				$this->assertContains( $expected_sub, $sub_field_names, sprintf( 'conceptos of %s must carry %s.', $kind, $expected_sub ) );
 			}
@@ -352,7 +352,7 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 	/**
 	 * Every field of the propuesta de gasto carries the rol the template declares.
 	 */
-	public function test_propuesta_gasto_fields_carry_their_rol() {
+	public function test_propuesta_gasto_fields_carry_their_role() {
 		$extractor = new SchemaExtractor();
 		$schema    = $extractor->extract( dirname( __FILE__, 4 ) . '/fixtures/propuestagasto.odt' );
 
@@ -394,15 +394,15 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		$this->assertSame( 'Correo', $repeaters['expertos']['email']['title'] );
 		$this->assertSame( 'Teléfono', $repeaters['expertos']['telefono']['title'] );
 		foreach ( array( 'servicios', 'suministros', 'expertos' ) as $kind ) {
-			$conceptos = $this->index_fields( $repeaters[ $kind ]['conceptos']['fields'] );
-			$this->assertSame( 'Total', $conceptos['total']['title'], $kind );
+			$concepts = $this->index_fields( $repeaters[ $kind ]['conceptos']['fields'] );
+			$this->assertSame( 'Total', $concepts['total']['title'], $kind );
 		}
 	}
 
 	/**
 	 * The resolución declares its official data and bodies as gestión fields.
 	 */
-	public function test_resolucion_official_fields_are_gestion() {
+	public function test_resolucion_official_fields_are_management() {
 		$extractor = new SchemaExtractor();
 		$schema    = $extractor->extract( dirname( __FILE__, 4 ) . '/fixtures/resolucion.odt' );
 
@@ -447,7 +447,7 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 	 * its fields in both repeater paths: explicit blocks and tbs:row blocks,
 	 * including TBS sub-blocks. A field's own rol wins over the block's.
 	 */
-	public function test_rol_alias_and_block_inheritance_in_both_repeater_paths() {
+	public function test_role_alias_and_block_inheritance_in_both_repeater_paths() {
 		$path = $this->build_odt(
 			"[titulo;role='Gestión'] [malo;rol='otro'] [nada;rol] [libre] "
 			. "[a.nombre;block=tbs:row;rol='gestion'] [a.importe;type='number'] [a.nota;rol='area'] "
@@ -493,9 +493,9 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		$this->assertSame( 'gestion', $c['z']['rol'] );
 		$this->assertSame( 'array', $c['lineas']['type'] );
 		$this->assertSame( 'gestion', $c['lineas']['rol'], 'The sub-block inherits the parent block rol.' );
-		$lineas = $this->index_fields( $c['lineas']['fields'] );
-		$this->assertSame( 'gestion', $lineas['q']['rol'] );
-		$this->assertSame( 'area', $lineas['w']['rol'] );
+		$lines = $this->index_fields( $c['lineas']['fields'] );
+		$this->assertSame( 'gestion', $lines['q']['rol'] );
+		$this->assertSame( 'area', $lines['w']['rol'] );
 
 		$legacy = array();
 		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {

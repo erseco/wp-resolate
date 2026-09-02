@@ -28,7 +28,7 @@ Three roles share this cycle, detected by capability rather than by a fixed role
 | **Gestión documental** | The `documentate_gestion` role (or any account granted the `documentate_gestionar` capability plus `edit_others_posts`) | Complete the fields marked `rol='gestion'` on documents from every área, pass them to administración or return them |
 | **Administración** | `manage_options` | Approve and publish, or return to gestión/área with a reason, archive |
 
-The single source of truth for what each role can do from each status is the rule table in `Documentate_Transiciones::reglas()` (`includes/class-documentate-transiciones.php`) — see `ARCHITECTURE.md` for the full model.
+The single source of truth for what each role can do from each status is the rule table in `Documentate_Transitions::rules()` (`includes/class-documentate-transitions.php`) — see `ARCHITECTURE.md` for the full model.
 
 ## Demo
 

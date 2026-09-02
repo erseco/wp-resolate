@@ -33,7 +33,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 *
 	 * @var int
 	 */
-	private $gestion_id;
+	private $management_id;
 
 	/**
 	 * Área user ID (author).
@@ -54,14 +54,14 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 *
 	 * @var int
 	 */
-	private $tipo_gestion;
+	private $management_type;
 
 	/**
 	 * Document type that goes straight to administración.
 	 *
 	 * @var int
 	 */
-	private $tipo_directo;
+	private $direct_type;
 
 	/**
 	 * Set up users, scope, types and the custom statuses.
@@ -69,29 +69,29 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 
-		Documentate_Estados::registrar();
+		Documentate_Statuses::register();
 		Documentate_Roles::ensure_caps( true );
 		$this->workflow = new Documentate_Workflow();
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$this->gestion_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
 		// Gestión documental is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
-		( new WP_User( $this->gestion_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
+		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$cat = wp_insert_term( 'Ámbito Workflow', 'category' );
 		$this->cat_id = (int) $cat['term_id'];
 		update_user_meta( $this->area_id, 'documentate_scope_term_id', $this->cat_id );
-		update_user_meta( $this->gestion_id, 'documentate_scope_term_id', $this->cat_id );
+		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_id );
 
-		$gestion = wp_insert_term( 'Resolución W', 'documentate_doc_type' );
-		$this->tipo_gestion = (int) $gestion['term_id'];
-		update_term_meta( $this->tipo_gestion, 'documentate_type_con_gestion', '1' );
+		$management = wp_insert_term( 'Resolución W', 'documentate_doc_type' );
+		$this->management_type_id = (int) $management['term_id'];
+		update_term_meta( $this->management_type_id, 'documentate_type_con_gestion', '1' );
 
-		$directo = wp_insert_term( 'Convocatoria W', 'documentate_doc_type' );
-		$this->tipo_directo = (int) $directo['term_id'];
+		$direct = wp_insert_term( 'Convocatoria W', 'documentate_doc_type' );
+		$this->direct_type_id = (int) $direct['term_id'];
 	}
 
 	/**
@@ -109,11 +109,11 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * Create a document of the área user in a status.
 	 *
 	 * @param string $status  Post status.
-	 * @param int    $tipo_id Document type term ID (defaults to the gestión type).
+	 * @param int    $type_id Document type term ID (defaults to the gestión type).
 	 * @return int
 	 */
-	private function crear_documento( $status, $tipo_id = 0 ) {
-		$tipo_id = $tipo_id > 0 ? $tipo_id : $this->tipo_gestion;
+	private function create_document( $status, $type_id = 0 ) {
+		$type_id = $type_id > 0 ? $type_id : $this->management_type_id;
 
 		wp_set_current_user( $this->admin_id );
 		$post_id = wp_insert_post(
@@ -123,10 +123,10 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 				'post_content' => 'Contenido original',
 				'post_status' => $status,
 				'post_author' => $this->area_id,
-				'tax_input' => array( 'documentate_doc_type' => array( $tipo_id ) ),
+				'tax_input' => array( 'documentate_doc_type' => array( $type_id ) ),
 			)
 		);
-		update_post_meta( $post_id, 'documentate_locked_doc_type', $tipo_id );
+		update_post_meta( $post_id, 'documentate_locked_doc_type', $type_id );
 		wp_set_object_terms( $post_id, array( $this->cat_id ), 'category' );
 		wp_set_current_user( 0 );
 
@@ -139,14 +139,14 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * @param int    $doc_id  Document ID.
 	 * @param int    $user_id Acting user.
 	 * @param string $status  Requested status.
-	 * @param string $motivo  Optional reason (posted with the metabox nonce).
+	 * @param string $reason  Optional reason (posted with the metabox nonce).
 	 * @return string Resulting status.
 	 */
-	private function guardar_como( $doc_id, $user_id, $status, $motivo = '' ) {
+	private function save_as( $doc_id, $user_id, $status, $reason = '' ) {
 		wp_set_current_user( $user_id );
-		if ( '' !== $motivo ) {
-			$_POST['documentate_motivo'] = $motivo;
-			$_POST[ Documentate_Transiciones::NONCE ] = wp_create_nonce( Documentate_Transiciones::NONCE );
+		if ( '' !== $reason ) {
+			$_POST['documentate_motivo'] = $reason;
+			$_POST[ Documentate_Transitions::NONCE ] = wp_create_nonce( Documentate_Transitions::NONCE );
 		}
 
 		wp_update_post(
@@ -179,17 +179,17 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	/**
 	 * Rule 0: área cannot post pending on a draft that goes through gestión.
 	 */
-	public function test_area_cannot_post_pending_on_con_gestion_draft() {
-		$doc = $this->crear_documento( 'draft' );
+	public function test_area_cannot_post_pending_on_a_management_draft() {
+		$doc = $this->create_document( 'draft' );
 
-		$this->assertSame( 'draft', $this->guardar_como( $doc, $this->area_id, 'pending' ) );
+		$this->assertSame( 'draft', $this->save_as( $doc, $this->area_id, 'pending' ) );
 
 		$notice = get_transient( 'documentate_workflow_notice_' . $this->area_id );
 		$this->assertSame( 'transicion_no_permitida', $notice['reason'] );
 
 		// The same request on a direct type goes through.
-		$directo = $this->crear_documento( 'draft', $this->tipo_directo );
-		$this->assertSame( 'pending', $this->guardar_como( $directo, $this->area_id, 'pending' ) );
+		$direct = $this->create_document( 'draft', $this->direct_type_id );
+		$this->assertSame( 'pending', $this->save_as( $direct, $this->area_id, 'pending' ) );
 	}
 
 	/**
@@ -198,31 +198,31 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 */
 	public function test_creation_straight_into_the_pipeline_follows_the_table() {
 		wp_set_current_user( $this->area_id );
-		$nuevo = function ( $status, $tipo_id ) {
+		$create = function ( $status, $type_id ) {
 			return wp_insert_post(
 				array(
 					'post_type' => 'documentate_document',
 					'post_title' => 'Creado directamente',
 					'post_status' => $status,
-					'tax_input' => array( 'documentate_doc_type' => array( $tipo_id ) ),
+					'tax_input' => array( 'documentate_doc_type' => array( $type_id ) ),
 				)
 			);
 		};
 
 		// Con gestión: pending would skip gestión; en_gestion is the legitimate first step.
-		$saltado = $nuevo( 'pending', $this->tipo_gestion );
-		$this->assertSame( 'draft', get_post_status( $saltado ) );
+		$skipped = $create( 'pending', $this->management_type_id );
+		$this->assertSame( 'draft', get_post_status( $skipped ) );
 		$notice = get_transient( 'documentate_workflow_notice_' . $this->area_id );
 		$this->assertSame( 'transicion_no_permitida', $notice['reason'] );
-		$this->assertSame( 'en_gestion', get_post_status( $nuevo( 'en_gestion', $this->tipo_gestion ) ) );
+		$this->assertSame( 'en_gestion', get_post_status( $create( 'en_gestion', $this->management_type_id ) ) );
 
 		// Directo: pending is its first step; en_gestion is not.
-		$this->assertSame( 'pending', get_post_status( $nuevo( 'pending', $this->tipo_directo ) ) );
-		$this->assertSame( 'draft', get_post_status( $nuevo( 'en_gestion', $this->tipo_directo ) ) );
+		$this->assertSame( 'pending', get_post_status( $create( 'pending', $this->direct_type_id ) ) );
+		$this->assertSame( 'draft', get_post_status( $create( 'en_gestion', $this->direct_type_id ) ) );
 
 		// A publish request on creation lands on the next step of the posted type (Rule 2).
-		$this->assertSame( 'en_gestion', get_post_status( $nuevo( 'publish', $this->tipo_gestion ) ) );
-		$this->assertSame( 'pending', get_post_status( $nuevo( 'publish', $this->tipo_directo ) ) );
+		$this->assertSame( 'en_gestion', get_post_status( $create( 'publish', $this->management_type_id ) ) );
+		$this->assertSame( 'pending', get_post_status( $create( 'publish', $this->direct_type_id ) ) );
 
 		// The wp-admin path: the auto-draft has no type yet, the first save posts it.
 		$stub = wp_insert_post(
@@ -236,11 +236,11 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 			array(
 				'ID' => $stub,
 				'post_status' => 'pending',
-				'tax_input' => array( 'documentate_doc_type' => array( $this->tipo_gestion ) ),
+				'tax_input' => array( 'documentate_doc_type' => array( $this->management_type_id ) ),
 			)
 		);
 		$this->assertSame( 'draft', get_post_status( $stub ), 'Refused: a refused first save lands in draft, never auto-draft.' );
-		$this->assertTrue( Documentate_Documento::con_gestion( $stub ), 'The posted type was assigned anyway.' );
+		$this->assertTrue( Documentate_Document_Data::has_management( $stub ), 'The posted type was assigned anyway.' );
 	}
 
 	/**
@@ -254,11 +254,11 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 */
 	public function test_autosave_cannot_change_the_status() {
 		require_once ABSPATH . 'wp-admin/includes/post.php';
-		$doc = $this->crear_documento( 'draft' );
+		$doc = $this->create_document( 'draft' );
 		wp_set_current_user( $this->area_id );
 
 		foreach ( array( 'pending', 'publish', 'en_gestion' ) as $status ) {
-			$resultado = wp_autosave(
+			$result = wp_autosave(
 				array(
 					'post_id' => $doc,
 					'_wpnonce' => wp_create_nonce( 'update-post_' . $doc ),
@@ -269,74 +269,74 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 				)
 			);
 
-			$this->assertSame( $doc, $resultado, $status );
+			$this->assertSame( $doc, $result, $status );
 			$this->assertSame( 'draft', get_post_status( $doc ), $status );
 			$this->assertSame( 'Autoguardado ' . $status, get_post_field( 'post_title', $doc ), 'The autosave itself went through.' );
 		}
 
 		$this->assertTrue( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE );
-		$this->assertSame( array(), Documentate_Actividad::listar( $doc ), 'No transition, no event.' );
+		$this->assertSame( array(), Documentate_Activity::entries( $doc ), 'No transition, no event.' );
 	}
 
 	/**
 	 * Rule 2: a non-admin asking to publish a draft lands on the next step.
 	 */
 	public function test_non_admin_publish_request_lands_on_next_step() {
-		$con_gestion = $this->crear_documento( 'draft' );
-		$this->assertSame( 'en_gestion', $this->guardar_como( $con_gestion, $this->area_id, 'publish' ) );
+		$has_management = $this->create_document( 'draft' );
+		$this->assertSame( 'en_gestion', $this->save_as( $has_management, $this->area_id, 'publish' ) );
 
-		$directo = $this->crear_documento( 'draft', $this->tipo_directo );
-		$this->assertSame( 'pending', $this->guardar_como( $directo, $this->area_id, 'publish' ) );
+		$direct = $this->create_document( 'draft', $this->direct_type_id );
+		$this->assertSame( 'pending', $this->save_as( $direct, $this->area_id, 'publish' ) );
 
 		// From en_gestion or pending the stored status is kept.
-		$en_gestion = $this->crear_documento( 'en_gestion' );
-		$this->assertSame( 'en_gestion', $this->guardar_como( $en_gestion, $this->gestion_id, 'publish' ) );
+		$en_gestion = $this->create_document( 'en_gestion' );
+		$this->assertSame( 'en_gestion', $this->save_as( $en_gestion, $this->management_id, 'publish' ) );
 
-		$pending = $this->crear_documento( 'pending' );
-		$this->assertSame( 'pending', $this->guardar_como( $pending, $this->gestion_id, 'private' ) );
+		$pending = $this->create_document( 'pending' );
+		$this->assertSame( 'pending', $this->save_as( $pending, $this->management_id, 'private' ) );
 	}
 
 	/**
 	 * Rule 0: gestión cannot return a document to draft without a reason.
 	 */
-	public function test_gestion_return_requires_a_reason() {
-		$doc = $this->crear_documento( 'en_gestion' );
+	public function test_management_return_requires_a_reason() {
+		$doc = $this->create_document( 'en_gestion' );
 
-		$this->assertSame( 'en_gestion', $this->guardar_como( $doc, $this->gestion_id, 'draft' ) );
-		$this->assertNull( Documentate_Documento::devuelto( $doc ) );
+		$this->assertSame( 'en_gestion', $this->save_as( $doc, $this->management_id, 'draft' ) );
+		$this->assertNull( Documentate_Document_Data::returned( $doc ) );
 
-		$this->assertSame( 'draft', $this->guardar_como( $doc, $this->gestion_id, 'draft', 'Falta el anexo firmado' ) );
-		$devuelto = Documentate_Documento::devuelto( $doc );
-		$this->assertSame( 'Falta el anexo firmado', $devuelto['motivo'] );
-		$this->assertSame( 'gestion', $devuelto['desde'] );
-		$this->assertSame( $this->gestion_id, $devuelto['por'] );
+		$this->assertSame( 'draft', $this->save_as( $doc, $this->management_id, 'draft', 'Falta el anexo firmado' ) );
+		$returned = Documentate_Document_Data::returned( $doc );
+		$this->assertSame( 'Falta el anexo firmado', $returned['motivo'] );
+		$this->assertSame( 'gestion', $returned['desde'] );
+		$this->assertSame( $this->management_id, $returned['por'] );
 	}
 
 	/**
 	 * Rule 0: gestión passes a document to administración, but cannot publish it.
 	 */
-	public function test_gestion_moves_to_pending_but_never_publishes() {
-		$doc = $this->crear_documento( 'en_gestion' );
-		$this->assertSame( 'pending', $this->guardar_como( $doc, $this->gestion_id, 'pending' ) );
+	public function test_management_moves_to_pending_but_never_publishes() {
+		$doc = $this->create_document( 'en_gestion' );
+		$this->assertSame( 'pending', $this->save_as( $doc, $this->management_id, 'pending' ) );
 
 		// Once in pending, gestión cannot approve nor return it.
-		$this->assertSame( 'pending', $this->guardar_como( $doc, $this->gestion_id, 'publish' ) );
-		$this->assertSame( 'pending', $this->guardar_como( $doc, $this->gestion_id, 'draft', 'Motivo válido' ) );
+		$this->assertSame( 'pending', $this->save_as( $doc, $this->management_id, 'publish' ) );
+		$this->assertSame( 'pending', $this->save_as( $doc, $this->management_id, 'draft', 'Motivo válido' ) );
 	}
 
 	/**
 	 * Rule 0: an administrator publishing straight from en_gestion is reverted.
 	 */
 	public function test_admin_cannot_publish_from_en_gestion() {
-		$doc = $this->crear_documento( 'en_gestion' );
+		$doc = $this->create_document( 'en_gestion' );
 
-		$this->assertSame( 'en_gestion', $this->guardar_como( $doc, $this->admin_id, 'publish' ) );
+		$this->assertSame( 'en_gestion', $this->save_as( $doc, $this->admin_id, 'publish' ) );
 		$notice = get_transient( 'documentate_workflow_notice_' . $this->admin_id );
 		$this->assertSame( 'transicion_no_permitida', $notice['reason'] );
 
 		// The table path works: pass to administración, then approve.
-		$this->assertSame( 'pending', $this->guardar_como( $doc, $this->admin_id, 'pending' ) );
-		$this->assertSame( 'publish', $this->guardar_como( $doc, $this->admin_id, 'publish' ) );
+		$this->assertSame( 'pending', $this->save_as( $doc, $this->admin_id, 'pending' ) );
+		$this->assertSame( 'publish', $this->save_as( $doc, $this->admin_id, 'publish' ) );
 	}
 
 	/**
@@ -347,22 +347,22 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 			$this->assertTrue( Documentate_Workflow::user_can_modify_status( $status, $this->admin_id ), $status );
 		}
 
-		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'draft', $this->gestion_id ) );
-		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'auto-draft', $this->gestion_id ) );
-		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'en_gestion', $this->gestion_id ) );
-		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'pending', $this->gestion_id ) );
-		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'publish', $this->gestion_id ) );
-		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'archived', $this->gestion_id ) );
+		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'draft', $this->management_id ) );
+		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'auto-draft', $this->management_id ) );
+		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'en_gestion', $this->management_id ) );
+		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'pending', $this->management_id ) );
+		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'publish', $this->management_id ) );
+		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'archived', $this->management_id ) );
 
 		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'draft', $this->area_id ) );
 		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'en_gestion', $this->area_id ) );
 		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'pending', $this->area_id ) );
 
 		// current_user_can_modify_document() routes through it.
-		$doc = $this->crear_documento( 'en_gestion' );
+		$doc = $this->create_document( 'en_gestion' );
 		wp_set_current_user( $this->area_id );
 		$this->assertFalse( Documentate_Workflow::current_user_can_modify_document( $doc ) );
-		wp_set_current_user( $this->gestion_id );
+		wp_set_current_user( $this->management_id );
 		$this->assertTrue( Documentate_Workflow::current_user_can_modify_document( $doc ) );
 	}
 
@@ -370,7 +370,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * Content is frozen for the área on en_gestion, editable for gestión, frozen for gestión on pending.
 	 */
 	public function test_freeze_follows_the_role_aware_lock() {
-		$doc = $this->crear_documento( 'en_gestion' );
+		$doc = $this->create_document( 'en_gestion' );
 
 		wp_set_current_user( $this->area_id );
 		wp_update_post(
@@ -384,7 +384,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		$notice = get_transient( 'documentate_workflow_notice_' . $this->area_id );
 		$this->assertSame( 'gestion_locked', $notice['reason'] );
 
-		wp_set_current_user( $this->gestion_id );
+		wp_set_current_user( $this->management_id );
 		wp_update_post(
 			array(
 				'ID' => $doc,
@@ -393,8 +393,8 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'Cambiado por gestión', get_post_field( 'post_title', $doc ) );
 
-		$pending = $this->crear_documento( 'pending' );
-		wp_set_current_user( $this->gestion_id );
+		$pending = $this->create_document( 'pending' );
+		wp_set_current_user( $this->management_id );
 		wp_update_post(
 			array(
 				'ID' => $pending,
@@ -408,18 +408,18 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * The metabox in en_gestion offers gestión its buttons and locks the área.
 	 */
 	public function test_metabox_en_gestion_buttons_per_role() {
-		$doc = $this->crear_documento( 'en_gestion' );
+		$doc = $this->create_document( 'en_gestion' );
 
-		$gestion = $this->render_metabox( $doc, $this->gestion_id );
-		$this->assertStringContainsString( 'id="documentate-save-gestion"', $gestion );
-		$this->assertStringContainsString( 'id="documentate-pass-admin"', $gestion );
-		$this->assertStringContainsString( 'Pasar a administración', $gestion );
-		$this->assertStringContainsString( 'id="documentate-return-draft"', $gestion );
-		$this->assertStringContainsString( 'Devolver al área', $gestion );
-		$this->assertStringContainsString( 'id="documentate-return-draft-motivo"', $gestion );
-		$this->assertStringContainsString( 'Completa los datos oficiales', $gestion );
-		$this->assertStringContainsString( 'is-current is-status-en_gestion', $gestion );
-		$this->assertStringContainsString( 'Mover a la papelera', $gestion );
+		$management = $this->render_metabox( $doc, $this->management_id );
+		$this->assertStringContainsString( 'id="documentate-save-gestion"', $management );
+		$this->assertStringContainsString( 'id="documentate-pass-admin"', $management );
+		$this->assertStringContainsString( 'Pasar a administración', $management );
+		$this->assertStringContainsString( 'id="documentate-return-draft"', $management );
+		$this->assertStringContainsString( 'Devolver al área', $management );
+		$this->assertStringContainsString( 'id="documentate-return-draft-motivo"', $management );
+		$this->assertStringContainsString( 'Completa los datos oficiales', $management );
+		$this->assertStringContainsString( 'is-current is-status-en_gestion', $management );
+		$this->assertStringContainsString( 'Mover a la papelera', $management );
 
 		$area = $this->render_metabox( $doc, $this->area_id );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $area );
@@ -433,25 +433,25 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * The stepper and the send button follow the document type.
 	 */
 	public function test_metabox_draft_follows_the_type() {
-		$con_gestion = $this->crear_documento( 'draft' );
-		$html = $this->render_metabox( $con_gestion, $this->area_id );
+		$has_management = $this->create_document( 'draft' );
+		$html = $this->render_metabox( $has_management, $this->area_id );
 		$this->assertStringContainsString( 'En gestión', $html );
 		$this->assertStringContainsString( 'Enviar a gestión', $html );
 		$this->assertStringContainsString( 'data-estado="en_gestion"', $html );
 		$this->assertStringContainsString( 'Envía a gestión documental', $html );
 
-		$directo = $this->crear_documento( 'draft', $this->tipo_directo );
-		$html = $this->render_metabox( $directo, $this->area_id );
+		$direct = $this->create_document( 'draft', $this->direct_type_id );
+		$html = $this->render_metabox( $direct, $this->area_id );
 		$this->assertStringNotContainsString( 'En gestión', $html );
 		$this->assertStringContainsString( 'Enviar a revisión', $html );
 		$this->assertStringContainsString( 'data-estado="pending"', $html );
 	}
 
 	/**
-	 * Administrators reviewing a con_gestion document can return it to gestión.
+	 * Administrators reviewing a management document can return it to gestión.
 	 */
-	public function test_metabox_pending_admin_offers_return_to_gestion() {
-		$doc = $this->crear_documento( 'pending' );
+	public function test_metabox_pending_admin_offers_return_to_management() {
+		$doc = $this->create_document( 'pending' );
 
 		$html = $this->render_metabox( $doc, $this->admin_id );
 		$this->assertStringContainsString( 'id="documentate-return-gestion"', $html );
@@ -461,7 +461,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Apruébalo o devuélvelo', $html );
 
 		// Gestión is locked on pending.
-		$html = $this->render_metabox( $doc, $this->gestion_id );
+		$html = $this->render_metabox( $doc, $this->management_id );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $html );
 		$this->assertStringNotContainsString( 'documentate-return-gestion', $html );
 	}
@@ -470,9 +470,9 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * Revision restores follow the same lock.
 	 */
 	public function test_restrict_revision_restore_follows_the_lock() {
-		$doc = $this->crear_documento( 'en_gestion' );
+		$doc = $this->create_document( 'en_gestion' );
 
-		wp_set_current_user( $this->gestion_id );
+		wp_set_current_user( $this->management_id );
 		$this->assertNull( $this->workflow->restrict_revision_restore( $doc, 0 ), 'Gestión may restore on en_gestion.' );
 		$this->assertNull( $this->workflow->restrict_revision_restore( self::factory()->post->create(), 0 ), 'Other post types are ignored.' );
 
@@ -485,20 +485,20 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	 * Whoever is locked out of a document cannot trash it: delete_post is denied.
 	 */
 	public function test_locked_documents_cannot_be_trashed() {
-		$en_gestion = $this->crear_documento( 'en_gestion' );
-		$pending = $this->crear_documento( 'pending' );
-		$borrador = $this->crear_documento( 'draft' );
+		$en_gestion = $this->create_document( 'en_gestion' );
+		$pending = $this->create_document( 'pending' );
+		$draft = $this->create_document( 'draft' );
 
 		wp_set_current_user( $this->area_id );
 		$this->assertFalse( current_user_can( 'delete_post', $en_gestion ) );
 		$this->assertEmpty( get_delete_post_link( $en_gestion ), 'No row action, no trash URL.' );
 		$this->assertFalse( current_user_can( 'delete_post', $pending ) );
-		$this->assertTrue( current_user_can( 'delete_post', $borrador ) );
+		$this->assertTrue( current_user_can( 'delete_post', $draft ) );
 
-		wp_set_current_user( $this->gestion_id );
+		wp_set_current_user( $this->management_id );
 		$this->assertTrue( current_user_can( 'delete_post', $en_gestion ) );
 		$this->assertFalse( current_user_can( 'delete_post', $pending ) );
-		$this->assertTrue( current_user_can( 'delete_post', $borrador ) );
+		$this->assertTrue( current_user_can( 'delete_post', $draft ) );
 
 		wp_set_current_user( $this->admin_id );
 		$this->assertTrue( current_user_can( 'delete_post', $pending ) );
@@ -508,9 +508,9 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	/**
 	 * Gestión cannot restore revisions once the document is in pending.
 	 */
-	public function test_gestion_cannot_restore_revisions_on_pending() {
-		$pending = $this->crear_documento( 'pending' );
-		wp_set_current_user( $this->gestion_id );
+	public function test_management_cannot_restore_revisions_on_pending() {
+		$pending = $this->create_document( 'pending' );
+		wp_set_current_user( $this->management_id );
 
 		$this->expectException( 'WPDieException' );
 		$this->workflow->restrict_revision_restore( $pending, 0 );
@@ -519,8 +519,8 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	/**
 	 * The script config carries the gestión flags.
 	 */
-	public function test_enqueue_localizes_gestion_flags() {
-		$doc = $this->crear_documento( 'en_gestion' );
+	public function test_enqueue_localizes_management_flags() {
+		$doc = $this->create_document( 'en_gestion' );
 		wp_set_current_user( $this->area_id );
 
 		$screen = WP_Screen::get( 'documentate_document' );
@@ -533,11 +533,11 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 
 		// wp_localize_script() casts scalars to strings: "1" / "".
 		$this->assertStringContainsString( '"isEnGestion":"1"', $data );
-		$this->assertStringContainsString( '"conGestion":"1"', $data );
-		$this->assertStringContainsString( '"isGestion":""', $data );
+		$this->assertStringContainsString( '"hasManagement":"1"', $data );
+		$this->assertStringContainsString( '"isManagement":""', $data );
 		$this->assertStringContainsString( '"isLocked":"1"', $data );
-		$this->assertStringContainsString( 'gestionMessage', $data );
-		$this->assertStringContainsString( 'motivoRequired', $data );
+		$this->assertStringContainsString( 'managementMessage', $data );
+		$this->assertStringContainsString( 'reasonRequired', $data );
 
 		unset( $GLOBALS['post'] );
 	}
@@ -550,7 +550,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		set_current_screen( 'documentate_document' );
 		get_current_screen()->post_type = 'documentate_document';
 
-		foreach ( array( 'gestion_locked' => 'gestión', 'transicion_no_permitida' => 'transición' ) as $reason => $texto ) {
+		foreach ( array( 'gestion_locked' => 'gestión', 'transicion_no_permitida' => 'transición' ) as $reason => $text ) {
 			set_transient(
 				'documentate_workflow_notice_' . $this->admin_id,
 				array(
@@ -566,7 +566,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 			$output = ob_get_clean();
 
 			$this->assertStringContainsString( 'notice-error', $output, $reason );
-			$this->assertStringContainsString( $texto, $output, $reason );
+			$this->assertStringContainsString( $text, $output, $reason );
 		}
 
 		set_current_screen( 'front' );

@@ -55,14 +55,14 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 	 * @param int[] $ids Document IDs.
 	 * @return array<string,WP_Post>
 	 */
-	private function por_nombre( array $ids ) {
-		$mapa = array();
+	private function by_name( array $ids ) {
+		$map = array();
 		foreach ( $ids as $id ) {
 			$post = get_post( $id );
-			$mapa[ Documentate_Documento::nombre_interno( $post ) ] = $post;
+			$map[ Documentate_Document_Data::internal_name( $post ) ] = $post;
 		}
 
-		return $mapa;
+		return $map;
 	}
 
 	/**
@@ -83,10 +83,10 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 	 * A second seed() call does not duplicate any document.
 	 */
 	public function test_seed_is_idempotent() {
-		$primero = Documentate_Demo_App::seed();
-		$segundo = Documentate_Demo_App::seed();
+		$first = Documentate_Demo_App::seed();
+		$second = Documentate_Demo_App::seed();
 
-		$this->assertSame( $primero, $segundo );
+		$this->assertSame( $first, $second );
 
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test assertion.
@@ -103,80 +103,80 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 	 * reseed() deletes the previous set (and its attachments) and creates a fresh one.
 	 */
 	public function test_reseed_replaces_documents_and_their_attachments() {
-		$primero = Documentate_Demo_App::seed();
-		$mapa = $this->por_nombre( $primero );
-		$adjunto_previo = Documentate_Documento::adjunto( $mapa['Material aulas digitales'] );
-		$this->assertNotNull( $adjunto_previo );
+		$first = Documentate_Demo_App::seed();
+		$map = $this->by_name( $first );
+		$previous_attachment = Documentate_Document_Data::attachment( $map['Material aulas digitales'] );
+		$this->assertNotNull( $previous_attachment );
 
-		$segundo = Documentate_Demo_App::reseed();
+		$second = Documentate_Demo_App::reseed();
 
-		$this->assertCount( 12, $segundo );
-		$this->assertEmpty( array_intersect( $primero, $segundo ), 'reseed() must not reuse the previous IDs.' );
-		$this->assertNull( get_post( $primero[0] ), 'The old documents must be gone.' );
-		$this->assertNull( get_post( $adjunto_previo->ID ), 'A force-deleted document takes its attachment with it.' );
+		$this->assertCount( 12, $second );
+		$this->assertEmpty( array_intersect( $first, $second ), 'reseed() must not reuse the previous IDs.' );
+		$this->assertNull( get_post( $first[0] ), 'The old documents must be gone.' );
+		$this->assertNull( get_post( $previous_attachment->ID ), 'A force-deleted document takes its attachment with it.' );
 	}
 
 	/**
 	 * Every status the demo set touches, the devuelto marks and who owns each
 	 * document are exactly as the spec's document table describes.
 	 */
-	public function test_every_status_and_devuelto_mark_matches_the_spec() {
-		$mapa = $this->por_nombre( Documentate_Demo_App::seed() );
+	public function test_every_status_and_returned_mark_matches_the_spec() {
+		$map = $this->by_name( Documentate_Demo_App::seed() );
 		$author1 = get_user_by( 'login', 'author1' );
 		$editor1 = get_user_by( 'login', 'editor1' );
 
 		// author1 / Departamento de Proyectos.
-		$this->assertSame( 'draft', $mapa['Material aulas digitales']->post_status );
-		$this->assertNull( Documentate_Documento::devuelto( $mapa['Material aulas digitales'] ) );
-		$this->assertSame( (int) $author1->ID, (int) $mapa['Material aulas digitales']->post_author );
+		$this->assertSame( 'draft', $map['Material aulas digitales']->post_status );
+		$this->assertNull( Documentate_Document_Data::returned( $map['Material aulas digitales'] ) );
+		$this->assertSame( (int) $author1->ID, (int) $map['Material aulas digitales']->post_author );
 
-		$this->assertSame( 'draft', $mapa['Jornadas competencia digital']->post_status );
+		$this->assertSame( 'draft', $map['Jornadas competencia digital']->post_status );
 
-		$this->assertSame( 'draft', $mapa['Certificación tribunal materiales']->post_status );
-		$devuelto_hc = Documentate_Documento::devuelto( $mapa['Certificación tribunal materiales'] );
-		$this->assertNotNull( $devuelto_hc );
-		$this->assertSame( 'Falta el anexo firmado por la dirección', $devuelto_hc['motivo'] );
-		$this->assertSame( 'gestion', $devuelto_hc['desde'] );
-		$this->assertSame( (int) $editor1->ID, $devuelto_hc['por'] );
+		$this->assertSame( 'draft', $map['Certificación tribunal materiales']->post_status );
+		$returned_hc = Documentate_Document_Data::returned( $map['Certificación tribunal materiales'] );
+		$this->assertNotNull( $returned_hc );
+		$this->assertSame( 'Falta el anexo firmado por la dirección', $returned_hc['motivo'] );
+		$this->assertSame( 'gestion', $returned_hc['desde'] );
+		$this->assertSame( (int) $editor1->ID, $returned_hc['por'] );
 
-		$this->assertSame( 'en_gestion', $mapa['Listado definitivo piloto innovación']->post_status );
-		$this->assertNull( Documentate_Documento::devuelto( $mapa['Listado definitivo piloto innovación'] ) );
+		$this->assertSame( 'en_gestion', $map['Listado definitivo piloto innovación']->post_status );
+		$this->assertNull( Documentate_Document_Data::returned( $map['Listado definitivo piloto innovación'] ) );
 
-		$this->assertSame( 'en_gestion', $mapa['Dotación biblioteca escolar']->post_status );
-		$this->assertEmpty( get_post_meta( $mapa['Dotación biblioteca escolar']->ID, 'documentate_field_gasto_numero', true ), 'Gestión fields must stay empty.' );
+		$this->assertSame( 'en_gestion', $map['Dotación biblioteca escolar']->post_status );
+		$this->assertEmpty( get_post_meta( $map['Dotación biblioteca escolar']->ID, 'documentate_field_gasto_numero', true ), 'Gestión fields must stay empty.' );
 
-		$this->assertSame( 'pending', $mapa['Formación profesorado metodologías']->post_status );
-		$this->assertNotEmpty( get_post_meta( $mapa['Formación profesorado metodologías']->ID, 'documentate_field_gasto_numero', true ), 'Gestión fields must be filled.' );
+		$this->assertSame( 'pending', $map['Formación profesorado metodologías']->post_status );
+		$this->assertNotEmpty( get_post_meta( $map['Formación profesorado metodologías']->ID, 'documentate_field_gasto_numero', true ), 'Gestión fields must be filled.' );
 
-		$this->assertSame( 'publish', $mapa['Bases programa piloto innovación']->post_status );
+		$this->assertSame( 'publish', $map['Bases programa piloto innovación']->post_status );
 
 		// editor1 / Subdirección de Administración.
-		$this->assertSame( 'en_gestion', $mapa['Calendario de admisión 2027']->post_status );
-		$devuelto_res = Documentate_Documento::devuelto( $mapa['Calendario de admisión 2027'] );
-		$this->assertNotNull( $devuelto_res );
-		$this->assertSame( 'Falta el número de expediente', $devuelto_res['motivo'] );
-		$this->assertSame( 'administracion', $devuelto_res['desde'] );
-		$this->assertEmpty( get_post_meta( $mapa['Calendario de admisión 2027']->ID, 'documentate_field_expediente', true ) );
+		$this->assertSame( 'en_gestion', $map['Calendario de admisión 2027']->post_status );
+		$returned_res = Documentate_Document_Data::returned( $map['Calendario de admisión 2027'] );
+		$this->assertNotNull( $returned_res );
+		$this->assertSame( 'Falta el número de expediente', $returned_res['motivo'] );
+		$this->assertSame( 'administracion', $returned_res['desde'] );
+		$this->assertEmpty( get_post_meta( $map['Calendario de admisión 2027']->ID, 'documentate_field_expediente', true ) );
 
-		$this->assertSame( 'pending', $mapa['Comisión formación septiembre']->post_status );
-		$this->assertSame( 'publish', $mapa['Bases plan de formación 2026-27']->post_status );
+		$this->assertSame( 'pending', $map['Comisión formación septiembre']->post_status );
+		$this->assertSame( 'publish', $map['Bases plan de formación 2026-27']->post_status );
 
-		$this->assertSame( 'draft', $mapa['Renovación licencias aulas virtuales']->post_status );
-		$devuelto_pg = Documentate_Documento::devuelto( $mapa['Renovación licencias aulas virtuales'] );
-		$this->assertNotNull( $devuelto_pg );
-		$this->assertSame( 'Revisar la partida presupuestaria', $devuelto_pg['motivo'] );
-		$this->assertSame( 'administracion', $devuelto_pg['desde'] );
-		$this->assertSame( 'area', $devuelto_pg['a'] );
+		$this->assertSame( 'draft', $map['Renovación licencias aulas virtuales']->post_status );
+		$returned_pg = Documentate_Document_Data::returned( $map['Renovación licencias aulas virtuales'] );
+		$this->assertNotNull( $returned_pg );
+		$this->assertSame( 'Revisar la partida presupuestaria', $returned_pg['motivo'] );
+		$this->assertSame( 'administracion', $returned_pg['desde'] );
+		$this->assertSame( 'area', $returned_pg['a'] );
 
 		// admin.
-		$this->assertSame( 'archived', $mapa['Instrucciones inicio de curso 2025-26']->post_status );
+		$this->assertSame( 'archived', $map['Instrucciones inicio de curso 2025-26']->post_status );
 	}
 
 	/**
 	 * Every document's history matches the state it ends in.
 	 */
 	public function test_events_are_consistent_with_each_state() {
-		$mapa = $this->por_nombre( Documentate_Demo_App::seed() );
+		$map = $this->by_name( Documentate_Demo_App::seed() );
 
 		// Documentate_Document_Access_Protection hides a document's comments
 		// (events included) from anyone not logged in with edit_posts, and
@@ -186,77 +186,77 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 		// login, exactly as any real caller would.
 		wp_set_current_user( get_user_by( 'login', 'admin' )->ID );
 
-		$textos = static function ( $post ) {
-			return wp_list_pluck( Documentate_Actividad::listar( $post->ID ), 'texto' );
+		$texts = static function ( $post ) {
+			return wp_list_pluck( Documentate_Activity::entries( $post->ID ), 'text' );
 		};
 
-		$pdf = Documentate_Documento::adjunto( $mapa['Material aulas digitales'] );
-		$this->assertContains( 'creó el borrador', $textos( $mapa['Material aulas digitales'] ) );
+		$pdf = Documentate_Document_Data::attachment( $map['Material aulas digitales'] );
+		$this->assertContains( 'creó el borrador', $texts( $map['Material aulas digitales'] ) );
 		$this->assertContains(
-			'adjuntó el fichero «' . Documentate_App_Adjuntos::nombre( $pdf->ID ) . '»',
-			$textos( $mapa['Material aulas digitales'] )
+			'adjuntó el fichero «' . Documentate_App_Attachments::name( $pdf->ID ) . '»',
+			$texts( $map['Material aulas digitales'] )
 		);
 
-		$odt = Documentate_Documento::adjunto( $mapa['Listado definitivo piloto innovación'] );
-		$eventos_definitivo = $textos( $mapa['Listado definitivo piloto innovación'] );
-		$this->assertContains( 'creó el borrador', $eventos_definitivo );
+		$odt = Documentate_Document_Data::attachment( $map['Listado definitivo piloto innovación'] );
+		$events_final_list = $texts( $map['Listado definitivo piloto innovación'] );
+		$this->assertContains( 'creó el borrador', $events_final_list );
 		$this->assertContains(
-			'adjuntó el fichero «' . Documentate_App_Adjuntos::nombre( $odt->ID ) . '»',
-			$eventos_definitivo
+			'adjuntó el fichero «' . Documentate_App_Attachments::name( $odt->ID ) . '»',
+			$events_final_list
 		);
-		$this->assertContains( 'envió el documento a gestión', $eventos_definitivo );
+		$this->assertContains( 'envió el documento a gestión', $events_final_list );
 
-		$eventos_bases = $textos( $mapa['Bases programa piloto innovación'] );
-		$this->assertContains( 'envió el documento a gestión', $eventos_bases );
-		$this->assertContains( 'pasó el documento a administración', $eventos_bases );
-		$this->assertContains( 'aprobó y publicó el documento', $eventos_bases );
+		$events_rules = $texts( $map['Bases programa piloto innovación'] );
+		$this->assertContains( 'envió el documento a gestión', $events_rules );
+		$this->assertContains( 'pasó el documento a administración', $events_rules );
+		$this->assertContains( 'aprobó y publicó el documento', $events_rules );
 
-		$eventos_hc = $textos( $mapa['Certificación tribunal materiales'] );
-		$this->assertContains( 'devolvió el documento al área: «Falta el anexo firmado por la dirección»', $eventos_hc );
+		$events_hc = $texts( $map['Certificación tribunal materiales'] );
+		$this->assertContains( 'devolvió el documento al área: «Falta el anexo firmado por la dirección»', $events_hc );
 
-		$eventos_calendario = $textos( $mapa['Calendario de admisión 2027'] );
-		$this->assertContains( 'devolvió el documento a gestión: «Falta el número de expediente»', $eventos_calendario );
+		$events_calendar = $texts( $map['Calendario de admisión 2027'] );
+		$this->assertContains( 'devolvió el documento a gestión: «Falta el número de expediente»', $events_calendar );
 
-		$eventos_licencias = $textos( $mapa['Renovación licencias aulas virtuales'] );
-		$this->assertContains( 'devolvió el documento al área: «Revisar la partida presupuestaria»', $eventos_licencias );
+		$events_licences = $texts( $map['Renovación licencias aulas virtuales'] );
+		$this->assertContains( 'devolvió el documento al área: «Revisar la partida presupuestaria»', $events_licences );
 
-		$eventos_archivado = $textos( $mapa['Instrucciones inicio de curso 2025-26'] );
-		$this->assertContains( 'archivó el documento', $eventos_archivado );
-		$this->assertContains( 'aprobó y publicó el documento', $eventos_archivado );
+		$events_archived = $texts( $map['Instrucciones inicio de curso 2025-26'] );
+		$this->assertContains( 'archivó el documento', $events_archived );
+		$this->assertContains( 'aprobó y publicó el documento', $events_archived );
 	}
 
 	/**
 	 * Two documents carry a real attachment: a PDF and an ODT.
 	 */
 	public function test_two_documents_carry_an_attachment() {
-		$mapa = $this->por_nombre( Documentate_Demo_App::seed() );
+		$map = $this->by_name( Documentate_Demo_App::seed() );
 
-		$pdf = Documentate_Documento::adjunto( $mapa['Material aulas digitales'] );
+		$pdf = Documentate_Document_Data::attachment( $map['Material aulas digitales'] );
 		$this->assertNotNull( $pdf );
 		$this->assertSame( 'application/pdf', $pdf->post_mime_type );
 
-		$odt = Documentate_Documento::adjunto( $mapa['Listado definitivo piloto innovación'] );
+		$odt = Documentate_Document_Data::attachment( $map['Listado definitivo piloto innovación'] );
 		$this->assertNotNull( $odt );
 		$this->assertSame( 'application/vnd.oasis.opendocument.text', $odt->post_mime_type );
 
-		$this->assertNull( Documentate_Documento::adjunto( $mapa['Jornadas competencia digital'] ) );
+		$this->assertNull( Documentate_Document_Data::attachment( $map['Jornadas competencia digital'] ) );
 	}
 
 	/**
 	 * The en_gestion resolución carries one área comment.
 	 */
-	public function test_one_comment_on_the_en_gestion_resolucion() {
-		$mapa = $this->por_nombre( Documentate_Demo_App::seed() );
+	public function test_one_comment_on_the_en_gestion_resolucion_document() {
+		$map = $this->by_name( Documentate_Demo_App::seed() );
 
 		// See the comment on test_events_are_consistent_with_each_state():
 		// reading a document's activity needs its own authorized login.
 		wp_set_current_user( get_user_by( 'login', 'admin' )->ID );
 
-		$filas = Documentate_Actividad::listar( $mapa['Listado definitivo piloto innovación']->ID );
-		$comentarios = array_values( array_filter( $filas, static fn( $fila ) => 'comentario' === $fila['tipo'] ) );
+		$rows = Documentate_Activity::entries( $map['Listado definitivo piloto innovación']->ID );
+		$comments = array_values( array_filter( $rows, static fn( $row ) => 'comentario' === $row['type'] ) );
 
-		$this->assertCount( 1, $comentarios );
-		$this->assertSame( 'El anexo con el listado va en la última página del ODT.', $comentarios[0]['texto'] );
+		$this->assertCount( 1, $comments );
+		$this->assertSame( 'El anexo con el listado va en la última página del ODT.', $comments[0]['text'] );
 	}
 
 	/**
@@ -297,68 +297,68 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 	 * a flat string.
 	 */
 	public function test_pg_provider_blocks_carry_an_array_conceptos_sub_repeater() {
-		$mapa = $this->por_nombre( Documentate_Demo_App::seed() );
-		$post_id = $mapa['Formación profesorado metodologías']->ID;
+		$map = $this->by_name( Documentate_Demo_App::seed() );
+		$post_id = $map['Formación profesorado metodologías']->ID;
 
-		foreach ( array( 'servicios', 'suministros', 'expertos' ) as $bloque ) {
-			$json = get_post_meta( $post_id, 'documentate_field_' . $bloque, true );
-			$filas = json_decode( (string) $json, true );
+		foreach ( array( 'servicios', 'suministros', 'expertos' ) as $block ) {
+			$json = get_post_meta( $post_id, 'documentate_field_' . $block, true );
+			$rows = json_decode( (string) $json, true );
 
-			$this->assertIsArray( $filas, "$bloque must decode to an array." );
-			$this->assertNotEmpty( $filas, "$bloque must have at least one provider row." );
+			$this->assertIsArray( $rows, "$block must decode to an array." );
+			$this->assertNotEmpty( $rows, "$block must have at least one provider row." );
 
-			foreach ( $filas as $fila ) {
-				$this->assertIsArray( $fila['conceptos'], "Every $bloque row must carry an array conceptos sub-repeater, not a flat string." );
-				$this->assertNotEmpty( $fila['conceptos'] );
+			foreach ( $rows as $row ) {
+				$this->assertIsArray( $row['conceptos'], "Every $block row must carry an array conceptos sub-repeater, not a flat string." );
+				$this->assertNotEmpty( $row['conceptos'] );
 			}
 		}
 	}
 
 	/**
-	 * poner_estado() writes the status and the devuelto mark with no regard
+	 * set_status() writes the status and the devuelto mark with no regard
 	 * for who is logged in, including nobody at all.
 	 */
-	public function test_poner_estado_ignores_permissions() {
-		Documentate_Demo_App::asegurar_entorno();
-		$tipo = get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' );
-		$this->assertInstanceOf( WP_Term::class, $tipo );
+	public function test_set_status_ignores_permissions() {
+		Documentate_Demo_App::ensure_environment();
+		$type = get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' );
+		$this->assertInstanceOf( WP_Term::class, $type );
 
 		wp_set_current_user( 0 );
 		$post_id = wp_insert_post(
 			array(
 				'post_type' => 'documentate_document',
-				'post_title' => 'poner_estado sin permisos',
+				'post_title' => 'set_status sin permisos',
 				'post_status' => 'draft',
 			)
 		);
-		wp_set_object_terms( $post_id, $tipo->term_id, 'documentate_doc_type' );
-		update_post_meta( $post_id, 'documentate_locked_doc_type', $tipo->term_id );
+		wp_set_object_terms( $post_id, $type->term_id, 'documentate_doc_type' );
+		update_post_meta( $post_id, 'documentate_locked_doc_type', $type->term_id );
 
-		Documentate_Demo_App::poner_estado(
+		Documentate_Demo_App::set_status(
 			$post_id,
 			'en_gestion',
 			array( 'motivo' => 'Motivo de prueba', 'desde' => 'gestion', 'a' => 'area' )
 		);
 
 		$this->assertSame( 'en_gestion', get_post_status( $post_id ) );
-		$devuelto = Documentate_Documento::devuelto( $post_id );
-		$this->assertSame( 'Motivo de prueba', $devuelto['motivo'] );
+		$returned = Documentate_Document_Data::returned( $post_id );
+		$this->assertSame( 'Motivo de prueba', $returned['motivo'] );
 
-		Documentate_Demo_App::poner_estado( $post_id, 'publish', null );
+		Documentate_Demo_App::set_status( $post_id, 'publish', null );
 		$this->assertSame( 'publish', get_post_status( $post_id ) );
-		$this->assertNull( Documentate_Documento::devuelto( $post_id ), 'A null devuelto clears the mark.' );
+		$this->assertNull( Documentate_Document_Data::returned( $post_id ), 'A null devuelto clears the mark.' );
 	}
 
 	/**
-	 * asegurar_entorno() creates the demo categories and users even when the
+	 * ensure_environment() creates the demo categories and users even when the
 	 * "seed on activation" option was already consumed, and leaves it as it
 	 * found it afterwards.
 	 */
-	public function test_asegurar_entorno_creates_prerequisites_regardless_of_the_option() {
+	public function test_ensure_environment_creates_prerequisites_regardless_of_the_option() {
 		delete_option( 'documentate_seed_demo_documents' );
 		$this->assertFalse( get_user_by( 'login', 'author1' ) );
 
-		Documentate_Demo_App::asegurar_entorno();
+		Documentate_Demo_App::ensure_environment();
 
 		$this->assertInstanceOf( WP_User::class, get_user_by( 'login', 'author1' ) );
 		$this->assertInstanceOf( WP_User::class, get_user_by( 'login', 'editor1' ) );

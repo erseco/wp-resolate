@@ -610,7 +610,7 @@ class SchemaExtractor {
 			if ( isset( $state['repeaters'][ $sub['parent'] ] ) ) {
 				$parent = $state['repeaters'][ $sub['parent'] ];
 				$entry = $this->build_tbs_repeater_entry( $base_name, $state['tbs_repeaters'][ $base_name ] );
-				$state['repeaters'][ $sub['parent'] ]['fields'][] = $this->inherit_rol(
+				$state['repeaters'][ $sub['parent'] ]['fields'][] = $this->inherit_role(
 					array(
 						'name' => $sub['key'],
 						'slug' => sanitize_key( $sub['key'] ),
@@ -701,7 +701,7 @@ class SchemaExtractor {
 			isset( $repeater['slug'] ) ? (string) $repeater['slug'] : ''
 		);
 
-		$state['repeaters'][ $current_index ]['fields'][] = $this->inherit_rol(
+		$state['repeaters'][ $current_index ]['fields'][] = $this->inherit_role(
 			$field,
 			isset( $repeater['rol'] ) ? (string) $repeater['rol'] : ''
 		);
@@ -714,22 +714,22 @@ class SchemaExtractor {
 	 * rol reaches its sub-repeater rows as well.
 	 *
 	 * @param array<string,mixed> $field Field (or nested repeater) entry.
-	 * @param string              $rol   Rol declared by the enclosing block.
+	 * @param string              $role  Rol declared by the enclosing block.
 	 * @return array<string,mixed>
 	 */
-	private function inherit_rol( array $field, $rol ) {
-		if ( '' === $rol ) {
+	private function inherit_role( array $field, $role ) {
+		if ( '' === $role ) {
 			return $field;
 		}
 
 		if ( empty( $field['rol'] ) ) {
-			$field['rol'] = $rol;
+			$field['rol'] = $role;
 		}
 
 		if ( isset( $field['fields'] ) && is_array( $field['fields'] ) ) {
 			foreach ( $field['fields'] as $index => $sub_field ) {
 				if ( is_array( $sub_field ) ) {
-					$field['fields'][ $index ] = $this->inherit_rol( $sub_field, $rol );
+					$field['fields'][ $index ] = $this->inherit_role( $sub_field, $role );
 				}
 			}
 		}
@@ -743,7 +743,7 @@ class SchemaExtractor {
 	 * @param array<string,mixed> $parameters Placeholder parameters.
 	 * @return string "area", "gestion", or an empty string when not declared.
 	 */
-	private function normalize_rol( $parameters ) {
+	private function normalize_role( $parameters ) {
 		$parameters = is_array( $parameters ) ? $parameters : array();
 		$raw = '';
 
@@ -754,9 +754,9 @@ class SchemaExtractor {
 			}
 		}
 
-		$rol = strtolower( trim( remove_accents( $raw ) ) );
+		$role = strtolower( trim( remove_accents( $raw ) ) );
 
-		return in_array( $rol, self::ROLES, true ) ? $rol : '';
+		return in_array( $role, self::ROLES, true ) ? $role : '';
 	}
 
 	/**
@@ -827,7 +827,7 @@ class SchemaExtractor {
 			'slug' => sanitize_key( $name ),
 			'title' => $title,
 			'description' => $description,
-			'rol' => $this->normalize_rol( $parameters ),
+			'rol' => $this->normalize_role( $parameters ),
 			'parameters' => $clean_parameters,
 			'fields' => array(),
 		);
@@ -896,7 +896,7 @@ class SchemaExtractor {
 				: (string) $parameters[ $key ];
 		}
 
-		$attributes['rol'] = $this->normalize_rol( $parameters );
+		$attributes['rol'] = $this->normalize_role( $parameters );
 		$attributes['case'] = $this->normalize_case( $parameters );
 
 		return $attributes;
@@ -1217,7 +1217,7 @@ class SchemaExtractor {
 		if ( preg_match( '/^tbs:(row|cell|p|page)/', $block_mode ) ) {
 			$repeaters[ $base_name ] = array(
 				'fields' => array(),
-				'rol' => $this->normalize_rol( $parameters ),
+				'rol' => $this->normalize_role( $parameters ),
 			);
 		}
 	}
@@ -1288,11 +1288,11 @@ class SchemaExtractor {
 	 */
 	private function build_tbs_repeater_entry( $base_name, $info ) {
 		$fields = array();
-		$rol = isset( $info['rol'] ) ? (string) $info['rol'] : '';
+		$role = isset( $info['rol'] ) ? (string) $info['rol'] : '';
 
 		$collected = isset( $info['fields'] ) && is_array( $info['fields'] ) ? $info['fields'] : array();
 		foreach ( $collected as $field_name => $field_info ) {
-			$fields[] = $this->inherit_rol( $this->build_tbs_repeater_field( $field_name, $field_info ), $rol );
+			$fields[] = $this->inherit_role( $this->build_tbs_repeater_field( $field_name, $field_info ), $role );
 		}
 
 		return array(
@@ -1300,7 +1300,7 @@ class SchemaExtractor {
 			'slug' => sanitize_key( $base_name ),
 			'title' => '',
 			'description' => '',
-			'rol' => $rol,
+			'rol' => $role,
 			'parameters' => array(),
 			'fields' => $fields,
 		);

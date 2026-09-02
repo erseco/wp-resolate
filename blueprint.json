@@ -59,7 +59,7 @@
     },
     {
       "step": "runPHP",
-      "code": "<?php require_once('/wordpress/wp-load.php'); if ( class_exists('Documentate_Demo_App') ) { Documentate_Demo_App::asegurar_entorno(); Documentate_Demo_App::seed(); } ?>"
+      "code": "<?php require_once('/wordpress/wp-load.php'); if ( class_exists('Documentate_Demo_App') ) { Documentate_Demo_App::ensure_environment(); Documentate_Demo_App::seed(); } ?>"
     }
   ],
   "features": {

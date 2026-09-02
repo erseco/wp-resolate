@@ -56,7 +56,7 @@ class Documentate_Admin_Helper {
 	 *
 	 * @var Documentate_Admin_Helper|null
 	 */
-	private static $instancia = null;
+	private static $instance = null;
 
 	/**
 	 * Format to generator method mapping.
@@ -81,7 +81,7 @@ class Documentate_Admin_Helper {
 	 * @param int    $post_id Document post ID.
 	 * @return string|WP_Error Path of the generated file, or the failure.
 	 */
-	private static function generar( $format, $post_id ) {
+	private static function generate( $format, $post_id ) {
 		switch ( $format ) {
 			case 'docx':
 				return Documentate_Document_Generator::generate_docx( $post_id );
@@ -123,7 +123,7 @@ class Documentate_Admin_Helper {
 	 * Boot hooks.
 	 */
 	public function __construct() {
-		self::$instancia = $this;
+		self::$instance = $this;
 
 		// Initialize export handlers.
 		$this->docx_handler = new Export_DOCX_Handler();
@@ -237,8 +237,8 @@ class Documentate_Admin_Helper {
 
 		// Automatic totals for the provider repeaters (propuesta de gasto).
 		wp_enqueue_script(
-			'documentate-calculos',
-			plugins_url( 'admin/js/documentate-calculos.js', DOCUMENTATE_PLUGIN_FILE ),
+			'documentate-calculations',
+			plugins_url( 'admin/js/documentate-calculations.js', DOCUMENTATE_PLUGIN_FILE ),
 			array( 'documentate-annexes' ),
 			DOCUMENTATE_VERSION,
 			true,
@@ -749,8 +749,8 @@ class Documentate_Admin_Helper {
 	 *
 	 * @return Documentate_Admin_Helper|null
 	 */
-	public static function instancia() {
-		return self::$instancia;
+	public static function instance() {
+		return self::$instance;
 	}
 
 	/**
@@ -787,8 +787,8 @@ class Documentate_Admin_Helper {
 	 * @param WP_Post $post Document.
 	 * @return string
 	 */
-	public static function bloque_exportar( WP_Post $post ) {
-		$helper = self::instancia();
+	public static function export_block( WP_Post $post ) {
+		$helper = self::instance();
 		if ( ! $helper instanceof self ) {
 			return '';
 		}
@@ -1513,7 +1513,7 @@ class Documentate_Admin_Helper {
 
 		$this->ensure_document_generator();
 
-		$result = self::generar( $format, $post_id );
+		$result = self::generate( $format, $post_id );
 
 		if ( is_wp_error( $result ) ) {
 			$this->send_generation_error( $result );

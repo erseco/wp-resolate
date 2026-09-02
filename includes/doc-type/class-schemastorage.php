@@ -74,8 +74,8 @@ class SchemaStorage {
 	 * @return void
 	 */
 	private static function forget_derived_answers( $term_id ) {
-		if ( class_exists( '\\Documentate_Campos_Rol' ) ) {
-			\Documentate_Campos_Rol::olvidar_tipo( (int) $term_id );
+		if ( class_exists( '\\Documentate_Field_Roles' ) ) {
+			\Documentate_Field_Roles::forget_type( (int) $term_id );
 		}
 	}
 

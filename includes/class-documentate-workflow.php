@@ -144,7 +144,7 @@ class Documentate_Workflow {
 	 * Register the custom post statuses (en_gestion, archived).
 	 */
 	public function register_custom_statuses() {
-		Documentate_Estados::registrar();
+		Documentate_Statuses::register();
 	}
 
 	/**
@@ -236,7 +236,7 @@ class Documentate_Workflow {
 	/**
 	 * Rule 0: a status change must be a transition the user's role may run.
 	 *
-	 * The application applies its transitions through Documentate_Transiciones,
+	 * The application applies its transitions through Documentate_Transitions,
 	 * which flags them as in progress so they always pass; wp-admin saves post
 	 * the target status (and the reason of a return) and are validated here.
 	 * A document is born as a draft (no stored status, or auto-draft), so a
@@ -249,21 +249,21 @@ class Documentate_Workflow {
 	 */
 	private function apply_transition_rule( $data, array $context ) {
 		$stored = $this->get_stored_status( $context['post_id'] );
-		// A document is born as a draft; permitida() still sees the raw status to tell a creation apart.
+		// A document is born as a draft; allowed() still sees the raw status to tell a creation apart.
 		$base = in_array( $stored, array( '', 'auto-draft' ), true ) ? 'draft' : $stored;
 		if ( $base === $context['requested_status'] ) {
 			return null;
 		}
 
-		$permitida = ! $this->doing_autosave() && Documentate_Transiciones::permitida(
+		$allowed = ! $this->doing_autosave() && Documentate_Transitions::allowed(
 			$context['post_id'],
 			$stored,
 			$context['requested_status'],
 			get_current_user_id(),
-			Documentate_Transiciones::motivo_publicado(),
-			Documentate_Documento::con_gestion_al_guardar( $context['post_id'], $context['postarr'] )
+			Documentate_Transitions::posted_reason(),
+			Documentate_Document_Data::has_management_on_save( $context['post_id'], $context['postarr'] )
 		);
-		if ( $permitida ) {
+		if ( $allowed ) {
 			return null;
 		}
 
@@ -314,7 +314,7 @@ class Documentate_Workflow {
 		$stored = $this->get_stored_status( $context['post_id'] );
 		if ( in_array( $stored, array( 'en_gestion', 'pending' ), true ) ) {
 			$data['post_status'] = $stored;
-		} elseif ( Documentate_Documento::con_gestion_al_guardar( $context['post_id'], $context['postarr'] ) ) {
+		} elseif ( Documentate_Document_Data::has_management_on_save( $context['post_id'], $context['postarr'] ) ) {
 			$data['post_status'] = 'en_gestion';
 		} else {
 			$data['post_status'] = 'pending';
@@ -573,15 +573,15 @@ class Documentate_Workflow {
 	 * @return bool
 	 */
 	public static function user_can_modify_status( string $status, int $user_id ): bool {
-		if ( Documentate_Roles::es_administracion( $user_id ) ) {
+		if ( Documentate_Roles::is_administration( $user_id ) ) {
 			return true;
 		}
 
-		$editables = Documentate_Roles::es_gestion( $user_id )
+		$editable = Documentate_Roles::is_management( $user_id )
 			? array( 'draft', 'auto-draft', 'en_gestion' )
 			: array( 'draft', 'auto-draft' );
 
-		return in_array( $status, $editables, true );
+		return in_array( $status, $editable, true );
 	}
 
 	/**

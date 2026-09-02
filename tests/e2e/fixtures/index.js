@@ -83,12 +83,12 @@ async function getDownloadUrlViaAjax( page, format, output = 'download' ) {
 async function fillRequiredAppFields( page, value ) {
 	const form = page.locator( 'form.dcta-editor' );
 
-	// Amounts documentate-calculos.js owns are readonly, and Playwright
+	// Amounts documentate-calculations.js owns are readonly, and Playwright
 	// refuses to fill those; they already carry the computed value.
-	const basicos = ':not(#documentate-app-titulo):not(#documentate-app-nombre)';
-	const editables = `input[required]:not([type="hidden"]):not([readonly]):not([data-calculado])${ basicos }, textarea[required]:not([readonly])${ basicos }`;
+	const basics = ':not(#documentate-app-titulo):not(#documentate-app-nombre)';
+	const editable = `input[required]:not([type="hidden"]):not([readonly]):not([data-calculado])${ basics }, textarea[required]:not([readonly])${ basics }`;
 
-	for ( const control of await form.locator( editables ).all() ) {
+	for ( const control of await form.locator( editable ).all() ) {
 		const type = await control.getAttribute( 'type' );
 		if ( 'checkbox' === type ) {
 			await control.check();

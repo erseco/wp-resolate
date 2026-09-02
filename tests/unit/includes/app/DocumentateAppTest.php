@@ -8,9 +8,9 @@
 /**
  * @covers Documentate_App
  * @covers Documentate_App_Shell
- * @covers Documentate_App_Lista
- * @covers Documentate_App_Detalle
- * @covers Documentate_App_Editar
+ * @covers Documentate_App_List
+ * @covers Documentate_App_Detail
+ * @covers Documentate_App_Edit
  */
 class DocumentateAppTest extends WP_UnitTestCase {
 
@@ -54,14 +54,14 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 *
 	 * @var int
 	 */
-	private $tipo_id;
+	private $type_id;
 
 	/**
 	 * Document type term ID with fields and a repeater.
 	 *
 	 * @var int
 	 */
-	private $tipo_esquema_id;
+	private $schema_type_id;
 
 	/**
 	 * Set up fixtures: users, categories, doc types and the app page.
@@ -77,7 +77,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		// Gestión documental is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
-		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
+		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
 
 		$scope = wp_insert_term( 'Ámbito App', 'category' );
 		$other = wp_insert_term( 'Otro Ámbito App', 'category' );
@@ -85,13 +85,13 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->cat_other = $other['term_id'];
 		update_user_meta( $this->editor_id, 'documentate_scope_term_id', $this->cat_scope );
 
-		$tipo = wp_insert_term( 'Resolución App', 'documentate_doc_type' );
-		$this->tipo_id = $tipo['term_id'];
+		$type = wp_insert_term( 'Resolución App', 'documentate_doc_type' );
+		$this->type_id = $type['term_id'];
 
-		$con_esquema = wp_insert_term( 'Propuesta App', 'documentate_doc_type' );
-		$this->tipo_esquema_id = $con_esquema['term_id'];
+		$with_schema = wp_insert_term( 'Propuesta App', 'documentate_doc_type' );
+		$this->schema_type_id = $with_schema['term_id'];
 		( new Documentate\DocType\SchemaStorage() )->save_schema(
-			$this->tipo_esquema_id,
+			$this->schema_type_id,
 			array(
 				'version' => 2,
 				'fields' => array(
@@ -139,7 +139,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 		$_POST = array();
 		$_GET = array();
-		wp_dequeue_script( 'documentate-calculos' );
+		wp_dequeue_script( 'documentate-calculations' );
 		wp_dequeue_script( 'documentate-annexes' );
 		wp_dequeue_style( 'documentate-app' );
 		parent::tear_down();
@@ -151,11 +151,11 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * @param string $title   Title.
 	 * @param int    $cat_id  Category term ID.
 	 * @param string $status  Post status.
-	 * @param int    $tipo_id Document type term ID (defaults to the type without schema).
+	 * @param int    $type_id Document type term ID (defaults to the type without schema).
 	 * @return int
 	 */
-	private function crear_documento( $title, $cat_id, $status = 'draft', $tipo_id = 0 ) {
-		$tipo_id = $tipo_id > 0 ? $tipo_id : $this->tipo_id;
+	private function create_document( $title, $cat_id, $status = 'draft', $type_id = 0 ) {
+		$type_id = $type_id > 0 ? $type_id : $this->type_id;
 
 		wp_set_current_user( $this->admin_id );
 		$post_id = wp_insert_post(
@@ -165,7 +165,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 				'post_status' => $status,
 				// The workflow forces unclassified documents to draft, so the
 				// type must travel with the insert for publish to stick.
-				'tax_input' => array( 'documentate_doc_type' => array( (int) $tipo_id ) ),
+				'tax_input' => array( 'documentate_doc_type' => array( (int) $type_id ) ),
 			)
 		);
 		wp_set_object_terms( $post_id, array( $cat_id ), 'category' );
@@ -180,7 +180,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * @param callable $handler Handler to run.
 	 * @return string Redirect target.
 	 */
-	private function capturar_redireccion( callable $handler ) {
+	private function capture_redirect( callable $handler ) {
 		$interceptor = function ( $location ) {
 			throw new Documentate_Exit_Exception( $location );
 		};
@@ -202,23 +202,23 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * Fill the save form request for a document as the current user would post it.
 	 *
 	 * @param int    $doc_id     Document ID.
-	 * @param string $titulo     Title (and internal name) to post.
-	 * @param string $transicion Transition key posted by the button, when any.
+	 * @param string $title     Title (and internal name) to post.
+	 * @param string $transition Transition key posted by the button, when any.
 	 * @return void
 	 */
-	private function preparar_guardado( $doc_id, $titulo, $transicion = '' ) {
+	private function prepare_save( $doc_id, $title, $transition = '' ) {
 		$_POST = array(
 			'documentate_app_accion' => 'guardar_documento',
 			'documentate_app_doc' => (string) $doc_id,
 			'documentate_app_nonce' => wp_create_nonce( 'documentate_app_guardar_' . $doc_id ),
-			'documentate_app_nombre' => $titulo,
-			'documentate_app_titulo' => $titulo,
+			'documentate_app_nombre' => $title,
+			'documentate_app_titulo' => $title,
 			'documentate_app_estado' => 'guardar',
 			'documentate_sections_nonce' => wp_create_nonce( 'documentate_sections_nonce' ),
 		);
 
-		if ( '' !== $transicion ) {
-			$_POST['documentate_app_transicion'] = $transicion;
+		if ( '' !== $transition ) {
+			$_POST['documentate_app_transicion'] = $transition;
 		}
 	}
 
@@ -275,8 +275,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * A scoped editor sees the documents of their scope and nothing else.
 	 */
 	public function test_scoped_editor_sees_only_their_scope() {
-		$dentro = $this->crear_documento( 'Documento dentro', $this->cat_scope );
-		$fuera = $this->crear_documento( 'Documento fuera', $this->cat_other );
+		$inside = $this->create_document( 'Documento dentro', $this->cat_scope );
+		$outside = $this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->editor_id );
 		$html = $this->app->render();
@@ -284,7 +284,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Documento dentro', $html );
 		$this->assertStringNotContainsString( 'Documento fuera', $html );
 		$this->assertStringContainsString( 'dcta-estado-borrador', $html );
-		unset( $dentro, $fuera );
+		unset( $inside, $outside );
 	}
 
 	/**
@@ -304,8 +304,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * Administrators see every document under the "all documents" heading.
 	 */
 	public function test_admin_sees_every_document() {
-		$this->crear_documento( 'Documento dentro', $this->cat_scope );
-		$this->crear_documento( 'Documento fuera', $this->cat_other );
+		$this->create_document( 'Documento dentro', $this->cat_scope );
+		$this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->admin_id );
 		$html = $this->app->render();
@@ -329,8 +329,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The status filter narrows the rows.
 	 */
 	public function test_status_filter_narrows_the_list() {
-		$this->crear_documento( 'Borrador visible', $this->cat_scope, 'draft' );
-		$this->crear_documento( 'Aprobado oculto', $this->cat_scope, 'publish' );
+		$this->create_document( 'Borrador visible', $this->cat_scope, 'draft' );
+		$this->create_document( 'Aprobado oculto', $this->cat_scope, 'publish' );
 
 		wp_set_current_user( $this->editor_id );
 		$_GET['estado'] = 'draft';
@@ -344,26 +344,26 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * A draft row leads to the in-app editor; a reviewed row leads to the detail.
 	 */
 	public function test_list_rows_link_to_editor_or_detail() {
-		$borrador = $this->crear_documento( 'Borrador continuar', $this->cat_scope, 'draft' );
-		$aprobado = $this->crear_documento( 'Aprobado ver', $this->cat_scope, 'publish' );
+		$draft = $this->create_document( 'Borrador continuar', $this->cat_scope, 'draft' );
+		$approved = $this->create_document( 'Aprobado ver', $this->cat_scope, 'publish' );
 
 		wp_set_current_user( $this->editor_id );
 		$html = $this->app->render();
 
-		$this->assertStringContainsString( 'doc=' . $borrador . '&#038;vista=editar', $html );
-		$this->assertStringNotContainsString( 'doc=' . $aprobado . '&#038;vista=editar', $html );
+		$this->assertStringContainsString( 'doc=' . $draft . '&#038;vista=editar', $html );
+		$this->assertStringNotContainsString( 'doc=' . $approved . '&#038;vista=editar', $html );
 	}
 
 	/**
 	 * The detail view shows an in-scope document and hides an out-of-scope one.
 	 */
 	public function test_detail_respects_scope() {
-		$dentro = $this->crear_documento( 'Documento dentro', $this->cat_scope );
-		$fuera = $this->crear_documento( 'Documento fuera', $this->cat_other );
+		$inside = $this->create_document( 'Documento dentro', $this->cat_scope );
+		$outside = $this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->editor_id );
 
-		$_GET['doc'] = (string) $dentro;
+		$_GET['doc'] = (string) $inside;
 		$html = $this->app->render();
 		$this->assertStringContainsString( 'Documento dentro', $html );
 		$this->assertStringNotContainsString( 'post.php', $html, 'Only administración is sent to wp-admin.' );
@@ -372,7 +372,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post.php', $this->app->render() );
 		wp_set_current_user( $this->editor_id );
 
-		$_GET['doc'] = (string) $fuera;
+		$_GET['doc'] = (string) $outside;
 		$html = $this->app->render();
 		$this->assertStringNotContainsString( 'Documento fuera', $html );
 		$this->assertStringContainsString( 'dcta-aviso', $html );
@@ -382,17 +382,17 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The detail offers the edit button for drafts only, and shows the sent notice.
 	 */
 	public function test_detail_offers_edit_for_drafts_and_shows_sent_notice() {
-		$borrador = $this->crear_documento( 'Borrador detalle', $this->cat_scope, 'draft' );
-		$pendiente = $this->crear_documento( 'Pendiente detalle', $this->cat_scope, 'pending' );
+		$draft = $this->create_document( 'Borrador detalle', $this->cat_scope, 'draft' );
+		$pending_doc = $this->create_document( 'Pendiente detalle', $this->cat_scope, 'pending' );
 
 		wp_set_current_user( $this->editor_id );
 
-		$_GET['doc'] = (string) $borrador;
+		$_GET['doc'] = (string) $draft;
 		$html = $this->app->render();
 		$this->assertStringContainsString( 'vista=editar', $html );
 		$this->assertStringNotContainsString( 'dcta-aviso-ok', $html );
 
-		$_GET['doc'] = (string) $pendiente;
+		$_GET['doc'] = (string) $pending_doc;
 		$_GET['enviado'] = '1';
 		$html = $this->app->render();
 		$this->assertStringNotContainsString( 'vista=editar', $html );
@@ -403,10 +403,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The detail summarises the stored fields: scalars, long values and repeater counts.
 	 */
 	public function test_detail_summarises_fields() {
-		$doc = $this->crear_documento( 'Propuesta detalle', $this->cat_scope, 'draft', $this->tipo_esquema_id );
+		$doc = $this->create_document( 'Propuesta detalle', $this->cat_scope, 'draft', $this->schema_type_id );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, 'Propuesta detalle' );
+		$this->prepare_save( $doc, 'Propuesta detalle' );
 		$_POST['documentate_field_asunto'] = 'Material para las aulas';
 		$_POST['documentate_field_cuerpo'] = '<p>' . str_repeat( 'Texto largo. ', 40 ) . '</p>';
 		$_POST['tpl_fields'] = array(
@@ -416,7 +416,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 				array( 'titulo' => 'Anexo III' ),
 			),
 		);
-		$this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
+		$this->capture_redirect( array( $this->app, 'handle_save_document' ) );
 
 		$_POST = array();
 		$_GET['doc'] = (string) $doc;
@@ -431,7 +431,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * A document whose type has no fields says so.
 	 */
 	public function test_detail_without_schema_shows_empty_fields_notice() {
-		$doc = $this->crear_documento( 'Sin campos', $this->cat_scope );
+		$doc = $this->create_document( 'Sin campos', $this->cat_scope );
 
 		wp_set_current_user( $this->editor_id );
 		$_GET['doc'] = (string) $doc;
@@ -478,9 +478,9 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$_POST['documentate_app_nonce'] = wp_create_nonce( 'documentate_app_crear' );
 		$_POST['documentate_app_titulo'] = 'PG · Material aulas';
 		$_POST['documentate_app_nombre'] = 'Material aulas';
-		$_POST['documentate_app_tipo'] = (string) $this->tipo_id;
+		$_POST['documentate_app_tipo'] = (string) $this->type_id;
 
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_create_document' ) );
+		$target = $this->capture_redirect( array( $this->app, 'handle_create_document' ) );
 
 		$posts = get_posts(
 			array(
@@ -492,13 +492,13 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $posts );
 
 		$doc = $posts[0];
-		$this->assertStringContainsString( 'vista=editar', $destino );
-		$this->assertStringContainsString( 'doc=' . $doc->ID, $destino );
+		$this->assertStringContainsString( 'vista=editar', $target );
+		$this->assertStringContainsString( 'doc=' . $doc->ID, $target );
 
-		$tipos = wp_get_post_terms( $doc->ID, 'documentate_doc_type', array( 'fields' => 'ids' ) );
-		$this->assertContains( $this->tipo_id, $tipos );
-		$this->assertSame( $this->tipo_id, absint( get_post_meta( $doc->ID, 'documentate_locked_doc_type', true ) ) );
-		$this->assertSame( 'Material aulas', Documentate_Documento::nombre_interno( $doc->ID ) );
+		$types = wp_get_post_terms( $doc->ID, 'documentate_doc_type', array( 'fields' => 'ids' ) );
+		$this->assertContains( $this->type_id, $types );
+		$this->assertSame( $this->type_id, absint( get_post_meta( $doc->ID, 'documentate_locked_doc_type', true ) ) );
+		$this->assertSame( 'Material aulas', Documentate_Document_Data::internal_name( $doc->ID ) );
 
 		// The scope fallback files the new document under the editor's scope.
 		$cats = wp_get_post_terms( $doc->ID, 'category', array( 'fields' => 'ids' ) );
@@ -516,10 +516,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$_POST['documentate_app_titulo'] = 'Sin tipo';
 		$_POST['documentate_app_tipo'] = '0';
 
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_create_document' ) );
+		$target = $this->capture_redirect( array( $this->app, 'handle_create_document' ) );
 
-		$this->assertStringContainsString( 'error=datos', $destino );
-		$this->assertStringContainsString( 'vista=nuevo', $destino );
+		$this->assertStringContainsString( 'error=datos', $target );
+		$this->assertStringContainsString( 'vista=nuevo', $target );
 	}
 
 	/**
@@ -539,7 +539,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The edit view draws the sections form with the schema fields.
 	 */
 	public function test_edit_view_renders_the_fields_form() {
-		$doc = $this->crear_documento( 'Propuesta editable', $this->cat_scope, 'draft', $this->tipo_esquema_id );
+		$doc = $this->create_document( 'Propuesta editable', $this->cat_scope, 'draft', $this->schema_type_id );
 
 		wp_set_current_user( $this->editor_id );
 		$_GET['doc'] = (string) $doc;
@@ -560,7 +560,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * Administrators editing a reviewed document get a plain save button.
 	 */
 	public function test_edit_view_for_admin_on_pending_document_keeps_status() {
-		$doc = $this->crear_documento( 'Pendiente admin', $this->cat_scope, 'pending' );
+		$doc = $this->create_document( 'Pendiente admin', $this->cat_scope, 'pending' );
 
 		wp_set_current_user( $this->admin_id );
 		$_GET['doc'] = (string) $doc;
@@ -571,10 +571,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'value="enviar_revision"', $html );
 		$this->assertStringContainsString( 'value="aprobar"', $html );
 
-		$this->preparar_guardado( $doc, 'Pendiente admin corregido' );
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
+		$this->prepare_save( $doc, 'Pendiente admin corregido' );
+		$target = $this->capture_redirect( array( $this->app, 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'guardado=1', $destino );
+		$this->assertStringContainsString( 'guardado=1', $target );
 		$this->assertSame( 'pending', get_post_status( $doc ) );
 		$this->assertSame( 'Pendiente admin corregido', get_post_field( 'post_title', $doc ) );
 	}
@@ -583,7 +583,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The edit view refuses a document the workflow has locked for this user.
 	 */
 	public function test_edit_view_of_locked_document_shows_notice() {
-		$doc = $this->crear_documento( 'Pendiente bloqueado', $this->cat_scope, 'pending' );
+		$doc = $this->create_document( 'Pendiente bloqueado', $this->cat_scope, 'pending' );
 
 		wp_set_current_user( $this->editor_id );
 		$_GET['doc'] = (string) $doc;
@@ -598,10 +598,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The edit view hides an out-of-scope document.
 	 */
 	public function test_edit_view_respects_scope() {
-		$fuera = $this->crear_documento( 'Documento fuera', $this->cat_other );
+		$outside = $this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->editor_id );
-		$_GET['doc'] = (string) $fuera;
+		$_GET['doc'] = (string) $outside;
 		$_GET['vista'] = 'editar';
 		$html = $this->app->render();
 
@@ -613,7 +613,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The edit view echoes the outcome of the previous save.
 	 */
 	public function test_edit_view_shows_feedback_flags() {
-		$doc = $this->crear_documento( 'Con avisos', $this->cat_scope );
+		$doc = $this->create_document( 'Con avisos', $this->cat_scope );
 
 		wp_set_current_user( $this->editor_id );
 		$_GET['doc'] = (string) $doc;
@@ -637,10 +637,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * Saving stores the title and the fields through the regular pipeline.
 	 */
 	public function test_save_document_handler_stores_fields_and_keeps_draft() {
-		$doc = $this->crear_documento( 'Propuesta guardar', $this->cat_scope, 'draft', $this->tipo_esquema_id );
+		$doc = $this->create_document( 'Propuesta guardar', $this->cat_scope, 'draft', $this->schema_type_id );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, 'Propuesta guardada' );
+		$this->prepare_save( $doc, 'Propuesta guardada' );
 		$_POST['documentate_field_asunto'] = 'Material para las aulas';
 		$_POST['tpl_fields'] = array(
 			'anexos' => array(
@@ -648,10 +648,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 			),
 		);
 
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
+		$target = $this->capture_redirect( array( $this->app, 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'guardado=1', $destino );
-		$this->assertStringContainsString( 'vista=editar', $destino );
+		$this->assertStringContainsString( 'guardado=1', $target );
+		$this->assertStringContainsString( 'vista=editar', $target );
 		$this->assertSame( 'draft', get_post_status( $doc ) );
 		$this->assertSame( 'Propuesta guardada', get_post_field( 'post_title', $doc ) );
 		$this->assertSame( 'Material para las aulas', get_post_meta( $doc, 'documentate_field_asunto', true ) );
@@ -665,15 +665,15 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * Sending a draft for review moves it to pending and lands on the detail.
 	 */
 	public function test_save_document_handler_sends_draft_for_review() {
-		$doc = $this->crear_documento( 'Propuesta enviar', $this->cat_scope, 'draft', $this->tipo_esquema_id );
+		$doc = $this->create_document( 'Propuesta enviar', $this->cat_scope, 'draft', $this->schema_type_id );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, 'Propuesta enviada', 'enviar_revision' );
+		$this->prepare_save( $doc, 'Propuesta enviada', 'enviar_revision' );
 
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
+		$target = $this->capture_redirect( array( $this->app, 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'enviado=1', $destino );
-		$this->assertStringNotContainsString( 'vista=editar', $destino );
+		$this->assertStringContainsString( 'enviado=1', $target );
+		$this->assertStringNotContainsString( 'vista=editar', $target );
 		$this->assertSame( 'pending', get_post_status( $doc ) );
 	}
 
@@ -681,33 +681,33 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * Saving without a title sends the user back with the title flag.
 	 */
 	public function test_save_document_handler_keeps_the_stored_title() {
-		$doc = $this->crear_documento( 'Propuesta sin título', $this->cat_scope );
-		Documentate_Documento::guardar_nombre_interno( $doc, 'Propuesta' );
+		$doc = $this->create_document( 'Propuesta sin título', $this->cat_scope );
+		Documentate_Document_Data::save_internal_name( $doc, 'Propuesta' );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, '   ' );
+		$this->prepare_save( $doc, '   ' );
 
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
+		$target = $this->capture_redirect( array( $this->app, 'handle_save_document' ) );
 
 		// An empty box falls back to what the document already has: the save
 		// goes through and the title survives.
-		$this->assertStringContainsString( 'guardado=1', $destino );
+		$this->assertStringContainsString( 'guardado=1', $target );
 		$this->assertSame( 'Propuesta sin título', get_post_field( 'post_title', $doc ) );
-		$this->assertSame( 'Propuesta', Documentate_Documento::nombre_interno( $doc ) );
+		$this->assertSame( 'Propuesta', Documentate_Document_Data::internal_name( $doc ) );
 	}
 
 	/**
 	 * A non-admin cannot save a document the workflow has locked.
 	 */
 	public function test_save_document_handler_refuses_locked_document() {
-		$doc = $this->crear_documento( 'Pendiente guardar', $this->cat_scope, 'pending' );
+		$doc = $this->create_document( 'Pendiente guardar', $this->cat_scope, 'pending' );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, 'Intento de cambio' );
+		$this->prepare_save( $doc, 'Intento de cambio' );
 
-		$destino = $this->capturar_redireccion( array( $this->app, 'handle_save_document' ) );
+		$target = $this->capture_redirect( array( $this->app, 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'error=bloqueado', $destino );
+		$this->assertStringContainsString( 'error=bloqueado', $target );
 		$this->assertSame( 'Pendiente guardar', get_post_field( 'post_title', $doc ) );
 	}
 
@@ -715,10 +715,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The save handler rejects a bad nonce.
 	 */
 	public function test_save_document_handler_rejects_bad_nonce() {
-		$doc = $this->crear_documento( 'Propuesta nonce', $this->cat_scope );
+		$doc = $this->create_document( 'Propuesta nonce', $this->cat_scope );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $doc, 'Propuesta nonce' );
+		$this->prepare_save( $doc, 'Propuesta nonce' );
 		$_POST['documentate_app_nonce'] = 'nope';
 
 		$this->expectException( 'WPDieException' );
@@ -729,10 +729,10 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The save handler rejects a document outside the user's scope.
 	 */
 	public function test_save_document_handler_rejects_out_of_scope_document() {
-		$fuera = $this->crear_documento( 'Documento fuera', $this->cat_other );
+		$outside = $this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->editor_id );
-		$this->preparar_guardado( $fuera, 'Documento fuera cambiado' );
+		$this->prepare_save( $outside, 'Documento fuera cambiado' );
 
 		$this->expectException( 'WPDieException' );
 		$this->app->handle_save_document();
@@ -773,7 +773,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	 * The stylesheet loads on the app page; the editor only on the edit view.
 	 */
 	public function test_enqueue_assets_loads_editor_only_on_edit_view() {
-		$doc = $this->crear_documento( 'Propuesta assets', $this->cat_scope );
+		$doc = $this->create_document( 'Propuesta assets', $this->cat_scope );
 		wp_set_current_user( $this->editor_id );
 
 		$this->go_to( home_url( '/' ) );
@@ -784,12 +784,12 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->app->enqueue_assets();
 		$this->assertTrue( wp_style_is( 'documentate-app', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'documentate-annexes', 'enqueued' ) );
-		$this->assertFalse( wp_script_is( 'documentate-calculos', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'documentate-calculations', 'enqueued' ) );
 
-		$this->go_to( Documentate_App_Editar::url( $doc ) );
+		$this->go_to( Documentate_App_Edit::url( $doc ) );
 		$this->app->enqueue_assets();
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'documentate-calculos', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-calculations', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'editor', 'enqueued' ) );
 	}
 
@@ -807,34 +807,34 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	/**
 	 * The role chip names the role and, for área users, their scope.
 	 */
-	public function test_rol_reflects_the_user() {
+	public function test_role_reflects_the_user() {
 		wp_set_current_user( $this->admin_id );
-		$this->assertSame( 'Administración', Documentate_App_Shell::rol() );
+		$this->assertSame( 'Administración', Documentate_App_Shell::role() );
 
 		// An editor carries the gestión capability.
 		wp_set_current_user( $this->editor_id );
-		$this->assertSame( 'Gestión documental', Documentate_App_Shell::rol() );
+		$this->assertSame( 'Gestión documental', Documentate_App_Shell::role() );
 
 		// An author is área: the chip names their scope.
-		$autor = self::factory()->user->create( array( 'role' => 'author' ) );
-		update_user_meta( $autor, 'documentate_scope_term_id', $this->cat_scope );
-		wp_set_current_user( $autor );
-		$this->assertSame( 'Área · Ámbito App', Documentate_App_Shell::rol() );
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		update_user_meta( $author, 'documentate_scope_term_id', $this->cat_scope );
+		wp_set_current_user( $author );
+		$this->assertSame( 'Área · Ámbito App', Documentate_App_Shell::role() );
 
-		delete_user_meta( $autor, 'documentate_scope_term_id' );
-		$this->assertSame( 'Edición', Documentate_App_Shell::rol() );
+		delete_user_meta( $author, 'documentate_scope_term_id' );
+		$this->assertSame( 'Edición', Documentate_App_Shell::role() );
 	}
 
 	/**
 	 * Status chips map every workflow status.
 	 */
-	public function test_estado_chip_maps_statuses() {
-		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::estado_chip( 'draft' )['clase'] );
-		$this->assertSame( 'dcta-estado dcta-estado-pendiente', Documentate_App_Shell::estado_chip( 'pending' )['clase'] );
-		$this->assertSame( 'dcta-estado dcta-estado-gestion', Documentate_App_Shell::estado_chip( 'en_gestion' )['clase'] );
-		$this->assertSame( 'En gestión', Documentate_App_Shell::estado_chip( 'en_gestion' )['texto'] );
-		$this->assertSame( 'dcta-estado dcta-estado-aprobado', Documentate_App_Shell::estado_chip( 'publish' )['clase'] );
-		$this->assertSame( 'dcta-estado dcta-estado-archivado', Documentate_App_Shell::estado_chip( 'archived' )['clase'] );
-		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::estado_chip( 'unknown' )['clase'] );
+	public function test_status_chip_maps_statuses() {
+		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::status_chip( 'draft' )['class'] );
+		$this->assertSame( 'dcta-estado dcta-estado-pendiente', Documentate_App_Shell::status_chip( 'pending' )['class'] );
+		$this->assertSame( 'dcta-estado dcta-estado-gestion', Documentate_App_Shell::status_chip( 'en_gestion' )['class'] );
+		$this->assertSame( 'En gestión', Documentate_App_Shell::status_chip( 'en_gestion' )['text'] );
+		$this->assertSame( 'dcta-estado dcta-estado-aprobado', Documentate_App_Shell::status_chip( 'publish' )['class'] );
+		$this->assertSame( 'dcta-estado dcta-estado-archivado', Documentate_App_Shell::status_chip( 'archived' )['class'] );
+		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::status_chip( 'unknown' )['class'] );
 	}
 }

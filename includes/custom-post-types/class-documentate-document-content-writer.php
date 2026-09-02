@@ -357,7 +357,7 @@ class Documentate_Document_Content_Writer {
 
 			$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
 			$known_slugs[ $slug ] = true;
-			$visible = Documentate_Campos_Rol::puede_ver( (array) $row );
+			$visible = Documentate_Field_Roles::can_view( (array) $row );
 
 			// A field the user cannot write keeps the value the database
 			// holds, never the one the request happens to carry.
@@ -423,8 +423,8 @@ class Documentate_Document_Content_Writer {
 	/**
 	 * Preserve post dates for existing documents.
 	 *
-	 * @param array<string,mixed> $data      Post data array.
-	 * @param int                 $post_id   Post ID.
+	 * @param array<string,mixed> $data    Post data array.
+	 * @param int                 $post_id Post ID.
 	 * @return array<string,mixed>
 	 */
 	private static function preserve_document_dates( $data, $post_id ) {
@@ -506,7 +506,7 @@ class Documentate_Document_Content_Writer {
 			$type = isset( $settings['type'] ) ? $settings['type'] : 'textarea';
 			$previous = isset( $stored[ $key ] ) ? $stored[ $key ] : null;
 
-			if ( ! Documentate_Campos_Rol::puede_ver( (array) $settings ) ) {
+			if ( ! Documentate_Field_Roles::can_view( (array) $settings ) ) {
 				$filtered[ $key ] = Documentate_Document_Save_Context::column( $previous, $type );
 				continue;
 			}

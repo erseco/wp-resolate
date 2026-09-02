@@ -27,7 +27,7 @@ class Documentate_Demo_App {
 	 *
 	 * @var string
 	 */
-	const META_MARCA = '_documentate_demo_app';
+	const META_MARK = '_documentate_demo_app';
 
 	/**
 	 * The smallest valid PDF the mime check accepts, for the one PDF attachment.
@@ -49,7 +49,7 @@ class Documentate_Demo_App {
 	 *
 	 * @return void
 	 */
-	public static function asegurar_entorno() {
+	public static function ensure_environment() {
 		if ( ! Documentate_Demo_Data::should_allow_demo_seeding() ) {
 			return;
 		}
@@ -95,18 +95,18 @@ class Documentate_Demo_App {
 			return array();
 		}
 
-		self::asegurar_entorno();
+		self::ensure_environment();
 
-		$usuario_anterior = get_current_user_id();
+		$previous_user = get_current_user_id();
 		add_filter( 'documentate_suspend_notifications', '__return_true' );
 		try {
 			$ids = array();
-			foreach ( self::documentos() as $definicion ) {
-				$ids[] = self::crear_si_falta( $definicion );
+			foreach ( self::documents() as $definition ) {
+				$ids[] = self::create_if_missing( $definition );
 			}
 		} finally {
 			remove_filter( 'documentate_suspend_notifications', '__return_true' );
-			wp_set_current_user( $usuario_anterior );
+			wp_set_current_user( $previous_user );
 		}
 
 		return array_values( array_filter( $ids ) );
@@ -126,14 +126,14 @@ class Documentate_Demo_App {
 			return array();
 		}
 
-		$usuario_anterior = get_current_user_id();
+		$previous_user = get_current_user_id();
 		try {
 			foreach ( self::demo_document_ids() as $post_id ) {
-				self::borrar_adjuntos( $post_id );
+				self::delete_attachments( $post_id );
 				wp_delete_post( $post_id, true );
 			}
 		} finally {
-			wp_set_current_user( $usuario_anterior );
+			wp_set_current_user( $previous_user );
 		}
 
 		return self::seed();
@@ -145,8 +145,8 @@ class Documentate_Demo_App {
 	 * @param int $post_id Document ID.
 	 * @return void
 	 */
-	private static function borrar_adjuntos( $post_id ) {
-		$hijos = get_children(
+	private static function delete_attachments( $post_id ) {
+		$children = get_children(
 			array(
 				'post_parent' => $post_id,
 				'post_type' => 'attachment',
@@ -154,7 +154,7 @@ class Documentate_Demo_App {
 			)
 		);
 
-		foreach ( $hijos as $attachment_id ) {
+		foreach ( $children as $attachment_id ) {
 			wp_delete_attachment( $attachment_id, true );
 		}
 	}
@@ -165,27 +165,27 @@ class Documentate_Demo_App {
 	 *
 	 * Seeding must be able to put a document in any state regardless of who
 	 * runs it (WP-CLI with no logged-in user, a test, an anonymous first
-	 * request), so this bypasses Documentate_Transiciones::permitida() the same
-	 * way Documentate_Transiciones::aplicar() does: by flagging the change as
+	 * request), so this bypasses Documentate_Transitions::allowed() the same
+	 * way Documentate_Transitions::apply() does: by flagging the change as
 	 * already in progress before calling wp_update_post().
 	 *
 	 * @param int        $post_id  Document ID.
 	 * @param string     $status   Destination status.
-	 * @param array|null $devuelto Devuelto payload (motivo, desde, a), or null to clear the mark.
+	 * @param array|null $returned Devuelto payload (motivo, desde, a), or null to clear the mark.
 	 * @return void
 	 */
-	public static function poner_estado( $post_id, $status, $devuelto = null ) {
+	public static function set_status( $post_id, $status, $returned = null ) {
 		if ( ! Documentate_Demo_Data::should_allow_demo_seeding() ) {
 			return;
 		}
 
-		if ( null === $devuelto ) {
-			Documentate_Documento::limpiar_devuelto( $post_id );
+		if ( null === $returned ) {
+			Documentate_Document_Data::clear_returned( $post_id );
 		} else {
-			Documentate_Documento::marcar_devuelto( $post_id, $devuelto['motivo'], $devuelto['desde'], $devuelto['a'] );
+			Documentate_Document_Data::mark_returned( $post_id, $returned['motivo'], $returned['desde'], $returned['a'] );
 		}
 
-		self::forzar_estado( $post_id, $status );
+		self::force_status( $post_id, $status );
 	}
 
 	/**
@@ -193,8 +193,8 @@ class Documentate_Demo_App {
 	 *
 	 * Two independent gates would otherwise stand in the way of a status
 	 * change nobody asked for through the real workflow: Rule 0 of
-	 * Documentate_Workflow, which Documentate_Transiciones::$en_curso (private;
-	 * reflection sets it the same way aplicar() does) tells to let the change
+	 * Documentate_Workflow, which Documentate_Transitions::$in_progress (private;
+	 * reflection sets it the same way apply() does) tells to let the change
 	 * through, and freeze_locked_document_data(), which reverts the whole save
 	 * when the CURRENT user may not modify the document's CURRENT status.
 	 * Seeding must not depend on who that happens to be (WP-CLI with nobody
@@ -205,13 +205,13 @@ class Documentate_Demo_App {
 	 * @param string $status  Destination status.
 	 * @return void
 	 */
-	private static function forzar_estado( $post_id, $status ) {
-		$en_curso = new ReflectionProperty( Documentate_Transiciones::class, 'en_curso' );
-		$en_curso->setAccessible( true );
-		$en_curso_anterior = $en_curso->getValue();
-		$en_curso->setValue( null, array( (int) $post_id, (string) $status, '' ) );
+	private static function force_status( $post_id, $status ) {
+		$in_progress = new ReflectionProperty( Documentate_Transitions::class, 'in_progress' );
+		$in_progress->setAccessible( true );
+		$previous_in_progress = $in_progress->getValue();
+		$in_progress->setValue( null, array( (int) $post_id, (string) $status, '' ) );
 
-		$usuario_anterior = get_current_user_id();
+		$previous_user = get_current_user_id();
 		wp_set_current_user( self::admin_id() );
 
 		try {
@@ -223,83 +223,83 @@ class Documentate_Demo_App {
 				true
 			);
 		} finally {
-			wp_set_current_user( $usuario_anterior );
-			$en_curso->setValue( null, $en_curso_anterior );
+			wp_set_current_user( $previous_user );
+			$in_progress->setValue( null, $previous_in_progress );
 		}
 	}
 
 	/**
-	 * Run one transition of Documentate_Transiciones' rule table on a demo
+	 * Run one transition of Documentate_Transitions' rule table on a demo
 	 * document, impersonating the actor and recording the same event text and
-	 * "devuelto" mark aplicar() would have written.
+	 * "devuelto" mark apply() would have written.
 	 *
 	 * @param int    $post_id Document ID.
 	 * @param string $actor   Demo login of whoever performs the move ("admin", "editor1", "author1").
-	 * @param string $clave   Rule key from Documentate_Transiciones::reglas().
-	 * @param string $desde   Stored status the rule starts from (disambiguates "devolver_area").
-	 * @param string $motivo  Reason, required by return rules.
+	 * @param string $key     Rule key from Documentate_Transitions::rules().
+	 * @param string $from    Stored status the rule starts from (disambiguates "devolver_area").
+	 * @param string $reason  Reason, required by return rules.
 	 * @return void
 	 */
-	private static function mover( $post_id, $actor, $clave, $desde, $motivo = '' ) {
-		$regla = Documentate_Transiciones::regla( $clave, $desde );
-		if ( null === $regla ) {
+	private static function move( $post_id, $actor, $key, $from, $reason = '' ) {
+		$rule = Documentate_Transitions::rule( $key, $from );
+		if ( null === $rule ) {
 			return;
 		}
 
-		wp_set_current_user( self::usuario_id( $actor ) );
+		wp_set_current_user( self::user_id_for_login( $actor ) );
 
-		$devuelto = null;
-		$texto_evento = (string) $regla['evento'];
-		if ( $regla['motivo'] ) {
-			$devuelto = array(
-				'motivo' => $motivo,
-				'desde' => 'pending' === $desde ? 'administracion' : 'gestion',
-				'a' => 'en_gestion' === $regla['destino'] ? 'gestion' : 'area',
+		$returned = null;
+		$event_text = (string) $rule['event'];
+		if ( $rule['reason'] ) {
+			$returned = array(
+				'motivo' => $reason,
+				'desde' => 'pending' === $from ? 'administracion' : 'gestion',
+				'a' => 'en_gestion' === $rule['target'] ? 'gestion' : 'area',
 			);
-			$texto_evento .= ': «' . $motivo . '»';
+			$event_text .= ': «' . $reason . '»';
 		}
 
-		Documentate_Demo_App_Reloj::registrar_evento( $post_id, $texto_evento, $motivo );
-		self::poner_estado( $post_id, (string) $regla['destino'], $devuelto );
+		Documentate_Demo_App_Clock::record_event( $post_id, $event_text, $reason );
+		self::set_status( $post_id, (string) $rule['target'], $returned );
 	}
 
 	/**
 	 * Create one demo document (with its fields, attachment, steps and
 	 * comment) unless a marked document of that title already exists.
 	 *
-	 * @param array $doc Document definition (see documentos()).
+	 * @param array $doc Document definition (see documents()).
 	 * @return int Document ID, or 0 when it could not be created.
 	 */
-	private static function crear_si_falta( array $doc ) {
-		$existente = self::buscar_por_titulo( $doc['titulo'] );
-		if ( $existente > 0 ) {
-			return $existente;
+	private static function create_if_missing( array $doc ) {
+		$existing = self::find_by_title( $doc['title'] );
+		if ( $existing > 0 ) {
+			return $existing;
 		}
 
-		Documentate_Demo_App_Reloj::iniciar( $doc );
+		Documentate_Demo_App_Clock::start( $doc );
 
-		$post_id = self::crear_documento( $doc );
+		$post_id = self::create_document( $doc );
 		if ( $post_id <= 0 ) {
 			return 0;
 		}
 
-		if ( isset( $doc['adjunto'] ) ) {
-			self::adjuntar( $post_id, $doc['adjunto'], $doc['autor'] );
+		if ( isset( $doc['attachment'] ) ) {
+			self::attach( $post_id, $doc['attachment'], $doc['author'] );
 		}
 
-		foreach ( $doc['pasos'] as $paso ) {
-			self::mover( $post_id, $paso['actor'], $paso['clave'], $paso['desde'], isset( $paso['motivo'] ) ? $paso['motivo'] : '' );
+		foreach ( $doc['steps'] as $step ) {
+			self::move( $post_id, $step['actor'], $step['key'], $step['from'], isset( $step['reason'] ) ? $step['reason'] : '' );
 		}
 
-		if ( isset( $doc['devuelto_directo'] ) ) {
-			self::devolver_sin_transicion( $post_id, $doc['devuelto_directo'] );
+		if ( isset( $doc['returned_directly'] ) ) {
+			self::return_without_transition( $post_id, $doc['returned_directly'] );
 		}
 
-		if ( isset( $doc['comentario'] ) ) {
-			wp_set_current_user( self::usuario_id( $doc['comentario']['actor'] ) );
-			$comentario_id = Documentate_Actividad::comentar( $post_id, $doc['comentario']['texto'] );
-			if ( ! is_wp_error( $comentario_id ) ) {
-				Documentate_Demo_App_Reloj::marcar( (int) $comentario_id );
+		if ( isset( $doc['comment'] ) ) {
+			wp_set_current_user( self::user_id_for_login( $doc['comment']['actor'] ) );
+			$comment_id = Documentate_Activity::add_comment( $post_id, $doc['comment']['text'] );
+			if ( ! is_wp_error( $comment_id ) ) {
+				Documentate_Demo_App_Clock::mark( (int) $comment_id );
 			}
 		}
 
@@ -314,23 +314,23 @@ class Documentate_Demo_App {
 	 * not a move the rule table has a row for.
 	 *
 	 * @param int   $post_id Document ID.
-	 * @param array $datos   actor, motivo.
+	 * @param array $data    actor, motivo.
 	 * @return void
 	 */
-	private static function devolver_sin_transicion( $post_id, array $datos ) {
-		wp_set_current_user( self::usuario_id( $datos['actor'] ) );
+	private static function return_without_transition( $post_id, array $data ) {
+		wp_set_current_user( self::user_id_for_login( $data['actor'] ) );
 
-		Documentate_Demo_App_Reloj::registrar_evento(
+		Documentate_Demo_App_Clock::record_event(
 			$post_id,
-			'devolvió el documento al área: «' . $datos['motivo'] . '»',
-			$datos['motivo']
+			'devolvió el documento al área: «' . $data['reason'] . '»',
+			$data['reason']
 		);
 
-		self::poner_estado(
+		self::set_status(
 			$post_id,
 			'draft',
 			array(
-				'motivo' => $datos['motivo'],
+				'motivo' => $data['reason'],
 				'desde' => 'gestion',
 				'a' => 'area',
 			)
@@ -341,23 +341,23 @@ class Documentate_Demo_App {
 	 * Create the draft post of a demo document: type, internal name, área,
 	 * fields and post_content.
 	 *
-	 * @param array $doc Document definition (see documentos()).
+	 * @param array $doc Document definition (see documents()).
 	 * @return int Document ID, or 0 when the type is missing or creation failed.
 	 */
-	private static function crear_documento( array $doc ) {
-		$termino = get_term_by( 'slug', $doc['tipo'], 'documentate_doc_type' );
-		if ( ! $termino instanceof WP_Term ) {
+	private static function create_document( array $doc ) {
+		$term = get_term_by( 'slug', $doc['type'], 'documentate_doc_type' );
+		if ( ! $term instanceof WP_Term ) {
 			return 0;
 		}
 
-		$actor_id = self::usuario_id( $doc['autor'] );
+		$actor_id = self::user_id_for_login( $doc['author'] );
 		wp_set_current_user( $actor_id );
 
 		$post_id = wp_insert_post(
 			array(
 				'post_type' => 'documentate_document',
 				'post_status' => 'draft',
-				'post_title' => $doc['titulo'],
+				'post_title' => $doc['title'],
 				'post_author' => $actor_id,
 			),
 			true
@@ -366,31 +366,31 @@ class Documentate_Demo_App {
 			return 0;
 		}
 
-		wp_set_post_terms( $post_id, array( $termino->term_id ), 'documentate_doc_type', false );
-		Documentate_Documento::guardar_nombre_interno( $post_id, $doc['nombre'] );
-		update_post_meta( $post_id, self::META_MARCA, '1' );
-		self::asignar_area( $post_id, isset( $doc['area'] ) ? $doc['area'] : '' );
+		wp_set_post_terms( $post_id, array( $term->term_id ), 'documentate_doc_type', false );
+		Documentate_Document_Data::save_internal_name( $post_id, $doc['name'] );
+		update_post_meta( $post_id, self::META_MARK, '1' );
+		self::assign_area( $post_id, isset( $doc['area'] ) ? $doc['area'] : '' );
 
-		$campos = self::rellenar_campos(
+		$fields = self::fill_fields(
 			$post_id,
-			$termino->term_id,
-			$doc['titulo'],
-			! empty( $doc['gestion'] ),
-			isset( $doc['omitir'] ) ? $doc['omitir'] : array(),
-			isset( $doc['forzar'] ) ? $doc['forzar'] : array()
+			$term->term_id,
+			$doc['title'],
+			! empty( $doc['management'] ),
+			isset( $doc['skip'] ) ? $doc['skip'] : array(),
+			isset( $doc['force'] ) ? $doc['force'] : array()
 		);
 
-		$contenido = Documentate_Demo_Data::build_structured_demo_content( $campos );
-		if ( '' !== $contenido ) {
+		$content = Documentate_Demo_Data::build_structured_demo_content( $fields );
+		if ( '' !== $content ) {
 			wp_update_post(
 				array(
 					'ID' => $post_id,
-					'post_content' => $contenido,
+					'post_content' => $content,
 				)
 			);
 		}
 
-		Documentate_Demo_App_Reloj::registrar_evento( $post_id, 'creó el borrador' );
+		Documentate_Demo_App_Clock::record_event( $post_id, 'creó el borrador' );
 
 		return $post_id;
 	}
@@ -399,17 +399,17 @@ class Documentate_Demo_App {
 	 * Assign a document to its área (category), by name.
 	 *
 	 * @param int    $post_id Document ID.
-	 * @param string $nombre  Category name; empty leaves the document uncategorised.
+	 * @param string $name    Category name; empty leaves the document uncategorised.
 	 * @return void
 	 */
-	private static function asignar_area( $post_id, $nombre ) {
-		if ( '' === $nombre ) {
+	private static function assign_area( $post_id, $name ) {
+		if ( '' === $name ) {
 			return;
 		}
 
-		$termino = get_term_by( 'name', $nombre, 'category' );
-		if ( $termino instanceof WP_Term ) {
-			wp_set_post_terms( $post_id, array( $termino->term_id ), 'category', false );
+		$term = get_term_by( 'name', $name, 'category' );
+		if ( $term instanceof WP_Term ) {
+			wp_set_post_terms( $post_id, array( $term->term_id ), 'category', false );
 		}
 	}
 
@@ -418,29 +418,29 @@ class Documentate_Demo_App {
 	 * schema with plausible content, storing meta the same way the sections
 	 * metabox would.
 	 *
-	 * @param int    $post_id         Document ID.
-	 * @param int    $term_id         Document type term ID.
-	 * @param string $titulo          Official title (generator context).
-	 * @param bool   $incluir_gestion Whether to also fill the gestión rows.
-	 * @param array  $omitir          Slugs to skip entirely (left unset).
-	 * @param array  $forzar          Slug => structured entry overrides/additions, applied last.
+	 * @param int    $post_id            Document ID.
+	 * @param int    $term_id            Document type term ID.
+	 * @param string $title              Official title (generator context).
+	 * @param bool   $include_management Whether to also fill the gestión rows.
+	 * @param array  $skip               Slugs to skip entirely (left unset).
+	 * @param array  $force              Slug => structured entry overrides/additions, applied last.
 	 * @return array<string,array{type:string,value:string}> Structured fields, for post_content.
 	 */
-	private static function rellenar_campos( $post_id, $term_id, $titulo, $incluir_gestion, array $omitir, array $forzar ) {
-		$grupos = Documentate_Campos_Rol::agrupar( Documentate_Documents::get_term_schema( $term_id ) );
-		$contexto = array( 'document_title' => $titulo );
+	private static function fill_fields( $post_id, $term_id, $title, $include_management, array $skip, array $force ) {
+		$groups = Documentate_Field_Roles::group_by_role( Documentate_Documents::get_term_schema( $term_id ) );
+		$context = array( 'document_title' => $title );
 
-		$campos = self::rellenar_filas( $post_id, $grupos[ Documentate_Campos_Rol::ROL_AREA ], $contexto, $omitir );
-		if ( $incluir_gestion ) {
-			$campos += self::rellenar_filas( $post_id, $grupos[ Documentate_Campos_Rol::ROL_GESTION ], $contexto, $omitir );
+		$fields = self::fill_rows( $post_id, $groups[ Documentate_Field_Roles::ROLE_AREA ], $context, $skip );
+		if ( $include_management ) {
+			$fields += self::fill_rows( $post_id, $groups[ Documentate_Field_Roles::ROLE_MANAGEMENT ], $context, $skip );
 		}
 
-		foreach ( $forzar as $slug => $entrada ) {
-			update_post_meta( $post_id, 'documentate_field_' . $slug, $entrada['value'] );
-			$campos[ $slug ] = $entrada;
+		foreach ( $force as $slug => $entry ) {
+			update_post_meta( $post_id, 'documentate_field_' . $slug, $entry['value'] );
+			$fields[ $slug ] = $entry;
 		}
 
-		return $campos;
+		return $fields;
 	}
 
 	/**
@@ -449,47 +449,47 @@ class Documentate_Demo_App {
 	 * Reuses Documentate_Demo_Data's public generators, the same ones the
 	 * plugin's other demo documents are built from.
 	 *
-	 * @param int   $post_id  Document ID.
-	 * @param array $filas    Schema rows (legacy shape, one rol group).
-	 * @param array $contexto Generator context (document_title).
-	 * @param array $omitir   Slugs to skip entirely.
+	 * @param int   $post_id Document ID.
+	 * @param array $rows    Schema rows (legacy shape, one rol group).
+	 * @param array $context Generator context (document_title).
+	 * @param array $skip    Slugs to skip entirely.
 	 * @return array<string,array{type:string,value:string}>
 	 */
-	private static function rellenar_filas( $post_id, array $filas, array $contexto, array $omitir ) {
-		$campos = array();
+	private static function fill_rows( $post_id, array $rows, array $context, array $skip ) {
+		$fields = array();
 
-		foreach ( $filas as $fila ) {
-			$slug = isset( $fila['slug'] ) ? sanitize_key( $fila['slug'] ) : '';
-			if ( '' === $slug || in_array( $slug, $omitir, true ) ) {
+		foreach ( $rows as $row ) {
+			$slug = isset( $row['slug'] ) ? sanitize_key( $row['slug'] ) : '';
+			if ( '' === $slug || in_array( $slug, $skip, true ) ) {
 				continue;
 			}
 
-			$entrada = self::valor_de_fila( $slug, $fila, $contexto );
-			if ( null === $entrada ) {
+			$entry = self::row_value( $slug, $row, $context );
+			if ( null === $entry ) {
 				continue;
 			}
 
-			update_post_meta( $post_id, 'documentate_field_' . $slug, $entrada['value'] );
-			$campos[ $slug ] = $entrada;
+			update_post_meta( $post_id, 'documentate_field_' . $slug, $entry['value'] );
+			$fields[ $slug ] = $entry;
 		}
 
-		return $campos;
+		return $fields;
 	}
 
 	/**
 	 * Build the structured entry (type + sanitised value) of one schema row.
 	 *
-	 * @param string $slug     Field slug.
-	 * @param array  $fila     Schema row (legacy shape).
-	 * @param array  $contexto Generator context.
+	 * @param string $slug    Field slug.
+	 * @param array  $row     Schema row (legacy shape).
+	 * @param array  $context Generator context.
 	 * @return array{type:string,value:string}|null Null for an empty repeater.
 	 */
-	private static function valor_de_fila( $slug, array $fila, array $contexto ) {
-		$type = isset( $fila['type'] ) ? sanitize_key( $fila['type'] ) : 'textarea';
+	private static function row_value( $slug, array $row, array $context ) {
+		$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
 
 		if ( 'array' === $type ) {
-			$item_schema = isset( $fila['item_schema'] ) && is_array( $fila['item_schema'] ) ? $fila['item_schema'] : array();
-			$items = Documentate_Demo_Data::generate_demo_array_items( $slug, $item_schema, $contexto );
+			$item_schema = isset( $row['item_schema'] ) && is_array( $row['item_schema'] ) ? $row['item_schema'] : array();
+			$items = Documentate_Demo_Data::generate_demo_array_items( $slug, $item_schema, $context );
 			if ( empty( $items ) ) {
 				return null;
 			}
@@ -504,20 +504,20 @@ class Documentate_Demo_App {
 			$type = 'textarea';
 		}
 
-		$data_type = isset( $fila['data_type'] ) ? sanitize_key( $fila['data_type'] ) : 'text';
-		$valor = Documentate_Demo_Data::generate_demo_scalar_value( $slug, $type, $data_type, 1, $contexto );
+		$data_type = isset( $row['data_type'] ) ? sanitize_key( $row['data_type'] ) : 'text';
+		$value = Documentate_Demo_Data::generate_demo_scalar_value( $slug, $type, $data_type, 1, $context );
 
 		if ( 'rich' === $type ) {
-			$valor = wp_kses_post( $valor );
+			$value = wp_kses_post( $value );
 		} elseif ( 'single' === $type ) {
-			$valor = sanitize_text_field( $valor );
+			$value = sanitize_text_field( $value );
 		} else {
-			$valor = sanitize_textarea_field( $valor );
+			$value = sanitize_textarea_field( $value );
 		}
 
 		return array(
 			'type' => $type,
-			'value' => $valor,
+			'value' => $value,
 		);
 	}
 
@@ -529,21 +529,21 @@ class Documentate_Demo_App {
 	 * @param string $actor   Demo login of the uploader.
 	 * @return void
 	 */
-	private static function adjuntar( $post_id, array $fixture, $actor ) {
-		wp_set_current_user( self::usuario_id( $actor ) );
+	private static function attach( $post_id, array $fixture, $actor ) {
+		wp_set_current_user( self::user_id_for_login( $actor ) );
 
-		$archivo = self::archivo_temporal( $fixture );
-		if ( null === $archivo ) {
+		$file = self::temp_file( $fixture );
+		if ( null === $file ) {
 			return;
 		}
 
-		$resultado = Documentate_App_Adjuntos::guardar( $post_id, $archivo );
-		if ( ! is_wp_error( $resultado ) ) {
-			// guardar() records its own "adjuntó el fichero" event internally
+		$result = Documentate_App_Attachments::store( $post_id, $file );
+		if ( ! is_wp_error( $result ) ) {
+			// store() records its own "adjuntó el fichero" event internally
 			// and does not hand back its comment ID, so the freshest event of
 			// this document (by ID, not by date — its date is what we are
 			// about to change) is backdated onto the demo clock.
-			Documentate_Demo_App_Reloj::marcar( Documentate_Demo_App_Reloj::ultimo_evento_id( $post_id ) );
+			Documentate_Demo_App_Clock::mark( Documentate_Demo_App_Clock::last_event_id( $post_id ) );
 		}
 	}
 
@@ -554,32 +554,32 @@ class Documentate_Demo_App {
 	 *                       fixtures/ filename to copy for an ODT/DOCX), nombre.
 	 * @return array<string,mixed>|null Null when the source file is unreadable.
 	 */
-	private static function archivo_temporal( array $fixture ) {
-		if ( 'pdf' === $fixture['tipo'] ) {
-			$contenido = self::PDF_DEMO;
+	private static function temp_file( array $fixture ) {
+		if ( 'pdf' === $fixture['type'] ) {
+			$content = self::PDF_DEMO;
 			$mime = 'application/pdf';
 		} else {
-			$origen = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'fixtures/' . $fixture['tipo'];
-			if ( ! file_exists( $origen ) ) {
+			$source = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'fixtures/' . $fixture['type'];
+			if ( ! file_exists( $source ) ) {
 				return null;
 			}
-			$contenido = file_get_contents( $origen ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_get_contents -- Reading a bundled fixture, not user input.
+			$content = file_get_contents( $source ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_get_contents -- Reading a bundled fixture, not user input.
 			$mime = 'application/vnd.oasis.opendocument.text';
 		}
 
-		if ( false === $contenido ) {
+		if ( false === $content ) {
 			return null;
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
-		$tmp = wp_tempnam( $fixture['nombre'] );
+		$tmp = wp_tempnam( $fixture['name'] );
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Writing a temp copy of a bundled fixture, not user input.
-		if ( ! $tmp || false === file_put_contents( $tmp, $contenido ) ) {
+		if ( ! $tmp || false === file_put_contents( $tmp, $content ) ) {
 			return null;
 		}
 
 		return array(
-			'name' => $fixture['nombre'],
+			'name' => $fixture['name'],
 			'type' => $mime,
 			'tmp_name' => $tmp,
 			'error' => 0,
@@ -596,14 +596,14 @@ class Documentate_Demo_App {
 	 * @param string $login Demo login.
 	 * @return int User ID, or 0 when it cannot be resolved.
 	 */
-	private static function usuario_id( $login ) {
+	private static function user_id_for_login( $login ) {
 		if ( 'admin' === $login ) {
 			return self::admin_id();
 		}
 
-		$usuario = get_user_by( 'login', $login );
+		$user = get_user_by( 'login', $login );
 
-		return $usuario instanceof WP_User ? (int) $usuario->ID : 0;
+		return $user instanceof WP_User ? (int) $user->ID : 0;
 	}
 
 	/**
@@ -612,9 +612,9 @@ class Documentate_Demo_App {
 	 * @return int User ID, or the current user as a last resort.
 	 */
 	private static function admin_id() {
-		$usuario = get_user_by( 'login', 'admin' );
-		if ( $usuario instanceof WP_User ) {
-			return (int) $usuario->ID;
+		$user = get_user_by( 'login', 'admin' );
+		if ( $user instanceof WP_User ) {
+			return (int) $user->ID;
 		}
 
 		$admins = get_users(
@@ -648,7 +648,7 @@ class Documentate_Demo_App {
 				"SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
 				WHERE p.post_type = %s AND pm.meta_key = %s ORDER BY p.ID ASC",
 				'documentate_document',
-				self::META_MARCA
+				self::META_MARK
 			)
 		);
 
@@ -663,10 +663,10 @@ class Documentate_Demo_App {
 	 * make seed() skip creating a replacement while the demo shows fewer than
 	 * twelve documents).
 	 *
-	 * @param string $titulo Post title.
+	 * @param string $title Post title.
 	 * @return int Document ID, or 0.
 	 */
-	private static function buscar_por_titulo( $titulo ) {
+	private static function find_by_title( $title ) {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Idempotency check during demo seeding; mirrors demo_document_ids().
@@ -675,8 +675,8 @@ class Documentate_Demo_App {
 				"SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
 				WHERE p.post_type = %s AND p.post_title = %s AND pm.meta_key = %s AND p.post_status <> 'trash' LIMIT 1",
 				'documentate_document',
-				$titulo,
-				self::META_MARCA
+				$title,
+				self::META_MARK
 			)
 		);
 
@@ -696,15 +696,15 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,array{type:string,value:string}>
 	 */
-	private static function proveedores_pg_demo() {
-		$servicios = array(
+	private static function pg_demo_providers() {
+		$services = array(
 			array(
 				'proveedor' => 'Talleres Digitales Canarias S.L.',
 				'cif' => 'B38112233',
 				'email' => 'administracion@talleresdigitales.es',
 				'telefono' => '922334455',
 				'bruto' => '1800',
-				// documentate-calculos.js reads IGIC and IRPF as euro
+				// documentate-calculations.js reads IGIC and IRPF as euro
 				// amounts (total = bruto + IGIC - IRPF), not as rates.
 				'igic' => '126',
 				'irpf' => '0',
@@ -720,7 +720,7 @@ class Documentate_Demo_App {
 			),
 		);
 
-		$suministros = array(
+		$supplies = array(
 			array(
 				'proveedor' => 'Papelería Insular S.A.',
 				'cif' => 'A38223344',
@@ -741,7 +741,7 @@ class Documentate_Demo_App {
 			),
 		);
 
-		$expertos = array(
+		$experts = array(
 			array(
 				'proveedor' => 'Dra. Marta Sánchez Delgado',
 				'cif' => '43987654C',
@@ -765,15 +765,15 @@ class Documentate_Demo_App {
 		return array(
 			'servicios' => array(
 				'type' => 'array',
-				'value' => wp_json_encode( $servicios, JSON_UNESCAPED_UNICODE ),
+				'value' => wp_json_encode( $services, JSON_UNESCAPED_UNICODE ),
 			),
 			'suministros' => array(
 				'type' => 'array',
-				'value' => wp_json_encode( $suministros, JSON_UNESCAPED_UNICODE ),
+				'value' => wp_json_encode( $supplies, JSON_UNESCAPED_UNICODE ),
 			),
 			'expertos' => array(
 				'type' => 'array',
-				'value' => wp_json_encode( $expertos, JSON_UNESCAPED_UNICODE ),
+				'value' => wp_json_encode( $experts, JSON_UNESCAPED_UNICODE ),
 			),
 			// 1926 + 695.50 + 340: the same total the calculator writes when
 			// the editor opens, so figure and letter agree on screen.
@@ -793,12 +793,12 @@ class Documentate_Demo_App {
 	}
 
 	/**
-	 * Schema-row slugs proveedores_pg_demo() supplies by hand, so the generic
+	 * Schema-row slugs pg_demo_providers() supplies by hand, so the generic
 	 * generator does not overwrite them with a malformed nested value.
 	 *
 	 * @return string[]
 	 */
-	private static function proveedores_pg_slugs() {
+	private static function pg_provider_slugs() {
 		return array( 'servicios', 'suministros', 'expertos', 'gasto_letra', 'gasto_numero', 'partida' );
 	}
 
@@ -809,26 +809,26 @@ class Documentate_Demo_App {
 	 * (official title / post_title), autor (demo login), area (category
 	 * name, optional), gestion (whether to fill gestión rows), omitir /
 	 * forzar (field overrides), adjunto (fixture to attach, optional),
-	 * pasos (ordered Documentate_Transiciones moves), devuelto_directo
+	 * pasos (ordered Documentate_Transitions moves), devuelto_directo
 	 * (a devuelto mark with no matching rule, optional), comentario
 	 * (one activity comment, optional).
 	 *
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function documentos() {
+	private static function documents() {
 		return array(
-			self::doc_material_aulas(),
-			self::doc_jornadas_competencia(),
-			self::doc_certificacion_tribunal(),
-			self::doc_listado_definitivo(),
-			self::doc_dotacion_biblioteca(),
-			self::doc_formacion_profesorado(),
-			self::doc_bases_programa_piloto(),
-			self::doc_calendario_admision(),
-			self::doc_comision_formacion(),
-			self::doc_bases_plan_formacion(),
-			self::doc_renovacion_licencias(),
-			self::doc_instrucciones_inicio_curso(),
+			self::doc_classroom_materials(),
+			self::doc_digital_competence_days(),
+			self::doc_panel_certificate(),
+			self::doc_final_list(),
+			self::doc_library_funding(),
+			self::doc_teacher_training(),
+			self::doc_pilot_programme_rules(),
+			self::doc_admission_calendar(),
+			self::doc_training_committee(),
+			self::doc_training_plan_rules(),
+			self::doc_licence_renewal(),
+			self::doc_term_start_instructions(),
 		);
 	}
 
@@ -837,19 +837,19 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_material_aulas() {
+	private static function doc_classroom_materials() {
 		return array(
-			'tipo' => 'propuesta-gasto',
-			'nombre' => 'Material aulas digitales',
-			'titulo' => 'Propuesta de gasto para material didáctico de las aulas digitales del Departamento de Proyectos',
-			'autor' => 'author1',
+			'type' => 'propuesta-gasto',
+			'name' => 'Material aulas digitales',
+			'title' => 'Propuesta de gasto para material didáctico de las aulas digitales del Departamento de Proyectos',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => false,
-			'adjunto' => array(
-				'tipo' => 'pdf',
-				'nombre' => 'presupuesto-material-aulas.pdf',
+			'management' => false,
+			'attachment' => array(
+				'type' => 'pdf',
+				'name' => 'presupuesto-material-aulas.pdf',
 			),
-			'pasos' => array(),
+			'steps' => array(),
 		);
 	}
 
@@ -858,15 +858,15 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_jornadas_competencia() {
+	private static function doc_digital_competence_days() {
 		return array(
-			'tipo' => 'convocatoria-reunion',
-			'nombre' => 'Jornadas competencia digital',
-			'titulo' => 'Convocatoria de las Jornadas de Competencia Digital Docente',
-			'autor' => 'author1',
+			'type' => 'convocatoria-reunion',
+			'name' => 'Jornadas competencia digital',
+			'title' => 'Convocatoria de las Jornadas de Competencia Digital Docente',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => false,
-			'pasos' => array(),
+			'management' => false,
+			'steps' => array(),
 		);
 	}
 
@@ -878,18 +878,18 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_certificacion_tribunal() {
+	private static function doc_panel_certificate() {
 		return array(
-			'tipo' => 'hace-constar',
-			'nombre' => 'Certificación tribunal materiales',
-			'titulo' => 'Hace constar la participación en el tribunal de selección de materiales didácticos',
-			'autor' => 'author1',
+			'type' => 'hace-constar',
+			'name' => 'Certificación tribunal materiales',
+			'title' => 'Hace constar la participación en el tribunal de selección de materiales didácticos',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => false,
-			'pasos' => array(),
-			'devuelto_directo' => array(
+			'management' => false,
+			'steps' => array(),
+			'returned_directly' => array(
 				'actor' => 'editor1',
-				'motivo' => 'Falta el anexo firmado por la dirección',
+				'reason' => 'Falta el anexo firmado por la dirección',
 			),
 		);
 	}
@@ -900,28 +900,28 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_listado_definitivo() {
+	private static function doc_final_list() {
 		return array(
-			'tipo' => 'resolucion-administrativa',
-			'nombre' => 'Listado definitivo piloto innovación',
-			'titulo' => 'Resolución por la que se aprueba el listado definitivo de centros admitidos en el programa piloto de innovación educativa',
-			'autor' => 'author1',
+			'type' => 'resolucion-administrativa',
+			'name' => 'Listado definitivo piloto innovación',
+			'title' => 'Resolución por la que se aprueba el listado definitivo de centros admitidos en el programa piloto de innovación educativa',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => false,
-			'adjunto' => array(
-				'tipo' => 'demo-wp-documentate.odt',
-				'nombre' => 'listado-definitivo-piloto.odt',
+			'management' => false,
+			'attachment' => array(
+				'type' => 'demo-wp-documentate.odt',
+				'name' => 'listado-definitivo-piloto.odt',
 			),
-			'pasos' => array(
+			'steps' => array(
 				array(
 					'actor' => 'author1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 			),
-			'comentario' => array(
+			'comment' => array(
 				'actor' => 'author1',
-				'texto' => 'El anexo con el listado va en la última página del ODT.',
+				'text' => 'El anexo con el listado va en la última página del ODT.',
 			),
 		);
 	}
@@ -932,19 +932,19 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_dotacion_biblioteca() {
+	private static function doc_library_funding() {
 		return array(
-			'tipo' => 'propuesta-gasto',
-			'nombre' => 'Dotación biblioteca escolar',
-			'titulo' => 'Propuesta de gasto para la dotación de fondos bibliográficos de los centros del área',
-			'autor' => 'author1',
+			'type' => 'propuesta-gasto',
+			'name' => 'Dotación biblioteca escolar',
+			'title' => 'Propuesta de gasto para la dotación de fondos bibliográficos de los centros del área',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => false,
-			'pasos' => array(
+			'management' => false,
+			'steps' => array(
 				array(
 					'actor' => 'author1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 			),
 		);
@@ -955,26 +955,26 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_formacion_profesorado() {
+	private static function doc_teacher_training() {
 		return array(
-			'tipo' => 'propuesta-gasto',
-			'nombre' => 'Formación profesorado metodologías',
-			'titulo' => 'Propuesta de gasto para la formación del profesorado en metodologías activas',
-			'autor' => 'author1',
+			'type' => 'propuesta-gasto',
+			'name' => 'Formación profesorado metodologías',
+			'title' => 'Propuesta de gasto para la formación del profesorado en metodologías activas',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => true,
-			'omitir' => self::proveedores_pg_slugs(),
-			'forzar' => self::proveedores_pg_demo(),
-			'pasos' => array(
+			'management' => true,
+			'skip' => self::pg_provider_slugs(),
+			'force' => self::pg_demo_providers(),
+			'steps' => array(
 				array(
 					'actor' => 'author1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 				array(
 					'actor' => 'editor1',
-					'clave' => 'pasar_admin',
-					'desde' => 'en_gestion',
+					'key' => 'pasar_admin',
+					'from' => 'en_gestion',
 				),
 			),
 		);
@@ -985,29 +985,29 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_bases_programa_piloto() {
+	private static function doc_pilot_programme_rules() {
 		return array(
-			'tipo' => 'resolucion-administrativa',
-			'nombre' => 'Bases programa piloto innovación',
-			'titulo' => 'Resolución por la que se aprueban las bases del programa piloto de innovación educativa',
-			'autor' => 'author1',
+			'type' => 'resolucion-administrativa',
+			'name' => 'Bases programa piloto innovación',
+			'title' => 'Resolución por la que se aprueban las bases del programa piloto de innovación educativa',
+			'author' => 'author1',
 			'area' => 'Departamento de Proyectos',
-			'gestion' => true,
-			'pasos' => array(
+			'management' => true,
+			'steps' => array(
 				array(
 					'actor' => 'author1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 				array(
 					'actor' => 'editor1',
-					'clave' => 'pasar_admin',
-					'desde' => 'en_gestion',
+					'key' => 'pasar_admin',
+					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'aprobar',
-					'desde' => 'pending',
+					'key' => 'aprobar',
+					'from' => 'pending',
 				),
 			),
 		);
@@ -1019,31 +1019,31 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_calendario_admision() {
+	private static function doc_admission_calendar() {
 		return array(
-			'tipo' => 'resolucion-administrativa',
-			'nombre' => 'Calendario de admisión 2027',
-			'titulo' => 'Resolución por la que se aprueba el calendario del proceso de admisión para el curso 2026-2027',
-			'autor' => 'editor1',
+			'type' => 'resolucion-administrativa',
+			'name' => 'Calendario de admisión 2027',
+			'title' => 'Resolución por la que se aprueba el calendario del proceso de admisión para el curso 2026-2027',
+			'author' => 'editor1',
 			'area' => 'Subdirección de Administración',
-			'gestion' => true,
-			'omitir' => array( 'expediente' ),
-			'pasos' => array(
+			'management' => true,
+			'skip' => array( 'expediente' ),
+			'steps' => array(
 				array(
 					'actor' => 'editor1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 				array(
 					'actor' => 'editor1',
-					'clave' => 'pasar_admin',
-					'desde' => 'en_gestion',
+					'key' => 'pasar_admin',
+					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'devolver_gestion',
-					'desde' => 'pending',
-					'motivo' => 'Falta el número de expediente',
+					'key' => 'devolver_gestion',
+					'from' => 'pending',
+					'reason' => 'Falta el número de expediente',
 				),
 			),
 		);
@@ -1054,19 +1054,19 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_comision_formacion() {
+	private static function doc_training_committee() {
 		return array(
-			'tipo' => 'convocatoria-reunion',
-			'nombre' => 'Comisión formación septiembre',
-			'titulo' => 'Convocatoria de la Comisión de Formación del mes de septiembre',
-			'autor' => 'editor1',
+			'type' => 'convocatoria-reunion',
+			'name' => 'Comisión formación septiembre',
+			'title' => 'Convocatoria de la Comisión de Formación del mes de septiembre',
+			'author' => 'editor1',
 			'area' => 'Subdirección de Administración',
-			'gestion' => false,
-			'pasos' => array(
+			'management' => false,
+			'steps' => array(
 				array(
 					'actor' => 'editor1',
-					'clave' => 'enviar_revision',
-					'desde' => 'draft',
+					'key' => 'enviar_revision',
+					'from' => 'draft',
 				),
 			),
 		);
@@ -1077,29 +1077,29 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_bases_plan_formacion() {
+	private static function doc_training_plan_rules() {
 		return array(
-			'tipo' => 'resolucion-administrativa',
-			'nombre' => 'Bases plan de formación 2026-27',
-			'titulo' => 'Resolución por la que se aprueban las bases del plan de formación del profesorado 2026-2027',
-			'autor' => 'editor1',
+			'type' => 'resolucion-administrativa',
+			'name' => 'Bases plan de formación 2026-27',
+			'title' => 'Resolución por la que se aprueban las bases del plan de formación del profesorado 2026-2027',
+			'author' => 'editor1',
 			'area' => 'Subdirección de Administración',
-			'gestion' => true,
-			'pasos' => array(
+			'management' => true,
+			'steps' => array(
 				array(
 					'actor' => 'editor1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 				array(
 					'actor' => 'editor1',
-					'clave' => 'pasar_admin',
-					'desde' => 'en_gestion',
+					'key' => 'pasar_admin',
+					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'aprobar',
-					'desde' => 'pending',
+					'key' => 'aprobar',
+					'from' => 'pending',
 				),
 			),
 		);
@@ -1112,32 +1112,32 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_renovacion_licencias() {
+	private static function doc_licence_renewal() {
 		return array(
-			'tipo' => 'propuesta-gasto',
-			'nombre' => 'Renovación licencias aulas virtuales',
-			'titulo' => 'Propuesta de gasto para la renovación de licencias de las aulas virtuales',
-			'autor' => 'editor1',
+			'type' => 'propuesta-gasto',
+			'name' => 'Renovación licencias aulas virtuales',
+			'title' => 'Propuesta de gasto para la renovación de licencias de las aulas virtuales',
+			'author' => 'editor1',
 			'area' => 'Subdirección de Administración',
-			'gestion' => true,
-			'omitir' => self::proveedores_pg_slugs(),
-			'forzar' => self::proveedores_pg_demo(),
-			'pasos' => array(
+			'management' => true,
+			'skip' => self::pg_provider_slugs(),
+			'force' => self::pg_demo_providers(),
+			'steps' => array(
 				array(
 					'actor' => 'editor1',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 				array(
 					'actor' => 'editor1',
-					'clave' => 'pasar_admin',
-					'desde' => 'en_gestion',
+					'key' => 'pasar_admin',
+					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'devolver_area',
-					'desde' => 'pending',
-					'motivo' => 'Revisar la partida presupuestaria',
+					'key' => 'devolver_area',
+					'from' => 'pending',
+					'reason' => 'Revisar la partida presupuestaria',
 				),
 			),
 		);
@@ -1148,33 +1148,33 @@ class Documentate_Demo_App {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function doc_instrucciones_inicio_curso() {
+	private static function doc_term_start_instructions() {
 		return array(
-			'tipo' => 'resolucion-administrativa',
-			'nombre' => 'Instrucciones inicio de curso 2025-26',
-			'titulo' => 'Resolución por la que se dictan instrucciones para el inicio del curso 2025-2026',
-			'autor' => 'admin',
-			'gestion' => true,
-			'pasos' => array(
+			'type' => 'resolucion-administrativa',
+			'name' => 'Instrucciones inicio de curso 2025-26',
+			'title' => 'Resolución por la que se dictan instrucciones para el inicio del curso 2025-2026',
+			'author' => 'admin',
+			'management' => true,
+			'steps' => array(
 				array(
 					'actor' => 'admin',
-					'clave' => 'enviar_gestion',
-					'desde' => 'draft',
+					'key' => 'enviar_gestion',
+					'from' => 'draft',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'pasar_admin',
-					'desde' => 'en_gestion',
+					'key' => 'pasar_admin',
+					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'aprobar',
-					'desde' => 'pending',
+					'key' => 'aprobar',
+					'from' => 'pending',
 				),
 				array(
 					'actor' => 'admin',
-					'clave' => 'archivar',
-					'desde' => 'publish',
+					'key' => 'archivar',
+					'from' => 'publish',
 				),
 			),
 		);

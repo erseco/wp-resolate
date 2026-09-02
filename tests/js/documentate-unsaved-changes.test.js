@@ -49,12 +49,12 @@ const instances = [];
  * it on a fresh page — and unlike new Function( source ) it goes through the
  * module registry, so the coverage report sees it.
  *
- * @param {string} ruta Path of the module, relative to this file.
+ * @param {string} path Path of the module, relative to this file.
  * @return {void}
  */
-function cargarModulo( ruta ) {
+function loadModule( path ) {
 	jest.isolateModules( () => {
-		require( ruta );
+		require( path );
 	} );
 }
 
@@ -67,7 +67,7 @@ function cargarModulo( ruta ) {
  * @return {Promise<void>} Resolves once jQuery's ready callbacks have run.
  */
 async function loadGuard() {
-	cargarModulo( '../../admin/js/documentate-unsaved-changes.js' );
+	loadModule( '../../admin/js/documentate-unsaved-changes.js' );
 	// jQuery defers ready callbacks by a tick when the document is already loaded.
 	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 	instances.push( window.documentateUnsavedChanges );
@@ -295,9 +295,9 @@ describe( 'the form of the front-end application', () => {
 	it( 'notices a change in the app editor', async () => {
 		await loadGuard();
 
-		const campo = document.getElementById( 'field-a' );
-		campo.value = 'Bloque I';
-		campo.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+		const field = document.getElementById( 'field-a' );
+		field.value = 'Bloque I';
+		field.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
 
 		expect( window.documentateUnsavedChanges.isDirty() ).toBe( true );
 		expect(
@@ -433,8 +433,8 @@ describe( 'resume against the real action handler', () => {
 	 * @return {Promise<void>} Resolves once the ready queue has drained.
 	 */
 	async function loadPage() {
-		cargarModulo( '../../admin/js/documentate-unsaved-changes.js' );
-		cargarModulo( '../../admin/js/documentate-actions.js' );
+		loadModule( '../../admin/js/documentate-unsaved-changes.js' );
+		loadModule( '../../admin/js/documentate-actions.js' );
 		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		instances.push( window.documentateUnsavedChanges );
 	}

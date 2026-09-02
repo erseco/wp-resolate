@@ -377,8 +377,8 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 
 		// Gestión documental may open every document that entered the pipeline
 		// (a document with no type never leaves draft, so it gets one first).
-		$tipo = wp_insert_term( 'Tipo comentarios ' . uniqid(), 'documentate_doc_type' );
-		wp_set_object_terms( $this->document_id, array( (int) $tipo['term_id'] ), 'documentate_doc_type' );
+		$type = wp_insert_term( 'Tipo comentarios ' . uniqid(), 'documentate_doc_type' );
+		wp_set_object_terms( $this->document_id, array( (int) $type['term_id'] ), 'documentate_doc_type' );
 		wp_set_current_user( $this->admin_user_id );
 		wp_update_post(
 			array(
@@ -386,7 +386,7 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 				'post_status' => 'pending',
 			)
 		);
-		( new WP_User( $this->editor_user_id ) )->add_cap( Documentate_Roles::CAP_GESTION );
+		( new WP_User( $this->editor_user_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
 		wp_set_current_user( $this->editor_user_id );
 
 		$this->assertSame( 'pending', get_post_status( $this->document_id ) );
@@ -406,7 +406,7 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 	 */
 	public function test_events_are_absent_from_a_bare_comment_query() {
 		wp_set_current_user( $this->admin_user_id );
-		Documentate_Actividad::registrar_evento(
+		Documentate_Activity::record_event(
 			$this->document_id,
 			'devolvió el documento al área: «Falta el anexo firmado»',
 			'Falta el anexo firmado'
@@ -422,14 +422,14 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 		foreach ( array( $this->admin_user_id, $this->editor_user_id, $this->subscriber_user_id ) as $user_id ) {
 			wp_set_current_user( $user_id );
 
-			$contenidos = wp_list_pluck( get_comments( array( 'status' => 'approve' ) ), 'comment_content' );
+			$contents = wp_list_pluck( get_comments( array( 'status' => 'approve' ) ), 'comment_content' );
 
 			$this->assertNotContains(
 				'devolvió el documento al área: «Falta el anexo firmado»',
-				$contenidos,
+				$contents,
 				'The activity of a document never leaks into a general comment query.'
 			);
-			$this->assertContains( 'Comentario de una entrada normal', $contenidos );
+			$this->assertContains( 'Comentario de una entrada normal', $contents );
 		}
 
 		wp_delete_comment( $regular, true );
@@ -783,7 +783,7 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 				'user_id'          => $this->admin_user_id,
 			)
 		);
-		$evento = Documentate_Actividad::registrar_evento( $this->document_id, 'aprobó y publicó el documento' );
+		$event = Documentate_Activity::record_event( $this->document_id, 'aprobó y publicó el documento' );
 		$post_comment = wp_insert_comment(
 			array(
 				'comment_post_ID'  => $this->regular_post_id,
@@ -804,7 +804,7 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 		$ids = array_map( 'intval', wp_list_pluck( (array) $feed->comments, 'comment_ID' ) );
 		$this->assertContains( $post_comment, $ids, 'Regular post comments stay in the feed.' );
 		$this->assertNotContains( $doc_comment, $ids, 'Document comments must not leak into the feed.' );
-		$this->assertNotContains( $evento, $ids, 'Workflow events must not leak into the feed.' );
+		$this->assertNotContains( $event, $ids, 'Workflow events must not leak into the feed.' );
 	}
 
 	/**

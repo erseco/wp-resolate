@@ -10,33 +10,33 @@
 const { test, expect } = require( '../fixtures' );
 const {
 	loginAs,
-	crearEscenario,
-	limpiarEscenario,
+	createFixture,
+	removeFixture,
 } = require( '../fixtures/site' );
 
 const RUN = `roles${ Date.now() }`;
 const AREA_LOGIN = `${ RUN }area`;
-const GESTION_LOGIN = `${ RUN }gestion`;
+const MANAGEMENT_LOGIN = `${ RUN }gestion`;
 
 const APP_PATH = '/documentate/';
 
-const NOMBRES = {
-	propio: `Propio ${ RUN }`,
-	otroBorrador: `Otro borrador ${ RUN }`,
-	otroEnGestion: `Otro en gestión ${ RUN }`,
-	otroPendiente: `Otro pendiente ${ RUN }`,
+const NAMES = {
+	own: `Propio ${ RUN }`,
+	otherDraft: `Otro borrador ${ RUN }`,
+	otherInManagement: `Otro en gestión ${ RUN }`,
+	otherPending: `Otro pendiente ${ RUN }`,
 };
 
 /**
  * Locator of the list row of a document, found by its internal name.
  *
  * @param {import('@playwright/test').Page} page   Page showing a tray.
- * @param {string}                          nombre Internal name.
+ * @param {string}                          name Internal name.
  * @return {import('@playwright/test').Locator} Row locator.
  */
-function fila( page, nombre ) {
+function row( page, name ) {
 	return page.locator( '.dcta-fila', {
-		has: page.locator( '.dcta-doc-nombre a', { hasText: nombre } ),
+		has: page.locator( '.dcta-doc-nombre a', { hasText: name } ),
 	} );
 }
 
@@ -49,15 +49,15 @@ function fila( page, nombre ) {
  * @param {import('@playwright/test').Page} page Page showing the application.
  * @return {Promise<string[]>} Tab labels in order.
  */
-async function pestanas( page ) {
-	const textos = await page.locator( '.dcta-tab' ).allInnerTexts();
+async function tabLabels( page ) {
+	const texts = await page.locator( '.dcta-tab' ).allInnerTexts();
 
-	return textos.map( ( texto ) => texto.replace( /\s+/g, ' ' ).trim() );
+	return texts.map( ( texto ) => texto.replace( /\s+/g, ' ' ).trim() );
 }
 
 test.describe( 'Documentate app · roles', () => {
-	let escenario;
-	let otraCatId = 0;
+	let fixture;
+	let otherCatId = 0;
 	const docs = {};
 
 	test.beforeAll( async () => {
@@ -65,59 +65,59 @@ test.describe( 'Documentate app · roles', () => {
 		// waits its turn must not die on the ordinary test budget.
 		test.setTimeout( 300_000 );
 
-		escenario = crearEscenario( {
-			categorias: {
+		fixture = createFixture( {
+			categories: {
 				area: `Área ${ RUN }`,
 				otra: `Otra área ${ RUN }`,
-				gestion: `Gestión ${ RUN }`,
+				management: `Gestión ${ RUN }`,
 			},
 			// The seeded Resolución declares gestión fields in its schema, so
 			// it goes through gestión documental by itself: the spec reads
 			// that property instead of writing the shared term.
-			tipos: { res: { slug: 'resolucion-administrativa' } },
-			usuarios: {
-				area: { login: AREA_LOGIN, rol: 'author', ambito: 'area' },
-				gestion: {
-					login: GESTION_LOGIN,
-					rol: 'editor',
-					ambito: 'gestion',
-					gestion: true,
+			types: { res: { slug: 'resolucion-administrativa' } },
+			users: {
+				area: { login: AREA_LOGIN, role: 'author', scope: 'area' },
+				management: {
+					login: MANAGEMENT_LOGIN,
+					role: 'editor',
+					scope: 'gestion',
+					management: true,
 				},
 			},
-			documentos: {
-				propio: {
-					titulo: `Documento del área ${ RUN }`,
-					categoria: 'area',
-					tipo: 'res',
-					autor: 'area',
-					nombre: NOMBRES.propio,
+			documents: {
+				own: {
+					title: `Documento del área ${ RUN }`,
+					category: 'area',
+					type: 'res',
+					author: 'area',
+					name: NAMES.own,
 				},
-				otroBorrador: {
-					titulo: `Borrador de otra área ${ RUN }`,
-					categoria: 'otra',
-					tipo: 'res',
-					nombre: NOMBRES.otroBorrador,
+				otherDraft: {
+					title: `Borrador de otra área ${ RUN }`,
+					category: 'otra',
+					type: 'res',
+					name: NAMES.otherDraft,
 				},
-				otroEnGestion: {
-					titulo: `En gestión de otra área ${ RUN }`,
-					categoria: 'otra',
-					tipo: 'res',
-					estado: 'en_gestion',
-					nombre: NOMBRES.otroEnGestion,
+				otherInManagement: {
+					title: `En gestión de otra área ${ RUN }`,
+					category: 'otra',
+					type: 'res',
+					status: 'en_gestion',
+					name: NAMES.otherInManagement,
 				},
-				otroPendiente: {
-					titulo: `Pendiente de otra área ${ RUN }`,
-					categoria: 'otra',
-					tipo: 'res',
-					estado: 'pending',
-					nombre: NOMBRES.otroPendiente,
+				otherPending: {
+					title: `Pendiente de otra área ${ RUN }`,
+					category: 'otra',
+					type: 'res',
+					status: 'pending',
+					name: NAMES.otherPending,
 				},
 			},
 		} );
 
-		otraCatId = escenario.categorias.otra;
-		Object.assign( docs, escenario.documentos );
-		expect( escenario.tipos.res ).toBeGreaterThan( 0 );
+		otherCatId = fixture.categories.otra;
+		Object.assign( docs, fixture.documents );
+		expect( fixture.types.res ).toBeGreaterThan( 0 );
 	} );
 
 	test.afterAll( async () => {
@@ -127,18 +127,18 @@ test.describe( 'Documentate app · roles', () => {
 		// unexpected answer) leaves the fixture unbuilt, and Playwright still
 		// runs this hook: without the guard it dies dereferencing it and the
 		// report shows that TypeError instead of the real failure.
-		if ( ! escenario ) {
+		if ( ! fixture ) {
 			return;
 		}
 
-		limpiarEscenario( {
-			documentos: Object.values( escenario.documentos ),
-			usuarios: [ AREA_LOGIN, GESTION_LOGIN ],
-			categorias: Object.values( escenario.categorias ),
+		removeFixture( {
+			documents: Object.values( fixture.documents ),
+			users: [ AREA_LOGIN, MANAGEMENT_LOGIN ],
+			categories: Object.values( fixture.categories ),
 		} );
 	} );
 
-	test( 'el área tiene dos pestañas sin aviso y no ve los datos oficiales', async ( {
+	test( 'the area gets two tabs with no badge and does not see the official data', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -146,7 +146,7 @@ test.describe( 'Documentate app · roles', () => {
 
 		try {
 			await page.goto( APP_PATH );
-			expect( await pestanas( page ) ).toEqual( [
+			expect( await tabLabels( page ) ).toEqual( [
 				'Mis documentos',
 				'Nuevo documento',
 			] );
@@ -158,9 +158,9 @@ test.describe( 'Documentate app · roles', () => {
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
 				'Mis documentos'
 			);
-			await expect( fila( page, NOMBRES.propio ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.own ) ).toHaveCount( 1 );
 
-			await page.goto( `${ APP_PATH }?doc=${ docs.propio }&vista=editar` );
+			await page.goto( `${ APP_PATH }?doc=${ docs.own }&vista=editar` );
 			// The área writes its own fields and never sees the official ones.
 			await expect(
 				page.locator( '#documentate_field_objeto' )
@@ -179,7 +179,7 @@ test.describe( 'Documentate app · roles', () => {
 			).toHaveCount( 0 );
 
 			// Another área's documents are out of reach, whatever their status.
-			await page.goto( `${ APP_PATH }?doc=${ docs.otroEnGestion }` );
+			await page.goto( `${ APP_PATH }?doc=${ docs.otherInManagement }` );
 			await expect( page.locator( '.dcta-aviso' ) ).toContainText(
 				'fuera de tu ámbito'
 			);
@@ -188,148 +188,148 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'el filtro rápido esconde de verdad las filas que no coinciden', async ( {
+	test( 'the quick filter really hides the rows that do not match', async ( {
 		browser,
 		baseURL,
 	} ) => {
-		const { context, page } = await loginAs( browser, baseURL, GESTION_LOGIN );
+		const { context, page } = await loginAs( browser, baseURL, MANAGEMENT_LOGIN );
 
 		try {
 			await page.goto( `${ APP_PATH }?bandeja=revisar&estado=todos` );
 
-			const filas = page.locator( '.dcta-fila:not(.dcta-fila-cab)' );
-			const caja = page.locator( '.dcta-busqueda-campo' );
+			const rows = page.locator( '.dcta-fila:not(.dcta-fila-cab)' );
+			const box = page.locator( '.dcta-busqueda-campo' );
 
 			// Without the script the box would not be there: it only narrows
 			// what the chips already brought.
-			await expect( caja ).toBeVisible();
-			const total = await filas.count();
+			await expect( box ).toBeVisible();
+			const total = await rows.count();
 			expect( total ).toBeGreaterThan( 1 );
 
 			// The footer is the only thing that changes as the filter runs,
 			// so it is what a screen reader is told about.
-			const pie = page.locator( '[data-dcta-pie]' );
-			await expect( pie ).toHaveAttribute( 'role', 'status' );
+			const footer = page.locator( '[data-dcta-pie]' );
+			await expect( footer ).toHaveAttribute( 'role', 'status' );
 
 			// The tray is capped at one page: what it really holds travels in
 			// the footer, and the counts have to keep saying so.
-			const enLaBandeja = parseInt(
-				await pie.getAttribute( 'data-dcta-pie-total' ),
+			const inTray = parseInt(
+				await footer.getAttribute( 'data-dcta-pie-total' ),
 				10
 			);
-			expect( enLaBandeja ).toBeGreaterThanOrEqual( total );
-			const cola =
-				enLaBandeja > total
-					? ` mostrados de ${ enLaBandeja } · afina con los filtros`
+			expect( inTray ).toBeGreaterThanOrEqual( total );
+			const queue =
+				inTray > total
+					? ` mostrados de ${ inTray } · afina con los filtros`
 					: '';
 
 			// A row is a grid, so hiding it takes more than the hidden
 			// property: what matters is that it stops being on screen.
-			await caja.fill( NOMBRES.otroEnGestion );
-			await expect( filas.locator( 'visible=true' ) ).toHaveCount( 1 );
-			await expect( fila( page, NOMBRES.otroEnGestion ) ).toBeVisible();
-			await expect( pie ).toHaveText( `1 de ${ total } documentos${ cola }` );
+			await box.fill( NAMES.otherInManagement );
+			await expect( rows.locator( 'visible=true' ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherInManagement ) ).toBeVisible();
+			await expect( footer ).toHaveText( `1 de ${ total } documentos${ queue }` );
 
-			await caja.fill( 'zzz sin coincidencias zzz' );
-			await expect( filas.locator( 'visible=true' ) ).toHaveCount( 0 );
-			const vacio = page.locator( '.dcta-vacio' );
-			await expect( vacio ).toBeVisible();
-			if ( enLaBandeja > total ) {
+			await box.fill( 'zzz sin coincidencias zzz' );
+			await expect( rows.locator( 'visible=true' ) ).toHaveCount( 0 );
+			const emptyRow = page.locator( '.dcta-vacio' );
+			await expect( emptyRow ).toBeVisible();
+			if ( inTray > total ) {
 				// The other rows were never looked at: "nothing matches" would
 				// be a lie for the rest of the tray.
-				await expect( vacio ).toContainText(
-					`la bandeja tiene ${ enLaBandeja }`
+				await expect( emptyRow ).toContainText(
+					`la bandeja tiene ${ inTray }`
 				);
 			}
 
-			await caja.fill( '' );
-			await expect( filas.locator( 'visible=true' ) ).toHaveCount( total );
+			await box.fill( '' );
+			await expect( rows.locator( 'visible=true' ) ).toHaveCount( total );
 		} finally {
 			await context.close();
 		}
 	} );
 
-	test( 'el diálogo de devolución sale centrado en la ventana', async ( {
+	test( 'the return dialog opens centred in the viewport', async ( {
 		browser,
 		baseURL,
 	} ) => {
-		const { context, page } = await loginAs( browser, baseURL, GESTION_LOGIN );
+		const { context, page } = await loginAs( browser, baseURL, MANAGEMENT_LOGIN );
 
 		try {
 			await page.setViewportSize( { width: 1280, height: 900 } );
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otroEnGestion }&vista=editar&bandeja=revisar`
+				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar&bandeja=revisar`
 			);
 
 			await page.locator( 'button[data-motivo]' ).first().click();
 
-			const dialogo = page.getByRole( 'dialog' );
-			await expect( dialogo ).toBeVisible();
+			const dialog = page.getByRole( 'dialog' );
+			await expect( dialog ).toBeVisible();
 
 			// A modal <dialog> is centred by the `margin: auto` of the browser,
 			// which the block layout of the page zeroes: without a rule of its
 			// own the dialog ends up jammed against the top edge, over the
 			// admin bar.
-			const caja = await dialogo.boundingBox();
-			expect( caja.y ).toBeGreaterThan( 60 );
-			const centro = caja.y + caja.height / 2;
-			expect( Math.abs( centro - 450 ) ).toBeLessThan( 40 );
+			const box = await dialog.boundingBox();
+			expect( box.y ).toBeGreaterThan( 60 );
+			const center = box.y + box.height / 2;
+			expect( Math.abs( center - 450 ) ).toBeLessThan( 40 );
 		} finally {
 			await context.close();
 		}
 	} );
 
-	test( 'en móvil las acciones no se pintan sobre la tarjeta de estado', async ( {
+	test( 'on mobile the actions are not painted over the status card', async ( {
 		browser,
 		baseURL,
 	} ) => {
-		const { context, page } = await loginAs( browser, baseURL, GESTION_LOGIN );
+		const { context, page } = await loginAs( browser, baseURL, MANAGEMENT_LOGIN );
 
 		try {
 			await page.setViewportSize( { width: 390, height: 780 } );
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otroEnGestion }&vista=editar&bandeja=revisar`
+				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar&bandeja=revisar`
 			);
 
-			const estado = page.locator( '.dcta-editor-lado .dcta-card' ).first();
-			const acciones = page.locator( '.dcta-editor-acciones' );
-			await expect( acciones ).toBeVisible();
+			const status = page.locator( '.dcta-editor-lado .dcta-card' ).first();
+			const actions = page.locator( '.dcta-editor-acciones' );
+			await expect( actions ).toBeVisible();
 
 			// Here the rail is the last item of a single column, below the whole
 			// form: a card stuck to `bottom: 0` never reaches the bottom of the
 			// window and clamps over the «Estado» card instead.
-			await expect( acciones ).toHaveCSS( 'position', 'static' );
+			await expect( actions ).toHaveCSS( 'position', 'static' );
 
-			const alto = await page.evaluate(
+			const height = await page.evaluate(
 				() => document.documentElement.scrollHeight
 			);
-			for ( const destino of [ 0, Math.round( alto / 2 ), alto ] ) {
-				await page.evaluate( ( y ) => window.scrollTo( 0, y ), destino );
-				const arriba = await estado.boundingBox();
-				const abajo = await acciones.boundingBox();
+			for ( const target of [ 0, Math.round( height / 2 ), height ] ) {
+				await page.evaluate( ( y ) => window.scrollTo( 0, y ), target );
+				const top = await status.boundingBox();
+				const bottom = await actions.boundingBox();
 				expect(
-					arriba.y + arriba.height,
-					`las tarjetas se solapan con scrollY=${ destino }`
-				).toBeLessThanOrEqual( abajo.y );
+					top.y + top.height,
+					`las tarjetas se solapan con scrollY=${ target }`
+				).toBeLessThanOrEqual( bottom.y );
 			}
 		} finally {
 			await context.close();
 		}
 	} );
 
-	test( 'gestión tiene tres pestañas, aviso en «Para revisar» y ve los datos oficiales', async ( {
+	test( 'management gets three tabs, a badge on «Para revisar» and sees the official data', async ( {
 		browser,
 		baseURL,
 	} ) => {
 		const { context, page } = await loginAs(
 			browser,
 			baseURL,
-			GESTION_LOGIN
+			MANAGEMENT_LOGIN
 		);
 
 		try {
 			await page.goto( APP_PATH );
-			const tabs = await pestanas( page );
+			const tabs = await tabLabels( page );
 			expect( tabs ).toHaveLength( 3 );
 			expect( tabs[ 0 ] ).toBe( 'Mis documentos' );
 			expect( tabs[ 1 ] ).toMatch( /^Para revisar \d+$/ );
@@ -343,10 +343,10 @@ test.describe( 'Documentate app · roles', () => {
 			expect( parseInt( badge, 10 ) ).toBeGreaterThanOrEqual( 1 );
 
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otroEnGestion }&vista=editar&bandeja=revisar`
+				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar&bandeja=revisar`
 			);
-			const camposGestion = page.locator( 'tr.documentate-campo-gestion' );
-			expect( await camposGestion.count() ).toBeGreaterThan( 0 );
+			const managementFields = page.locator( 'tr.documentate-campo-gestion' );
+			expect( await managementFields.count() ).toBeGreaterThan( 0 );
 			await expect(
 				page.locator( '#documentate_field_numero_resolucion' )
 			).toBeVisible();
@@ -361,14 +361,14 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'gestión no ve el borrador de otra área pero sí lo que ya salió de ella', async ( {
+	test( 'management does not see another area draft but does see what already left it', async ( {
 		browser,
 		baseURL,
 	} ) => {
 		const { context, page } = await loginAs(
 			browser,
 			baseURL,
-			GESTION_LOGIN
+			MANAGEMENT_LOGIN
 		);
 
 		try {
@@ -378,32 +378,32 @@ test.describe( 'Documentate app · roles', () => {
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
 				'Para revisar'
 			);
-			await expect( fila( page, NOMBRES.otroEnGestion ) ).toHaveCount( 1 );
-			await expect( fila( page, NOMBRES.otroPendiente ) ).toHaveCount( 1 );
-			await expect( fila( page, NOMBRES.otroBorrador ) ).toHaveCount( 0 );
-			await expect( fila( page, NOMBRES.propio ) ).toHaveCount( 0 );
+			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 0 );
+			await expect( row( page, NAMES.own ) ).toHaveCount( 0 );
 
 			// Same rule when the document is asked for by ID.
-			await page.goto( `${ APP_PATH }?doc=${ docs.otroBorrador }` );
+			await page.goto( `${ APP_PATH }?doc=${ docs.otherDraft }` );
 			await expect( page.locator( '.dcta-aviso' ) ).toContainText(
 				'fuera de tu ámbito'
 			);
 
-			await page.goto( `${ APP_PATH }?doc=${ docs.otroEnGestion }` );
+			await page.goto( `${ APP_PATH }?doc=${ docs.otherInManagement }` );
 			await expect( page.locator( '.dcta-h1' ) ).toContainText(
-				NOMBRES.otroEnGestion
+				NAMES.otherInManagement
 			);
 
 			// "Mis documentos" stays inside the scope of gestión's own área.
 			await page.goto( APP_PATH );
-			await expect( fila( page, NOMBRES.otroEnGestion ) ).toHaveCount( 0 );
-			await expect( fila( page, NOMBRES.propio ) ).toHaveCount( 0 );
+			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 0 );
+			await expect( row( page, NAMES.own ) ).toHaveCount( 0 );
 		} finally {
 			await context.close();
 		}
 	} );
 
-	test( 'administración tiene tres pestañas, contadores, chips y filtro de área', async ( {
+	test( 'administration gets three tabs, counters, chips and the area filter', async ( {
 		page,
 	} ) => {
 		await page.goto( APP_PATH );
@@ -411,7 +411,7 @@ test.describe( 'Documentate app · roles', () => {
 		// The same three tabs gestión has, in the same order: moving between
 		// the two roles must not move the tabs around. Document types live in
 		// wp-admin, so no tab leaves the application.
-		const tabs = await pestanas( page );
+		const tabs = await tabLabels( page );
 		expect( tabs ).toHaveLength( 3 );
 		expect( tabs[ 0 ] ).toBe( 'Todos los documentos' );
 		expect( tabs[ 1 ] ).toMatch( /^Para revisar \d+$/ );
@@ -421,22 +421,22 @@ test.describe( 'Documentate app · roles', () => {
 		);
 
 		// Counters of the "todos" tray, the one administración approves from first.
-		const etiquetas = await page.locator( '.dcta-cifra span' ).allInnerTexts();
-		expect( etiquetas.map( ( t ) => t.trim() ) ).toEqual( [
+		const labels = await page.locator( '.dcta-cifra span' ).allInnerTexts();
+		expect( labels.map( ( t ) => t.trim() ) ).toEqual( [
 			'En revisión',
 			'En gestión',
 			'Aprobados',
 			'Devueltos',
 		] );
-		const enRevision = parseInt(
+		const inReview = parseInt(
 			await page.locator( '.dcta-cifra' ).first().locator( 'b' ).innerText(),
 			10
 		);
-		expect( enRevision ).toBeGreaterThanOrEqual( 1 );
+		expect( inReview ).toBeGreaterThanOrEqual( 1 );
 
 		// Administración sees every área at once.
-		await expect( fila( page, NOMBRES.propio ) ).toHaveCount( 1 );
-		await expect( fila( page, NOMBRES.otroBorrador ) ).toHaveCount( 1 );
+		await expect( row( page, NAMES.own ) ).toHaveCount( 1 );
+		await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 1 );
 
 		// The chips are the status filters that would find something.
 		const chips = ( await page.locator( '.dcta-fchip' ).allInnerTexts() ).map(
@@ -452,22 +452,22 @@ test.describe( 'Documentate app · roles', () => {
 				.getByRole( 'link', { name: 'En gestión', exact: true } )
 				.click(),
 		] );
-		const estados = (
+		const statuses = (
 			await page.locator( '.dcta-fila .dcta-estado' ).allInnerTexts()
 		).map( ( texto ) => texto.trim() );
-		expect( estados.length ).toBeGreaterThan( 0 );
-		expect( [ ...new Set( estados ) ] ).toEqual( [ 'En gestión' ] );
-		await expect( fila( page, NOMBRES.otroEnGestion ) ).toHaveCount( 1 );
+		expect( statuses.length ).toBeGreaterThan( 0 );
+		expect( [ ...new Set( statuses ) ] ).toEqual( [ 'En gestión' ] );
+		await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
 
 		// The área filter narrows every tray to one category.
 		await page.goto( APP_PATH );
-		await page.selectOption( '#dcta-area', String( otraCatId ) );
+		await page.selectOption( '#dcta-area', String( otherCatId ) );
 		await Promise.all( [
-			page.waitForURL( new RegExp( `area=${ otraCatId }` ) ),
+			page.waitForURL( new RegExp( `area=${ otherCatId }` ) ),
 			page.getByRole( 'button', { name: 'Filtrar' } ).click(),
 		] );
-		await expect( fila( page, NOMBRES.otroBorrador ) ).toHaveCount( 1 );
-		await expect( fila( page, NOMBRES.otroPendiente ) ).toHaveCount( 1 );
-		await expect( fila( page, NOMBRES.propio ) ).toHaveCount( 0 );
+		await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 1 );
+		await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
+		await expect( row( page, NAMES.own ) ).toHaveCount( 0 );
 	} );
 } );

@@ -959,7 +959,7 @@ body.documentate-app .wp-block-post-content {
 
 /*
  * Fields by role and automatic totals. The metabox prints documentate-* class
- * names and documentate-calculos.js writes documentate-resumen; the dcta-*
+ * names and documentate-calculations.js writes documentate-resumen; the dcta-*
  * aliases keep the app vocabulary of the spec working on the same rules.
  */
 

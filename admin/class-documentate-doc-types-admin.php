@@ -551,7 +551,7 @@ class Documentate_Doc_Types_Admin {
 
 		echo '<li>' . esc_html( $label );
 		$this->render_schema_preview_type_badge( $type );
-		Documentate_Doc_Type_Workflow_Fields::render_rol_badge( $entry );
+		Documentate_Doc_Type_Workflow_Fields::render_role_badge( $entry );
 		echo '</li>';
 	}
 
@@ -564,7 +564,7 @@ class Documentate_Doc_Types_Admin {
 	 */
 	private function render_schema_preview_array_entry( $label, $entry ) {
 		echo '<li><strong>' . esc_html( $label ) . '</strong>';
-		Documentate_Doc_Type_Workflow_Fields::render_rol_badge( $entry );
+		Documentate_Doc_Type_Workflow_Fields::render_role_badge( $entry );
 		echo '</li>';
 
 		if ( empty( $entry['item_schema'] ) || ! is_array( $entry['item_schema'] ) ) {
@@ -577,7 +577,7 @@ class Documentate_Doc_Types_Admin {
 			$item_type  = isset( $item['type'] ) ? (string) $item['type'] : '';
 			echo '<li>' . esc_html( $item_label );
 			$this->render_schema_preview_type_badge( $item_type );
-			Documentate_Doc_Type_Workflow_Fields::render_rol_badge( (array) $item );
+			Documentate_Doc_Type_Workflow_Fields::render_role_badge( (array) $item );
 			echo '</li>';
 		}
 		echo '</ul>';
@@ -613,7 +613,7 @@ class Documentate_Doc_Types_Admin {
 			wp_send_json_error( array( 'message' => 'ID de plantilla no válido.' ) );
 		}
 
-		$path = Documentate_Ficheros::ruta_de_adjunto( $attachment_id );
+		$path = Documentate_Files::attachment_path( $attachment_id );
 		if ( '' === $path ) {
 			wp_send_json_error( array( 'message' => 'Plantilla seleccionada no encontrada.' ) );
 		}
@@ -673,7 +673,7 @@ class Documentate_Doc_Types_Admin {
 			exit();
 		}
 
-		$path = Documentate_Ficheros::ruta_de_adjunto( $template_id );
+		$path = Documentate_Files::attachment_path( $template_id );
 		if ( '' === $path ) {
 			$this->store_flash_message( 'Archivo de plantilla no encontrado.', 'error' );
 			wp_safe_redirect( $redirect );

@@ -100,20 +100,20 @@ class Documentate_Document_Meta_Boxes {
 	 * The front-end application reuses this renderer and needs its own layout
 	 * around the rol groups: the área rows folded into a <details> and its
 	 * "Anotaciones internas" box inside the gestión section. It passes that
-	 * markup in $envoltorios; wp-admin passes nothing (WordPress hands the
+	 * markup in $wrappers; wp-admin passes nothing (WordPress hands the
 	 * metabox definition to the callback, and none of its keys is read) and
 	 * gets the flat layout it has always had.
 	 *
 	 * @param WP_Post $post        Current post.
-	 * @param array   $envoltorios Markup printed around a group that has visible
-	 *                             rows: area_abrir, area_cerrar, gestion_cerrar.
+	 * @param array   $wrappers Markup printed around a group that has visible
+	 *                             rows: area_open, area_close, management_close.
 	 * @return void
 	 */
-	public function render_sections_metabox( $post, array $envoltorios = array() ) {
-		$envoltorios += array(
-			'area_abrir' => '',
-			'area_cerrar' => '',
-			'gestion_cerrar' => '',
+	public function render_sections_metabox( $post, array $wrappers = array() ) {
+		$wrappers += array(
+			'area_open' => '',
+			'area_close' => '',
+			'management_close' => '',
 		);
 
 		wp_nonce_field( 'documentate_sections_nonce', 'documentate_sections_nonce' );
@@ -139,12 +139,12 @@ class Documentate_Document_Meta_Boxes {
 			'raw_fields' => isset( $raw_schema['fields'] ) && is_array( $raw_schema['fields'] ) ? $raw_schema['fields'] : array(),
 			'stored_fields' => Documents_Meta_Handler::get_structured_field_values( $post->ID ),
 		);
-		$grupos = Documentate_Campos_Rol::agrupar( $schema );
+		$groups = Documentate_Field_Roles::group_by_role( $schema );
 
 		echo '<div class="documentate-sections">';
 		$known_meta_keys = array_merge(
-			$this->render_rows_by_rol( $grupos['area'], $context, '', $envoltorios['area_abrir'], $envoltorios['area_cerrar'] ),
-			$this->render_rows_by_rol( $grupos['gestion'], $context, 'Datos oficiales · los completa gestión documental', '', $envoltorios['gestion_cerrar'] )
+			$this->render_rows_by_role( $groups['area'], $context, '', $wrappers['area_open'], $wrappers['area_close'] ),
+			$this->render_rows_by_role( $groups['gestion'], $context, 'Datos oficiales · los completa gestión documental', '', $wrappers['management_close'] )
 		);
 
 		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
@@ -160,16 +160,16 @@ class Documentate_Document_Meta_Boxes {
 	 * @param array  $rows    Schema rows of the group.
 	 * @param array  $context Post, raw schema, raw fields and stored values.
 	 * @param string $heading Heading drawn above the group, or '' for none.
-	 * @param string $abrir   Markup printed before the group, already escaped.
-	 * @param string $cerrar  Markup printed after the group, already escaped.
+	 * @param string $open    Markup printed before the group, already escaped.
+	 * @param string $close   Markup printed after the group, already escaped.
 	 * @return string[] Meta keys claimed by the group.
 	 */
-	private function render_rows_by_rol( array $rows, array $context, $heading, $abrir = '', $cerrar = '' ) {
+	private function render_rows_by_role( array $rows, array $context, $heading, $open = '', $close = '' ) {
 		$known_meta_keys = array();
 		$visible = array();
 
 		foreach ( $rows as $row ) {
-			if ( Documentate_Campos_Rol::puede_ver( $row ) ) {
+			if ( Documentate_Field_Roles::can_view( $row ) ) {
 				$visible[] = $row;
 			} elseif ( ! empty( $row['slug'] ) ) {
 				$known_meta_keys[] = 'documentate_field_' . sanitize_key( $row['slug'] );
@@ -181,7 +181,7 @@ class Documentate_Document_Meta_Boxes {
 		}
 
 		// The wrappers come from the application and are already escaped.
-		echo $abrir; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $open; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		if ( '' !== $heading ) {
 			echo '<h3 class="documentate-seccion-rol">' . esc_html( $heading ) . '</h3>';
@@ -196,7 +196,7 @@ class Documentate_Document_Meta_Boxes {
 		}
 		echo '</tbody></table>';
 
-		echo $cerrar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $close; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		return $known_meta_keys;
 	}
@@ -206,8 +206,8 @@ class Documentate_Document_Meta_Boxes {
 	 * @param array $field Prepared field from prepare_schema_row().
 	 * @return string Leading-space class, or '' for área rows.
 	 */
-	private function rol_css_class( array $field ) {
-		return isset( $field['rol'] ) && Documentate_Campos_Rol::ROL_GESTION === $field['rol'] ? ' documentate-campo-gestion' : '';
+	private function role_css_class( array $field ) {
+		return isset( $field['rol'] ) && Documentate_Field_Roles::ROLE_MANAGEMENT === $field['rol'] ? ' documentate-campo-gestion' : '';
 	}
 	/**
 	 * Collect meta values whose keys start with documentate_field_ but are not part of the schema.
@@ -417,7 +417,7 @@ class Documentate_Document_Meta_Boxes {
 				'slug' => $slug,
 				'field_type' => \Documentate\Documents\Documents_Field_Validator::extract_raw_type( $raw_field ),
 				'data_type' => isset( $row['data_type'] ) ? sanitize_key( $row['data_type'] ) : '',
-				'rol' => Documentate_Campos_Rol::rol_del_campo( $row ),
+				'rol' => Documentate_Field_Roles::field_role( $row ),
 			)
 		);
 	}
@@ -446,7 +446,7 @@ class Documentate_Document_Meta_Boxes {
 		$items = $this->get_repeater_rows( $slug, $stored_fields );
 		$help = Documentate_Document_Field_Help::build_field_help_context( $meta_key, $slug, $field['raw_field'] );
 
-		echo '<tr class="documentate-field documentate-field-array documentate-field-' . esc_attr( $slug . $this->rol_css_class( $field ) ) . '">';
+		echo '<tr class="documentate-field documentate-field-array documentate-field-' . esc_attr( $slug . $this->role_css_class( $field ) ) . '">';
 		echo '<th scope="row"><label';
 		if ( '' !== $title_attribute ) {
 			echo ' title="' . esc_attr( $title_attribute ) . '"';
@@ -527,7 +527,7 @@ class Documentate_Document_Meta_Boxes {
 		echo '<tr class="documentate-field documentate-field-'
 				. esc_attr( $slug )
 				. ' documentate-field-control-'
-				. esc_attr( $type . $this->rol_css_class( $field ) )
+				. esc_attr( $type . $this->role_css_class( $field ) )
 				. '">';
 		echo '<th scope="row"><label for="' . esc_attr( $meta_key ) . '"';
 		if ( '' !== $field['title_attribute'] ) {

@@ -224,8 +224,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertTrue( wp_style_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'documentate-calculos', 'enqueued' ) );
-		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculos']->deps );
+		$this->assertTrue( wp_script_is( 'documentate-calculations', 'enqueued' ) );
+		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculations']->deps );
 	}
 
 	/**
@@ -1579,16 +1579,16 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 	 * the branch that answers it.
 	 */
 	public function test_each_format_reaches_its_generator() {
-		$metodo = new ReflectionMethod( $this->helper, 'generar' );
-		$metodo->setAccessible( true );
+		$method_name = new ReflectionMethod( $this->helper, 'generate' );
+		$method_name->setAccessible( true );
 
 		// A document without a type has no template, so every branch comes back
 		// as the generator's own error: which one it is says which branch ran.
 		$post_id = self::factory()->post->create( array( 'post_type' => 'documentate_document' ) );
 
-		foreach ( array( 'docx', 'odt', 'pdf', 'ristra-inventada', '' ) as $formato ) {
-			$resultado = $metodo->invoke( null, $formato, $post_id );
-			$this->assertInstanceOf( WP_Error::class, $resultado, 'Formato: ' . $formato );
+		foreach ( array( 'docx', 'odt', 'pdf', 'ristra-inventada', '' ) as $format ) {
+			$result = $method_name->invoke( null, $format, $post_id );
+			$this->assertInstanceOf( WP_Error::class, $result, 'Formato: ' . $format );
 		}
 	}
 
@@ -1751,8 +1751,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		// Verify scripts are enqueued.
 		$this->assertTrue( wp_script_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'documentate-calculos', 'enqueued' ) );
-		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculos']->deps );
+		$this->assertTrue( wp_script_is( 'documentate-calculations', 'enqueued' ) );
+		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculations']->deps );
 	}
 
 	/**
@@ -2272,13 +2272,13 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 	/**
 	 * The string helper the application views use returns the same markup.
 	 */
-	public function test_bloque_exportar_returns_the_markup() {
+	public function test_export_block_returns_the_markup() {
 		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
 
-		$html = Documentate_Admin_Helper::bloque_exportar( $post );
+		$html = Documentate_Admin_Helper::export_block( $post );
 
 		$this->assertStringContainsString( 'id="exportar"', $html );
-		$this->assertInstanceOf( Documentate_Admin_Helper::class, Documentate_Admin_Helper::instancia() );
+		$this->assertInstanceOf( Documentate_Admin_Helper::class, Documentate_Admin_Helper::instance() );
 	}
 
 	/**
@@ -2292,10 +2292,10 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertTrue( wp_style_is( 'documentate-actions', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-actions', 'enqueued' ) );
 
-		$datos = wp_scripts()->get_data( 'documentate-unsaved-changes', 'data' );
-		$this->assertStringContainsString( '"formSelector":"form.dcta-editor"', (string) $datos );
+		$data = wp_scripts()->get_data( 'documentate-unsaved-changes', 'data' );
+		$this->assertStringContainsString( '"formSelector":"form.dcta-editor"', (string) $data );
 		// wp_localize_script() casts every scalar to a string.
-		$this->assertStringContainsString( '"postId":"' . $post->ID . '"', (string) $datos );
+		$this->assertStringContainsString( '"postId":"' . $post->ID . '"', (string) $data );
 	}
 
 	/**

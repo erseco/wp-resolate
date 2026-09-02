@@ -26,7 +26,7 @@ class Documentate_Document_Admin_Extras {
 	 */
 	public function register_hooks() {
 		add_action( 'add_meta_boxes', array( $this, 'register_meta_boxes' ) );
-		add_action( 'edit_form_after_title', array( $this, 'render_nombre_interno_field' ) );
+		add_action( 'edit_form_after_title', array( $this, 'render_internal_name_field' ) );
 	}
 	/**
 	 * Add the "Anotaciones internas" (gestión / administración only) and
@@ -35,11 +35,11 @@ class Documentate_Document_Admin_Extras {
 	 * @return void
 	 */
 	public function register_meta_boxes() {
-		if ( Documentate_Roles::es_gestion() ) {
+		if ( Documentate_Roles::is_management() ) {
 			add_meta_box(
 				'documentate_anotaciones',
 				'Anotaciones internas',
-				array( $this, 'render_anotaciones_metabox' ),
+				array( $this, 'render_notes_metabox' ),
 				'documentate_document',
 				'side',
 				'low',
@@ -49,7 +49,7 @@ class Documentate_Document_Admin_Extras {
 		add_meta_box(
 			'documentate_actividad',
 			'Actividad',
-			array( $this, 'render_actividad_metabox' ),
+			array( $this, 'render_activity_metabox' ),
 			'documentate_document',
 			'side',
 			'low',
@@ -64,28 +64,28 @@ class Documentate_Document_Admin_Extras {
 	 * @param WP_Post $post Post being edited.
 	 * @return void
 	 */
-	public function render_nombre_interno_field( $post ) {
+	public function render_internal_name_field( $post ) {
 		if ( ! $post instanceof WP_Post || 'documentate_document' !== $post->post_type ) {
 			return;
 		}
 
-		$prefijo = Documentate_Documento::prefijo_tipo( $post );
-		$bloqueado = ! Documentate_Workflow::current_user_can_modify_document( $post->ID );
+		$prefix = Documentate_Document_Data::type_prefix( $post );
+		$locked = ! Documentate_Workflow::current_user_can_modify_document( $post->ID );
 		?>
 		<div class="documentate-nombre-interno">
 			<label for="documentate_nombre_interno"><?php echo esc_html( 'Nombre interno' ); ?></label>
 			<div class="documentate-nombre-interno__grupo">
-				<?php if ( '' !== $prefijo ) : ?>
-					<span class="documentate-nombre-interno__prefijo"><?php echo esc_html( $prefijo ); ?></span>
+				<?php if ( '' !== $prefix ) : ?>
+					<span class="documentate-nombre-interno__prefijo"><?php echo esc_html( $prefix ); ?></span>
 				<?php endif; ?>
 				<input
 					type="text"
 					id="documentate_nombre_interno"
 					name="documentate_nombre_interno"
-					value="<?php echo esc_attr( Documentate_Documento::nombre_interno( $post ) ); ?>"
-					maxlength="<?php echo esc_attr( (string) Documentate_Documento::NOMBRE_MAX ); ?>"
+					value="<?php echo esc_attr( Documentate_Document_Data::internal_name( $post ) ); ?>"
+					maxlength="<?php echo esc_attr( (string) Documentate_Document_Data::NAME_MAX ); ?>"
 					class="widefat"
-					<?php disabled( $bloqueado ); ?>
+					<?php disabled( $locked ); ?>
 				/>
 			</div>
 			<p class="description">
@@ -103,15 +103,15 @@ class Documentate_Document_Admin_Extras {
 	 * @param WP_Post $post Post being edited.
 	 * @return void
 	 */
-	public function render_anotaciones_metabox( $post ) {
-		$bloqueado = ! Documentate_Workflow::current_user_can_modify_document( $post->ID );
+	public function render_notes_metabox( $post ) {
+		$locked = ! Documentate_Workflow::current_user_can_modify_document( $post->ID );
 		?>
 		<textarea
 			name="documentate_anotaciones"
 			class="widefat"
 			rows="4"
-			<?php disabled( $bloqueado ); ?>
-		><?php echo esc_textarea( Documentate_Documento::anotaciones( $post ) ); ?></textarea>
+			<?php disabled( $locked ); ?>
+		><?php echo esc_textarea( Documentate_Document_Data::notes( $post ) ); ?></textarea>
 		<p class="description">
 			<?php echo esc_html( 'Solo las ven gestión y administración; no salen en el documento.' ); ?>
 		</p>
@@ -126,21 +126,21 @@ class Documentate_Document_Admin_Extras {
 	 * @param WP_Post $post Post being edited.
 	 * @return void
 	 */
-	public function render_actividad_metabox( $post ) {
-		$filas = Documentate_Actividad::listar( $post->ID );
-		if ( empty( $filas ) ) {
+	public function render_activity_metabox( $post ) {
+		$rows = Documentate_Activity::entries( $post->ID );
+		if ( empty( $rows ) ) {
 			echo '<p class="description">' . esc_html( 'Todavía no hay actividad.' ) . '</p>';
 			return;
 		}
 
 		echo '<ul class="documentate-actividad-lista">';
-		foreach ( $filas as $fila ) {
+		foreach ( $rows as $row ) {
 			printf(
 				'<li class="documentate-actividad-lista__item documentate-actividad-lista__item--%1$s"><strong>%2$s</strong> %3$s <span class="description">(%4$s)</span></li>',
-				esc_attr( $fila['tipo'] ),
-				esc_html( $fila['autor'] ),
-				esc_html( $fila['texto'] ),
-				esc_html( '' !== $fila['relativa'] ? $fila['relativa'] : $fila['fecha'] ),
+				esc_attr( $row['type'] ),
+				esc_html( $row['author'] ),
+				esc_html( $row['text'] ),
+				esc_html( '' !== $row['relative'] ? $row['relative'] : $row['date'] ),
 			);
 		}
 		echo '</ul>';

@@ -45,11 +45,11 @@ class Documentate_App {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'ensure_page' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_node' ), 100 );
-		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_create_document' ) );
-		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_save_document' ) );
-		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_transition' ) );
-		add_action( 'template_redirect', array( 'Documentate_App_Acciones', 'handle_comment' ) );
-		Documentate_App_Adjuntos::init();
+		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_create_document' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_save_document' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_transition' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_comment' ) );
+		Documentate_App_Attachments::init();
 	}
 
 	/**
@@ -153,12 +153,12 @@ class Documentate_App {
 	 * @return void
 	 */
 	private function enqueue_document_assets() {
-		$doc = self::documento_solicitado();
+		$doc = self::requested_document();
 		if ( $doc <= 0 || ! current_user_can( 'edit_post', $doc ) ) {
 			return;
 		}
 
-		$helper = Documentate_Admin_Helper::instancia();
+		$helper = Documentate_Admin_Helper::instance();
 		if ( $helper instanceof Documentate_Admin_Helper ) {
 			$helper->enqueue_actions_assets_for_post( $doc, 'form.dcta-editor' );
 		}
@@ -185,8 +185,8 @@ class Documentate_App {
 		);
 		// Automatic totals for the provider repeaters (propuesta de gasto).
 		wp_enqueue_script(
-			'documentate-calculos',
-			plugins_url( 'admin/js/documentate-calculos.js', DOCUMENTATE_PLUGIN_FILE ),
+			'documentate-calculations',
+			plugins_url( 'admin/js/documentate-calculations.js', DOCUMENTATE_PLUGIN_FILE ),
 			array( 'documentate-annexes' ),
 			DOCUMENTATE_VERSION,
 			true,
@@ -198,7 +198,7 @@ class Documentate_App {
 	 *
 	 * @return int
 	 */
-	private static function documento_solicitado() {
+	private static function requested_document() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
 		return isset( $_GET['doc'] ) ? absint( $_GET['doc'] ) : 0;
 	}
@@ -210,9 +210,9 @@ class Documentate_App {
 	 */
 	private static function is_edit_view_request() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-		$vista = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
+		$view = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
 
-		return 'editar' === $vista && self::documento_solicitado() > 0;
+		return 'editar' === $view && self::requested_document() > 0;
 	}
 
 	/**
@@ -227,23 +227,23 @@ class Documentate_App {
 	/**
 	 * Create a draft document from the "new document" form and redirect.
 	 *
-	 * Thin delegate: the handlers live in Documentate_App_Acciones.
+	 * Thin delegate: the handlers live in Documentate_App_Actions.
 	 *
 	 * @return void
 	 */
 	public function handle_create_document() {
-		Documentate_App_Acciones::handle_create_document();
+		Documentate_App_Actions::handle_create_document();
 	}
 
 	/**
 	 * Persist the edit form and redirect.
 	 *
-	 * Thin delegate: the handlers live in Documentate_App_Acciones.
+	 * Thin delegate: the handlers live in Documentate_App_Actions.
 	 *
 	 * @return void
 	 */
 	public function handle_save_document() {
-		Documentate_App_Acciones::handle_save_document();
+		Documentate_App_Actions::handle_save_document();
 	}
 
 	/**
@@ -253,34 +253,34 @@ class Documentate_App {
 	 */
 	public function render() {
 		if ( ! is_user_logged_in() ) {
-			return Documentate_App_Shell::abrir( '', 'Documentate', '' )
+			return Documentate_App_Shell::open( '', 'Documentate', '' )
 				. '<div class="dcta-aviso">Inicia sesión para trabajar con tus documentos.'
 				. ' <a href="' . esc_url( wp_login_url( Documentate_App_Shell::page_url() ) ) . '">Iniciar sesión</a>'
 				. '</div>'
-				. Documentate_App_Shell::cerrar();
+				. Documentate_App_Shell::close();
 		}
 
 		if ( ! current_user_can( 'edit_posts' ) ) {
-			return Documentate_App_Shell::abrir( '', 'Documentate', '' )
+			return Documentate_App_Shell::open( '', 'Documentate', '' )
 				. '<div class="dcta-aviso">Tu usuario no puede editar documentos. Contacta con administración.</div>'
-				. Documentate_App_Shell::cerrar();
+				. Documentate_App_Shell::close();
 		}
 
-		$doc = self::documento_solicitado();
+		$doc = self::requested_document();
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-		$vista = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
+		$view = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
 
 		if ( $doc > 0 ) {
-			return 'editar' === $vista
-				? Documentate_App_Editar::render( $doc )
-				: Documentate_App_Detalle::render( $doc );
+			return 'editar' === $view
+				? Documentate_App_Edit::render( $doc )
+				: Documentate_App_Detail::render( $doc );
 		}
 
-		if ( 'nuevo' === $vista ) {
-			return $this->render_nuevo();
+		if ( 'nuevo' === $view ) {
+			return $this->render_new();
 		}
 
-		return Documentate_App_Lista::render();
+		return Documentate_App_List::render();
 	}
 
 	/**
@@ -288,18 +288,18 @@ class Documentate_App {
 	 *
 	 * @return string
 	 */
-	private function render_nuevo() {
-		$tipos = get_terms(
+	private function render_new() {
+		$types = get_terms(
 			array(
 				'taxonomy' => 'documentate_doc_type',
 				'hide_empty' => false,
 			)
 		);
-		$tipos = is_wp_error( $tipos ) ? array() : $tipos;
+		$types = is_wp_error( $types ) ? array() : $types;
 
-		$error = Documentate_App_Detalle::bandera( 'error' );
+		$error = Documentate_App_Detail::flag( 'error' );
 
-		$html = Documentate_App_Shell::abrir(
+		$html = Documentate_App_Shell::open(
 			'nuevo',
 			'Nuevo documento',
 			'Elige el tipo y ponle nombre; el tipo no se puede cambiar después.'
@@ -309,22 +309,22 @@ class Documentate_App {
 			$html .= '<div class="dcta-aviso dcta-aviso-mal">No se pudo crear el documento. Revisa el tipo, el nombre y el título.</div>';
 		}
 
-		if ( empty( $tipos ) ) {
+		if ( empty( $types ) ) {
 			return $html
 				. '<div class="dcta-aviso">No hay tipos de documento definidos. Los crea administración en el escritorio de WordPress, en Documentos → Tipos de documento.</div>'
-				. Documentate_App_Shell::cerrar();
+				. Documentate_App_Shell::close();
 		}
 
-		return $html . $this->form_nuevo( $tipos ) . Documentate_App_Shell::cerrar();
+		return $html . $this->new_form( $types ) . Documentate_App_Shell::close();
 	}
 
 	/**
 	 * The "new document" form itself.
 	 *
-	 * @param WP_Term[] $tipos Document types.
+	 * @param WP_Term[] $types Document types.
 	 * @return string
 	 */
-	private function form_nuevo( array $tipos ) {
+	private function new_form( array $types ) {
 		ob_start();
 		?>
 		<form class="dcta-form" method="post" action="">
@@ -335,10 +335,10 @@ class Documentate_App {
 				<label for="documentate-app-tipo">Tipo de documento</label>
 				<select id="documentate-app-tipo" name="documentate_app_tipo" required>
 					<option value="">Elige un tipo…</option>
-					<?php foreach ( $tipos as $tipo ) : ?>
-						<option value="<?php echo esc_attr( (string) $tipo->term_id ); ?>"
-							data-prefijo="<?php echo esc_attr( Documentate_Documento::prefijo_de_tipo( $tipo->term_id ) ); ?>"
-							data-gestion="<?php echo esc_attr( Documentate_Documento::tipo_con_gestion( $tipo->term_id ) ? '1' : '' ); ?>"><?php echo esc_html( $tipo->name ); ?></option>
+					<?php foreach ( $types as $type ) : ?>
+						<option value="<?php echo esc_attr( (string) $type->term_id ); ?>"
+							data-prefijo="<?php echo esc_attr( Documentate_Document_Data::prefix_for_type( $type->term_id ) ); ?>"
+							data-gestion="<?php echo esc_attr( Documentate_Document_Data::type_has_management( $type->term_id ) ? '1' : '' ); ?>"><?php echo esc_html( $type->name ); ?></option>
 					<?php endforeach; ?>
 				</select>
 				<p class="dcta-ayuda" id="documentate-app-tipo-nota"></p>

@@ -27,11 +27,11 @@ class Documentate_Roles {
 	 *
 	 * It only takes effect together with `edit_others_posts`: gestión must be
 	 * able to open documents from every área, which WordPress gates with that
-	 * primitive capability. Granting CAP_GESTION alone does nothing.
+	 * primitive capability. Granting CAP_MANAGEMENT alone does nothing.
 	 *
 	 * @var string
 	 */
-	const CAP_GESTION = 'documentate_gestionar';
+	const CAP_MANAGEMENT = 'documentate_gestionar';
 
 	/**
 	 * Option holding the version of the capability set already applied.
@@ -43,7 +43,7 @@ class Documentate_Roles {
 	/**
 	 * Current version of the capability set.
 	 *
-	 * Version 1 granted CAP_GESTION to the stock `editor` role, which turned
+	 * Version 1 granted CAP_MANAGEMENT to the stock `editor` role, which turned
 	 * every content editor of the site into gestión documental; version 2
 	 * moves it to a role of its own and takes it back from `editor`.
 	 *
@@ -63,10 +63,10 @@ class Documentate_Roles {
 	 *
 	 * @var string
 	 */
-	const ROL_GESTION = 'documentate_gestion';
+	const ROLE_MANAGEMENT = 'documentate_gestion';
 
 	/**
-	 * Stock roles that receive CAP_GESTION on top of ROL_GESTION.
+	 * Stock roles that receive CAP_MANAGEMENT on top of ROLE_MANAGEMENT.
 	 *
 	 * Administrators are administración already, so the capability only makes
 	 * their role explicit. No other role of the site is touched: gestión
@@ -75,7 +75,7 @@ class Documentate_Roles {
 	 *
 	 * @var string[]
 	 */
-	const ROLES_CON_GESTION = array( 'administrator' );
+	const ROLES_WITH_MANAGEMENT = array( 'administrator' );
 
 	/**
 	 * Capabilities the gestión documental role carries.
@@ -85,14 +85,14 @@ class Documentate_Roles {
 	 *
 	 * @var array<string,bool>
 	 */
-	const CAPS_ROL_GESTION = array(
+	const CAPS_MANAGEMENT_ROLE = array(
 		'read' => true,
 		'upload_files' => true,
 		'edit_posts' => true,
 		'edit_others_posts' => true,
 		'edit_published_posts' => true,
 		'read_private_posts' => true,
-		self::CAP_GESTION => true,
+		self::CAP_MANAGEMENT => true,
 	);
 
 	/**
@@ -105,12 +105,12 @@ class Documentate_Roles {
 	}
 
 	/**
-	 * Roles that carry CAP_GESTION on this site.
+	 * Roles that carry CAP_MANAGEMENT on this site.
 	 *
 	 * @return string[]
 	 */
-	public static function roles_con_gestion() {
-		$roles = array_merge( array( self::ROL_GESTION ), self::ROLES_CON_GESTION );
+	public static function management_roles() {
+		$roles = array_merge( array( self::ROLE_MANAGEMENT ), self::ROLES_WITH_MANAGEMENT );
 
 		/**
 		 * Filter the roles the gestión documental capability is granted to.
@@ -126,7 +126,7 @@ class Documentate_Roles {
 	}
 
 	/**
-	 * Create the gestión documental role and grant it CAP_GESTION.
+	 * Create the gestión documental role and grant it CAP_MANAGEMENT.
 	 *
 	 * Runs once per VERSION unless forced (activation forces it so a site
 	 * that reactivates the plugin always ends up with the capability).
@@ -138,22 +138,22 @@ class Documentate_Roles {
 	 * @return void
 	 */
 	public static function ensure_caps( $force = false ) {
-		$aplicada = (string) get_option( self::OPTION_VERSION );
-		if ( ! $force && self::VERSION === $aplicada ) {
+		$applied = (string) get_option( self::OPTION_VERSION );
+		if ( ! $force && self::VERSION === $applied ) {
 			return;
 		}
 
-		self::registrar_rol_gestion();
+		self::register_management_role();
 
-		$roles = self::roles_con_gestion();
+		$roles = self::management_roles();
 		foreach ( $roles as $role_name ) {
 			$role = get_role( $role_name );
 			if ( $role ) {
-				$role->add_cap( self::CAP_GESTION );
+				$role->add_cap( self::CAP_MANAGEMENT );
 			}
 		}
 
-		self::revocar_grant_de_editor( $aplicada, $roles );
+		self::revoke_editor_grant( $applied, $roles );
 
 		update_option( self::OPTION_VERSION, self::VERSION );
 	}
@@ -163,37 +163,37 @@ class Documentate_Roles {
 	 *
 	 * @return void
 	 */
-	private static function registrar_rol_gestion() {
-		$role = get_role( self::ROL_GESTION );
+	private static function register_management_role() {
+		$role = get_role( self::ROLE_MANAGEMENT );
 		if ( ! $role ) {
-			add_role( self::ROL_GESTION, 'Gestión documental', self::CAPS_ROL_GESTION );
+			add_role( self::ROLE_MANAGEMENT, 'Gestión documental', self::CAPS_MANAGEMENT_ROLE );
 			return;
 		}
 
-		foreach ( array_keys( self::CAPS_ROL_GESTION ) as $cap ) {
+		foreach ( array_keys( self::CAPS_MANAGEMENT_ROLE ) as $cap ) {
 			$role->add_cap( $cap );
 		}
 	}
 
 	/**
-	 * Take CAP_GESTION back from the stock editor role of a version 1 site.
+	 * Take CAP_MANAGEMENT back from the stock editor role of a version 1 site.
 	 *
 	 * Version 1 granted it on activation with no way of saying no, so an
 	 * update is the only chance to undo it. A site that put the capability
 	 * back on purpose says so through the filter, and is left alone.
 	 *
-	 * @param string   $aplicada Version of the capability set already applied.
+	 * @param string   $applied Version of the capability set already applied.
 	 * @param string[] $roles    Roles that carry the capability now.
 	 * @return void
 	 */
-	private static function revocar_grant_de_editor( $aplicada, array $roles ) {
-		if ( self::VERSION_EDITOR_GRANT !== $aplicada || in_array( 'editor', $roles, true ) ) {
+	private static function revoke_editor_grant( $applied, array $roles ) {
+		if ( self::VERSION_EDITOR_GRANT !== $applied || in_array( 'editor', $roles, true ) ) {
 			return;
 		}
 
 		$role = get_role( 'editor' );
 		if ( $role ) {
-			$role->remove_cap( self::CAP_GESTION );
+			$role->remove_cap( self::CAP_MANAGEMENT );
 		}
 	}
 
@@ -207,35 +207,35 @@ class Documentate_Roles {
 	 * @param int $user_id User ID.
 	 * @return bool Whether the account carries the capability now.
 	 */
-	public static function conceder_gestion( $user_id ) {
+	public static function grant_management( $user_id ) {
 		$user = get_user_by( 'id', (int) $user_id );
 		if ( ! $user instanceof WP_User ) {
 			return false;
 		}
 
-		if ( ! $user->has_cap( self::CAP_GESTION ) ) {
-			$user->add_cap( self::CAP_GESTION );
+		if ( ! $user->has_cap( self::CAP_MANAGEMENT ) ) {
+			$user->add_cap( self::CAP_MANAGEMENT );
 		}
 
 		return true;
 	}
 
 	/**
-	 * Remove CAP_GESTION from the roles and forget the version (uninstall).
+	 * Remove CAP_MANAGEMENT from the roles and forget the version (uninstall).
 	 *
 	 * @return void
 	 */
 	public static function remove_caps() {
-		$roles = array_merge( self::roles_con_gestion(), array( 'editor' ) );
+		$roles = array_merge( self::management_roles(), array( 'editor' ) );
 		foreach ( $roles as $role_name ) {
 			$role = get_role( $role_name );
 			if ( $role ) {
-				$role->remove_cap( self::CAP_GESTION );
+				$role->remove_cap( self::CAP_MANAGEMENT );
 			}
 		}
 
-		if ( get_role( self::ROL_GESTION ) ) {
-			remove_role( self::ROL_GESTION );
+		if ( get_role( self::ROLE_MANAGEMENT ) ) {
+			remove_role( self::ROLE_MANAGEMENT );
 		}
 
 		delete_option( self::OPTION_VERSION );
@@ -251,7 +251,7 @@ class Documentate_Roles {
 	 * @param string   $cap     Capability.
 	 * @return bool
 	 */
-	private static function puede( $user_id, $cap ) {
+	private static function has_cap( $user_id, $cap ) {
 		if ( null === $user_id ) {
 			return current_user_can( $cap );
 		}
@@ -265,8 +265,8 @@ class Documentate_Roles {
 	 * @param int|null $user_id User ID, or null for the current user.
 	 * @return bool
 	 */
-	public static function es_administracion( $user_id = null ) {
-		return self::puede( $user_id, 'manage_options' );
+	public static function is_administration( $user_id = null ) {
+		return self::has_cap( $user_id, 'manage_options' );
 	}
 
 	/**
@@ -278,12 +278,12 @@ class Documentate_Roles {
 	 * @param int|null $user_id User ID, or null for the current user.
 	 * @return bool
 	 */
-	public static function es_gestion( $user_id = null ) {
-		if ( self::es_administracion( $user_id ) ) {
+	public static function is_management( $user_id = null ) {
+		if ( self::is_administration( $user_id ) ) {
 			return true;
 		}
 
-		return self::puede( $user_id, self::CAP_GESTION ) && self::puede( $user_id, 'edit_others_posts' );
+		return self::has_cap( $user_id, self::CAP_MANAGEMENT ) && self::has_cap( $user_id, 'edit_others_posts' );
 	}
 
 	/**
@@ -292,8 +292,8 @@ class Documentate_Roles {
 	 * @param int|null $user_id User ID, or null for the current user.
 	 * @return bool
 	 */
-	public static function es_area( $user_id = null ) {
-		return self::puede( $user_id, 'edit_posts' ) && ! self::es_gestion( $user_id );
+	public static function is_area( $user_id = null ) {
+		return self::has_cap( $user_id, 'edit_posts' ) && ! self::is_management( $user_id );
 	}
 
 	/**
@@ -302,12 +302,12 @@ class Documentate_Roles {
 	 * @param int|null $user_id User ID, or null for the current user.
 	 * @return string "Administración", "Gestión documental", "Área · <categoría>" or "Edición".
 	 */
-	public static function etiqueta_rol( $user_id = null ) {
-		if ( self::es_administracion( $user_id ) ) {
+	public static function role_label( $user_id = null ) {
+		if ( self::is_administration( $user_id ) ) {
 			return 'Administración';
 		}
 
-		if ( self::es_gestion( $user_id ) ) {
+		if ( self::is_management( $user_id ) ) {
 			return 'Gestión documental';
 		}
 
