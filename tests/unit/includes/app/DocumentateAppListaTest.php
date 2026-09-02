@@ -254,10 +254,12 @@ class DocumentateAppListaTest extends WP_UnitTestCase {
 
 		wp_set_current_user( $this->admin_id );
 		$secciones = Documentate_App_Shell::secciones();
-		$this->assertSame( array( 'revision', 'lista', 'nuevo', 'tipos' ), array_keys( $secciones ) );
+		// Same shape as gestión: the whole list first, then the review tray.
+		$this->assertSame( array( 'lista', 'revision', 'nuevo' ), array_keys( $secciones ) );
 		$this->assertSame( 1, $secciones['revision']['n'], 'One document waits for approval.' );
 		$this->assertSame( 'Todos los documentos', $secciones['lista']['tab'] );
-		$this->assertStringContainsString( 'edit-tags.php', $secciones['tipos']['url'] );
+		// Document types and their templates are wp-admin work, not a tab.
+		$this->assertStringNotContainsString( 'edit-tags.php', wp_json_encode( $secciones ) );
 	}
 
 	/**

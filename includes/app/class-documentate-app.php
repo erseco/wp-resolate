@@ -311,7 +311,7 @@ class Documentate_App {
 
 		if ( empty( $tipos ) ) {
 			return $html
-				. '<div class="dcta-aviso">No hay tipos de documento definidos. Créalos en Tipos y plantillas.</div>'
+				. '<div class="dcta-aviso">No hay tipos de documento definidos. Los crea administración en el escritorio de WordPress, en Documentos → Tipos de documento.</div>'
 				. Documentate_App_Shell::cerrar();
 		}
 

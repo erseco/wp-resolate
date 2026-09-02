@@ -403,17 +403,19 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'administración tiene cuatro pestañas, contadores, chips y filtro de área', async ( {
+	test( 'administración tiene tres pestañas, contadores, chips y filtro de área', async ( {
 		page,
 	} ) => {
 		await page.goto( APP_PATH );
 
+		// The same three tabs gestión has, in the same order: moving between
+		// the two roles must not move the tabs around. Document types live in
+		// wp-admin, so no tab leaves the application.
 		const tabs = await pestanas( page );
-		expect( tabs ).toHaveLength( 4 );
-		expect( tabs[ 0 ] ).toMatch( /^Para revisar \d+$/ );
-		expect( tabs[ 1 ] ).toBe( 'Todos los documentos' );
+		expect( tabs ).toHaveLength( 3 );
+		expect( tabs[ 0 ] ).toBe( 'Todos los documentos' );
+		expect( tabs[ 1 ] ).toMatch( /^Para revisar \d+$/ );
 		expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
-		expect( tabs[ 3 ] ).toBe( 'Tipos y plantillas ↗' );
 		await expect( page.locator( '.dcta-rol' ) ).toHaveText(
 			'Administración'
 		);

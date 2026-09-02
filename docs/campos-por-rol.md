@@ -1,7 +1,8 @@
 # Campos por rol en las plantillas (`rol='gestion'`)
 
 Guía rápida para quien edite las plantillas ODT (los ficheros de
-`fixtures/*.odt` y los que se suban desde **Tipos y plantillas**). Explica el
+`fixtures/*.odt` y los que se suban desde **Documentos → Tipos de documento**
+en wp-admin). Explica el
 atributo `rol` de los marcadores TinyButStrong/OpenTBS y cómo afecta al
 formulario que ve cada persona.
 
@@ -59,7 +60,7 @@ Un tipo de documento pasa por el paso intermedio **En gestión** del flujo
 condiciones:
 
 1. Tiene marcada la casilla **«Pasa por gestión documental»** en
-   **Tipos y plantillas**, o
+   **Documentos → Tipos de documento**, o
 2. Su plantilla activa contiene **algún** campo `rol='gestion'` — no hace
    falta marcar la casilla a mano, basta con usar el atributo.
 

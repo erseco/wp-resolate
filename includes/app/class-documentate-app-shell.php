@@ -83,7 +83,7 @@ class Documentate_App_Shell {
 	 * for the tabs twice (the tab bar and the back link), so they are built
 	 * once per page: abrir() empties the cache as a page starts rendering.
 	 *
-	 * @var array<int,array<string,array{tab:string,url:string,n:int,externo:bool}>>
+	 * @var array<int,array<string,array{tab:string,url:string,n:int}>>
 	 */
 	private static $secciones = array();
 
@@ -176,7 +176,7 @@ class Documentate_App_Shell {
 	 * Only the actionable tab carries a badge: the documents waiting for this
 	 * role to do something with them.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int,externo:bool}>
+	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	public static function secciones() {
 		$usuario = get_current_user_id();
@@ -190,7 +190,7 @@ class Documentate_App_Shell {
 	/**
 	 * Build the tabs of the current person.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int,externo:bool}>
+	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	private static function construir_secciones() {
 		if ( Documentate_Roles::es_administracion() ) {
@@ -208,32 +208,30 @@ class Documentate_App_Shell {
 	}
 
 	/**
-	 * Tabs of administración: the review tray first, then everything.
+	 * Tabs of administración: everything first, then what waits for them.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int,externo:bool}>
+	 * Same shape as gestión documental — the whole list, then the review tray —
+	 * so moving between the two roles does not move the tabs around. Document
+	 * types and their templates are not here: that is wp-admin work.
+	 *
+	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	private static function secciones_administracion() {
 		return array(
+			'lista' => self::seccion( 'Todos los documentos', self::page_url() ),
 			'revision' => self::seccion(
 				'Para revisar',
 				self::page_url( array( 'bandeja' => 'revision' ) ),
 				Documentate_App_Lista::contar( array( 'post_status' => 'pending' ) )
 			),
-			'lista' => self::seccion( 'Todos los documentos', self::page_url() ),
 			'nuevo' => self::seccion( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
-			'tipos' => self::seccion(
-				'Tipos y plantillas ↗',
-				admin_url( 'edit-tags.php?taxonomy=documentate_doc_type&post_type=documentate_document' ),
-				0,
-				true
-			),
 		);
 	}
 
 	/**
 	 * Tabs of gestión documental: their own área, and the documents to complete.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int,externo:bool}>
+	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	private static function secciones_gestion() {
 		return array(
@@ -250,18 +248,16 @@ class Documentate_App_Shell {
 	/**
 	 * One tab row.
 	 *
-	 * @param string $tab     Tab label.
-	 * @param string $url     Destination.
-	 * @param int    $numero  Badge count (0 hides the badge).
-	 * @param bool   $externo Whether the tab leaves the application.
-	 * @return array{tab:string,url:string,n:int,externo:bool}
+	 * @param string $tab    Tab label.
+	 * @param string $url    Destination.
+	 * @param int    $numero Badge count (0 hides the badge).
+	 * @return array{tab:string,url:string,n:int}
 	 */
-	private static function seccion( $tab, $url, $numero = 0, $externo = false ) {
+	private static function seccion( $tab, $url, $numero = 0 ) {
 		return array(
 			'tab' => $tab,
 			'url' => $url,
 			'n' => (int) $numero,
-			'externo' => (bool) $externo,
 		);
 	}
 
