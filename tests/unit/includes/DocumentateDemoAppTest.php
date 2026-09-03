@@ -50,6 +50,25 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * IDs of the documents this seeder marks as its own.
+	 *
+	 * @return int[]
+	 */
+	private function demo_app_ids() {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test assertion.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				'_documentate_demo_app'
+			)
+		);
+
+		return array_map( 'intval', (array) $ids );
+	}
+
+	/**
 	 * Documents keyed by their internal name, for readable assertions.
 	 *
 	 * @param int[] $ids Document IDs.
@@ -365,5 +384,88 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 		$this->assertInstanceOf( WP_Term::class, get_term_by( 'name', 'Departamento de Proyectos', 'category' ) );
 		$this->assertInstanceOf( WP_Term::class, get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' ) );
 		$this->assertFalse( get_option( 'documentate_seed_demo_documents', false ), 'The option must be left exactly as it was found (unset).' );
+	}
+
+	/**
+	 * A site that already carries the older demo documents still gets these.
+	 *
+	 * The one-per-type set is seeded once and then guards itself; before this,
+	 * that same guard skipped the whole pass, so a site updated from an earlier
+	 * version never saw a single document of the workflow.
+	 */
+	public function test_an_older_demo_site_still_gets_the_workflow_documents() {
+		$older = self::factory()->post->create(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Resolución de ejemplo de la versión anterior',
+			)
+		);
+		update_post_meta( $older, '_documentate_demo_type_id', '7' );
+
+		update_option( 'documentate_seed_demo_documents', true );
+		Documentate_Demo_Data::maybe_seed_demo_documents();
+
+		$this->assertCount(
+			12,
+			$this->demo_app_ids(),
+			'The workflow documents are seeded even next to the older set.'
+		);
+		$this->assertFalse(
+			get_option( 'documentate_seed_demo_documents', false ),
+			'The flag is spent once the pass is done.'
+		);
+	}
+
+	/**
+	 * The older demo documents come out with a short name of their own.
+	 */
+	public function test_the_older_demo_documents_get_an_internal_name() {
+		$largo = self::factory()->post->create(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Ejemplo: Resolución de la Dirección General por la que se publica el listado definitivo de centros admitidos en el programa piloto',
+			)
+		);
+		update_post_meta( $largo, '_documentate_demo_type_id', '7' );
+
+		$corto = self::factory()->post->create(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Convocatoria de reunión',
+			)
+		);
+		update_post_meta( $corto, '_documentate_demo_key', 'convocatoria' );
+
+		Documentate_Demo_App::seed();
+
+		$nombre_largo = Documentate_Document_Data::internal_name( $largo );
+		$this->assertNotSame( '', $nombre_largo, 'A demo document without a name gets one.' );
+		$this->assertLessThanOrEqual( 60, mb_strlen( $nombre_largo ), 'The name is short enough for a list row.' );
+		$this->assertStringStartsWith( 'Resolución de la Dirección General', $nombre_largo, 'The "Ejemplo:" prefix is dropped and the words survive.' );
+		$this->assertStringEndsNotWith( ' ', $nombre_largo );
+
+		$this->assertSame(
+			'Convocatoria de reunión',
+			Documentate_Document_Data::internal_name( $corto ),
+			'A title that already reads as a name is kept whole.'
+		);
+	}
+
+	/**
+	 * A name somebody wrote is never overwritten by the seeder.
+	 */
+	public function test_an_existing_internal_name_is_left_alone() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Resolución de ejemplo',
+			)
+		);
+		update_post_meta( $post_id, '_documentate_demo_type_id', '7' );
+		Documentate_Document_Data::save_internal_name( $post_id, 'El que escribió alguien' );
+
+		Documentate_Demo_App::seed();
+
+		$this->assertSame( 'El que escribió alguien', Documentate_Document_Data::internal_name( $post_id ) );
 	}
 }

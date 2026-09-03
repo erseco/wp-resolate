@@ -104,6 +104,7 @@ class Documentate_Demo_App {
 			foreach ( self::documents() as $definition ) {
 				$ids[] = self::create_if_missing( $definition );
 			}
+			Documentate_Demo_Names::apply_to_older_demo_documents();
 		} finally {
 			remove_filter( 'documentate_suspend_notifications', '__return_true' );
 			wp_set_current_user( $previous_user );

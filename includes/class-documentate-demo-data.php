@@ -490,21 +490,21 @@ class Documentate_Demo_Data {
 			return;
 		}
 
-		// Check if demo documents already exist - if so, skip seeding.
-		if ( self::demo_documents_already_seeded() ) {
-			delete_option( 'documentate_seed_demo_documents' );
-			return;
+		// One document per type: only worth creating on a site that has none.
+		if ( ! self::demo_documents_already_seeded() ) {
+			self::maybe_seed_default_doc_types();
+
+			$seeded_ids = self::seed_specific_demo_documents();
+
+			// Also create demo documents for other document types (advanced demos).
+			self::seed_remaining_demo_documents( $seeded_ids );
+
+			self::assign_demo_document_metadata();
 		}
 
-		self::maybe_seed_default_doc_types();
-
-		$seeded_ids = self::seed_specific_demo_documents();
-
-		// Also create demo documents for other document types (advanced demos).
-		self::seed_remaining_demo_documents( $seeded_ids );
-
-		self::assign_demo_document_metadata();
-
+		// The documents that walk the workflow are seeded even on a site that
+		// already carried the older set: they are what the application is for,
+		// they mark themselves apart, and seeding them twice creates nothing.
 		Documentate_Demo_App::seed();
 
 		delete_option( 'documentate_seed_demo_documents' );

@@ -54,6 +54,7 @@ start-docker-if-not-running: check-docker
 		echo "Docker env is NOT running. Starting..."; \
 		$(WP_ENV) start $(DOCKER_CONFIG) --update; \
 		$(WP_CLI) plugin activate documentate; \
+		$(MAKE) --no-print-directory seed-demo; \
 		echo "Visit http://localhost:$(DOCKER_PORT)/wp-admin/ to access the Docker environment."; \
 	else \
 		echo "Docker env is already running on port $(DOCKER_PORT), skipping start."; \
@@ -165,6 +166,12 @@ test-e2e-wasm: start-docker-if-not-running setup-e2e-env
 # Run E2E tests with the visual UI / inspector (Docker).
 test-e2e-visual: start-docker-if-not-running setup-e2e-env
 	WP_BASE_URL=http://localhost:$(DOCKER_PORT) npm run test:e2e -- --ui $(ARGS)
+
+# Siembra los datos de ejemplo (cuentas, categorías, tipos y los documentos que
+# recorren el circuito). Es idempotente: repetirlo no duplica nada, así que
+# `make up` lo lanza siempre y un entorno viejo se pone al día sin recrearlo.
+seed-demo: ## Crea o completa los datos de ejemplo del entorno de desarrollo
+	@$(WP_CLI) eval 'if ( class_exists( "Documentate_Demo_App" ) ) { Documentate_Demo_App::ensure_environment(); $$ids = Documentate_Demo_App::seed(); echo "Datos de ejemplo: ", count( $$ids ), " documentos del circuito.\n"; } else { echo "El plugin no está activo.\n"; }' 2>/dev/null || true
 
 # ─── Capturas (informe con capturas del ciclo completo) ──────────────────────
 
