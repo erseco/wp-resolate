@@ -97,5 +97,7 @@ Docker (wp-env) on port 8989 for tests / check-plugin / WP-CLI.
 
 ```bash
 make up             # start Docker env (http://localhost:8989, admin/password)
+make seed-demo      # crea o completa los datos de ejemplo (lo hace ya `make up`)
+make reset-demo     # borra lo que dejan los E2E y deja solo los datos de ejemplo
 make down           # stop Docker env
 ```

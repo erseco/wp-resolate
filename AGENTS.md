@@ -73,6 +73,8 @@ make check       # Runs: lint -> phpmd -> check-plugin -> test
 | `make test-e2e-wasm`     | LibreOffice-WASM spec (`DOCUMENTATE_E2E_WASM=1`; opt-in) |
 | `make test-e2e-visual`   | Playwright with interactive UI                           |
 | `make capturas`          | Walk the document workflow with a real browser, write `capturas/informe.html` (re-seeds demo data; `SOLO=escritorio\|movil`; refuses to run alongside a live E2E/capturas job) |
+| `make seed-demo`        | Create or top up the demo content of the dev site (idempotent; `make up` runs it) |
+| `make reset-demo`       | Delete what the E2E suite left behind and leave only the demo content |
 
 Targeted test runs:
 

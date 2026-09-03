@@ -63,6 +63,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-gate
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-data.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app-clock.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-names.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-reset.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-roles.php';
 

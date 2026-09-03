@@ -173,6 +173,13 @@ test-e2e-visual: start-docker-if-not-running setup-e2e-env
 seed-demo: ## Crea o completa los datos de ejemplo del entorno de desarrollo
 	@$(WP_CLI) eval 'if ( class_exists( "Documentate_Demo_App" ) ) { Documentate_Demo_App::ensure_environment(); $$ids = Documentate_Demo_App::seed(); echo "Datos de ejemplo: ", count( $$ids ), " documentos del circuito.\n"; } else { echo "El plugin no está activo.\n"; }' 2>/dev/null || true
 
+# Deja el sitio de desarrollo con solo los datos de ejemplo: borra lo que van
+# dejando los E2E (documentos con nombres de un solo uso, sus adjuntos y
+# comentarios, y las cuentas, categorías y tipos que crean) y vuelve a sembrar.
+# Se niega a correr donde no esté permitido el contenido de ejemplo.
+reset-demo: ## Borra lo que dejan las pruebas y deja solo los datos de ejemplo
+	@$(WP_CLI) eval-file wp-content/plugins/documentate/scripts/reset-demo.php
+
 # ─── Capturas (informe con capturas del ciclo completo) ──────────────────────
 
 # Recorre la aplicación con Playwright y deja capturas/informe.html: verificación
