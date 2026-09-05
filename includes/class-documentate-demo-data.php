@@ -243,6 +243,7 @@ class Documentate_Demo_Data {
 
 		update_term_meta( $term_id, '_documentate_fixture', $definition['fixture_key'] );
 		update_term_meta( $term_id, 'documentate_type_color', $definition['color'] );
+		update_term_meta( $term_id, Documentate_Pdf_Layout::META_KEY, $definition['pdf_layout'] );
 		update_term_meta( $term_id, 'documentate_type_template_id', $template_id );
 
 		$path = get_attached_file( $template_id );
@@ -384,7 +385,7 @@ class Documentate_Demo_Data {
 	 * Declaration order is the seeding order. The fixture key of every entry
 	 * is its slug, so it is derived rather than repeated.
 	 *
-	 * @return array<string,array{slug:string,name:string,description:string,color:string}>
+	 * @return array<string,array{slug:string,name:string,description:string,color:string,pdf_layout:string}>
 	 */
 	private static function get_doc_type_fixtures() {
 		return array(
@@ -393,6 +394,7 @@ class Documentate_Demo_Data {
 				'name' => 'Resolución Administrativa',
 				'description' => 'Plantilla para resoluciones administrativas con antecedentes, fundamentos de derecho, resuelvo y anexos.',
 				'color' => '#37517e',
+				'pdf_layout' => 'resolucion',
 			),
 			'demo-wp-documentate.odt' => array(
 				'slug' => 'documentate-demo-wp-documentate-odt',
@@ -402,6 +404,7 @@ class Documentate_Demo_Data {
 					'documentate',
 				),
 				'color' => '#6c5ce7',
+				'pdf_layout' => 'generic',
 			),
 			'demo-wp-documentate.docx' => array(
 				'slug' => 'documentate-demo-wp-documentate-docx',
@@ -411,54 +414,63 @@ class Documentate_Demo_Data {
 					'documentate',
 				),
 				'color' => '#0f9d58',
+				'pdf_layout' => 'generic',
 			),
 			'autorizacionviaje.odt' => array(
 				'slug' => 'autorizacion-viaje',
 				'name' => 'Autorización de viaje',
 				'description' => 'Plantilla para autorizaciones de viaje con listado de asistentes.',
 				'color' => '#e67e22',
+				'pdf_layout' => 'autorizacionviaje',
 			),
 			'gastossuplidos.odt' => array(
 				'slug' => 'gastos-suplidos',
 				'name' => 'Solicitud de gastos suplidos',
 				'description' => 'Plantilla para solicitud de reembolso de gastos con listado de facturas.',
 				'color' => '#27ae60',
+				'pdf_layout' => 'gastossuplidos',
 			),
 			'propuestagasto.odt' => array(
 				'slug' => 'propuesta-gasto',
 				'name' => 'Propuesta de gasto',
 				'description' => 'Plantilla para propuestas de gasto con libramientos, servicios, suministros y expertos.',
 				'color' => '#9b59b6',
+				'pdf_layout' => 'propuestagasto',
 			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',
 				'description' => 'Plantilla para convocatorias de reuniones con lugar, fecha, horario y orden del día.',
 				'color' => '#3498db',
+				'pdf_layout' => 'convocatoriareunion',
 			),
 			'memoria_pago_cep.odt' => array(
 				'slug' => 'memoria-pago',
 				'name' => 'Memoria justificativa de pago',
 				'description' => 'Plantilla para memorias justificativas de pago con listado de facturas y datos del CEP.',
 				'color' => '#d35400',
+				'pdf_layout' => 'memoria_pago_cep',
 			),
 			'respuesta_escrito.odt' => array(
 				'slug' => 'respuesta-escrito',
 				'name' => 'Respuesta a escrito',
 				'description' => 'Plantilla para respuestas a escritos y solicitudes con destinatario, asunto y texto de respuesta.',
 				'color' => '#2c3e50',
+				'pdf_layout' => 'respuesta_escrito',
 			),
 			'modelo_informe.odt' => array(
 				'slug' => 'modelo-informe',
 				'name' => 'Modelo de informe',
 				'description' => 'Plantilla para informes con asunto, texto del informe y cargo firmante.',
 				'color' => '#16a085',
+				'pdf_layout' => 'modelo_informe',
 			),
 			'haceconstar.odt' => array(
 				'slug' => 'hace-constar',
 				'name' => 'Hace constar',
 				'description' => 'Plantilla de certificado «Hace constar» que acredita la participación de una persona en determinadas actividades.',
 				'color' => '#c0392b',
+				'pdf_layout' => 'haceconstar',
 			),
 		);
 	}
@@ -886,7 +898,7 @@ class Documentate_Demo_Data {
 				wp_update_post(
 					array(
 						'ID' => $post_id,
-						'post_content' => $content,
+						'post_content' => wp_slash( $content ),
 					)
 				);
 			}
@@ -970,7 +982,7 @@ class Documentate_Demo_Data {
 				wp_update_post(
 					array(
 						'ID' => $post_id,
-						'post_content' => $content,
+						'post_content' => wp_slash( $content ),
 					)
 				);
 			}
@@ -993,7 +1005,8 @@ class Documentate_Demo_Data {
 
 			if ( 'array' === $type ) {
 				$encoded = wp_json_encode( $value, JSON_UNESCAPED_UNICODE );
-				update_post_meta( $post_id, 'documentate_field_' . $slug, $encoded );
+				// Metadata writes unslash strings; preserve JSON escapes such as newlines.
+				update_post_meta( $post_id, 'documentate_field_' . $slug, wp_slash( $encoded ) );
 				$structured_fields[ $slug ] = array(
 					'type' => 'array',
 					'value' => $encoded,
@@ -1862,7 +1875,7 @@ class Documentate_Demo_Data {
 			wp_update_post(
 				array(
 					'ID'           => $post_id,
-					'post_content' => $content,
+					'post_content' => wp_slash( $content ),
 				)
 			);
 		}
@@ -1900,7 +1913,7 @@ class Documentate_Demo_Data {
 				if ( null === $entry ) {
 					continue;
 				}
-				update_post_meta( $post_id, 'documentate_field_' . $slug, $entry['value'] );
+				update_post_meta( $post_id, 'documentate_field_' . $slug, wp_slash( $entry['value'] ) );
 				$structured_fields[ $slug ] = $entry;
 				continue;
 			}

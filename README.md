@@ -8,7 +8,7 @@
 
 **Documentate** is a WordPress plugin for generating official resolutions and structured administrative documents from ODT/DOCX templates.
 
-It uses OpenTBS for template merging and supports conversion to PDF/DOCX via Collabora Online (server) or LibreOffice WASM (browser).
+It uses OpenTBS for template merging and draws the PDF natively on the server from an HTML layout, with Collabora Online (server) and LibreOffice WASM (browser) still selectable as alternative PDF engines.
 
 ## Demo
 
@@ -20,8 +20,9 @@ Try it in the browser with WordPress Playground (includes sample data; changes a
 
 - Document types (templates) defined as a custom taxonomy with schema-driven fields
 - Generation of ODT/DOCX from templates via OpenTBS
-- Optional conversion to PDF (and between office formats) with:
-  - **Collabora Online** (default, server-side)
+- PDF generation, from one of three engines:
+  - **Native PDF rendering** (default): drawn on the server from the HTML layout of the document type
+  - **Collabora Online** (server-side): converts the ODT/DOCX template
   - **LibreOffice WASM** in the browser (experimental, client-side)
 - Per-user scope filtering (hierarchical categories) for document visibility
 - Workflow, revisions, attachments, collaborative editing support
@@ -95,8 +96,39 @@ None of it reaches the release ZIP; `.gitattributes` marks it `export-ignore`.
 
 Selectable under **Settings → Conversion Engine**:
 
-- **Collabora Online** (recommended): server-side web service, reliable for batch/PDF generation.
+- **Native PDF rendering** (default): draws the PDF in PHP from the HTML layout the document type names. No external service, and no office template is opened.
+- **Collabora Online**: server-side web service that converts the rendered ODT/DOCX into a PDF.
 - **LibreOffice WASM** (experimental): runs entirely in the browser via [`@matbee/libreoffice-converter`](https://www.npmjs.com/package/@matbee/libreoffice-converter). Large binaries are loaded from a CDN (configurable); requires cross-origin isolation headers (`COOP`/`COEP`). See [`admin/vendor/libreoffice-converter/README.md`](admin/vendor/libreoffice-converter/README.md).
+
+## Adding a PDF layout
+
+A layout is an HTML file in `templates/pdf/`. Its `<head>` states the page
+furniture with `<meta name="documentate-*">` values — `letterhead`, `addresses`,
+`folio`, `crest`, `margins`, `first-page-margins`, `font`, `font-size` — and its
+`<body>` is the document, written with the same TinyButStrong tags as the ODT
+template of that document type. Keep the field names identical, or the value
+never merges. A rich-text field needs `;strconv=no` so its markup is drawn
+rather than escaped, and a repeated table row uses `block=tr`. Do not add
+`protect=no`: it would leave a user's own text live as engine markup, and
+TinyButStrong's `file=` parameter would then read any path off the server.
+
+A layout reproduces the spacing of its template rather than relying on the
+renderer. Paragraphs are set solid, as the `Standard` style of the templates
+is, so the blank lines between them are written as empty paragraphs, one per
+blank line the template leaves. A table states the width and the cell padding
+its template declares — `<table width="165mm" cellpadding="0.49">`, both in
+millimetres, a width also accepted as a percentage — and fills the column
+without them. A cell states the rest of what its template gives it with
+`style`: `border: none` for a cell the template leaves open, `background`
+for its `fo:background-color`, and `font-weight` for a heading the template
+does not set in bold.
+
+Choose the layout in the document type's **PDF layout** field. A type with none
+falls back to `generic.html`, which lists every field with its label.
+
+[`docs/removing-collabora.md`](docs/removing-collabora.md) records what to delete
+once the native engine has been proven in production and the converters are
+retired.
 
 ## Access control
 

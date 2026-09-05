@@ -251,9 +251,9 @@ class DocumentateDocumentGeneratorTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test generate_pdf returns error without template.
+	 * Test generate_pdf returns error without a document type.
 	 */
-	public function test_generate_pdf_no_template() {
+	public function test_generate_pdf_no_document_type() {
 		$post_id = wp_insert_post(
 			array(
 				'post_type'   => 'documentate_document',
@@ -265,7 +265,7 @@ class DocumentateDocumentGeneratorTest extends WP_UnitTestCase {
 		$result = Documentate_Document_Generator::generate_pdf( $post_id );
 
 		$this->assertInstanceOf( WP_Error::class, $result );
-		$this->assertSame( 'documentate_pdf_source_missing', $result->get_error_code() );
+		$this->assertSame( 'documentate_pdf_no_type', $result->get_error_code() );
 	}
 
 	/**
@@ -728,23 +728,28 @@ class DocumentateDocumentGeneratorTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test generate_pdf without converter configured.
+	 * Test generate_pdf draws the document itself instead of converting it.
 	 */
-	public function test_generate_pdf_no_converter() {
-		update_option( 'documentate_settings', array( 'docx_template_id' => 123 ) );
-
+	public function test_generate_pdf_renders_natively() {
+		$term_id = self::factory()->term->create( array( 'taxonomy' => 'documentate_doc_type' ) );
 		$post_id = wp_insert_post(
 			array(
 				'post_type'   => 'documentate_document',
-				'post_title'  => 'PDF No Converter',
+				'post_title'  => 'PDF Nativo',
 				'post_status' => 'draft',
 			)
 		);
+		wp_set_post_terms( $post_id, array( $term_id ), 'documentate_doc_type' );
 
+		// A document type with no template at all: the native renderer needs
+		// none, so this still produces a PDF.
 		$result = Documentate_Document_Generator::generate_pdf( $post_id );
 
-		// Should fail because no ODF template is available.
-		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertIsString( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+		$this->assertStringEndsWith( '.pdf', $result );
+		$this->assertStringStartsWith( '%PDF-', (string) file_get_contents( $result ) );
+
+		wp_delete_file( $result );
 	}
 
 	/**

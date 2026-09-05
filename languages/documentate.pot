@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Documentate – Document Generator 0.0.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-documentate\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/documentate\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -66,6 +66,9 @@ msgstr ""
 msgid "Configure Documentate plugin options."
 msgstr ""
 
+msgid "Native PDF rendering (recommended)"
+msgstr ""
+
 msgid "Collabora Online web service"
 msgstr ""
 
@@ -75,7 +78,7 @@ msgstr ""
 msgid "(not available in WordPress Playground)"
 msgstr ""
 
-msgid "Choose whether conversions are performed via Collabora Online (default, server-side) or with LibreOffice WASM in the browser (experimental). LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer); Collabora Online is recommended for reliable server-side or background PDF generation."
+msgid "Native PDF rendering draws the PDF on this server from the layout of the document type, with no external service. The other two engines produce the PDF by converting the DOCX or ODT template, either through a Collabora Online server or with LibreOffice WASM in the browser; LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer)."
 msgstr ""
 
 msgid "Example: https://demo.us.collaboraonline.com"
@@ -180,6 +183,9 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
+msgid "Layout used to render the PDF. \"Generic\" lists every field."
+msgstr ""
+
 msgid "Text"
 msgstr ""
 
@@ -241,6 +247,9 @@ msgid "Select template"
 msgstr ""
 
 msgid "No template selected"
+msgstr ""
+
+msgid "PDF layout"
 msgstr ""
 
 msgid "Re-parse template"
@@ -504,15 +513,6 @@ msgstr ""
 msgid "Configure a DOCX or ODT template in the document type before generating PDF."
 msgstr ""
 
-msgid "ODT (Source)"
-msgstr ""
-
-msgid "Configure an ODT template in the document type."
-msgstr ""
-
-msgid "Configure a DOCX template in the document type."
-msgstr ""
-
 msgid "Preview"
 msgstr ""
 
@@ -522,7 +522,7 @@ msgstr ""
 msgid "Sign and Download"
 msgstr ""
 
-msgid "Other download formats:"
+msgid "Editable download:"
 msgstr ""
 
 msgid "Could not determine the generated file."
@@ -642,7 +642,13 @@ msgstr ""
 msgid "Could not save the converted file to disk."
 msgstr ""
 
+msgid "Native PDF rendering"
+msgstr ""
+
 msgid "Collabora Online"
+msgstr ""
+
+msgid "Native PDF rendering does not convert documents between office formats. Select Collabora Online to convert them."
 msgstr ""
 
 msgid "Collabora Online is not available to convert documents."
@@ -938,6 +944,14 @@ msgid "Could not parse core.xml."
 msgstr ""
 
 msgid "cp:coreProperties element not found."
+msgstr ""
+
+msgid "The generated PDF could not be saved."
+msgstr ""
+
+#. translators: %s: file name of an access guard, such as .htaccess.
+#, php-format
+msgid "The access guard «%s» of the output directory could not be verified."
 msgstr ""
 
 msgid "You do not have permission to manage templates."
@@ -1258,4 +1272,19 @@ msgid "New Type"
 msgstr ""
 
 msgid "Generated file not found."
+msgstr ""
+
+msgid "The document has no document type."
+msgstr ""
+
+msgid "PDF layout not found."
+msgstr ""
+
+msgid "Could not process the visibility blocks of the layout."
+msgstr ""
+
+msgid "Could not scan the layout for unmatched fields."
+msgstr ""
+
+msgid "The PDF layout could not be merged."
 msgstr ""

@@ -299,13 +299,13 @@ class Documentate_OpenTBS {
 		if ( ! file_exists( $template_path ) ) {
 			return new WP_Error( 'documentate_template_missing', __( 'Template not found.', 'documentate' ) );
 		}
+		// Set locale for TBS date formatting (month/day names in local language).
+		// LC_TIME is process wide, so the finally below puts it back on every
+		// exit: the two pre-processing errors return early, and a leaked locale
+		// would silently reformat every date the rest of the request prints.
+		$old_locale = self::push_locale();
+
 		try {
-			// Set locale for TBS date formatting (month/day names in local language).
-
-			$old_locale = setlocale( LC_TIME, 0 );
-			$tbs_locale = self::$tbs_locale;
-			setlocale( LC_TIME, $tbs_locale . '.UTF-8', $tbs_locale . '.utf8', $tbs_locale, substr( $tbs_locale, 0, 2 ), 0 );
-
 			$tbs_engine = new clsTinyButStrong();
 			$tbs_engine->Plugin( TBS_INSTALL, OPENTBS_PLUGIN );
 			$tbs_engine->LoadTemplate( $template_path, OPENTBS_ALREADY_UTF8 );
@@ -366,17 +366,40 @@ class Documentate_OpenTBS {
 
 			$tbs_engine->Show( OPENTBS_FILE, $dest_path );
 
-			// Restore original locale.
-			if ( $old_locale ) {
-				setlocale( LC_TIME, $old_locale );
-			}
 			return true;
 		} catch ( \Throwable $e ) {
-			// Restore original locale on error.
-			if ( isset( $old_locale ) && $old_locale ) {
-				setlocale( LC_TIME, $old_locale );
-			}
 			return new WP_Error( 'documentate_opentbs_error', $e->getMessage() );
+		} finally {
+			self::pop_locale( $old_locale );
+		}
+	}
+
+	/**
+	 * Switch LC_TIME to the locale TBS formats dates in.
+	 *
+	 * TBS renders `frm='mmmm (locale)'` through strftime(), which reads the
+	 * process-wide locale. Every caller must hand the returned value back to
+	 * pop_locale() so the rest of the request sees the locale it started with.
+	 *
+	 * @return string|false Locale in force before the switch, false when it could not be read.
+	 */
+	public static function push_locale() {
+		$old_locale = setlocale( LC_TIME, 0 );
+		$tbs_locale = self::$tbs_locale;
+		setlocale( LC_TIME, $tbs_locale . '.UTF-8', $tbs_locale . '.utf8', $tbs_locale, substr( $tbs_locale, 0, 2 ), 0 );
+
+		return $old_locale;
+	}
+
+	/**
+	 * Put back the LC_TIME locale that push_locale() replaced.
+	 *
+	 * @param string|false $old_locale Value returned by push_locale().
+	 * @return void
+	 */
+	public static function pop_locale( $old_locale ) {
+		if ( $old_locale ) {
+			setlocale( LC_TIME, $old_locale );
 		}
 	}
 
@@ -386,11 +409,14 @@ class Documentate_OpenTBS {
 	 * Evaluates [onshow;block=begin;bloc=FIELD]...[onshow;block=end] markers
 	 * and removes blocks where the referenced field is empty.
 	 *
+	 * The markers carry no format of their own, so the HTML layouts the native
+	 * PDF renderer merges reuse this pass as it stands.
+	 *
 	 * @param string              $content Template XML content.
 	 * @param array<string,mixed> $fields  Merge fields data.
-	 * @return string Processed content.
+	 * @return string|null Processed content, null when the regular expression failed.
 	 */
-	private static function process_visibility_blocks( $content, $fields ) {
+	public static function process_visibility_blocks( $content, $fields ) {
 		// Pattern to match [onshow;block=begin;bloc=FIELD_NAME]...[onshow;block=end]
 		// The bloc= value may be quoted or unquoted.
 		$pattern = '/\[onshow;block=begin;bloc=[\'"]?([^\];\'"]+)[\'"]?\](.*?)\[onshow;block=end\]/s';

@@ -10,6 +10,13 @@
  */
 class Documentate_Template_Parser {
 	/**
+	 * Parsed templates reused within this request, keyed by path and content hash.
+	 *
+	 * @var array<string,array>
+	 */
+	private static $fields_cache = array();
+
+	/**
 	 * OpenTBS `ope` operators mapped to the data type they imply.
 	 *
 	 * Consulted in declaration order.
@@ -50,6 +57,14 @@ class Documentate_Template_Parser {
 			return $extension;
 		}
 
+		// Hash the compressed file so same-size replacements within one second
+		// cannot reuse stale fields. Do not persist this cache across requests.
+		$hash = is_readable( $template_path ) ? hash_file( 'sha256', $template_path ) : false;
+		$cached = self::$fields_cache[ $template_path ] ?? array();
+		if ( false !== $hash && isset( $cached['hash'] ) && $hash === $cached['hash'] ) {
+			return $cached['fields'];
+		}
+
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $template_path ) ) {
 			return new WP_Error( 'documentate_template_unzip', __( 'Could not open the template for analysis.', 'documentate' ) );
@@ -59,7 +74,12 @@ class Documentate_Template_Parser {
 
 		$zip->close();
 
-		return self::build_sorted_fields( $placeholders );
+		$fields = self::build_sorted_fields( $placeholders );
+		self::$fields_cache[ $template_path ] = array(
+			'hash' => $hash,
+			'fields' => $fields,
+		);
+		return $fields;
 	}
 
 	/**
@@ -231,9 +251,11 @@ class Documentate_Template_Parser {
 		// Remove control characters that may interfere with regex detection.
 		$normalized = preg_replace( '/[\x00-\x1F\x7F]/', '', $normalized );
 
-		// Strip tags while keeping text.
-		$normalized = wp_strip_all_tags( $normalized );
-		return $normalized;
+		// Avoid treating ODT <style:...> as HTML <style>, which makes the
+		// WordPress regex repeatedly scan for nonexistent </style> closers.
+		// Only rename XML prefixes; retain WordPress's script/style cleanup.
+		$normalized = preg_replace( '@(</?)(style|script):@i', '$1documentate-$2:', $normalized );
+		return wp_strip_all_tags( $normalized );
 	}
 
 	/**

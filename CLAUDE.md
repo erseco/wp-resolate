@@ -8,8 +8,10 @@
 ## What this project is
 
 **Documentate** is a WordPress plugin (PHP 8.3, wp-env/Docker) that generates
-official resolutions and structured documents using OpenTBS templates and
-optionally Collabora / ZetaJS for format conversion.
+official resolutions and structured documents. Templates are merged with
+OpenTBS; the PDF is drawn natively on the server with FPDF from an HTML layout,
+and Collabora Online or LibreOffice WASM remain selectable as alternative PDF
+engines.
 
 Read `ARCHITECTURE.md` before making significant changes.
 

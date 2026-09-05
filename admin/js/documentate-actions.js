@@ -124,6 +124,14 @@
 	 * @param {string} url Preview URL.
 	 */
 	function openPreviewWindow(url) {
+		// WordPress Playground runs the site inside a sandboxed iframe where a new
+		// tab cannot render the PDF. Show it in the embedded viewer instead, which
+		// is what the Collabora path has always done there.
+		if (config.inPlayground) {
+			showPreviewInViewer(url);
+			return;
+		}
+
 		const opened = window.open(url, '_blank');
 
 		if (opened) {
@@ -137,6 +145,35 @@
 		);
 		$modal.find('.documentate-loading-modal__open').attr('href', url);
 		$modal.addClass('is-ready');
+	}
+
+	/**
+	 * Fetch a generated PDF and show it in the embedded viewer.
+	 *
+	 * The preview endpoint streams the file behind a nonce, so it is fetched with
+	 * the session's credentials and handed to the viewer as a blob. If the fetch
+	 * fails the modal keeps the link, which the user can still activate.
+	 *
+	 * @param {string} url Preview URL.
+	 */
+	async function showPreviewInViewer(url) {
+		try {
+			const response = await fetch(url, { credentials: 'same-origin' });
+
+			if (!response.ok) {
+				throw new Error('HTTP ' + response.status);
+			}
+
+			hideModal();
+			await showPdfViewer(await response.blob());
+		} catch (error) {
+			$modal.find('.documentate-loading-modal__title').text(strings.previewReady || 'Vista previa lista');
+			$modal.find('.documentate-loading-modal__message').text(
+				strings.previewBlocked || 'Tu navegador ha bloqueado la ventana emergente.'
+			);
+			$modal.find('.documentate-loading-modal__open').attr('href', url);
+			$modal.addClass('is-ready');
+		}
 	}
 
 	/**

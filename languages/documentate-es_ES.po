@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-11-29T00:24:31+00:00\n"
-"PO-Revision-Date: 2026-08-17T09:59:02+00:00\n"
+"PO-Revision-Date: 2026-09-05T22:46:55+00:00\n"
 "Language: es_ES\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: documentate\n"
@@ -67,6 +67,9 @@ msgstr "Servidor de señalización WebRTC"
 msgid "Configure Documentate plugin options."
 msgstr "Configura las opciones del plugin Documentate."
 
+msgid "Native PDF rendering (recommended)"
+msgstr "Generación nativa de PDF (recomendado)"
+
 msgid "Collabora Online web service"
 msgstr "Servicio web Collabora Online"
 
@@ -76,8 +79,8 @@ msgstr "LibreOffice WASM en navegador (experimental)"
 msgid "(not available in WordPress Playground)"
 msgstr "(no disponible en WordPress Playground)"
 
-msgid "Choose whether conversions are performed via Collabora Online (default, server-side) or with LibreOffice WASM in the browser (experimental). LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer); Collabora Online is recommended for reliable server-side or background PDF generation."
-msgstr "Elige si las conversiones se realizan mediante Collabora Online (predeterminado, en el servidor) o con LibreOffice WASM en el navegador (experimental). LibreOffice WASM descarga archivos de gran tamaño y requiere un navegador con aislamiento de origen cruzado (cabeceras COOP/COEP y SharedArrayBuffer); se recomienda Collabora Online para una generación de PDF fiable en el servidor o en segundo plano."
+msgid "Native PDF rendering draws the PDF on this server from the layout of the document type, with no external service. The other two engines produce the PDF by converting the DOCX or ODT template, either through a Collabora Online server or with LibreOffice WASM in the browser; LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer)."
+msgstr "La generación nativa de PDF dibuja el PDF en este servidor a partir de la maqueta del tipo de documento, sin ningún servicio externo. Los otros dos motores producen el PDF convirtiendo la plantilla DOCX u ODT, mediante un servidor Collabora Online o con LibreOffice WASM en el navegador; LibreOffice WASM descarga archivos de gran tamaño y requiere un navegador con aislamiento de origen cruzado (cabeceras COOP/COEP y SharedArrayBuffer)."
 
 msgid "Example: https://demo.us.collaboraonline.com"
 msgstr "Ejemplo: https://demo.us.collaboraonline.com"
@@ -181,6 +184,9 @@ msgstr "Añadir al documento"
 msgid "Remove"
 msgstr "Eliminar"
 
+msgid "Layout used to render the PDF. \"Generic\" lists every field."
+msgstr "Maqueta con la que se dibuja el PDF. «Genérica» lista todos los campos."
+
 msgid "Text"
 msgstr "Texto"
 
@@ -243,6 +249,9 @@ msgstr "Seleccionar plantilla"
 
 msgid "No template selected"
 msgstr "Ninguna plantilla seleccionada"
+
+msgid "PDF layout"
+msgstr "Maqueta PDF"
 
 msgid "Re-parse template"
 msgstr "Reanalizar plantilla"
@@ -505,15 +514,6 @@ msgstr "Cambios sin guardar"
 msgid "Configure a DOCX or ODT template in the document type before generating PDF."
 msgstr "Configura una plantilla DOCX u ODT en el tipo de documento antes de generar PDF."
 
-msgid "ODT (Source)"
-msgstr "ODT (Origen)"
-
-msgid "Configure an ODT template in the document type."
-msgstr "Configura una plantilla ODT en el tipo de documento."
-
-msgid "Configure a DOCX template in the document type."
-msgstr "Configura una plantilla DOCX en el tipo de documento."
-
 msgid "Preview"
 msgstr "Vista previa"
 
@@ -523,8 +523,8 @@ msgstr "Descargar PDF"
 msgid "Sign and Download"
 msgstr "Firmar y descargar"
 
-msgid "Other download formats:"
-msgstr "Otros formatos de descarga:"
+msgid "Editable download:"
+msgstr "Descarga editable:"
 
 msgid "Could not determine the generated file."
 msgstr "No se pudo determinar el archivo generado."
@@ -643,8 +643,14 @@ msgstr "Collabora Online devolvió el código HTTP %d durante la conversión."
 msgid "Could not save the converted file to disk."
 msgstr "No se pudo guardar el fichero convertido en el disco."
 
+msgid "Native PDF rendering"
+msgstr "Generación nativa de PDF"
+
 msgid "Collabora Online"
 msgstr "Collabora Online"
+
+msgid "Native PDF rendering does not convert documents between office formats. Select Collabora Online to convert them."
+msgstr "La generación nativa de PDF no convierte documentos entre formatos ofimáticos. Selecciona Collabora Online para convertirlos."
 
 msgid "Collabora Online is not available to convert documents."
 msgstr "Collabora Online no está disponible para convertir documentos."
@@ -940,6 +946,14 @@ msgstr "No se pudo analizar core.xml."
 
 msgid "cp:coreProperties element not found."
 msgstr "Elemento cp:coreProperties no encontrado."
+
+msgid "The generated PDF could not be saved."
+msgstr "No se ha podido guardar el PDF generado."
+
+#. translators: %s: file name of an access guard, such as .htaccess.
+#, php-format
+msgid "The access guard «%s» of the output directory could not be verified."
+msgstr "No se ha podido verificar la protección «%s» del directorio de salida."
 
 msgid "You do not have permission to manage templates."
 msgstr "No tienes permiso para gestionar plantillas."
@@ -1260,3 +1274,18 @@ msgstr "Nuevo tipo"
 
 msgid "Generated file not found."
 msgstr "Fichero generado no encontrado."
+
+msgid "The document has no document type."
+msgstr "El documento no tiene tipo de documento."
+
+msgid "PDF layout not found."
+msgstr "Maqueta PDF no encontrada."
+
+msgid "Could not process the visibility blocks of the layout."
+msgstr "No se pudieron procesar los bloques de visibilidad de la maqueta."
+
+msgid "Could not scan the layout for unmatched fields."
+msgstr "No se pudo analizar la maqueta en busca de campos sin datos."
+
+msgid "The PDF layout could not be merged."
+msgstr "No se pudo fusionar la maqueta del PDF."

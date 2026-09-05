@@ -489,11 +489,12 @@ class DocumentateAdminHelperRequestsTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * A document without templates cannot be previewed, and the generator error
-	 * is surfaced to the user rather than swallowed.
+	 * A document the generator cannot render is not previewed, and its error is
+	 * surfaced to the user rather than swallowed. A document carrying no type
+	 * has no schema to draw, which is the one thing the native renderer refuses.
 	 */
 	public function test_preview_reports_generation_failures() {
-		$post_id = $this->create_document();
+		$post_id = $this->create_document( 'draft' );
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( 'documentate_preview_' . $post_id );
 
@@ -503,7 +504,7 @@ class DocumentateAdminHelperRequestsTest extends Documentate_Test_Base {
 			}
 		);
 
-		$this->assertStringContainsString( 'template', strtolower( $message ) );
+		$this->assertStringContainsString( 'document type', strtolower( $message ) );
 	}
 
 	/**
@@ -546,7 +547,7 @@ class DocumentateAdminHelperRequestsTest extends Documentate_Test_Base {
 	 * failure is reported rather than serving a stale or partial file.
 	 */
 	public function test_preview_stream_reports_generation_failures() {
-		$post_id = $this->create_document();
+		$post_id = $this->create_document( 'draft' );
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( 'documentate_preview_stream_' . $post_id );
 

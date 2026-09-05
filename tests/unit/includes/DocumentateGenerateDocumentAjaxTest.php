@@ -203,8 +203,7 @@ class DocumentateGenerateDocumentAjaxTest extends WP_Ajax_UnitTestCase {
 			remove_filter( 'pre_http_request', $stub, 10 );
 		}
 
-		$this->assertNotEmpty( $requested, 'The PDF path must go through the conversion engine.' );
-		$this->assertStringEndsWith( '/cool/convert-to/pdf', $requested[0] );
+		$this->assertSame( array(), $requested, 'The PDF path is drawn on the server, with no conversion request.' );
 		$this->assertTrue( $response['success'], wp_json_encode( $response ) );
 		$this->assertStringContainsString(
 			'action=documentate_export_rtf',

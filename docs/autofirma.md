@@ -2,7 +2,7 @@
 
 Documentate can sign generated PDF files with the local AutoFirma application. The feature is enabled per template: the **Sign and Download** action is shown only when the selected DOCX or ODT template contains a `[sign]` placeholder.
 
-The generated PDF is converted through the same Collabora, LibreOffice WASM or server-side path used by the normal PDF action. The resulting PDF is then signed locally with AutoFirma using PAdES and downloaded as a new file.
+The PDF is produced by whichever engine the site uses for the normal PDF action: drawn natively on the server by default, or converted through Collabora Online or LibreOffice WASM if one of those is selected. AutoFirma receives the same bytes either way. The resulting PDF is then signed locally with AutoFirma using PAdES and downloaded as a new file.
 
 ## Basic marker
 

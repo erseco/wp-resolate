@@ -149,6 +149,59 @@ class Documentate_Generation_Test_Base extends Documentate_Test_Base {
 	}
 
 	/**
+	 * Create a document type from a template attachment already in the library.
+	 *
+	 * Mirrors create_doc_type_with_template(), but starts from an attachment
+	 * the demo importer has already created, so a test can render one of the
+	 * real templates shipped under fixtures/ instead of a test-only one. The
+	 * file is left alone on tear down: it belongs to the media library and
+	 * other tests import the very same attachment.
+	 *
+	 * @param int         $template_id Attachment ID of the template.
+	 * @param string      $ext         Template format: odt or docx.
+	 * @param string|null $type_name   Optional custom name for the doc type.
+	 * @return array {
+	 *     @type int    $term_id       Document type term ID.
+	 *     @type int    $template_id   Attachment ID of the template.
+	 *     @type string $template_path Full path to the template file.
+	 *     @type array  $schema        Extracted schema from template.
+	 * }
+	 */
+	protected function create_doc_type_with_attachment( $template_id, $ext, $type_name = null ) {
+		$template_id = intval( $template_id );
+		$this->assertGreaterThan( 0, $template_id, 'Template attachment should have been imported.' );
+
+		$template_path = get_attached_file( $template_id );
+		$this->assertIsString( $template_path, 'Template attachment should point at a file.' );
+		$this->assertFileExists( $template_path, 'Template file should exist.' );
+
+		// Create document type term.
+		$type_name = $type_name ?: 'Test Type ' . uniqid();
+		$term      = wp_insert_term( $type_name, 'documentate_doc_type' );
+		$this->assertNotWPError( $term, 'Document type term should be created.' );
+		$term_id = intval( $term['term_id'] );
+
+		// Set template metadata.
+		update_term_meta( $term_id, 'documentate_type_template_id', $template_id );
+		update_term_meta( $term_id, 'documentate_type_template_type', sanitize_key( $ext ) );
+
+		// Extract and save schema.
+		$extractor = new SchemaExtractor();
+		$schema    = $extractor->extract( $template_path );
+		$this->assertNotWPError( $schema, 'Schema should be extracted from the attachment.' );
+
+		$storage = new SchemaStorage();
+		$storage->save_schema( $term_id, $schema );
+
+		return array(
+			'term_id'       => $term_id,
+			'template_id'   => $template_id,
+			'template_path' => $template_path,
+			'schema'        => $schema,
+		);
+	}
+
+	/**
 	 * Create a document with field data.
 	 *
 	 * @param int   $term_id   Document type term ID.

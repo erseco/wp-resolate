@@ -39,7 +39,11 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, intl, curl, dom, json, pdo, mysql, xml, zip
+          # gd is here for composer, not for us: setasign/fpdf declares
+          # `ext-gd` as a hard requirement, so `composer install` refuses to
+          # run without it. The plugin only embeds PNG and JPEG, which FPDF
+          # parses itself; gd would only matter for GIF.
+          extensions: mbstring, intl, curl, dom, json, pdo, mysql, xml, zip, gd
           tools: composer:v2
           coverage: none
 
@@ -178,6 +182,9 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          # Required by setasign/fpdf's `ext-gd`; setup-php's default set has
+          # zlib but not gd, and `--no-scripts` does not skip platform checks.
+          extensions: gd
           tools: composer:v2
           coverage: none
 

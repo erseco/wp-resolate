@@ -68,23 +68,38 @@ test.describe( 'WASM Conversion', () => {
 				return;
 			}
 
-			// Click the button
+			// Record whether the modal is ever shown, rather than catching it
+			// standing still: the native engine finishes before an assertion can.
+			await documentEditor.page.evaluate( () => {
+				window.__documentateModalShown = false;
+				const seen = () => {
+					const modal = document.querySelector( '#documentate-loading-modal' );
+					if ( modal && modal.classList.contains( 'is-visible' ) ) {
+						window.__documentateModalShown = true;
+					}
+				};
+				seen();
+				// The modal is created on demand, so watch the whole document:
+				// it may not exist yet when this runs.
+				new window.MutationObserver( seen ).observe( document.documentElement, {
+					subtree: true,
+					childList: true,
+					attributes: true,
+					attributeFilter: [ 'class' ],
+				} );
+			} );
+
 			await previewButton.click();
 
-			// Loading modal should appear
+			await documentEditor.page.waitForFunction(
+				() => true === window.__documentateModalShown,
+				null,
+				{ timeout: 10000 }
+			);
+
 			const modal = documentEditor.page.locator( '#documentate-loading-modal' );
-			await expect( modal ).toBeVisible( { timeout: 2000 } );
-
-			// Modal should have visible class
-			await expect( modal ).toHaveClass( /is-visible/ );
-
-			// Modal should show content (loading spinner or error state after fast failure)
-			const content = modal.locator( '.documentate-loading-modal__content' );
-			await expect( content ).toBeVisible();
-
-			// Modal should have title
-			const title = modal.locator( '.documentate-loading-modal__title' );
-			await expect( title ).toBeVisible();
+			await expect( modal.locator( '.documentate-loading-modal__content' ) ).toHaveCount( 1 );
+			await expect( modal.locator( '.documentate-loading-modal__title' ) ).toHaveCount( 1 );
 		} );
 
 		test( 'loading modal shows progress updates', async ( {

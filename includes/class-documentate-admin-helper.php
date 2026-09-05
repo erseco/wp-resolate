@@ -748,11 +748,19 @@ class Documentate_Admin_Helper {
 			// Preview is available if server conversion is ready OR if popup conversion is available.
 			'preview_available' => $pdf_available || ( $conversion['use_popup'] && $has_template ),
 			'preview_message' => $pdf_message,
-			'formats' => array(
-				'odt' => $this->build_format_state( $odt_template, $docx_template, $can_convert, 'odt' ),
-				'docx' => $this->build_format_state( $docx_template, $odt_template, $can_convert, 'docx' ),
-			),
+			'formats' => $this->own_format_state( $docx_template, $odt_template ),
 		);
+	}
+
+	/**
+	 * Determine whether PDFs are drawn here rather than converted elsewhere.
+	 *
+	 * @return bool
+	 */
+	private function uses_native_pdf_engine() {
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-conversion-manager.php';
+
+		return Documentate_Conversion_Manager::ENGINE_FPDF === Documentate_Conversion_Manager::get_engine();
 	}
 
 	/**
@@ -763,6 +771,17 @@ class Documentate_Admin_Helper {
 	private function resolve_conversion_capabilities() {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-conversion-manager.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';
+
+		// The native renderer draws the PDF in this process. Nothing may be
+		// routed through the browser converter, which would convert the office
+		// template instead of drawing the layout.
+		if ( $this->uses_native_pdf_engine() ) {
+			return array(
+				'ready' => true,
+				'use_popup' => false,
+				'needs_popup_base' => false,
+			);
+		}
 
 		$ready = Documentate_Conversion_Manager::is_available();
 		$in_playground = Documentate_Collabora_Converter::is_playground();
@@ -832,7 +851,9 @@ class Documentate_Admin_Helper {
 			return __( 'Configure a DOCX or ODT template in the document type before generating PDF.', 'documentate' );
 		}
 
-		if ( $can_convert ) {
+		// The native renderer needs nothing beyond the document type, so there
+		// is never anything to explain once a template is there.
+		if ( $this->uses_native_pdf_engine() || $can_convert ) {
 			return '';
 		}
 
@@ -843,40 +864,38 @@ class Documentate_Admin_Helper {
 	}
 
 	/**
-	 * Build the availability and tooltip for one download format.
+	 * Build the editable download entry for each format the type has a
+	 * template for.
 	 *
-	 * @param string $own_template   Template path for this format.
-	 * @param string $other_template Template path for the other format.
-	 * @param bool   $can_convert    Whether any conversion route is available.
-	 * @param string $format         Either docx or odt.
-	 * @return array{available:bool,message:string,label:string}
+	 * The editable download hands over the rendered template itself, so a
+	 * format is offered when, and only when, the document type carries a
+	 * template in it. A type with one template therefore yields one entry, and
+	 * a type with none yields no entry at all.
+	 *
+	 * @param string $docx_template DOCX template path, or an empty string.
+	 * @param string $odt_template  ODT template path, or an empty string.
+	 * @return array<string,array{available:bool,message:string,label:string}>
 	 */
-	private function build_format_state( $own_template, $other_template, $can_convert, $format ) {
-		$config = array(
-			'odt' => array(
-				'label' => __( 'ODT (Source)', 'documentate' ),
-				'missing' => __( 'Configure an ODT template in the document type.', 'documentate' ),
-				'from' => 'docx',
-			),
-			'docx' => array(
-				'label' => 'DOCX',
-				'missing' => __( 'Configure a DOCX template in the document type.', 'documentate' ),
-				'from' => 'odt',
-			),
+	private function own_format_state( $docx_template, $odt_template ) {
+		$templates = array(
+			'odt' => $odt_template,
+			'docx' => $docx_template,
 		);
 
-		$requires_conversion = '' === $own_template && '' !== $other_template;
+		$formats = array();
+		foreach ( $templates as $format => $template ) {
+			if ( '' === $template ) {
+				continue;
+			}
 
-		$message = $config[ $format ]['missing'];
-		if ( $requires_conversion && ! $can_convert ) {
-			$message = Documentate_Conversion_Manager::get_unavailable_message( $config[ $format ]['from'], $format );
+			$formats[ $format ] = array(
+				'available' => true,
+				'message' => '',
+				'label' => strtoupper( $format ),
+			);
 		}
 
-		return array(
-			'available' => '' !== $own_template || ( $requires_conversion && $can_convert ),
-			'message' => $message,
-			'label' => $config[ $format ]['label'],
-		);
+		return $formats;
 	}
 
 	/**
@@ -989,20 +1008,24 @@ class Documentate_Admin_Helper {
 	}
 
 	/**
-	 * Render the secondary row of other download formats.
+	 * Render the secondary row: the editable document behind the PDF.
 	 *
 	 * @param array<string,mixed> $state Resolved action state.
 	 * @return void
 	 */
 	private function render_secondary_actions( array $state ) {
+		if ( empty( $state['formats'] ) ) {
+			return;
+		}
+
 		echo '<div class="documentate-actions-secondary">';
 		echo '<span class="documentate-actions-secondary__label">'
-				. esc_html__( 'Other download formats:', 'documentate' )
+				. esc_html__( 'Editable download:', 'documentate' )
 				. '</span>';
 		echo '<span class="documentate-actions-secondary__buttons">';
 
 		foreach ( $state['formats'] as $format => $data ) {
-			$this->render_secondary_button( $format, $data, $state );
+			$this->render_secondary_button( $format, $data );
 		}
 
 		echo '</span>';
@@ -1012,43 +1035,24 @@ class Documentate_Admin_Helper {
 	/**
 	 * Render one secondary download button.
 	 *
+	 * Every entry names a format the document type has a template for, so the
+	 * file is rendered and handed over as it is. Nothing here is ever routed
+	 * through the browser converter, whichever engine draws the PDF.
+	 *
 	 * @param string              $format Format key.
 	 * @param array<string,mixed> $data   Availability, tooltip and label.
-	 * @param array<string,mixed> $state  Resolved action state.
 	 * @return void
 	 */
-	private function render_secondary_button( $format, array $data, array $state ) {
-		if ( $data['available'] ) {
-			$attrs = array(
-				'class' => 'button button-small documentate-action-btn',
-				'href' => '#',
-				'data-documentate-action' => 'download',
-				'data-documentate-format' => $format,
-			);
-			if ( $state['needs_popup_base'] && $format !== $state['source_format'] ) {
-				$attrs['data-documentate-cdn-mode'] = '1';
-				$attrs['data-documentate-source-format'] = $state['source_format'];
-			}
-
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
-			echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $data['label'] ) . '</a> ';
-			return;
-		}
-
-		$button_attrs = array(
-			'type' => 'button',
-			'class' => 'button button-small',
-			'disabled' => 'disabled',
+	private function render_secondary_button( $format, array $data ) {
+		$attrs = array(
+			'class' => 'button button-small documentate-action-btn',
+			'href' => '#',
+			'data-documentate-action' => 'download',
+			'data-documentate-format' => $format,
 		);
 
-		$title_message = isset( $data['message'] ) ? $data['message'] : '';
-		if ( '' !== $title_message ) {
-			// build_action_attributes() drops the attribute again when sanitising empties it.
-			$button_attrs['title'] = sanitize_text_field( $title_message );
-		}
-
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
-		echo '<button ' . $this->build_action_attributes( $button_attrs ) . '>' . esc_html( $data['label'] ) . '</button> ';
+		echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $data['label'] ) . '</a> ';
 	}
 
 	/**
@@ -1330,6 +1334,19 @@ class Documentate_Admin_Helper {
 	 * @return array Configuration with conversion mode settings.
 	 */
 	private function add_conversion_mode_config( $config ) {
+		// The native renderer produces the PDF here, so the script must not be
+		// told to convert anything in the browser. It does need to know it is in
+		// Playground: opening a preview in a new tab does not work inside that
+		// sandboxed iframe, so the script shows the PDF in its embedded viewer
+		// instead, exactly as the Collabora path already does there.
+		if ( $this->uses_native_pdf_engine() ) {
+			if ( Documentate_Collabora_Converter::is_playground() ) {
+				$config['inPlayground'] = true;
+			}
+
+			return $config;
+		}
+
 		$conversion_ready = Documentate_Conversion_Manager::is_available();
 		$in_playground = Documentate_Collabora_Converter::is_playground();
 		$collabora_in_playground = $in_playground && Documentate_Collabora_Converter::is_available();

@@ -170,22 +170,6 @@ class DocumentEditorPage {
 		);
 	}
 
-	/**
-	 * Export button.
-	 */
-	get exportButton() {
-		return this.page.locator(
-			'#documentate_actions [data-documentate-export-modal-open], #documentate_actions #documentate-export-button, #documentate_actions .documentate-export-button'
-		);
-	}
-
-	/**
-	 * Export modal.
-	 */
-	get exportModal() {
-		return this.page.locator( '.documentate-export-modal, #documentate-export-modal' );
-	}
-
 	// ─────────────────────────────────────────────────────────────────
 	// Navigation
 	// ─────────────────────────────────────────────────────────────────
@@ -542,22 +526,6 @@ class DocumentEditorPage {
 	async trash() {
 		await this.trashLink.click();
 		await this.page.waitForURL( /post_type=documentate_document/ );
-	}
-
-	/**
-	 * Open the export modal.
-	 */
-	async openExportModal() {
-		await this.exportButton.first().click();
-		await this.exportModal.waitFor( { state: 'visible', timeout: 5000 } );
-	}
-
-	/**
-	 * Close the export modal.
-	 */
-	async closeExportModal() {
-		await this.page.keyboard.press( 'Escape' );
-		await this.exportModal.waitFor( { state: 'hidden', timeout: 5000 } );
 	}
 
 	/**

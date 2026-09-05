@@ -1087,4 +1087,74 @@ class DocumentateOpenTBSTest extends PHPUnit\Framework\TestCase {
 		// Original XML should differ from result (transformation happened).
 		$this->assertNotSame( $xml, $result );
 	}
+
+	// -----------------------------------------------------------------------
+	// render_odt: the locale is put back on every exit
+	// -----------------------------------------------------------------------
+
+	/**
+	 * The render switches LC_TIME so TBS prints Spanish month names. LC_TIME is
+	 * process wide, so a render that returns early without putting it back
+	 * silently changes date formatting for everything the request does next.
+	 * Template pre-processing failing is one of those early exits.
+	 */
+	public function test_render_odt_restores_the_locale_when_pre_processing_fails() {
+		$template = $this->write_odt_with_visibility_block();
+		$dest     = wp_tempnam( 'documentate-odt-out' );
+
+		$ambient = setlocale( LC_TIME, 0 );
+		$limit   = ini_get( 'pcre.backtrack_limit' );
+		$jit     = ini_get( 'pcre.jit' );
+		setlocale( LC_TIME, 'C' );
+		ini_set( 'pcre.jit', '0' );
+		ini_set( 'pcre.backtrack_limit', '1' );
+
+		try {
+			$result = Documentate_OpenTBS::render_odt( $template, array( 'lista' => array( array( 'x' => 1 ) ) ), $dest );
+			$after  = setlocale( LC_TIME, 0 );
+		} finally {
+			ini_set( 'pcre.backtrack_limit', $limit );
+			ini_set( 'pcre.jit', $jit );
+			setlocale( LC_TIME, $ambient );
+			foreach ( array( $template, $dest ) as $path ) {
+				if ( file_exists( $path ) ) {
+					unlink( $path );
+				}
+			}
+		}
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'documentate_regex_error', $result->get_error_code() );
+		$this->assertSame( 'C', $after );
+	}
+
+	/**
+	 * Write a minimal ODT whose content carries a visibility block, so the
+	 * pre-processing regular expression has real work to do on it.
+	 *
+	 * @return string Absolute path to the ODT.
+	 */
+	private function write_odt_with_visibility_block() {
+		$content = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+			. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
+			. '<office:body><office:text>'
+			. '<text:p>[onshow;block=begin;bloc=lista]</text:p>'
+			. str_repeat( '<text:p>Relacion de conceptos facturados</text:p>', 40 )
+			. '<text:p>[onshow;block=end]</text:p>'
+			. '</office:text></office:body></office:document-content>';
+
+		// OpenTBS picks the archive format from the file extension, so the
+		// template has to be called .odt and not the .tmp wp_tempnam() hands out.
+		$path = wp_tempnam( 'documentate-odt-locale' ) . '.odt';
+		$zip  = new ZipArchive();
+		$zip->open( $path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+		$zip->addFromString( 'mimetype', 'application/vnd.oasis.opendocument.text' );
+		$zip->addFromString( 'content.xml', $content );
+		$zip->addFromString( 'styles.xml', '<?xml version="1.0"?><office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"/>' );
+		$zip->addFromString( 'meta.xml', '<?xml version="1.0"?><meta/>' );
+		$zip->close();
+
+		return $path;
+	}
 }

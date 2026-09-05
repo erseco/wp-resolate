@@ -14,16 +14,24 @@ Generate official resolutions and structured administrative documents from ODT/D
 
 Documentate is a WordPress plugin developed by the ATE to create official resolutions and structured administrative documents from ODT/DOCX templates.
 
-It uses OpenTBS to merge the document data into the template and can optionally convert the result to PDF/DOCX with Collabora Online (server-side) or LibreOffice WASM (in the browser).
+It uses OpenTBS to merge the document data into the template, and draws the PDF natively on the server from an HTML layout. Collabora Online (server-side) and LibreOffice WASM (in the browser) remain selectable as alternative PDF engines.
 
 ### Features
 
 - **Document types (templates)** defined as a custom taxonomy with schema-driven fields.
 - **ODT/DOCX generation** from templates via OpenTBS.
-- **Optional conversion to PDF** (and between office formats) with Collabora Online (server) or LibreOffice WASM (browser, experimental).
+- **Native PDF generation** from an HTML layout per document type, with no external service; Collabora Online (server) or LibreOffice WASM (browser, experimental) can be selected instead.
 - **Per-user scope filtering** (hierarchical categories) to control document visibility.
 - **Workflow, revisions, attachments and collaborative editing.**
 - **Multisite compatible.**
+
+### Third-party libraries
+
+The plugin bundles these, each under its own licence:
+
+- FPDF by Olivier Plathey (http://www.fpdf.org/), which draws the PDF. It declares the GD and zlib PHP extensions as requirements.
+- Roboto Light by The Roboto Project Authors (https://github.com/google/fonts/tree/main/ofl/roboto), used for the vertical address bands. Licensed under the SIL Open Font License 1.1 (SIL OFL 1.1); the licence is included in `templates/pdf/fonts/roboto/OFL.txt`, with source and regeneration details in that directory's `README.md`.
+- TinyButStrong and OpenTBS by Skrol29 (https://www.tinybutstrong.com/), which merge a document's fields into its template.
 
 == Installation ==
 
@@ -34,8 +42,11 @@ It uses OpenTBS to merge the document data into the template and can optionally 
 
 == Frequently Asked Questions ==
 
-= Which conversion engines are supported? =
-Collabora Online (server-side, recommended) and LibreOffice WASM (in the browser, experimental).
+= Which PDF engines are supported? =
+Native PDF rendering (default, no external service), Collabora Online (server-side) and LibreOffice WASM (in the browser, experimental).
+
+= What happens to an existing site when it updates? =
+The PDF engine becomes the native renderer, so documents are drawn on the server instead of being sent to a Collabora service. Document types created earlier are matched to the layout their ODT or DOCX template is named after, once, on the first visit to the admin area; a type whose template matches no layout keeps the generic one and can be pointed at another under **PDF layout** in the document type. To carry on converting through Collabora, pick it under Settings → Documentate → Conversion engine.
 
 = How is document visibility controlled? =
 Through a per-user scope (hierarchical categories). Administrators see every document; other users only see documents in their scope and its subcategories.

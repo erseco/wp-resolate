@@ -43,6 +43,13 @@ class SettingsPage {
 	}
 
 	/**
+	 * Native PDF (FPDF) radio option, the engine a fresh site starts on.
+	 */
+	get fpdfOption() {
+		return this.page.locator( 'input[type="radio"][value="fpdf"]' );
+	}
+
+	/**
 	 * Collabora radio option.
 	 */
 	get collaboraOption() {
@@ -198,6 +205,15 @@ class SettingsPage {
 	 */
 	async expectSaveSuccess( expect ) {
 		await expect( this.successNotice.first() ).toBeVisible();
+	}
+
+	/**
+	 * Assert the native PDF option is checked.
+	 *
+	 * @param {import('@playwright/test').expect} expect - Playwright expect
+	 */
+	async expectFpdfSelected( expect ) {
+		await expect( this.fpdfOption ).toBeChecked();
 	}
 
 	/**

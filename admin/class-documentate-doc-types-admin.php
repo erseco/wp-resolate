@@ -246,6 +246,10 @@ class Documentate_Doc_Types_Admin {
 			<p class="documentate-template-type" data-default="<?php echo esc_attr__( 'No template selected', 'documentate' ); ?>"></p>
 		</div>
 		<div class="form-field">
+			<label for="<?php echo esc_attr( Documentate_Pdf_Layout::META_KEY ); ?>"><?php esc_html_e( 'PDF layout', 'documentate' ); ?></label>
+			<?php $this->pdf_layout_field()->render( Documentate_Pdf_Layout::DEFAULT_SLUG ); ?>
+		</div>
+		<div class="form-field">
 			<label><?php esc_html_e( 'Detected fields', 'documentate' ); ?></label>
 			<?php
 
@@ -285,6 +289,7 @@ class Documentate_Doc_Types_Admin {
 		$schema_json = wp_json_encode( $schema ? $schema : array() );
 		$summary_json = wp_json_encode( $schema_summary ? $schema_summary : array() );
 		$template_name = $template_id ? basename( (string) get_attached_file( $template_id ) ) : '';
+		$pdf_layout = $this->pdf_layout_field()->stored( $term->term_id );
 		?>
 		<tr class="form-field">
 			<th scope="row"><label for="documentate_type_color"><?php esc_html_e( 'Color', 'documentate' ); ?></label></th>
@@ -323,6 +328,12 @@ class Documentate_Doc_Types_Admin {
 				echo esc_attr( $template_ext );
 				?>
 				"></p>
+			</td>
+		</tr>
+		<tr class="form-field">
+			<th scope="row"><label for="<?php echo esc_attr( Documentate_Pdf_Layout::META_KEY ); ?>"><?php esc_html_e( 'PDF layout', 'documentate' ); ?></label></th>
+			<td>
+				<?php $this->pdf_layout_field()->render( $pdf_layout ); ?>
 			</td>
 		</tr>
 		<tr class="form-field">
@@ -386,9 +397,20 @@ class Documentate_Doc_Types_Admin {
 		$template_id = max( 0, $template_id );
 		update_term_meta( $term_id, 'documentate_type_template_id', $template_id > 0 ? $template_id : '' );
 
+		update_term_meta( $term_id, Documentate_Pdf_Layout::META_KEY, $this->pdf_layout_field()->submitted() );
+
 		$storage       = new SchemaStorage();
 		$template_type = $this->save_term_template_schema( $term_id, $template_id, $storage );
 		update_term_meta( $term_id, 'documentate_type_template_type', $template_type );
+	}
+
+	/**
+	 * The "PDF layout" field of both taxonomy forms.
+	 *
+	 * @return Documentate_Doc_Type_Pdf_Layout_Field
+	 */
+	private function pdf_layout_field() {
+		return new Documentate_Doc_Type_Pdf_Layout_Field();
 	}
 
 	/**

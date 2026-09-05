@@ -112,8 +112,38 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'type="radio"', $output );
+		$this->assertStringContainsString( 'value="fpdf"', $output );
 		$this->assertStringContainsString( 'value="collabora"', $output );
 		$this->assertStringContainsString( 'value="wasm"', $output );
+	}
+
+	/**
+	 * Test conversion_engine_render preselects the native engine on a site that
+	 * never chose one.
+	 */
+	public function test_conversion_engine_render_defaults_to_the_native_engine() {
+		delete_option( 'documentate_settings' );
+
+		ob_start();
+		$this->settings->conversion_engine_render();
+		$output = ob_get_clean();
+
+		$this->assertMatchesRegularExpression( '/value="fpdf"[^>]*checked/', $output );
+		$this->assertDoesNotMatchRegularExpression( '/value="collabora"[^>]*checked/', $output );
+	}
+
+	/**
+	 * Test conversion_engine_render keeps an explicit Collabora choice.
+	 */
+	public function test_conversion_engine_render_keeps_an_explicit_collabora_choice() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'collabora' ) );
+
+		ob_start();
+		$this->settings->conversion_engine_render();
+		$output = ob_get_clean();
+
+		$this->assertMatchesRegularExpression( '/value="collabora"[^>]*checked/', $output );
+		$this->assertDoesNotMatchRegularExpression( '/value="fpdf"[^>]*checked/', $output );
 	}
 
 	/**
@@ -354,6 +384,24 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 
 		$result = $this->settings->settings_validate( $input );
 
+		$this->assertSame( 'fpdf', $result['conversion_engine'] );
+	}
+
+	/**
+	 * Test settings_validate accepts the native engine.
+	 */
+	public function test_settings_validate_accepts_the_native_engine() {
+		$result = $this->settings->settings_validate( array( 'conversion_engine' => 'fpdf' ) );
+
+		$this->assertSame( 'fpdf', $result['conversion_engine'] );
+	}
+
+	/**
+	 * Test settings_validate keeps an explicit Collabora choice.
+	 */
+	public function test_settings_validate_keeps_collabora() {
+		$result = $this->settings->settings_validate( array( 'conversion_engine' => 'collabora' ) );
+
 		$this->assertSame( 'collabora', $result['conversion_engine'] );
 	}
 
@@ -431,7 +479,7 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 
 		$result = $this->settings->settings_validate( $input );
 
-		$this->assertSame( 'collabora', $result['conversion_engine'] );
+		$this->assertSame( 'fpdf', $result['conversion_engine'] );
 		$this->assertSame( '', $result['collabora_base_url'] );
 		$this->assertSame( 'en-US', $result['collabora_lang'] );
 		$this->assertSame(

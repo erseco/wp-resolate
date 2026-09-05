@@ -2,8 +2,10 @@
 /**
  * Conversion manager for Documentate.
  *
- * Chooses the appropriate engine (LibreOffice WASM in the browser or Collabora
- * Online) to convert documents generated from OpenTBS templates.
+ * Names the engine that turns a document into a PDF: the native renderer,
+ * which draws it in this process and is the default, or one of the two
+ * converters kept as a fallback - Collabora Online on the server, or
+ * LibreOffice WASM in the browser.
  *
  * @package Documentate
  */
@@ -17,17 +19,21 @@ defined( 'ABSPATH' ) || exit();
 class Documentate_Conversion_Manager {
 	const ENGINE_WASM = 'wasm';
 	const ENGINE_COLLABORA = 'collabora';
+	const ENGINE_FPDF = 'fpdf';
 
 	/**
 	 * Retrieve the engine configured in the plugin settings.
+	 *
+	 * A site that never picked one gets the native renderer, which needs no
+	 * service. A site that did keeps what it picked.
 	 *
 	 * @return string
 	 */
 	public static function get_engine() {
 		$options = get_option( 'documentate_settings', array() );
-		$engine = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : self::ENGINE_COLLABORA;
-		if ( ! in_array( $engine, array( self::ENGINE_WASM, self::ENGINE_COLLABORA ), true ) ) {
-			$engine = self::ENGINE_COLLABORA;
+		$engine = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : self::ENGINE_FPDF;
+		if ( ! in_array( $engine, array( self::ENGINE_FPDF, self::ENGINE_WASM, self::ENGINE_COLLABORA ), true ) ) {
+			$engine = self::ENGINE_FPDF;
 		}
 
 		return $engine;
@@ -45,20 +51,27 @@ class Documentate_Conversion_Manager {
 		}
 
 		$labels = array(
+			self::ENGINE_FPDF => __( 'Native PDF rendering', 'documentate' ),
 			self::ENGINE_WASM => __( 'LibreOffice WASM in browser (experimental)', 'documentate' ),
 			self::ENGINE_COLLABORA => __( 'Collabora Online', 'documentate' ),
 		);
 
-		return isset( $labels[ $engine ] ) ? $labels[ $engine ] : $labels[ self::ENGINE_COLLABORA ];
+		return isset( $labels[ $engine ] ) ? $labels[ $engine ] : $labels[ self::ENGINE_FPDF ];
 	}
 
 	/**
-	 * Determine if the configured engine can currently run server-side conversions.
+	 * Determine if the configured engine can currently produce a PDF.
 	 *
 	 * @return bool
 	 */
 	public static function is_available() {
 		$engine = self::get_engine();
+
+		// The native renderer runs in this process: there is nothing to reach
+		// and therefore nothing that can be unreachable.
+		if ( self::ENGINE_FPDF === $engine ) {
+			return true;
+		}
 
 		if ( self::ENGINE_COLLABORA === $engine ) {
 			require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';
@@ -80,6 +93,16 @@ class Documentate_Conversion_Manager {
 	 */
 	public static function convert( $input_path, $output_path, $output_format, $input_format = '' ) {
 		$engine = self::get_engine();
+
+		// The native renderer draws PDFs; it does not translate one office
+		// format into another, so it refuses rather than writing a file it
+		// cannot produce.
+		if ( self::ENGINE_FPDF === $engine ) {
+			return new WP_Error(
+				'documentate_conversion_not_available',
+				self::get_unavailable_message( $input_format, $output_format )
+			);
+		}
 
 		if ( self::ENGINE_COLLABORA === $engine ) {
 			require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';
@@ -108,6 +131,13 @@ class Documentate_Conversion_Manager {
 	public static function get_unavailable_message( $source_format = '', $target_format = '' ) {
 		$engine = self::get_engine();
 		$context = self::build_context_text( $source_format, $target_format );
+
+		if ( self::ENGINE_FPDF === $engine ) {
+			return __(
+				'Native PDF rendering does not convert documents between office formats. Select Collabora Online to convert them.',
+				'documentate',
+			) . $context;
+		}
 
 		if ( self::ENGINE_COLLABORA === $engine ) {
 			require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';

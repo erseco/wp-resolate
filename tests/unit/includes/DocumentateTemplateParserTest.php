@@ -15,6 +15,74 @@ class DocumentateTemplateParserTest extends WP_UnitTestCase {
 	private $fixtures_path;
 
 	/**
+	 * Namespaced styles must not exhaust the HTML script/style regex budget.
+	 */
+	public function test_namespaced_styles_preserve_split_fields_and_sign() {
+		$method = new ReflectionMethod( Documentate_Template_Parser::class, 'normalize_xml_text' );
+		$method->setAccessible( true );
+		$xml = str_repeat( '<style:style style:name="P1"></style:style>', 500 )
+			. '<text:p>[fi<text:span>eld</text:span>]</text:p>'
+			. '<text:p>[sign;x=10]</text:p>'
+			. '<script>[hidden_script]</script><style type="text/css">[hidden_style]</style>';
+		$limit = ini_get( 'pcre.backtrack_limit' );
+		try {
+			ini_set( 'pcre.backtrack_limit', '10000' );
+			$this->assertSame( '[field] [sign;x=10]', $method->invoke( null, $xml ) );
+		} finally {
+			ini_set( 'pcre.backtrack_limit', $limit );
+		}
+	}
+
+	/**
+	 * Cache hits must retain fields, but same-size/same-time edits invalidate them.
+	 */
+	public function test_field_cache_tracks_content_and_missing_templates() {
+		$path = sys_get_temp_dir() . '/documentate_cache_' . uniqid() . '.odt';
+		try {
+			$this->write_cached_test_template( $path, '[first]' );
+			$mtime = filemtime( $path );
+			$size = filesize( $path );
+			$fields = Documentate_Template_Parser::extract_fields( $path );
+			$this->assertSame( 'first', $fields[0]['placeholder'] );
+			$this->assertSame( $fields, Documentate_Template_Parser::extract_fields( $path ) );
+			$cache = new ReflectionProperty( Documentate_Template_Parser::class, 'fields_cache' );
+			$cache->setAccessible( true );
+			$this->assertSame( $fields, $cache->getValue()[ $path ]['fields'] );
+
+			$this->write_cached_test_template( $path, '[other]' );
+			touch( $path, $mtime );
+			clearstatcache( true, $path );
+			$this->assertSame( $size, filesize( $path ) );
+			$this->assertSame( $mtime, filemtime( $path ) );
+			$this->assertSame( 'other', Documentate_Template_Parser::extract_fields( $path )[0]['placeholder'] );
+			unlink( $path );
+			$this->assertWPError( Documentate_Template_Parser::extract_fields( $path ) );
+			file_put_contents( $path, 'invalid zip' );
+			$this->assertWPError( Documentate_Template_Parser::extract_fields( $path ) );
+			$this->write_cached_test_template( $path, '[sign]' );
+			$this->assertTrue( Documentate_Template_Parser::template_has_sign_placeholder( $path ) );
+		} finally {
+			if ( file_exists( $path ) ) {
+				unlink( $path );
+			}
+		}
+	}
+
+	/**
+	 * Write a deterministic uncompressed archive for cache invalidation tests.
+	 *
+	 * @param string $path        Archive path.
+	 * @param string $placeholder Field marker.
+	 */
+	private function write_cached_test_template( $path, $placeholder ) {
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $path, ZipArchive::CREATE | ZipArchive::OVERWRITE ) );
+		$zip->addFromString( 'content.xml', '<text:p>' . $placeholder . '</text:p>' );
+		$zip->setCompressionName( 'content.xml', ZipArchive::CM_STORE );
+		$zip->close();
+	}
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function set_up() {

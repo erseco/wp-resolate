@@ -75,6 +75,10 @@ admin/vendor/tinybutstrong/opentbs/tbs_plugin_opentbs.html
 admin/vendor/tinybutstrong/opentbs/xml_synopsis.html
 admin/vendor/tinybutstrong/tinybutstrong/tbs_us_manual.htm
 
+# FPDF is copied the same way, but copy-runtime-dependencies only takes
+# fpdf.php, font/ and license.txt, leaving the distribution's tutorial/, doc/
+# and makefont/ behind. There is nothing here left to exclude.
+
 # The Cloudflare worker is deployed separately, not shipped with the plugin.
 /cloudflare-worker
 

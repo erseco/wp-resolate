@@ -105,6 +105,65 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Build a document whose type carries the given template, and resolve the
+	 * action state the metabox is rendered from.
+	 *
+	 * @param string $template Either odt, docx or an empty string for none.
+	 * @return array<string,mixed> Resolved action state.
+	 */
+	private function state_for_template( $template ) {
+		$term = wp_insert_term( 'Tipo estado ' . $template . wp_rand(), 'documentate_doc_type' );
+		$term_id = intval( $term['term_id'] );
+
+		if ( '' !== $template ) {
+			$fixture = 'odt' === $template ? 'resolucion.odt' : 'demo-wp-documentate.docx';
+			$path = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'fixtures/' . $fixture;
+			$this->assertFileExists( $path );
+
+			$attachment_id = self::factory()->attachment->create_upload_object( $path );
+			update_term_meta( $term_id, 'documentate_type_template_id', $attachment_id );
+			update_term_meta( $term_id, 'documentate_type_template_type', $template );
+		}
+
+		$post_id = self::factory()->post->create( array( 'post_type' => 'documentate_document' ) );
+		wp_set_post_terms( $post_id, array( $term_id ), 'documentate_doc_type' );
+
+		return $this->invoke_private( 'build_actions_state', array( $post_id ) );
+	}
+
+	/**
+	 * Build a document whose type carries both office templates, and render it.
+	 *
+	 * The type editor configures a single template, but the per-format term
+	 * metas the generator still reads let a legacy type carry one of each.
+	 *
+	 * @return string Rendered metabox markup.
+	 */
+	private function render_for_both_templates() {
+		$term = wp_insert_term( 'Tipo ambos ' . wp_rand(), 'documentate_doc_type' );
+		$term_id = intval( $term['term_id'] );
+
+		foreach ( array( 'odt' => 'resolucion.odt', 'docx' => 'demo-wp-documentate.docx' ) as $format => $fixture ) {
+			$path = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'fixtures/' . $fixture;
+			$this->assertFileExists( $path );
+
+			update_term_meta(
+				$term_id,
+				'documentate_type_' . $format . '_template',
+				self::factory()->attachment->create_upload_object( $path )
+			);
+		}
+
+		$post = self::factory()->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+		wp_set_post_terms( $post->ID, array( $term_id ), 'documentate_doc_type' );
+
+		ob_start();
+		$this->helper->render_actions_metabox( $post );
+
+		return ob_get_clean();
+	}
+
+	/**
 	 * Assert that an action is offered as an enabled link.
 	 *
 	 * @param string $markup Rendered metabox markup.
@@ -155,10 +214,10 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * An ODT template with server conversion offers everything, and DOCX is
-	 * reachable through conversion.
+	 * An ODT template offers PDF and the ODT download. DOCX is not offered:
+	 * the editable download is the format the type has a template for.
 	 */
-	public function test_odt_template_with_server_conversion_offers_everything() {
+	public function test_odt_template_offers_pdf_and_only_the_odt_download() {
 		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
 
 		$markup = $this->render_for_template( 'odt' );
@@ -166,16 +225,17 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		$this->assertActionEnabled( $markup, 'preview', 'pdf' );
 		$this->assertActionEnabled( $markup, 'download', 'pdf' );
 		$this->assertActionEnabled( $markup, 'download', 'odt' );
-		$this->assertActionEnabled( $markup, 'download', 'docx' );
+		$this->assertActionDisabled( $markup, 'download', 'docx' );
+		$this->assertStringNotContainsString( 'DOCX', $markup );
 
 		// Server-side conversion needs no browser popup.
 		$this->assertStringNotContainsString( 'data-documentate-cdn-mode', $markup );
 	}
 
 	/**
-	 * A DOCX template with server conversion mirrors the ODT case.
+	 * A DOCX template mirrors the ODT case: PDF and DOCX, never ODT.
 	 */
-	public function test_docx_template_with_server_conversion_offers_everything() {
+	public function test_docx_template_offers_pdf_and_only_the_docx_download() {
 		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
 
 		$markup = $this->render_for_template( 'docx' );
@@ -183,7 +243,74 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		$this->assertActionEnabled( $markup, 'preview', 'pdf' );
 		$this->assertActionEnabled( $markup, 'download', 'pdf' );
 		$this->assertActionEnabled( $markup, 'download', 'docx' );
-		$this->assertActionEnabled( $markup, 'download', 'odt' );
+		$this->assertActionDisabled( $markup, 'download', 'odt' );
+		$this->assertStringNotContainsString( 'ODT', $markup );
+	}
+
+	/**
+	 * The secondary block names itself as the editable download, and lists the
+	 * one format the type can really hand over.
+	 */
+	public function test_editable_download_block_lists_the_template_format() {
+		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
+
+		$markup = $this->render_for_template( 'odt' );
+
+		$this->assertStringContainsString( 'Editable download:', $markup );
+		$this->assertStringNotContainsString( 'Other download formats:', $markup );
+	}
+
+	/**
+	 * Without a template there is no editable download at all, so the block is
+	 * left out rather than printed empty.
+	 */
+	public function test_editable_download_block_is_omitted_without_a_template() {
+		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
+
+		$markup = $this->render_for_template( '' );
+
+		$this->assertStringNotContainsString( 'Editable download:', $markup );
+		$this->assertStringNotContainsString( 'documentate-actions-secondary', $markup );
+	}
+
+	/**
+	 * The native engine produces the PDF on its own, so the actions are offered
+	 * whether or not a conversion service could be reached.
+	 */
+	public function test_pdf_is_available_with_the_native_engine_and_no_converter() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+
+		$state = $this->state_for_template( 'odt' );
+
+		$this->assertTrue( $state['pdf_available'] );
+		$this->assertTrue( $state['preview_available'] );
+		$this->assertSame( '', $state['pdf_message'] );
+		$this->assertSame( array( 'odt' ), array_keys( $state['formats'] ) );
+	}
+
+	/**
+	 * The native engine draws the PDF in PHP, so nothing may be routed through
+	 * the browser converter popup - not even where Collabora would take it.
+	 */
+	public function test_native_engine_never_flags_the_browser_popup() {
+		$_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] = '1';
+
+		try {
+			$this->set_conversion( 'collabora', 'https://collabora.example.org' );
+			$this->assertStringContainsString(
+				'data-documentate-cdn-mode',
+				$this->render_for_template( 'odt' ),
+				'A converter engine in Playground converts through the popup.'
+			);
+
+			update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+			$markup = $this->render_for_template( 'odt' );
+		} finally {
+			unset( $_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] );
+		}
+
+		$this->assertActionEnabled( $markup, 'download', 'pdf' );
+		$this->assertStringNotContainsString( 'data-documentate-cdn-mode', $markup );
 	}
 
 	/**
@@ -201,66 +328,38 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Without a conversion route, only the format that has its own template is
-	 * downloadable, and the other one explains the missing conversion.
+	 * Only a format the document type has a template for is offered, whichever
+	 * engine is configured: the editable download is never converted.
 	 *
-	 * Driven directly rather than through a render: the plugin defines
-	 * DOCUMENTATE_COLLABORA_DEFAULT_URL unconditionally, so Collabora always
-	 * reports itself as available and this branch cannot be reached by
-	 * clearing the setting.
+	 * @dataProvider provide_own_formats
 	 *
-	 * @dataProvider provide_unconvertible_formats
-	 *
-	 * @param string $format         Format under test.
-	 * @param string $own_template   Template path for that format.
-	 * @param string $other_template Template path for the other format.
-	 * @param bool   $expected       Expected availability.
+	 * @param string   $docx_template DOCX template path, or an empty string.
+	 * @param string   $odt_template  ODT template path, or an empty string.
+	 * @param string[] $expected      Format keys the metabox must offer.
 	 */
-	public function test_format_availability_without_conversion( $format, $own_template, $other_template, $expected ) {
-		$state = $this->invoke_private(
-			'build_format_state',
-			array( $own_template, $other_template, false, $format )
-		);
+	public function test_only_the_template_format_is_offered( $docx_template, $odt_template, array $expected ) {
+		$formats = $this->invoke_private( 'own_format_state', array( $docx_template, $odt_template ) );
 
-		$this->assertSame( $expected, $state['available'], $format );
+		$this->assertSame( $expected, array_keys( $formats ) );
+		foreach ( $formats as $format => $data ) {
+			$this->assertTrue( $data['available'], $format );
+			$this->assertSame( strtoupper( $format ), $data['label'] );
+			$this->assertSame( '', $data['message'], 'An offered format has nothing to explain.' );
+		}
 	}
 
 	/**
-	 * Data provider for format availability without any conversion route.
+	 * Template combinations and the formats each one may be downloaded in.
 	 *
 	 * @return array<string,array<int,mixed>>
 	 */
-	public function provide_unconvertible_formats() {
+	public function provide_own_formats() {
 		return array(
-			'odt with its own template' => array( 'odt', '/tmp/t.odt', '', true ),
-			'docx with its own template' => array( 'docx', '/tmp/t.docx', '', true ),
-			'odt needing conversion' => array( 'odt', '', '/tmp/t.docx', false ),
-			'docx needing conversion' => array( 'docx', '', '/tmp/t.odt', false ),
-			'odt with no template at all' => array( 'odt', '', '', false ),
-			'docx with no template at all' => array( 'docx', '', '', false ),
+			'only an ODT template' => array( '', '/tmp/t.odt', array( 'odt' ) ),
+			'only a DOCX template' => array( '/tmp/t.docx', '', array( 'docx' ) ),
+			'both templates' => array( '/tmp/t.docx', '/tmp/t.odt', array( 'odt', 'docx' ) ),
+			'no template at all' => array( '', '', array() ),
 		);
-	}
-
-	/**
-	 * A format reachable only through conversion becomes available once a
-	 * conversion route exists.
-	 */
-	public function test_format_availability_with_conversion() {
-		$state = $this->invoke_private( 'build_format_state', array( '', '/tmp/t.odt', true, 'docx' ) );
-
-		$this->assertTrue( $state['available'] );
-	}
-
-	/**
-	 * The tooltip names the missing template, or the missing conversion.
-	 */
-	public function test_format_message_distinguishes_the_two_causes() {
-		$missing_template = $this->invoke_private( 'build_format_state', array( '', '', false, 'odt' ) );
-		$this->assertStringContainsString( 'Configure an ODT template', $missing_template['message'] );
-
-		$missing_conversion = $this->invoke_private( 'build_format_state', array( '', '/tmp/t.docx', false, 'odt' ) );
-		$this->assertNotSame( $missing_template['message'], $missing_conversion['message'] );
-		$this->assertNotSame( '', $missing_conversion['message'] );
 	}
 
 	/**
@@ -268,6 +367,8 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	 * the reason it cannot.
 	 */
 	public function test_pdf_message_covers_each_cause() {
+		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
+
 		$this->assertStringContainsString(
 			'Configure a DOCX or ODT template',
 			$this->invoke_private( 'build_pdf_message', array( '', '', true ) )
@@ -287,6 +388,25 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Under the native engine a template is all it takes, so the tooltip stays
+	 * empty even where a converter would have reported itself unreachable.
+	 */
+	public function test_pdf_message_is_empty_under_the_native_engine() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+
+		$this->assertSame(
+			'',
+			$this->invoke_private( 'build_pdf_message', array( '', '/tmp/t.odt', false ) )
+		);
+
+		$this->assertStringContainsString(
+			'Configure a DOCX or ODT template',
+			$this->invoke_private( 'build_pdf_message', array( '', '', false ) ),
+			'The native engine still needs a template to know what to draw.'
+		);
+	}
+
+	/**
 	 * The source format is the ODT when both exist, and falls back to whatever
 	 * template is present.
 	 */
@@ -298,8 +418,8 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The browser WASM engine restores the conversion actions and marks them
-	 * so the front-end opens the isolated converter popup.
+	 * The browser WASM engine still produces the PDF, and marks it so the
+	 * front-end opens the isolated converter popup to do the conversion.
 	 */
 	public function test_browser_wasm_engine_enables_popup_conversion() {
 		$this->requireWasmAssets();
@@ -309,9 +429,10 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 
 		$this->assertActionEnabled( $markup, 'preview', 'pdf' );
 		$this->assertActionEnabled( $markup, 'download', 'pdf' );
-		$this->assertActionEnabled( $markup, 'download', 'docx' );
+		$this->assertActionEnabled( $markup, 'download', 'odt' );
+		$this->assertActionDisabled( $markup, 'download', 'docx' );
 
-		// Conversions must be flagged for the popup, sourced from the ODT.
+		// The PDF must be flagged for the popup, sourced from the ODT.
 		$this->assertStringContainsString( 'data-documentate-cdn-mode="1"', $markup );
 		$this->assertStringContainsString( 'data-documentate-source-format="odt"', $markup );
 	}
@@ -329,6 +450,31 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 			'/<a (?![^>]*data-documentate-cdn-mode)[^>]*data-documentate-format="odt"/',
 			$markup,
 			'The ODT download is the source format and must not be flagged for conversion.'
+		);
+	}
+
+	/**
+	 * A type carrying both templates offers both editable downloads, and hands
+	 * each one over directly: neither is ever routed through the converter
+	 * popup, because neither needs converting.
+	 */
+	public function test_both_templates_are_offered_and_never_converted() {
+		$this->requireWasmAssets();
+		$this->set_conversion( 'wasm' );
+
+		$markup = $this->render_for_both_templates();
+
+		$this->assertActionEnabled( $markup, 'download', 'odt' );
+		$this->assertActionEnabled( $markup, 'download', 'docx' );
+
+		// The PDF still goes through the popup under this engine.
+		$this->assertStringContainsString( 'data-documentate-cdn-mode="1"', $markup );
+
+		$secondary = substr( $markup, strpos( $markup, 'documentate-actions-secondary' ) );
+		$this->assertStringNotContainsString(
+			'data-documentate-cdn-mode',
+			$secondary,
+			'An editable download is the rendered template itself and is never converted.'
 		);
 	}
 

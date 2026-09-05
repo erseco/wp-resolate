@@ -2,10 +2,11 @@
 /**
  * Conversion-path tests for Documentate_Document_Generator.
  *
- * When a document type only ships one of the two OpenTBS templates, the
- * generator renders that one and converts it. Collabora is the conversion
- * engine configured by default, so every test here intercepts the HTTP layer:
- * no request ever leaves the process.
+ * The engine is pinned to Collabora Online throughout: this file is the
+ * regression net for the site that has not moved to the native renderer, where
+ * the PDF is still produced by rendering the OpenTBS template and converting
+ * it. Every test intercepts the HTTP layer, so no request ever leaves the
+ * process.
  *
  * @package Documentate
  */
@@ -47,6 +48,10 @@ class DocumentateDocumentGeneratorConversionTest extends Documentate_Test_Base {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		$this->requests = array();
 		$this->http_stub = null;
+
+		// The native renderer is the default engine; these cases are about the
+		// converter a site can still choose instead.
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'collabora' ) );
 	}
 
 	/**
@@ -175,48 +180,19 @@ class DocumentateDocumentGeneratorConversionTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * With only an ODT template, DOCX is produced by converting the rendered ODT.
-	 */
-	public function test_docx_is_produced_by_converting_the_rendered_odt() {
-		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.odt' ) );
-		$this->stub_conversion();
-
-		$result = $this->track( Documentate_Document_Generator::generate_docx( $post_id ) );
-
-		$this->assertIsString( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
-		$this->assertStringEndsWith( '.docx', $result );
-		$this->assertFileExists( $result );
-		$this->assertCount( 1, $this->requests );
-		$this->assertStringEndsWith( '/cool/convert-to/docx', $this->requests[0] );
-	}
-
-	/**
-	 * With only a DOCX template, ODT is produced by converting the rendered DOCX.
-	 */
-	public function test_odt_is_produced_by_converting_the_rendered_docx() {
-		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.docx' ) );
-		$this->stub_conversion();
-
-		$result = $this->track( Documentate_Document_Generator::generate_odt( $post_id ) );
-
-		$this->assertIsString( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
-		$this->assertStringEndsWith( '.odt', $result );
-		$this->assertCount( 1, $this->requests );
-		$this->assertStringEndsWith( '/cool/convert-to/odt', $this->requests[0] );
-	}
-
-	/**
 	 * PDF is produced from the ODT template when one is configured.
 	 */
 	public function test_pdf_is_converted_from_the_odt_source() {
 		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.odt' ) );
-		$this->stub_conversion();
+		$this->stub_conversion( 200, '%PDF-1.4 converted' );
 
 		$result = $this->track( Documentate_Document_Generator::generate_pdf( $post_id ) );
 
 		$this->assertIsString( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
 		$this->assertStringEndsWith( '.pdf', $result );
-		$this->assertSame( array( 'https://demo.us.collaboraonline.com/cool/convert-to/pdf' ), $this->requests );
+		$this->assertCount( 1, $this->requests );
+		$this->assertStringEndsWith( '/cool/convert-to/pdf', $this->requests[0] );
+		$this->assertSame( '%PDF-1.4 converted', file_get_contents( $result ) );
 	}
 
 	/**
@@ -225,19 +201,49 @@ class DocumentateDocumentGeneratorConversionTest extends Documentate_Test_Base {
 	 */
 	public function test_pdf_falls_back_to_the_docx_source() {
 		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.docx' ) );
-		$this->stub_conversion();
+		$this->stub_conversion( 200, '%PDF-1.4 converted' );
 
 		$result = $this->track( Documentate_Document_Generator::generate_pdf( $post_id ) );
 
 		$this->assertIsString( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
 		$this->assertStringEndsWith( '.pdf', $result );
-		// One request converts DOCX to ODT, the second converts the source to PDF.
-		$this->assertNotEmpty( $this->requests );
-		$this->assertStringEndsWith( '/cool/convert-to/pdf', end( $this->requests ) );
+		// The DOCX is rendered and converted straight to PDF: no step in between.
+		$this->assertCount( 1, $this->requests );
+		$this->assertStringEndsWith( '/cool/convert-to/pdf', $this->requests[0] );
 	}
 
 	/**
-	 * A document without any template reports the missing configuration.
+	 * The editable download is never converted: a type with only an ODT
+	 * template reports the missing DOCX template instead of converting into it.
+	 */
+	public function test_docx_is_not_converted_from_the_odt_template() {
+		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.odt' ) );
+		$this->stub_conversion();
+
+		$result = Documentate_Document_Generator::generate_docx( $post_id );
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'documentate_template_missing', $result->get_error_code() );
+		$this->assertSame( array(), $this->requests, 'No conversion may be attempted for an editable download.' );
+	}
+
+	/**
+	 * The mirror image: a DOCX template does not produce an ODT.
+	 */
+	public function test_odt_is_not_converted_from_the_docx_template() {
+		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.docx' ) );
+		$this->stub_conversion();
+
+		$result = Documentate_Document_Generator::generate_odt( $post_id );
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'documentate_template_missing', $result->get_error_code() );
+		$this->assertSame( array(), $this->requests );
+	}
+
+	/**
+	 * A document without a type reports it: DOCX and ODT because no template
+	 * can be found for one, PDF because there is no source to convert.
 	 *
 	 * @dataProvider provide_generator_methods
 	 *
@@ -269,38 +275,20 @@ class DocumentateDocumentGeneratorConversionTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * Without a server-side conversion engine the generator explains why the
-	 * cross-format output is unavailable rather than returning a broken file.
-	 *
-	 * @dataProvider provide_cross_format_requests
-	 *
-	 * @param string $fixture Template fixture to configure.
-	 * @param string $method  Generator method to call.
+	 * The browser-only engine cannot convert on the server, so it explains
+	 * itself rather than returning a broken file.
 	 */
-	public function test_cross_format_output_requires_a_conversion_engine( $fixture, $method ) {
+	public function test_pdf_requires_a_server_side_conversion_engine() {
 		update_option( 'documentate_settings', array( 'conversion_engine' => 'wasm' ) );
-		$post_id = $this->create_document( $this->create_doc_type_with( $fixture ) );
+		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.odt' ) );
 		$this->stub_conversion();
 
-		$result = Documentate_Document_Generator::{$method}( $post_id );
+		$result = Documentate_Document_Generator::generate_pdf( $post_id );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'documentate_conversion_not_available', $result->get_error_code() );
 		$this->assertNotEmpty( $result->get_error_message() );
 		$this->assertEmpty( $this->requests, 'The browser-only engine must not call a conversion service.' );
-	}
-
-	/**
-	 * Template/format pairs that always need a conversion step.
-	 *
-	 * @return array<string, array{0: string, 1: string}>
-	 */
-	public function provide_cross_format_requests() {
-		return array(
-			'odt template, docx requested' => array( 'minimal-scalar.odt', 'generate_docx' ),
-			'docx template, odt requested' => array( 'minimal-scalar.docx', 'generate_odt' ),
-			'odt template, pdf requested' => array( 'minimal-scalar.odt', 'generate_pdf' ),
-		);
 	}
 
 	/**
@@ -310,7 +298,7 @@ class DocumentateDocumentGeneratorConversionTest extends Documentate_Test_Base {
 		$post_id = $this->create_document( $this->create_doc_type_with( 'minimal-scalar.odt' ) );
 		$this->stub_conversion( 503, 'service unavailable' );
 
-		$result = Documentate_Document_Generator::generate_docx( $post_id );
+		$result = Documentate_Document_Generator::generate_pdf( $post_id );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'documentate_collabora_http_error', $result->get_error_code() );
@@ -327,12 +315,12 @@ class DocumentateDocumentGeneratorConversionTest extends Documentate_Test_Base {
 		// Post IDs are reused between runs, so clear any leftover output first.
 		$upload_dir = wp_upload_dir();
 		$expected_output = trailingslashit( $upload_dir['basedir'] ) . 'documentate/'
-			. sanitize_title( get_the_title( $post_id ) ) . '-' . $post_id . '.docx';
+			. sanitize_title( get_the_title( $post_id ) ) . '-' . $post_id . '.pdf';
 		if ( file_exists( $expected_output ) ) {
 			unlink( $expected_output );
 		}
 
-		$result = Documentate_Document_Generator::generate_docx( $post_id );
+		$result = Documentate_Document_Generator::generate_pdf( $post_id );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'documentate_collabora_empty_response', $result->get_error_code() );

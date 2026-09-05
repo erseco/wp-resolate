@@ -3,7 +3,8 @@
         "php": ">=8.3",
         "erseco/autofirma-intermediate-server": "dev-main",
         "tinybutstrong/tinybutstrong": "^3.15.3",
-        "tinybutstrong/opentbs": "^1.12.3"
+        "tinybutstrong/opentbs": "^1.12.3",
+        "setasign/fpdf": "^1.9"
     },
     "require-dev": {
         "brianium/paratest": "^6.11",
@@ -24,6 +25,11 @@
         "copy-runtime-dependencies": [
             "rm -rf admin/vendor/tinybutstrong",
             "cp -r vendor/tinybutstrong admin/vendor/",
+            "rm -rf admin/vendor/setasign",
+            "mkdir -p admin/vendor/setasign/fpdf",
+            "cp vendor/setasign/fpdf/fpdf.php admin/vendor/setasign/fpdf/",
+            "cp -r vendor/setasign/fpdf/font admin/vendor/setasign/fpdf/",
+            "cp vendor/setasign/fpdf/license.txt admin/vendor/setasign/fpdf/",
             "rm -rf includes/vendor/autofirma-intermediate-server",
             "mkdir -p includes/vendor/autofirma-intermediate-server",
             "cp -r vendor/erseco/autofirma-intermediate-server/src includes/vendor/autofirma-intermediate-server/"

@@ -50,15 +50,14 @@ test.describe( 'Document Rich Formatting', () => {
 
 		const textareaId = await richTextarea.getAttribute( 'id' );
 		const visualTab = page.locator( `#${ textareaId }-tmce` );
-		if ( await visualTab.isVisible().catch( () => false ) ) {
-			await visualTab.click();
-		}
+		await expect( visualTab ).toBeVisible();
+		await visualTab.click();
 
 		await page.waitForFunction(
-			( id ) => window.tinyMCE && !! window.tinyMCE.get( id ),
+			( id ) => window.tinyMCE && window.tinyMCE.get( id )?.initialized,
 			textareaId,
 			{ timeout: 10000 }
-		).catch( () => {} );
+		);
 
 		const toolbar1 = await page.evaluate( ( id ) => {
 			const editor = window.tinyMCE && window.tinyMCE.get( id );
@@ -76,9 +75,9 @@ test.describe( 'Document Rich Formatting', () => {
 
 		// Switch to HTML tab to set content directly, bypassing TinyMCE normalization.
 		const htmlTab = page.locator( `#${ textareaId }-html` );
-		if ( await htmlTab.isVisible().catch( () => false ) ) {
-			await htmlTab.click();
-		}
+		await expect( htmlTab ).toBeVisible();
+		await htmlTab.click();
+		await expect( richTextarea ).toBeVisible();
 
 		const content = [
 			'<p style="text-align: justify"><b>Primero. Introducción&nbsp;&nbsp;</b></p>',
@@ -95,9 +94,9 @@ test.describe( 'Document Rich Formatting', () => {
 		await documentEditor.navigateToEdit( postId );
 
 		const textTab = page.locator( `#${ textareaId }-html` );
-		if ( await textTab.isVisible().catch( () => false ) ) {
-			await textTab.click();
-		}
+		await expect( textTab ).toBeVisible();
+		await textTab.click();
+		await expect( richTextarea ).toBeVisible();
 
 		const storedHtml = await richTextarea.inputValue();
 

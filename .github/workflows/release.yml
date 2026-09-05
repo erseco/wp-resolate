@@ -59,6 +59,9 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          # Required by setasign/fpdf's `ext-gd`; setup-php's default set has
+          # zlib but not gd, and `--no-scripts` does not skip platform checks.
+          extensions: gd
           tools: composer:v2
           coverage: none
 

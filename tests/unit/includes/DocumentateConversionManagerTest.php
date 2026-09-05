@@ -29,12 +29,12 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_engine returns default collabora.
+	 * Test get_engine returns the native renderer by default.
 	 */
 	public function test_get_engine_default() {
 		$result = Documentate_Conversion_Manager::get_engine();
 
-		$this->assertSame( Documentate_Conversion_Manager::ENGINE_COLLABORA, $result );
+		$this->assertSame( Documentate_Conversion_Manager::ENGINE_FPDF, $result );
 	}
 
 	/**
@@ -76,7 +76,21 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 
 		$result = Documentate_Conversion_Manager::get_engine();
 
-		$this->assertSame( Documentate_Conversion_Manager::ENGINE_COLLABORA, $result );
+		$this->assertSame( Documentate_Conversion_Manager::ENGINE_FPDF, $result );
+	}
+
+	/**
+	 * Test get_engine returns fpdf when configured.
+	 */
+	public function test_get_engine_fpdf() {
+		update_option(
+			'documentate_settings',
+			array( 'conversion_engine' => 'fpdf' )
+		);
+
+		$result = Documentate_Conversion_Manager::get_engine();
+
+		$this->assertSame( Documentate_Conversion_Manager::ENGINE_FPDF, $result );
 	}
 
 	/**
@@ -109,13 +123,22 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test get_engine_label for the native renderer.
+	 */
+	public function test_get_engine_label_fpdf() {
+		$result = Documentate_Conversion_Manager::get_engine_label( 'fpdf' );
+
+		$this->assertStringContainsString( 'Native', $result );
+	}
+
+	/**
 	 * Test get_engine_label for unknown engine.
 	 */
 	public function test_get_engine_label_unknown() {
 		$result = Documentate_Conversion_Manager::get_engine_label( 'unknown' );
 
-		// Should fall back to collabora label.
-		$this->assertStringContainsString( 'Collabora', $result );
+		// Falls back to the label of the default engine.
+		$this->assertSame( Documentate_Conversion_Manager::get_engine_label( 'fpdf' ), $result );
 	}
 
 	/**
@@ -181,6 +204,8 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 	 * Test get_unavailable_message with source and target format.
 	 */
 	public function test_get_unavailable_message_with_formats() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'collabora' ) );
+
 		$result = Documentate_Conversion_Manager::get_unavailable_message( 'odt', 'pdf' );
 
 		$this->assertStringContainsString( 'ODT', $result );
@@ -191,6 +216,8 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 	 * Test get_unavailable_message with only target format.
 	 */
 	public function test_get_unavailable_message_target_only() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'collabora' ) );
+
 		$result = Documentate_Conversion_Manager::get_unavailable_message( '', 'docx' );
 
 		$this->assertStringContainsString( 'DOCX', $result );
@@ -242,6 +269,22 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 	public function test_constants() {
 		$this->assertSame( 'wasm', Documentate_Conversion_Manager::ENGINE_WASM );
 		$this->assertSame( 'collabora', Documentate_Conversion_Manager::ENGINE_COLLABORA );
+		$this->assertSame( 'fpdf', Documentate_Conversion_Manager::ENGINE_FPDF );
+	}
+
+	/**
+	 * The native renderer runs in this process, so it is always available and
+	 * never asked to convert.
+	 */
+	public function test_fpdf_engine_is_available_and_refuses_to_convert() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+
+		$this->assertTrue( Documentate_Conversion_Manager::is_available() );
+
+		$result = Documentate_Conversion_Manager::convert( '/tmp/test.odt', '/tmp/test.docx', 'docx', 'odt' );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'documentate_conversion_not_available', $result->get_error_code() );
 	}
 
 	/**

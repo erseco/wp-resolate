@@ -66,6 +66,12 @@ class Documentate {
 		$this->plugin_name = 'documentate';
 
 		$this->load_dependencies();
+		require_once __DIR__ . '/class-documentate-private-output.php';
+		// The one-time hardening pass belongs to maintenance, not to page views;
+		// every generation re-checks the guards through ensure_output_dir().
+		add_action( 'admin_init', array( 'Documentate_Private_Output', 'upgrade' ) );
+		// A type created before the native engine existed carries no layout.
+		add_action( 'admin_init', array( 'Documentate_Pdf_Layout', 'assign_missing' ) );
 		$this->define_admin_hooks();
 	}
 
@@ -140,6 +146,11 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-document-generator.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-opentbs.php';
 
+		// The native PDF renderer loads on demand: it pulls in the vendored
+		// FPDF, and most requests — the whole front end, and every request on
+		// a site converting through Collabora — never draw a document.
+		self::register_pdf_autoloader();
+
 		if ( class_exists( '\Documentate\Document\Meta\Document_Meta_Box' ) ) {
 			$document_meta_box = new \Documentate\Document\Meta\Document_Meta_Box();
 			$document_meta_box->register();
@@ -191,6 +202,7 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-admin-helper.php';
 
 		// Admin UI for document types (taxonomy meta for templates, fields, etc.).
+		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doc-type-pdf-layout-field.php';
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doc-types-admin.php';
 		require_once plugin_dir_path( __DIR__ ) . 'admin/class-documentate-doctype-help-notice.php';
 
@@ -199,6 +211,28 @@ class Documentate {
 		new Documentate_Workflow();
 
 		$this->loader = new Documentate_Loader();
+	}
+
+	/**
+	 * Load a `Documentate_Pdf_*` class from `includes/pdf/` when first named.
+	 *
+	 * The renderer is nine classes plus roughly two thousand lines of FPDF.
+	 * Parsing them on every page view buys nothing, and the class names map
+	 * to file names one to one.
+	 */
+	private static function register_pdf_autoloader() {
+		spl_autoload_register(
+			static function ( $class ) {
+				if ( 0 !== strpos( $class, 'Documentate_Pdf_' ) ) {
+					return;
+				}
+
+				$file = plugin_dir_path( __DIR__ ) . 'includes/pdf/class-' . strtolower( str_replace( '_', '-', $class ) ) . '.php';
+				if ( is_readable( $file ) ) {
+					require_once $file;
+				}
+			}
+		);
 	}
 
 	/**

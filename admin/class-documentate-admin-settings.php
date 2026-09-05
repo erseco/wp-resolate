@@ -112,12 +112,13 @@ class Documentate_Admin_Settings {
 	 */
 	public function conversion_engine_render() {
 		$options = get_option( 'documentate_settings', array() );
-		$current = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'collabora';
+		$current = isset( $options['conversion_engine'] ) ? sanitize_key( $options['conversion_engine'] ) : 'fpdf';
 
 		require_once plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'includes/class-documentate-collabora-converter.php';
 		$is_playground = Documentate_Collabora_Converter::is_playground();
 
 		$engines = array(
+			'fpdf' => __( 'Native PDF rendering (recommended)', 'documentate' ),
 			'collabora' => __( 'Collabora Online web service', 'documentate' ),
 			'wasm' => __( 'LibreOffice WASM in browser (experimental)', 'documentate' ),
 		);
@@ -143,7 +144,7 @@ class Documentate_Admin_Settings {
 		}
 		echo '<p class="description">'
 				. esc_html__(
-					'Choose whether conversions are performed via Collabora Online (default, server-side) or with LibreOffice WASM in the browser (experimental). LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer); Collabora Online is recommended for reliable server-side or background PDF generation.',
+					'Native PDF rendering draws the PDF on this server from the layout of the document type, with no external service. The other two engines produce the PDF by converting the DOCX or ODT template, either through a Collabora Online server or with LibreOffice WASM in the browser; LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer).',
 					'documentate',
 				)
 				. '</p>';
@@ -306,10 +307,10 @@ class Documentate_Admin_Settings {
 	 * @return array
 	 */
 	private function validate_conversion_settings( $input ) {
-		$valid_engines = array( 'wasm', 'collabora' );
-		$engine = isset( $input['conversion_engine'] ) ? sanitize_key( $input['conversion_engine'] ) : 'collabora';
+		$valid_engines = array( 'fpdf', 'wasm', 'collabora' );
+		$engine = isset( $input['conversion_engine'] ) ? sanitize_key( $input['conversion_engine'] ) : 'fpdf';
 		if ( ! in_array( $engine, $valid_engines, true ) ) {
-			$engine = 'collabora';
+			$engine = 'fpdf';
 		}
 		$input['conversion_engine'] = $engine;
 

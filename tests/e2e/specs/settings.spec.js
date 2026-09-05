@@ -17,12 +17,26 @@ test.describe( 'Settings Page', () => {
 		await settingsPage.expectOnSettingsPage( expect );
 	} );
 
-	test( 'settings page shows conversion engine options', async ( { settingsPage } ) => {
+	test( 'settings page offers the three conversion engines', async ( { settingsPage } ) => {
 		await settingsPage.navigate();
 
-		// At least one engine option should exist
-		const hasEngineOptions = await settingsPage.hasEngineOptions();
-		expect( hasEngineOptions ).toBe( true );
+		// The native renderer sits alongside the two converters it replaces,
+		// so a site can fall back while the new engine is being proven.
+		await expect( settingsPage.fpdfOption ).toHaveCount( 1 );
+		await expect( settingsPage.collaboraOption ).toHaveCount( 1 );
+		await expect( settingsPage.wasmOption ).toHaveCount( 1 );
+
+		// And those three are the whole selector.
+		await expect( settingsPage.engineOptions ).toHaveCount( 3 );
+	} );
+
+	test( 'the native engine is selected by default', async ( { settingsPage } ) => {
+		await settingsPage.navigate();
+
+		// A site that has never chosen an engine renders the PDF itself.
+		await settingsPage.expectFpdfSelected( expect );
+		await expect( settingsPage.collaboraOption ).not.toBeChecked();
+		await expect( settingsPage.wasmOption ).not.toBeChecked();
 	} );
 
 	test( 'can select conversion engine', async ( { settingsPage } ) => {

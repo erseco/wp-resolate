@@ -28,6 +28,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 define( 'DOCUMENTATE_VERSION', '0.0.0' );
 define( 'DOCUMENTATE_PLUGIN_FILE', __FILE__ );
+define( 'DOCUMENTATE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
 if ( ! defined( 'DOCUMENTATE_COLLABORA_DEFAULT_URL' ) ) {
 	define( 'DOCUMENTATE_COLLABORA_DEFAULT_URL', 'https://demo.us.collaboraonline.com' );

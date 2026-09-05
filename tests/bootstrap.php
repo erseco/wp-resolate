@@ -44,6 +44,9 @@ require_once __DIR__ . '/includes/class-wp-unittest-documentate-test-base.php';
 require_once __DIR__ . '/includes/class-document-xml-asserter.php';
 require_once __DIR__ . '/includes/class-documentate-generation-test-base.php';
 
+// Include the helper that reads text back out of generated PDFs.
+require_once __DIR__ . '/includes/class-documentate-pdf-test-helper.php';
+
 // Include the exception used to intercept "redirect then exit()" endings.
 require_once __DIR__ . '/includes/class-documentate-exit-exception.php';
 
