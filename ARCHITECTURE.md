@@ -17,6 +17,11 @@ The core functionality involves taking structured data entered by users in WordP
 
 ### 2.2. Document Generation (OpenTBS)
 
+- Template field and signature detection shares a request-local parser cache,
+  keyed by path and SHA-256 of the compressed template. Replacing a template
+  invalidates the entry even when its size and modification time are unchanged.
+  XML normalization distinguishes ODT `style:*` elements from HTML `style`
+  elements to avoid repeated full-document regex scans when opening the editor.
 - **Location:** `includes/class-documentate-document-generator.php` and `includes/class-documentate-opentbs.php`.
 - **Flow:**
   1. User triggers a document generation (e.g., clicking "Preview" or "Export" in the admin UI).

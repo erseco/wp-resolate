@@ -228,10 +228,17 @@ A task is **not complete** if any of the following remain:
 
 ### Complexity budget
 
-- Keep methods small. PHPMD enforces an **NPath complexity threshold of 500**
-  and a cyclomatic complexity threshold of 10 in CI; do not commit code that
-  exceeds them.
-- When a method approaches either threshold, extract pure helpers (input
+- Always review cyclomatic complexity and function/method length while writing
+  code and before committing, including existing functions you modify. Inspect
+  `phpmd.xml` for the actual enforced limits; do not rely on remembered defaults.
+- Keep cyclomatic complexity at **10 or less** as the project coding target
+  (the current PHPMD reporting threshold is 15), NPath complexity below **500**,
+  and function/method length below **150 lines**, as measured by PHPMD.
+- Run PHPMD on changed PHP files before committing. Fix new function/method
+  violations and do not worsen existing ones. Report inherited warnings
+  separately; passing tests or lint does not establish compliance with these
+  budgets.
+- When a method approaches any of these limits, extract pure helpers (input
   parsing, authorization checks, response building) instead of disabling the
   rule or raising the threshold.
 - A long sequence of `if`/ternary guards multiplies NPath quickly — split
