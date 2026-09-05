@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-11-29T00:24:31+00:00\n"
-"PO-Revision-Date: 2026-09-05T19:04:40+00:00\n"
+"PO-Revision-Date: 2026-09-05T22:46:55+00:00\n"
 "Language: es_ES\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: documentate\n"
@@ -949,6 +949,11 @@ msgstr "Elemento cp:coreProperties no encontrado."
 
 msgid "The generated PDF could not be saved."
 msgstr "No se ha podido guardar el PDF generado."
+
+#. translators: %s: file name of an access guard, such as .htaccess.
+#, php-format
+msgid "The access guard «%s» of the output directory could not be verified."
+msgstr "No se ha podido verificar la protección «%s» del directorio de salida."
 
 msgid "You do not have permission to manage templates."
 msgstr "No tienes permiso para gestionar plantillas."

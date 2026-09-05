@@ -949,6 +949,11 @@ msgstr ""
 msgid "The generated PDF could not be saved."
 msgstr ""
 
+#. translators: %s: file name of an access guard, such as .htaccess.
+#, php-format
+msgid "The access guard «%s» of the output directory could not be verified."
+msgstr ""
+
 msgid "You do not have permission to manage templates."
 msgstr ""
 

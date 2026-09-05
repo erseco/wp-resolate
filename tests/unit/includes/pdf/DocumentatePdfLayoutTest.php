@@ -460,4 +460,63 @@ class DocumentatePdfLayoutTest extends WP_UnitTestCase {
 		$this->assertSame( array(), $raised );
 		$this->assertSame( 'generic', $slug );
 	}
+	/**
+	 * An existing type gets the layout its office template is named after.
+	 */
+	public function test_assign_missing_matches_a_type_to_its_template() {
+		$term_id = self::factory()->term->create( array( 'taxonomy' => Documentate_Pdf_Layout::TAXONOMY ) );
+		$file    = wp_upload_dir()['basedir'] . '/resolucion.odt';
+		wp_mkdir_p( dirname( $file ) );
+		file_put_contents( $file, 'x' );
+		$attachment = self::factory()->attachment->create( array( 'file' => $file ) );
+		update_term_meta( $term_id, Documentate_Pdf_Layout::TEMPLATE_META, $attachment );
+
+		Documentate_Pdf_Layout::assign_missing();
+
+		$this->assertSame( 'resolucion', get_term_meta( $term_id, Documentate_Pdf_Layout::META_KEY, true ) );
+	}
+
+	/**
+	 * A name WordPress made unique on upload resolves to the same layout.
+	 */
+	public function test_assign_missing_ignores_an_upload_suffix() {
+		$term_id = self::factory()->term->create( array( 'taxonomy' => Documentate_Pdf_Layout::TAXONOMY ) );
+		$file    = wp_upload_dir()['basedir'] . '/propuestagasto-2.odt';
+		wp_mkdir_p( dirname( $file ) );
+		file_put_contents( $file, 'x' );
+		$attachment = self::factory()->attachment->create( array( 'file' => $file ) );
+		update_term_meta( $term_id, Documentate_Pdf_Layout::TEMPLATE_META, $attachment );
+
+		Documentate_Pdf_Layout::assign_missing();
+
+		$this->assertSame( 'propuestagasto', get_term_meta( $term_id, Documentate_Pdf_Layout::META_KEY, true ) );
+	}
+
+	/**
+	 * Nothing is guessed, nothing already chosen is overwritten, and the pass
+	 * does not run twice.
+	 */
+	public function test_assign_missing_leaves_unknown_and_chosen_types_alone() {
+		$unknown = self::factory()->term->create( array( 'taxonomy' => Documentate_Pdf_Layout::TAXONOMY ) );
+		$file    = wp_upload_dir()['basedir'] . '/plantilla-propia.odt';
+		wp_mkdir_p( dirname( $file ) );
+		file_put_contents( $file, 'x' );
+		update_term_meta( $unknown, Documentate_Pdf_Layout::TEMPLATE_META, self::factory()->attachment->create( array( 'file' => $file ) ) );
+
+		$chosen = self::factory()->term->create( array( 'taxonomy' => Documentate_Pdf_Layout::TAXONOMY ) );
+		update_term_meta( $chosen, Documentate_Pdf_Layout::META_KEY, 'haceconstar' );
+		$other = wp_upload_dir()['basedir'] . '/resolucion.odt';
+		file_put_contents( $other, 'x' );
+		update_term_meta( $chosen, Documentate_Pdf_Layout::TEMPLATE_META, self::factory()->attachment->create( array( 'file' => $other ) ) );
+
+		Documentate_Pdf_Layout::assign_missing();
+
+		$this->assertSame( '', get_term_meta( $unknown, Documentate_Pdf_Layout::META_KEY, true ), 'An unrecognised template is left alone.' );
+		$this->assertSame( 'haceconstar', get_term_meta( $chosen, Documentate_Pdf_Layout::META_KEY, true ), 'A chosen layout is not overwritten.' );
+
+		delete_term_meta( $unknown, Documentate_Pdf_Layout::META_KEY );
+		Documentate_Pdf_Layout::assign_missing();
+		$this->assertSame( '', get_term_meta( $unknown, Documentate_Pdf_Layout::META_KEY, true ), 'The pass runs once.' );
+	}
+
 }

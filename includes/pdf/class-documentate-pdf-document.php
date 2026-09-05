@@ -306,6 +306,19 @@ class Documentate_Pdf_Document extends FPDF {
 	}
 
 	/**
+	 * Left margin of the current page, in mm.
+	 *
+	 * Page furniture and tables that outlive a page break need it: a layout
+	 * may give its first page different margins from the rest.
+	 *
+	 * @return float
+	 */
+	public function left_margin() {
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- FPDF property.
+		return $this->lMargin;
+	}
+
+	/**
 	 * Width between the left and right margins, in mm.
 	 *
 	 * @return float

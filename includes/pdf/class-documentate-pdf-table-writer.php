@@ -148,6 +148,7 @@ class Documentate_Pdf_Table_Writer {
 		}
 
 		$x       = (float) $x;
+		$offset  = $x - $this->pdf->left_margin();
 		$width   = $this->table_width( $table, (float) $width );
 		$widths  = $this->column_widths( $table, $rows, $width );
 		$padding = $this->padding( $table );
@@ -167,10 +168,10 @@ class Documentate_Pdf_Table_Writer {
 
 			if ( $this->needs_page( $height ) ) {
 				$this->pdf->AddPage();
-				$this->repeat_header( $rows, $header, $index, $widths, $x, $border, $padding );
+				$this->repeat_header( $rows, $header, $index, $widths, $this->row_x( $offset ), $border, $padding );
 			}
 
-			$this->draw_row( $cells, $x, $height, $border );
+			$this->draw_row( $cells, $this->row_x( $offset ), $height, $border );
 		}
 
 		// Nothing drawn after the table inherits the header grey.
@@ -450,6 +451,20 @@ class Documentate_Pdf_Table_Writer {
 		$padding = (float) $declared;
 
 		return ( $padding >= 0.0 && $padding <= self::MAX_PADDING ) ? $padding : self::PADDING;
+	}
+
+	/**
+	 * Left edge of a row on the page it is about to be drawn on, in mm.
+	 *
+	 * A layout may give its first page different margins from the rest, so a
+	 * table that outlives a page break has to be placed against the margins
+	 * of the page it continues on rather than the one it started on.
+	 *
+	 * @param float $offset Distance from the left margin to the table, in mm.
+	 * @return float
+	 */
+	private function row_x( $offset ) {
+		return $this->pdf->left_margin() + $offset;
 	}
 
 	/**

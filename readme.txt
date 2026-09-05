@@ -45,6 +45,9 @@ The plugin bundles these, each under its own licence:
 = Which PDF engines are supported? =
 Native PDF rendering (default, no external service), Collabora Online (server-side) and LibreOffice WASM (in the browser, experimental).
 
+= What happens to an existing site when it updates? =
+The PDF engine becomes the native renderer, so documents are drawn on the server instead of being sent to a Collabora service. Document types created earlier are matched to the layout their ODT or DOCX template is named after, once, on the first visit to the admin area; a type whose template matches no layout keeps the generic one and can be pointed at another under **PDF layout** in the document type. To carry on converting through Collabora, pick it under Settings → Documentate → Conversion engine.
+
 = How is document visibility controlled? =
 Through a per-user scope (hierarchical categories). Administrators see every document; other users only see documents in their scope and its subcategories.
 

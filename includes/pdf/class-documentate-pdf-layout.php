@@ -31,6 +31,19 @@ class Documentate_Pdf_Layout {
 	 */
 	const META_KEY = 'documentate_type_pdf_layout';
 
+	/** Marker for the one-time pass that gives existing types a layout. */
+	const ASSIGNED_OPTION = 'documentate_pdf_layout_assigned';
+
+	/** Term meta holding the office template a document type merges from. */
+	const TEMPLATE_META = 'documentate_type_template_id';
+
+	/**
+	 * Layout titles already parsed, keyed by file path and modification time.
+	 *
+	 * @var array<string,string>
+	 */
+	private static $titles = array();
+
 	/**
 	 * Layout used by a document type that names none.
 	 */
@@ -134,15 +147,34 @@ class Documentate_Pdf_Layout {
 		$titles = array();
 
 		foreach ( is_array( $files ) ? $files : array() as $file ) {
-			$slug  = basename( $file, '.html' );
-			$title = self::for_file( $file )->title();
-
-			$titles[ $slug ] = ( '' === $title ) ? $slug : $title;
+			$titles[ basename( $file, '.html' ) ] = self::cached_title( $file );
 		}
 
 		ksort( $titles, SORT_STRING );
 
 		return $titles;
+	}
+
+	/**
+	 * Title of a layout file, parsed once per version of that file.
+	 *
+	 * Reading the list is cheap; parsing every layout is not, and the document
+	 * type screen asks for it two or three times per request. The key carries
+	 * the modification time so a layout edited on disk is still picked up.
+	 *
+	 * @param string $file Absolute path of a layout file.
+	 * @return string
+	 */
+	private static function cached_title( $file ) {
+		$slug = basename( $file, '.html' );
+		$key  = $file . ':' . (string) @filemtime( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A vanished file just misses the cache.
+
+		if ( ! isset( self::$titles[ $key ] ) ) {
+			$title                 = self::for_file( $file )->title();
+			self::$titles[ $key ] = ( '' === $title ) ? $slug : $title;
+		}
+
+		return self::$titles[ $key ];
 	}
 
 	/**
@@ -157,6 +189,75 @@ class Documentate_Pdf_Layout {
 	 */
 	public static function for_post( $post_id ) {
 		return self::for_file( self::dir() . self::slug_for_post( $post_id ) . '.html' );
+	}
+
+	/**
+	 * Give every existing document type the layout its template stands for.
+	 *
+	 * A type created before this release carries no layout, and `for_post()`
+	 * would fall back to `generic` — a bare label and value list instead of
+	 * the institutional document. The office template a type merges from is
+	 * named after the layout that reproduces it, so the assignment is a name
+	 * match and nothing is guessed: a template that matches no shipped layout
+	 * is left alone and keeps falling back.
+	 *
+	 * Runs once per site; a type saved afterwards is the administrator's.
+	 */
+	public static function assign_missing() {
+		if ( get_option( self::ASSIGNED_OPTION ) ) {
+			return;
+		}
+
+		$terms = get_terms(
+			array(
+				'taxonomy'   => self::TAXONOMY,
+				'hide_empty' => false,
+				'fields'     => 'ids',
+			)
+		);
+
+		if ( ! is_wp_error( $terms ) ) {
+			$available = self::available();
+
+			foreach ( $terms as $term_id ) {
+				if ( '' !== (string) get_term_meta( (int) $term_id, self::META_KEY, true ) ) {
+					continue;
+				}
+
+				$slug = self::slug_from_template( (int) $term_id );
+				if ( '' !== $slug && array_key_exists( $slug, $available ) ) {
+					update_term_meta( (int) $term_id, self::META_KEY, $slug );
+				}
+			}
+		}
+
+		update_option( self::ASSIGNED_OPTION, '1', false );
+	}
+
+	/**
+	 * Layout slug the office template of a document type is named after.
+	 *
+	 * WordPress appends `-1`, `-2` and so on when an upload collides with an
+	 * existing file name, so a suffixed copy resolves to the same layout.
+	 *
+	 * @param int $term_id Document type.
+	 * @return string Slug, or '' when the type has no usable template.
+	 */
+	private static function slug_from_template( $term_id ) {
+		$attachment = (int) get_term_meta( $term_id, self::TEMPLATE_META, true );
+		if ( $attachment <= 0 ) {
+			return '';
+		}
+
+		$file = get_attached_file( $attachment );
+		if ( ! is_string( $file ) || '' === $file ) {
+			return '';
+		}
+
+		$name  = sanitize_key( pathinfo( $file, PATHINFO_FILENAME ) );
+		$plain = (string) preg_replace( '/-\d+$/', '', $name );
+
+		return array_key_exists( $name, self::available() ) ? $name : $plain;
 	}
 
 	/**

@@ -128,15 +128,55 @@ class DocumentatePrivateOutputTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A missing guard is recreated even after the migration completed.
+	 * Preparing a document recreates a guard deleted after the migration.
+	 *
+	 * `upgrade()` is the one-time pass and does no work once the marker is
+	 * current, so repair belongs to the path every generation goes through.
 	 */
-	public function test_upgrade_repairs_missing_guards_without_changing_documents() {
+	public function test_generation_repairs_missing_guards() {
 		Documentate_Private_Output::upgrade();
 		$guard = $this->root . '/documentate/.htaccess';
 		$this->assertNotFalse( get_option( Documentate_Private_Output::OPTION ) );
+
 		unlink( $guard );
 		Documentate_Private_Output::upgrade();
+		$this->assertFileDoesNotExist( $guard, 'The completed migration does no filesystem work.' );
+
+		Documentate_Private_Output::directory();
 		$this->assertSame( Documentate_Private_Output::RULES, file_get_contents( $guard ) );
+	}
+
+	/**
+	 * A guard somebody else wrote is honoured when it already denies access.
+	 *
+	 * Security plugins and hosts place their own rules in `uploads/`. Refusing
+	 * to run would block every document on the site for no gain.
+	 */
+	public function test_foreign_guard_that_denies_access_is_kept() {
+		mkdir( $this->root . '/documentate' );
+		$guard = $this->root . '/documentate/.htaccess';
+		file_put_contents( $guard, "# Hardened elsewhere\nDeny from all\n" );
+		file_put_contents( $this->root . '/documentate/index.html', '<!-- Silence is golden -->' );
+
+		Documentate_Private_Output::upgrade();
+
+		$this->assertNotFalse( get_option( Documentate_Private_Output::OPTION ), 'Generation is not blocked.' );
+		$this->assertSame( "# Hardened elsewhere\nDeny from all\n", file_get_contents( $guard ), 'Their rules are left alone.' );
+	}
+
+	/**
+	 * A guard that protects nothing still stops generation, and says which.
+	 */
+	public function test_foreign_guard_without_a_denial_is_refused_by_name() {
+		mkdir( $this->root . '/documentate' );
+		file_put_contents( $this->root . '/documentate/.htaccess', "# Caching rules only\n" );
+
+		try {
+			Documentate_Private_Output::directory();
+			$this->fail( 'An unverifiable guard should stop generation.' );
+		} catch ( RuntimeException $error ) {
+			$this->assertStringContainsString( '.htaccess', $error->getMessage() );
+		}
 	}
 
 	/**
@@ -151,4 +191,36 @@ class DocumentatePrivateOutputTest extends WP_UnitTestCase {
 		$this->assertSame( 'unchanged', file_get_contents( $outside ) );
 		$this->assertFalse( get_option( Documentate_Private_Output::OPTION ) );
 	}
+	/**
+	 * A failed render leaves no empty document behind, and never eats a good one.
+	 */
+	public function test_discard_removes_only_an_untouched_reservation() {
+		$directory = Documentate_Private_Output::directory();
+		$empty     = $directory . '/reserva.pdf';
+		$written   = $directory . '/anterior.pdf';
+
+		Documentate_Private_Output::prepare( $empty );
+		Documentate_Private_Output::prepare( $written );
+		file_put_contents( $written, '%PDF-anterior' );
+
+		Documentate_Private_Output::discard( $empty );
+		Documentate_Private_Output::discard( $written );
+
+		$this->assertFileDoesNotExist( $empty, 'The reservation a failed render never wrote to is dropped.' );
+		$this->assertSame( '%PDF-anterior', file_get_contents( $written ), 'An earlier document survives a later failure.' );
+	}
+
+	/**
+	 * Nothing outside the output directory is ever unlinked.
+	 */
+	public function test_discard_refuses_a_path_outside_the_output_directory() {
+		Documentate_Private_Output::directory();
+		$outside = $this->root . '/suelto.pdf';
+		touch( $outside );
+
+		Documentate_Private_Output::discard( $outside );
+
+		$this->assertFileExists( $outside );
+	}
+
 }

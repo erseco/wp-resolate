@@ -170,6 +170,7 @@ class Documentate_Document_Generator {
 
 		$result = Documentate_Conversion_Manager::convert( $source['path'], $target, 'pdf', $source['format'] );
 		if ( is_wp_error( $result ) ) {
+			Documentate_Private_Output::discard( $target );
 			return $result;
 		}
 		Documentate_Private_Output::prepare( $target );
@@ -297,6 +298,7 @@ class Documentate_Document_Generator {
 		}
 
 		if ( is_wp_error( $res ) ) {
+			Documentate_Private_Output::discard( $path );
 			return $res;
 		}
 

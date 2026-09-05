@@ -333,6 +333,41 @@ class DocumentatePdfTableWriterTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '0.871 0.902 0.937 rg', $normal, 'It should keep its fill.' );
 	}
 
+	/**
+	 * A table that breaks follows the margins of the page it continues on.
+	 *
+	 * `autorizacionviaje` and `convocatoriareunion` give their first page a
+	 * different left margin from the rest, so a table placed against the
+	 * page-1 margin would draw its continuation rows outside the column.
+	 */
+	public function test_table_follows_the_margins_of_the_page_it_continues_on() {
+		$pdf = new Documentate_Pdf_Document(
+			array(
+				'margins'            => array( 20, 15, 20, 30 ),
+				'first_page_margins' => array( 20, 22.5, 20, 22.5 ),
+			)
+		);
+		$pdf->SetCompression( false );
+		$pdf->AddPage();
+
+		$rows = str_repeat( '<tr><td>fila</td></tr>', 90 );
+		$this->writer( $pdf )->write( '<table>' . $rows . '</table>' );
+
+		$ops = Documentate_Pdf_Test_Helper::text_ops( $pdf->Output( 'S' ) );
+		$this->assertGreaterThan( 1, max( array_column( $ops, 'page' ) ), 'The table should break across pages.' );
+
+		$by_page = array();
+		foreach ( $ops as $op ) {
+			$by_page[ $op['page'] ][] = $op['x'];
+		}
+
+		// Cell content sits one padding in from the edge of the table.
+		$pad = Documentate_Pdf_Table_Writer::PADDING * self::POINTS_PER_MM;
+
+		$this->assertEqualsWithDelta( ( 22.5 * self::POINTS_PER_MM ) + $pad, min( $by_page[1] ), 0.5, 'The first page keeps its own margin.' );
+		$this->assertEqualsWithDelta( ( 30.0 * self::POINTS_PER_MM ) + $pad, min( $by_page[2] ), 0.5, 'A continuation row follows the margin of its own page.' );
+	}
+
 	public function test_colspan_widths_and_percent_widths() {
 		$by = $this->x_of( $this->render( '<table><tr><td width="25%">a</td><td width="25%">b</td><td width="50%">c</td></tr><tr><td colspan="2">ab</td><td>c2</td></tr></table>' ) );
 
