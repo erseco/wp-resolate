@@ -341,10 +341,8 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		$formats = $this->invoke_private( 'own_format_state', array( $docx_template, $odt_template ) );
 
 		$this->assertSame( $expected, array_keys( $formats ) );
-		foreach ( $formats as $format => $data ) {
-			$this->assertTrue( $data['available'], $format );
-			$this->assertSame( strtoupper( $format ), $data['label'] );
-			$this->assertSame( '', $data['message'], 'An offered format has nothing to explain.' );
+		foreach ( $formats as $format => $label ) {
+			$this->assertSame( strtoupper( $format ), $label );
 		}
 	}
 
@@ -388,22 +386,48 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Under the native engine a template is all it takes, so the tooltip stays
-	 * empty even where a converter would have reported itself unreachable.
+	 * Under the native engine a template is all it takes, and without one the
+	 * tooltip says so rather than blaming a converter that is not involved.
+	 *
+	 * The tooltip no longer asks which engine is configured — it asks whether a
+	 * PDF can be produced at all, which is the conversion manager's answer —
+	 * so this goes through the state the metabox is really rendered from.
 	 */
-	public function test_pdf_message_is_empty_under_the_native_engine() {
+	public function test_pdf_message_under_the_native_engine() {
 		update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
 
-		$this->assertSame(
-			'',
-			$this->invoke_private( 'build_pdf_message', array( '', '/tmp/t.odt', false ) )
-		);
+		$this->assertSame( '', $this->state_for_template( 'odt' )['pdf_message'] );
 
 		$this->assertStringContainsString(
 			'Configura una plantilla DOCX u ODT',
-			$this->invoke_private( 'build_pdf_message', array( '', '', false ) ),
+			$this->state_for_template( '' )['pdf_message'],
 			'The native engine still needs a template to know what to draw.'
 		);
+	}
+
+	/**
+	 * The capability triple is the conversion manager's to state.
+	 *
+	 * The metabox used to work it out itself by asking which engine was set and
+	 * special-casing the native one at each of four places, so a fifth engine —
+	 * or a change to what "ready" means — had to be threaded through all four.
+	 */
+	public function test_the_conversion_manager_states_what_the_site_can_do() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+		$native = Documentate_Conversion_Manager::capabilities();
+
+		$this->assertTrue( $native['draws_natively'] );
+		$this->assertTrue( $native['ready'] );
+		$this->assertFalse( $native['use_popup'] );
+		$this->assertFalse( $native['needs_popup_base'] );
+		$this->assertFalse( $native['wasm_popup'], 'Nothing is routed through the browser converter.' );
+		$this->assertFalse( $native['collabora_popup'] );
+
+		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
+		$converted = Documentate_Conversion_Manager::capabilities();
+
+		$this->assertFalse( $converted['draws_natively'] );
+		$this->assertSame( 'collabora', $converted['engine'] );
 	}
 
 	/**

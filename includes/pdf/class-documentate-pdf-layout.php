@@ -134,6 +134,38 @@ class Documentate_Pdf_Layout {
 	}
 
 	/**
+	 * Slug of every shipped layout, sorted.
+	 *
+	 * Answering "is this slug shipped?" only needs the file names, so this
+	 * never opens a layout. `available()` parses them for their titles and is
+	 * for the picker alone.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function slugs() {
+		$files = glob( self::dir() . '*.html' );
+		$slugs = array();
+
+		foreach ( is_array( $files ) ? $files : array() as $file ) {
+			$slugs[] = basename( $file, '.html' );
+		}
+
+		sort( $slugs, SORT_STRING );
+
+		return $slugs;
+	}
+
+	/**
+	 * Whether a slug names one of the shipped layouts.
+	 *
+	 * @param string $slug Slug to check.
+	 * @return bool
+	 */
+	public static function is_shipped( $slug ) {
+		return in_array( (string) $slug, self::slugs(), true );
+	}
+
+	/**
 	 * Every shipped layout, as slug => title, sorted by slug.
 	 *
 	 * This is the list the document-type screen offers in its layout select,
@@ -223,15 +255,13 @@ class Documentate_Pdf_Layout {
 			return;
 		}
 
-		$available = self::available();
-
 		foreach ( $terms as $term_id ) {
 			if ( '' !== (string) get_term_meta( (int) $term_id, self::META_KEY, true ) ) {
 				continue;
 			}
 
 			$slug = self::slug_from_template( (int) $term_id );
-			if ( '' !== $slug && array_key_exists( $slug, $available ) ) {
+			if ( '' !== $slug && self::is_shipped( $slug ) ) {
 				update_term_meta( (int) $term_id, self::META_KEY, $slug );
 			}
 		}
@@ -262,7 +292,7 @@ class Documentate_Pdf_Layout {
 		$name  = sanitize_key( pathinfo( $file, PATHINFO_FILENAME ) );
 		$plain = (string) preg_replace( '/-\d+$/', '', $name );
 
-		return array_key_exists( $name, self::available() ) ? $name : $plain;
+		return self::is_shipped( $name ) ? $name : $plain;
 	}
 
 	/**
@@ -403,7 +433,7 @@ class Documentate_Pdf_Layout {
 		$stored = get_term_meta( (int) $terms[0], self::META_KEY, true );
 		$slug   = is_string( $stored ) ? sanitize_key( $stored ) : '';
 
-		return array_key_exists( $slug, self::available() ) ? $slug : self::DEFAULT_SLUG;
+		return self::is_shipped( $slug ) ? $slug : self::DEFAULT_SLUG;
 	}
 
 	/**

@@ -83,6 +83,72 @@ class Documentate_Conversion_Manager {
 	}
 
 	/**
+	 * What this site can do about turning a document into a PDF.
+	 *
+	 * The UIs used to work this out themselves by asking which engine was
+	 * configured and then special-casing the native one at every place the
+	 * answer mattered. The engine is this class's business, so the question
+	 * they actually have — what can be done here — is answered here once, and
+	 * they read the answer instead of re-deriving it.
+	 *
+	 * - `draws_natively`: the PDF is drawn in this process. Nothing may be
+	 *   routed through the browser converter, which would convert the office
+	 *   template instead of drawing the layout.
+	 * - `ready`: the configured engine can produce a PDF right now.
+	 * - `use_popup` / `needs_popup_base`: a converter runs in the browser.
+	 * - `collabora_popup`: Collabora is reachable and the site is in
+	 *   Playground, where the conversion goes through a JavaScript fetch
+	 *   rather than `wp_remote_post`.
+	 * - `wasm_popup`: the self-hosted LibreOffice WASM page can run. It never
+	 *   can in Playground: the site is a sandboxed, non-cross-origin-isolated
+	 *   iframe, so `SharedArrayBuffer` is unavailable and the converter page
+	 *   is blocked.
+	 *
+	 * @return array{engine:string,draws_natively:bool,ready:bool,use_popup:bool,needs_popup_base:bool,in_playground:bool,collabora_popup:bool,wasm_popup:bool}
+	 */
+	public static function capabilities() {
+		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';
+
+		$engine = self::get_engine();
+		$in_playground = Documentate_Collabora_Converter::is_playground();
+
+		if ( self::ENGINE_FPDF === $engine ) {
+			return array(
+				'engine' => $engine,
+				'draws_natively' => true,
+				'ready' => true,
+				'use_popup' => false,
+				'needs_popup_base' => false,
+				'in_playground' => $in_playground,
+				'collabora_popup' => false,
+				'wasm_popup' => false,
+			);
+		}
+
+		$ready = self::is_available();
+
+		$wasm_popup = false;
+		if ( ! $ready && ! $in_playground ) {
+			require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-libreoffice-wasm-converter.php';
+			$wasm_popup = Documentate_Libreoffice_Wasm_Converter::is_browser_mode()
+				&& Documentate_Libreoffice_Wasm_Converter::assets_available();
+		}
+
+		$collabora_popup = $in_playground && Documentate_Collabora_Converter::is_available();
+
+		return array(
+			'engine' => $engine,
+			'draws_natively' => false,
+			'ready' => $ready,
+			'use_popup' => $wasm_popup || $collabora_popup,
+			'needs_popup_base' => ( $wasm_popup && ! $ready ) || $collabora_popup,
+			'in_playground' => $in_playground,
+			'collabora_popup' => $collabora_popup,
+			'wasm_popup' => $wasm_popup,
+		);
+	}
+
+	/**
 	 * Perform a conversion using the configured engine.
 	 *
 	 * @param string $input_path   Absolute path to the source document.

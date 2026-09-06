@@ -24,6 +24,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Documentate_App_Tray {
 
 	/**
+	 * Document counts already answered in this request, keyed by query args.
+	 *
+	 * @var array<string,int>
+	 */
+	private static $counts = array();
+
+	/**
 	 * Post type of the documents.
 	 *
 	 * @var string
@@ -244,6 +251,19 @@ class Documentate_App_Tray {
 	 * @return int
 	 */
 	public static function count_documents( array $extra ) {
+		// Rendering one tray asks for the same set several times over — the
+		// counter row, the "devueltos" suffix, the filter chips and the tab
+		// badge all count documents, and several of them count the very same
+		// documents. Each ask is a SQL_CALC_FOUND_ROWS query, so the repeats
+		// are worth remembering for the rest of the request.
+		// The posts "last changed" stamp is part of the key, so anything that
+		// writes a post invalidates the memo the way core invalidates its own
+		// query caches — no hook of ours to keep in step with.
+		$cache_key = md5( wp_cache_get_last_changed( 'posts' ) . '|' . (string) wp_json_encode( $extra ) );
+		if ( isset( self::$counts[ $cache_key ] ) ) {
+			return self::$counts[ $cache_key ];
+		}
+
 		$args = array_merge(
 			array(
 				'post_type' => self::POST_TYPE,
@@ -262,6 +282,8 @@ class Documentate_App_Tray {
 
 		$query = new WP_Query( $args );
 
-		return (int) $query->found_posts;
+		self::$counts[ $cache_key ] = (int) $query->found_posts;
+
+		return self::$counts[ $cache_key ];
 	}
 }

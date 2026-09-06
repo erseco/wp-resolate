@@ -67,13 +67,14 @@ class Documentate_Pdf_Generator {
 		}
 
 		$layout = Documentate_Pdf_Layout::for_post( $post_id );
-		$fields = Documentate_Document_Generator::build_merge_fields( $post_id );
 
 		// The generic layout has no field names of its own: it prints whatever
-		// the document type declares, as one row per schema field.
-		if ( Documentate_Pdf_Layout::DEFAULT_SLUG === $layout->slug() ) {
-			$fields['documentate_fields'] = Documentate_Document_Generator::build_generic_rows( $post_id );
-		}
+		// the document type declares, as one row per schema field. Asking for
+		// the rows here means the schema is walked once for both.
+		$fields = Documentate_Document_Generator::build_merge_fields(
+			$post_id,
+			Documentate_Pdf_Layout::DEFAULT_SLUG === $layout->slug()
+		);
 
 		$html = Documentate_Pdf_Merger::merge( $layout->path(), $fields );
 		if ( is_wp_error( $html ) ) {

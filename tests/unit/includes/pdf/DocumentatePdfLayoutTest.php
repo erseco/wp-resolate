@@ -542,4 +542,13 @@ class DocumentatePdfLayoutTest extends WP_UnitTestCase {
 		$this->assertNotFalse( get_option( Documentate_Pdf_Layout::ASSIGNED_OPTION ), 'The next request runs the pass.' );
 	}
 
+	/**
+	 * is_shipped() answers from the file names alone, without parsing them.
+	 */
+	public function test_is_shipped_matches_the_shipped_layouts() {
+		$this->assertSame( array_keys( Documentate_Pdf_Layout::available() ), Documentate_Pdf_Layout::slugs() );
+		$this->assertTrue( Documentate_Pdf_Layout::is_shipped( Documentate_Pdf_Layout::DEFAULT_SLUG ) );
+		$this->assertFalse( Documentate_Pdf_Layout::is_shipped( 'inventada' ) );
+	}
+
 }

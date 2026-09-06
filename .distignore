@@ -100,6 +100,12 @@ fixtures/*_OLD.odt
 fixtures/resolucion_logos_europeos.odt
 fixtures/test-sign-placeholder.odt
 
+# Font sources. Only the makefont output (.json descriptor and .z stream) is
+# read at runtime; the TrueType file it was generated from is 157 KB of dead
+# weight in a release. It stays in git — templates/pdf/fonts/roboto/README.md
+# regenerates the pair from it — and the OFL licence ships either way.
+templates/pdf/fonts/*/*.ttf
+
 # The packaging metadata itself
 /.distignore
 

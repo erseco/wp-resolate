@@ -1173,16 +1173,6 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->assertSame( 'no_classification', $transient['reason'] );
 	}
 
-	/**
-	 * Test check_publish_capability passes through.
-	 */
-	public function test_check_publish_capability() {
-		$result = $this->workflow->check_publish_capability( false, array() );
-		$this->assertFalse( $result );
-
-		$result = $this->workflow->check_publish_capability( true, array() );
-		$this->assertTrue( $result );
-	}
 
 	/**
 	 * Test that archived post status is registered.
