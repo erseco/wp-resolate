@@ -49,14 +49,21 @@ class Documentate_App_Detail {
 
 		$html .= self::render_notices( $post );
 
+		// The document itself, when this site draws it. The field summary is
+		// still there underneath, folded away: it is the only view that keeps
+		// the área/gestión split and the only one that shows which fields are
+		// still empty.
+		$pdf = self::render_pdf_preview( $post );
+
 		$html .= '<div class="dcta-detalle">';
 		$html .= '<div class="dcta-detalle-cuerpo">';
 		$html .= self::render_basics( $post );
-		$html .= self::render_field_cards( $post );
+		$html .= $pdf;
+		$html .= self::render_field_cards( $post, '' !== $pdf );
 		$html .= self::render_attachment( $post );
 		$html .= self::render_activity( $post );
 		$html .= '</div>';
-		$html .= self::render_side( $post );
+		$html .= self::render_side( $post, '' === $pdf );
 		$html .= '</div>';
 		$html .= self::render_comment_form( $post, 'detalle' );
 
@@ -271,12 +278,62 @@ class Documentate_App_Detail {
 	}
 
 	/**
+	 * The document as it will be issued, drawn into the page.
+	 *
+	 * Only where this site draws the PDF itself: the two converters reach a
+	 * service or the browser to produce one, which is not something to hang a
+	 * page render on. A document with no type has nothing to draw either, and
+	 * falls back to the field summary alone.
+	 *
+	 * The frame points at the preview handler the export buttons already use,
+	 * so the file is streamed by the same code, behind the same `edit_post`
+	 * check and the same nonce, and no new way in is opened.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string Empty when there is no PDF to show.
+	 */
+	private static function render_pdf_preview( $post ) {
+		require_once plugin_dir_path( __DIR__ ) . 'class-documentate-conversion-manager.php';
+		require_once plugin_dir_path( __DIR__ ) . 'class-documentate-document-generator.php';
+
+		$conversion = Documentate_Conversion_Manager::capabilities();
+		if ( empty( $conversion['draws_natively'] ) ) {
+			return '';
+		}
+
+		if ( null === Documentate_Document_Generator::get_document_type_id( $post->ID ) ) {
+			return '';
+		}
+
+		$url = add_query_arg(
+			array(
+				'action' => 'documentate_preview',
+				'post_id' => $post->ID,
+				'_wpnonce' => wp_create_nonce( 'documentate_preview_' . $post->ID ),
+			),
+			admin_url( 'admin-post.php' )
+		);
+
+		return '<div class="dcta-card dcta-pdf">'
+			. '<h2 class="dcta-h2">Documento</h2>'
+			. '<iframe class="dcta-pdf-visor" src="' . esc_url( $url ) . '"'
+			. ' title="' . esc_attr( 'Vista previa de ' . Documentate_Document_Data::short_name( $post ) ) . '"'
+			. ' loading="lazy"></iframe>'
+			. '<p class="dcta-pdf-alterna">'
+			. 'Si el PDF no se ve aquí, <a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">ábrelo en otra pestaña</a>.'
+			. '</p>'
+			. '</div>';
+	}
+
+	/**
 	 * The field cards, one per rol group the visitor may see.
 	 *
 	 * @param WP_Post $post Document.
+	 * @param bool    $folded Whether to fold them away, because the document
+	 *                        itself is already on the page above them.
 	 * @return string
 	 */
-	private static function render_field_cards( $post ) {
+	private static function render_field_cards( $post, $folded = false ) {
 		$schema = Documents_Meta_Handler::get_dynamic_fields_schema_for_post( $post->ID );
 		$values = Documents_Meta_Handler::get_structured_field_values( $post->ID );
 
@@ -288,8 +345,17 @@ class Documentate_App_Detail {
 
 		$groups = Documentate_Field_Roles::group_by_role( $schema );
 
-		return self::render_group( $groups['area'], $values, 'Datos del área' )
+		$cards = self::render_group( $groups['area'], $values, 'Datos del área' )
 			. self::render_group( $groups['gestion'], $values, 'Datos oficiales · los completa gestión' );
+
+		if ( ! $folded || '' === $cards ) {
+			return $cards;
+		}
+
+		return '<details class="dcta-campos-plegados">'
+			. '<summary>Ver los campos uno a uno</summary>'
+			. $cards
+			. '</details>';
 	}
 
 	/**
@@ -443,10 +509,15 @@ class Documentate_App_Detail {
 	/**
 	 * Render the side rail: the stepper and the actions.
 	 *
-	 * @param WP_Post $post Document.
+	 * @param WP_Post $post         Document.
+	 * @param bool    $with_preview Whether the export block should still offer
+	 *                              the preview button. It does not once the
+	 *                              document is drawn into the page above: a
+	 *                              button that opens what is already on screen
+	 *                              is one more thing to read and nothing more.
 	 * @return string
 	 */
-	private static function render_side( $post ) {
+	private static function render_side( $post, $with_preview = true ) {
 		$chip = Documentate_App_Shell::chip( $post );
 
 		$html = '<div class="dcta-lado">';
@@ -467,7 +538,7 @@ class Documentate_App_Detail {
 		}
 
 		$html .= self::render_actions_form( $post );
-		$html .= Documentate_Admin_Helper::export_block( $post );
+		$html .= Documentate_Admin_Helper::export_block( $post, $with_preview );
 		$html .= Documentate_App_Shell::back_link();
 
 		if ( current_user_can( 'manage_options' ) ) {

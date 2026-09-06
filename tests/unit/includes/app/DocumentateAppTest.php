@@ -366,10 +366,13 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$_GET['doc'] = (string) $inside;
 		$html = $this->app->render();
 		$this->assertStringContainsString( 'Documento dentro', $html );
-		$this->assertStringNotContainsString( 'post.php', $html, 'Only administración is sent to wp-admin.' );
+		// The label of the link, not "post.php": the document view now embeds
+		// the PDF through admin-post.php, whose URL carries that substring too,
+		// and `dcta-editor-volver` is the class of the back link as well.
+		$this->assertStringNotContainsString( 'Abrir en wp-admin', $html, 'Only administración is sent to wp-admin.' );
 
 		wp_set_current_user( $this->admin_id );
-		$this->assertStringContainsString( 'post.php', $this->app->render() );
+		$this->assertStringContainsString( 'Abrir en wp-admin', $this->app->render() );
 		wp_set_current_user( $this->editor_id );
 
 		$_GET['doc'] = (string) $outside;
