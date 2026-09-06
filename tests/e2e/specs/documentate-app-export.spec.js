@@ -59,6 +59,20 @@ function editableControl( format ) {
 }
 
 /**
+ * Selector for an editable-download control of a format, active or not.
+ *
+ * @param {string} format Office format, 'odt' or 'docx'.
+ * @return {string} CSS selector.
+ */
+function editableControl( format ) {
+	return (
+		'.documentate-actions-secondary [data-documentate-format="' +
+		format +
+		'"]'
+	);
+}
+
+/**
  * Assert that one export control is either usable or disabled with a reason.
  *
  * @param {import('@playwright/test').Locator} block   The `#exportar` block.
