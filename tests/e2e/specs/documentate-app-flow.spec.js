@@ -326,7 +326,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		await Promise.all( [
 			management.waitForURL( /vista=editar/ ),
-			ours.getByRole( 'link', { name: 'Revisar' } ).click(),
+			ours.getByRole( 'link', { name: 'Editar' } ).click(),
 		] );
 
 		// Gestión sees both halves of the document: what the área wrote, and
@@ -447,7 +447,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		await Promise.all( [
 			area.waitForURL( /vista=editar/ ),
-			ours.getByRole( 'link', { name: 'Corregir' } ).click(),
+			ours.getByRole( 'link', { name: 'Editar' } ).click(),
 		] );
 		await expect( area.locator( '.dcta-aviso-devuelto' ) ).toContainText(
 			REASON
@@ -493,7 +493,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await Promise.all( [
 			management.waitForURL( /vista=editar/ ),
 			row( management, NAME )
-				.getByRole( 'link', { name: 'Revisar' } )
+				.getByRole( 'link', { name: 'Editar' } )
 				.click(),
 		] );
 		// The correction the área made travelled back to gestión.
@@ -542,7 +542,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		await Promise.all( [
 			page.waitForURL( /vista=editar/ ),
-			row( page, NAME ).getByRole( 'link', { name: 'Revisar' } ).click(),
+			row( page, NAME ).getByRole( 'link', { name: 'Editar' } ).click(),
 		] );
 
 		await page
@@ -578,8 +578,11 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await expect( ours.locator( '.dcta-estado' ) ).toHaveText(
 			'Aprobado'
 		);
-		const viewPdf = ours.getByRole( 'link', { name: 'Ver PDF' } );
-		await expect( viewPdf ).toHaveAttribute( 'href', /#exportar$/ );
+		// An approved document is read-only, so its row opens the document view
+		// — which leads with the PDF itself, leaving nothing to anchor past it.
+		const view = ours.getByRole( 'link', { name: 'Ver' } );
+		await expect( view ).toHaveAttribute( 'href', /doc=/ );
+		await expect( view ).not.toHaveAttribute( 'href', /#exportar$/ );
 	} );
 
 	test( 'administration picks where to return it, and the document goes there', async ( {

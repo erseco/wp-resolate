@@ -131,26 +131,35 @@ class Documentate_App_List_Row {
 	 * @return array{0:string,1:string}
 	 */
 	private static function action( $post, $tray ) {
-		$editable = Documentate_App_Edit::can_edit( $post );
-		$edit_url = Documentate_App_Edit::url( $post->ID, $tray );
-
-		if ( $editable && null !== Documentate_Document_Data::returned( $post ) ) {
-			return array( 'Corregir', $edit_url );
+		if ( self::opens_the_editor( $post ) ) {
+			return array( 'Editar', Documentate_App_Edit::url( $post->ID, $tray ) );
 		}
 
-		if ( $editable && 'draft' === $post->post_status ) {
-			return array( 'Continuar', $edit_url );
-		}
-
-		if ( $editable && self::is_waiting_for( $post ) ) {
-			return array( 'Revisar', $edit_url );
-		}
-
-		if ( 'publish' === $post->post_status ) {
-			return array( 'Ver PDF', self::detail_url( $post->ID, $tray ) . '#exportar' );
-		}
-
+		// No anchor: the document view opens with the PDF itself where this
+		// site draws it, so jumping to the export block would scroll past it.
 		return array( 'Ver', self::detail_url( $post->ID, $tray ) );
+	}
+
+	/**
+	 * Whether the row's action takes this person to the editor.
+	 *
+	 * There are two of them, `Editar` and `Ver`, and this is the question that
+	 * tells them apart. It is narrower than "may they edit it": administración
+	 * may edit a document sitting in gestión, but it is not theirs to work on
+	 * yet — gestión has not finished with it — so their row says `Ver` and the
+	 * document opens read-only, as it does for everybody else waiting.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return bool
+	 */
+	private static function opens_the_editor( $post ) {
+		if ( ! Documentate_App_Edit::can_edit( $post ) ) {
+			return false;
+		}
+
+		return null !== Documentate_Document_Data::returned( $post )
+			|| 'draft' === $post->post_status
+			|| self::is_waiting_for( $post );
 	}
 
 	/**

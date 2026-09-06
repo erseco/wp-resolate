@@ -286,18 +286,25 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'dcta-fila-devuelta', $html );
 		$this->assertStringContainsString( 'Devuelto por gestión documental', $html );
 		$this->assertStringContainsString( 'Falta el anexo firmado por la dirección', $html );
-		$this->assertStringContainsString( 'Corregir', $html );
+		$this->assertStringContainsString( 'Editar', $html );
 		$this->assertStringContainsString( ' (1 devuelto)', $html );
 	}
 
 	/**
-	 * The área continues its drafts and only looks at what left its hands.
+	 * The área edits its drafts and only looks at what left its hands.
+	 *
+	 * The row action has two labels and no more: `Editar` when it opens the
+	 * editor, `Ver` when it opens the document.
 	 */
-	public function test_the_area_continues_drafts_and_only_views_the_rest() {
+	public function test_the_area_edits_drafts_and_only_views_the_rest() {
 		$html = $this->render( $this->area_id );
 
-		$this->assertStringContainsString( 'Continuar', $html );
-		$this->assertStringNotContainsString( 'Revisar', $html );
+		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Jornadas digitales' ) );
+		$this->assertSame(
+			'Ver',
+			$this->row_action( $html, 'RES · Formación profesorado' ),
+			'What already left the área is not the área\'s to edit.'
+		);
 	}
 
 	/**
@@ -308,7 +315,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'RES · Listado piloto', $html );
 		$this->assertStringNotContainsString( 'Jornadas digitales', $html, 'Drafts stay with their área.' );
-		$this->assertStringContainsString( 'Revisar', $html );
+		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Listado piloto' ) );
 		$this->assertStringContainsString( 'Ana Área', $html, 'The review trays name the área and the person.' );
 		$this->assertStringContainsString( '1 documento', $html );
 	}
@@ -370,7 +377,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$revision = $this->render( $this->admin_id, array( 'bandeja' => 'revision' ) );
 		$this->assertStringContainsString( 'RES · Formación profesorado', $revision );
 		$this->assertStringNotContainsString( 'RES · Jornadas digitales', $revision );
-		$this->assertStringContainsString( 'Revisar', $revision );
+		$this->assertSame( 'Editar', $this->row_action( $revision, 'RES · Formación profesorado' ) );
 
 		$this->assertSame(
 			'Ver',
@@ -512,11 +519,15 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	/**
 	 * An approved document is opened straight at its export block.
 	 */
-	public function test_an_approved_document_links_to_its_pdf() {
+	public function test_an_approved_document_opens_its_document_view() {
 		$html = $this->render( $this->admin_id );
 
-		$this->assertStringContainsString( 'Ver PDF', $html );
-		$this->assertStringContainsString( '#exportar', $html );
+		$this->assertSame( 'Ver', $this->row_action( $html, 'RES · Bases piloto' ) );
+		$this->assertStringNotContainsString(
+			'#exportar',
+			$html,
+			'The document view opens with the PDF, so there is nothing to scroll past it to.'
+		);
 	}
 
 	/**
