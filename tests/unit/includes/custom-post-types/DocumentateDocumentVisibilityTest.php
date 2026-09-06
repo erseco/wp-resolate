@@ -83,6 +83,13 @@ class DocumentateDocumentVisibilityTest extends WP_UnitTestCase {
 
 	/**
 	 * Test that document dates are preserved on update.
+	 *
+	 * The date is given explicitly. A draft inserted without one carries a
+	 * zeroed `post_date_gmt`, which WordPress reads as "this date is still
+	 * floating" and refreshes on every save — so the assertion below held only
+	 * while the insert and the update landed in the same second, and CI failed
+	 * whenever they did not. With the date pinned, any drift is the plugin's
+	 * doing, which is what this test is about.
 	 */
 	public function test_existing_document_preserves_dates() {
 		wp_set_current_user( $this->admin_user_id );
@@ -92,6 +99,8 @@ class DocumentateDocumentVisibilityTest extends WP_UnitTestCase {
 				'post_type'   => 'documentate_document',
 				'post_title'  => 'Documento inicial',
 				'post_status' => 'draft',
+				'post_date' => '2026-02-03 09:15:00',
+				'post_date_gmt' => '2026-02-03 09:15:00',
 			)
 		);
 
