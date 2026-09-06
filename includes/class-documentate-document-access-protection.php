@@ -57,6 +57,7 @@ class Documentate_Document_Access_Protection {
 
 		// Filter comment queries to exclude document comments for unauthorized users.
 		add_filter( 'comments_pre_query', array( $this, 'filter_comment_queries' ), 10, 2 );
+		add_filter( 'comments_clauses', array( $this, 'exclude_document_comments_clause' ), 10, 2 );
 
 		// Comment feeds (RSS) are public: keep document comments and events out of them.
 		add_filter( 'comment_feed_where', array( $this, 'exclude_documents_from_comment_feed' ), 10, 2 );
@@ -284,10 +285,23 @@ class Documentate_Document_Access_Protection {
 			}
 		}
 
-		// For general queries, add filter to exclude document comments.
-		add_filter( 'comments_clauses', array( $this, 'exclude_document_comments_clause' ) );
-
 		return $comments;
+	}
+
+	/**
+	 * Whether a comment query is about one document.
+	 *
+	 * Such a query is settled by `filter_comment_queries()` on the reader's
+	 * capability over that document, so the clause that hides documents from
+	 * general listings has to stand aside for it.
+	 *
+	 * @param WP_Comment_Query $query Comment query object.
+	 * @return bool
+	 */
+	private function query_names_a_document( $query ) {
+		$post_id = isset( $query->query_vars['post_id'] ) ? (int) $query->query_vars['post_id'] : 0;
+
+		return $post_id > 0 && get_post_type( $post_id ) === self::POST_TYPE;
 	}
 
 	/**
@@ -316,12 +330,21 @@ class Documentate_Document_Access_Protection {
 	/**
 	 * Add SQL clause to exclude comments from documents.
 	 *
-	 * @param array $clauses Query clauses.
+	 * The filter stays registered for the whole request and decides from the
+	 * query in front of it. It used to be added per query and unhook itself on
+	 * the first call, which silently missed: `WP_Comment_Query` skips the
+	 * clauses altogether when it answers from the `comment-queries` cache, so
+	 * the filter survived and emptied whatever comment query ran next — the
+	 * activity of a document its reader is perfectly entitled to.
+	 *
+	 * @param array            $clauses Query clauses.
+	 * @param WP_Comment_Query $query   Comment query object.
 	 * @return array Modified clauses.
 	 */
-	public function exclude_document_comments_clause( $clauses ) {
-		// Remove immediately to avoid affecting other queries.
-		remove_filter( 'comments_clauses', array( $this, 'exclude_document_comments_clause' ) );
+	public function exclude_document_comments_clause( $clauses, $query = null ) {
+		if ( $query instanceof WP_Comment_Query && $this->query_names_a_document( $query ) ) {
+			return $clauses;
+		}
 
 		global $wpdb;
 

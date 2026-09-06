@@ -227,6 +227,55 @@ class DocumentateAppAttachmentsTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A stored file of an accepted format is shown in place.
+	 */
+	public function test_an_accepted_format_is_served_inline() {
+		$attachment_id = Documentate_App_Attachments::store( $this->doc_id, $this->file_fixture( 'resolucion.pdf' ) );
+
+		$this->assertSame(
+			array( 'application/pdf', 'inline' ),
+			$this->serve_headers( $attachment_id )
+		);
+	}
+
+	/**
+	 * A file the application never accepted is handed over, never rendered.
+	 *
+	 * The wp-admin "Adjuntos" metabox writes the same meta key from any media
+	 * ID and restricts no type, so an SVG or an HTML upload can end up behind
+	 * this handler. Serving it inline with its own type would run it as a
+	 * script on the site's own origin, for every user who may edit the
+	 * document; `nosniff` cannot help when the declared type is the dangerous
+	 * one.
+	 */
+	public function test_a_type_the_application_never_accepted_is_not_rendered_inline() {
+		$attachment_id = self::factory()->attachment->create(
+			array(
+				'post_mime_type' => 'image/svg+xml',
+				'post_parent' => $this->doc_id,
+			)
+		);
+
+		$this->assertSame(
+			array( 'application/octet-stream', 'attachment' ),
+			$this->serve_headers( $attachment_id )
+		);
+	}
+
+	/**
+	 * The content type and disposition the serve handler would send.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return array{0:string,1:string}
+	 */
+	private function serve_headers( $attachment_id ) {
+		$method = new ReflectionMethod( 'Documentate_App_Attachments', 'serve_headers' );
+		$method->setAccessible( true );
+
+		return $method->invoke( null, $attachment_id );
+	}
+
+	/**
 	 * A document with no file has no URL to serve.
 	 */
 	public function test_a_document_without_a_file_has_no_url() {

@@ -258,6 +258,16 @@ class Documentate {
 	 * to file names one to one.
 	 */
 	private static function register_pdf_autoloader() {
+		// spl_autoload_register() does not deduplicate closures, and this runs
+		// from the constructor: without the guard every instantiation would
+		// leave another identical autoloader on the stack for the rest of the
+		// process, each one consulted for every class PHP cannot resolve.
+		static $registered = false;
+		if ( $registered ) {
+			return;
+		}
+		$registered = true;
+
 		spl_autoload_register(
 			static function ( $class ) {
 				if ( 0 !== strpos( $class, 'Documentate_Pdf_' ) ) {

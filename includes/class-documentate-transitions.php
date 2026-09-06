@@ -579,11 +579,14 @@ class Documentate_Transitions {
 	/**
 	 * Confirmation text of a rule, so the UIs never repeat the table.
 	 *
-	 * @param string $key Rule key.
+	 * @param string $key  Rule key.
+	 * @param string $from Optional stored status, to pick between two rules
+	 *                     that share a key (`devolver_area` exists both from
+	 *                     `en_gestion` and from `pending`).
 	 * @return string Empty for an unknown rule or one without confirmation.
 	 */
-	public static function confirmation( $key ) {
-		$rule = self::rule( $key );
+	public static function confirmation( $key, $from = '' ) {
+		$rule = self::rule( $key, $from );
 
 		return $rule ? (string) $rule['confirm'] : '';
 	}
@@ -591,11 +594,13 @@ class Documentate_Transitions {
 	/**
 	 * View the application lands on after an action.
 	 *
-	 * @param string $key Rule key, or "guardar" for a plain save.
+	 * @param string $key  Rule key, or "guardar" for a plain save.
+	 * @param string $from Optional stored status, to pick between two rules
+	 *                     that share a key.
 	 * @return string "editar", "detalle" or "bandeja".
 	 */
-	public static function redirect( $key ) {
-		$rule = self::rule( $key );
+	public static function redirect( $key, $from = '' ) {
+		$rule = self::rule( $key, $from );
 
 		return $rule ? (string) $rule['redirect'] : 'editar';
 	}
@@ -603,11 +608,13 @@ class Documentate_Transitions {
 	/**
 	 * Feedback flag the application shows after an action.
 	 *
-	 * @param string $key Rule key, or "guardar" for a plain save.
+	 * @param string $key  Rule key, or "guardar" for a plain save.
+	 * @param string $from Optional stored status, to pick between two rules
+	 *                     that share a key.
 	 * @return string "guardado", "enviado", "devuelto", "aprobado" or empty.
 	 */
-	public static function flag( $key ) {
-		$rule = self::rule( $key );
+	public static function flag( $key, $from = '' ) {
+		$rule = self::rule( $key, $from );
 
 		return $rule ? (string) $rule['flag'] : 'guardado';
 	}

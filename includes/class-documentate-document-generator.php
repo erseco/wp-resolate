@@ -198,10 +198,7 @@ class Documentate_Document_Generator {
 
 		return new WP_Error(
 			'documentate_pdf_source_missing',
-			__(
-				'Could not generate the base document because the document type does not have a DOCX or ODT template configured.',
-				'documentate',
-			),
+			'No se pudo generar el documento base porque el tipo de documento no tiene configurada una plantilla DOCX u ODT.',
 			array(
 				'odt' => $odt_result,
 				'docx' => $docx_result,

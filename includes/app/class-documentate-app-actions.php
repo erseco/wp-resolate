@@ -415,13 +415,18 @@ class Documentate_App_Actions {
 			self::redirect_to( $error_url, array( 'error' => 'transicion' ) );
 		}
 
+		// Read before the transition runs: two rules can share a key
+		// (`devolver_area` exists both from `en_gestion` and from `pending`)
+		// and only the status the document is leaving tells them apart.
+		$from = (string) $post->post_status;
+
 		$result = Documentate_Transitions::apply( $post->ID, $key, self::posted_reason() );
 		if ( is_wp_error( $result ) ) {
 			$error = 'motivo_requerido' === $result->get_error_code() ? 'motivo' : 'transicion';
 			self::redirect_to( $error_url, array( 'error' => $error ) );
 		}
 
-		$target = self::transition_target( $post->ID, $key, $tray );
+		$target = self::transition_target( $post->ID, $key, $tray, $from );
 		self::redirect_to( $target[0], $target[1] );
 	}
 
@@ -431,10 +436,12 @@ class Documentate_App_Actions {
 	 * @param int    $post_id Document ID.
 	 * @param string $key     Transition key.
 	 * @param string $tray    Tray the form came from.
+	 * @param string $from    Status the document was in before the transition,
+	 *                        which is what tells two rules sharing a key apart.
 	 * @return array{0:string,1:array<string,string>}
 	 */
-	private static function transition_target( $post_id, $key, $tray = '' ) {
-		$flag = Documentate_Transitions::flag( $key );
+	private static function transition_target( $post_id, $key, $tray = '', $from = '' ) {
+		$flag = Documentate_Transitions::flag( $key, $from );
 		$args = '' !== $flag ? array( $flag => '1' ) : array();
 
 		// Three rules raise the "enviado" flag and each one has its own
@@ -444,7 +451,7 @@ class Documentate_App_Actions {
 			$args['transicion'] = $key;
 		}
 
-		if ( 'bandeja' === Documentate_Transitions::redirect( $key ) ) {
+		if ( 'bandeja' === Documentate_Transitions::redirect( $key, $from ) ) {
 			$tray = Documentate_Roles::is_administration() ? 'revision' : 'revisar';
 
 			return array( Documentate_App_Shell::page_url( array( 'bandeja' => $tray ) ), $args );

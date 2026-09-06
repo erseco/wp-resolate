@@ -317,16 +317,41 @@ class Documentate_App_Attachments {
 			wp_die( esc_html( 'No tienes permiso para abrir este fichero.' ), '', array( 'response' => 403 ) );
 		}
 
+		list( $type, $disposition ) = self::serve_headers( $attachment_id );
+
 		nocache_headers();
-		header( 'Content-Type: ' . get_post_mime_type( $attachment_id ) );
+		header( 'Content-Type: ' . $type );
 		// nosemgrep: php.lang.security.injection.tainted-filename.tainted-filename -- $path is not a name the request carries: the request only names a document and an attachment ID (both absint), servable_path() refuses unless the reader may edit that document and the ID is the very attachment that document holds, and Documentate_Files resolves the stored path with realpath() and refuses anything outside the uploads directory.
 		header( 'Content-Length: ' . filesize( $path ) );
-		header( 'Content-Disposition: inline; filename="' . Documentate_Files::header_file_name( self::name( $attachment_id ) ) . '"' );
+		header( 'Content-Disposition: ' . $disposition . '; filename="' . Documentate_Files::header_file_name( self::name( $attachment_id ) ) . '"' );
 		header( 'X-Content-Type-Options: nosniff' );
 
 		// nosemgrep: php.lang.security.injection.tainted-filename.tainted-filename -- Same guarded path as the header above.
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Streaming a file to the browser; WP_Filesystem would read it all into memory.
 		exit;
+	}
+
+	/**
+	 * Content type and disposition a stored file is handed over with.
+	 *
+	 * The upload path accepts PDF, ODT and DOCX only, but the wp-admin
+	 * "Adjuntos" metabox writes the same meta key from a plain list of media
+	 * IDs and restricts nothing, so what is stored is not necessarily what the
+	 * application accepted. Anything outside the accepted formats is handed
+	 * over as an opaque download rather than rendered inline from the site's
+	 * own origin, which is what would turn an SVG or an HTML upload into a
+	 * script running as the reader. `nosniff` does not help there: the
+	 * dangerous type would be the declared one.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return array{0:string,1:string} Content type and disposition.
+	 */
+	private static function serve_headers( $attachment_id ) {
+		$type = (string) get_post_mime_type( $attachment_id );
+
+		return in_array( $type, self::allowed_types(), true )
+			? array( $type, 'inline' )
+			: array( 'application/octet-stream', 'attachment' );
 	}
 
 	/**

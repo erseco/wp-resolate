@@ -428,6 +428,24 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The three lookups take the starting status too, as rule() always has.
+	 *
+	 * `devolver_area` exists twice — from `en_gestion` and from `pending` —
+	 * and a lookup by key alone can only ever answer with the first of them,
+	 * so administración's return would silently take gestión's confirmation,
+	 * landing tray and flag the moment the two rows stop agreeing.
+	 */
+	public function test_redirect_flag_and_confirmation_take_the_starting_status() {
+		foreach ( array( 'en_gestion', 'pending' ) as $from ) {
+			$rule = Documentate_Transitions::rule( 'devolver_area', $from );
+
+			$this->assertSame( $rule['redirect'], Documentate_Transitions::redirect( 'devolver_area', $from ), $from );
+			$this->assertSame( $rule['flag'], Documentate_Transitions::flag( 'devolver_area', $from ), $from );
+			$this->assertSame( $rule['confirm'], Documentate_Transitions::confirmation( 'devolver_area', $from ), $from );
+		}
+	}
+
+	/**
 	 * rule() finds a row by key, disambiguated by the starting status.
 	 */
 	public function test_rule_lookup() {

@@ -194,6 +194,24 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Removing the role never leaves its members without capabilities.
+	 *
+	 * remove_role() only forgets the definition: a user left on it keeps a
+	 * wp_capabilities entry pointing at nothing and ends up with none at all,
+	 * not even `read`, able to log in to an empty admin and no further.
+	 */
+	public function test_remove_caps_gives_the_role_members_somewhere_to_land() {
+		$member = self::factory()->user->create( array( 'role' => Documentate_Roles::ROLE_MANAGEMENT ) );
+
+		Documentate_Roles::remove_caps();
+
+		$user = get_userdata( $member );
+		$this->assertNotContains( Documentate_Roles::ROLE_MANAGEMENT, $user->roles );
+		$this->assertSame( array( get_option( 'default_role', 'subscriber' ) ), $user->roles );
+		$this->assertTrue( $user->has_cap( 'read' ), 'A member of the removed role can still use the site.' );
+	}
+
+	/**
 	 * Role detection by explicit user ID.
 	 */
 	public function test_role_detection_by_user_id() {

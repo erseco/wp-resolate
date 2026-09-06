@@ -104,6 +104,7 @@ class Documentate_Pdf_Generator {
 		$tmp    = $target . '.' . wp_generate_password( 8, false ) . '.tmp';
 
 		try {
+			Documentate_Private_Output::sweep_stale( dirname( $target ) );
 			Documentate_Private_Output::prepare( $tmp );
 			$pdf = new Documentate_Pdf_Document( $layout->options() );
 			self::apply_metadata( $pdf, Document_Meta::get( $post_id ) );

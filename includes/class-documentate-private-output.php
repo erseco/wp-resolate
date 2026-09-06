@@ -186,6 +186,30 @@ class Documentate_Private_Output {
 	}
 
 	/**
+	 * Drop temporary reservations a crashed render could not clean up itself.
+	 *
+	 * A render killed between `prepare()` and the final rename — an exhausted
+	 * memory limit, a request timeout — leaves its uniquely named `.tmp` file
+	 * behind, and nothing else in the plugin ever looks at it again. Only
+	 * files older than the cutoff are removed, so a render running right now
+	 * in another request is never touched.
+	 *
+	 * @param string $directory Protected output directory.
+	 */
+	public static function sweep_stale( $directory ) {
+		if ( self::path( wp_upload_dir() ) !== $directory ) {
+			return;
+		}
+		$cutoff = time() - HOUR_IN_SECONDS;
+		foreach ( (array) glob( $directory . '/*.tmp' ) as $file ) {
+			if ( is_link( $file ) || ! is_file( $file ) || (int) filemtime( $file ) > $cutoff ) {
+				continue;
+			}
+			wp_delete_file( $file );
+		}
+	}
+
+	/**
 	 * Restrict existing generated files without following symlinks or subfolders.
 	 *
 	 * @param string $path Output directory.
@@ -206,10 +230,29 @@ class Documentate_Private_Output {
 	 * @param int    $mode Required POSIX permissions.
 	 */
 	private static function mode( $path, $mode ) {
+		clearstatcache( true, $path );
+		$before = ( (int) @fileperms( $path ) ) & 0777; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A vanished path is caught by the verification below.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod, WordPress.PHP.NoSilencedErrors.Discouraged -- Exact local permissions; WP_Filesystem may select a remote transport.
 		$changed = @chmod( $path, $mode );
 		clearstatcache( true, $path );
-		if ( ! $changed || ( fileperms( $path ) & 0777 ) !== $mode ) {
+		$after = ( (int) @fileperms( $path ) ) & 0777; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Same.
+
+		if ( ! $changed ) {
+			self::fail();
+		}
+		if ( $after === $mode ) {
+			return;
+		}
+
+		// chmod reported success and the mode did not move at all: Windows,
+		// SMB/CIFS mounts and permission-fixed bind mounts report a fixed mode
+		// whatever is asked of them, so this is a filesystem that cannot carry
+		// POSIX permissions rather than something undoing our work. Refusing
+		// there would break every generation on the site for a guarantee the
+		// filesystem can never give; the .htaccess guard still denies the
+		// directory over HTTP. A mode that moved to something other than the
+		// one requested is a real failure and still fails closed.
+		if ( $before !== $after ) {
 			self::fail();
 		}
 	}

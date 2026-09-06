@@ -120,6 +120,46 @@ class DocumentatePrivateOutputTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A temporary file a crashed render left behind is eventually swept.
+	 *
+	 * The reservation carries a random suffix, so a retry never reuses the
+	 * name and nothing else in the plugin ever looks at it again: without the
+	 * sweep every render killed between prepare() and the rename would leave
+	 * one more file in the protected directory for good.
+	 */
+	public function test_stale_temporary_files_are_swept_and_fresh_ones_kept() {
+		$directory = Documentate_Private_Output::directory();
+		$stale     = $directory . '/resolucion.pdf.abcd1234.tmp';
+		$fresh     = $directory . '/resolucion.pdf.efgh5678.tmp';
+		$document  = $directory . '/resolucion.pdf';
+
+		foreach ( array( $stale, $fresh, $document ) as $file ) {
+			file_put_contents( $file, 'x' );
+		}
+		touch( $stale, time() - ( 2 * HOUR_IN_SECONDS ) );
+
+		Documentate_Private_Output::sweep_stale( $directory );
+
+		$this->assertFileDoesNotExist( $stale );
+		$this->assertFileExists( $fresh, 'A render running right now is not touched.' );
+		$this->assertFileExists( $document, 'Only reservations are swept.' );
+	}
+
+	/**
+	 * The sweep refuses any directory but the protected one.
+	 */
+	public function test_the_sweep_refuses_a_foreign_directory() {
+		Documentate_Private_Output::directory();
+		$outside = $this->root . '/suelto.tmp';
+		file_put_contents( $outside, 'x' );
+		touch( $outside, time() - ( 2 * HOUR_IN_SECONDS ) );
+
+		Documentate_Private_Output::sweep_stale( $this->root );
+
+		$this->assertFileExists( $outside );
+	}
+
+	/**
 	 * A caller cannot reserve files outside the protected directory.
 	 */
 	public function test_outside_path_is_refused() {
