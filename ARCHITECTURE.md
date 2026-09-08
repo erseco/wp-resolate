@@ -241,6 +241,12 @@ distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
 
 - `class-documentate-app.php` (`Documentate_App`) — shortcode, asset
   enqueueing, admin-bar entry, and wiring of the `template_redirect` handlers.
+  `require_login()` runs first among them: an anonymous visitor of the
+  application page is sent to `wp_login_url()` — which on this site is where
+  CAS takes over — and comes back to the view they asked for, arguments
+  included, so a link from a notification lands on its document. The "sign in"
+  notice of `render()` stays for whoever puts the shortcode on a page of their
+  own.
 - `class-documentate-app-shell.php` (`Documentate_App_Shell`) — header (who is
   signed in: initials avatar, name, role via `Documentate_Roles::role_label()`
   and ámbito via `scope_label()`, in a native `<details>` menu with "Salir"),

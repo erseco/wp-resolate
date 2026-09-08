@@ -324,9 +324,16 @@ class Documentate_App_Detail {
 			admin_url( 'admin-post.php' )
 		);
 
+		// The viewer of the browser opens its page thumbnails by itself when
+		// the frame is wide enough, and here they take a third of the width to
+		// say what the stepper beside the document already says. `navpanes` is
+		// the PDF open parameter that asks for the document alone; a viewer
+		// that does not know it simply ignores the fragment.
+		$framed = $url . '#navpanes=0';
+
 		return '<div class="dcta-card dcta-pdf">'
 			. '<h2 class="dcta-h2">Documento</h2>'
-			. '<iframe class="dcta-pdf-visor" src="' . esc_url( $url ) . '"'
+			. '<iframe class="dcta-pdf-visor" src="' . esc_url( $framed ) . '"'
 			. ' title="' . esc_attr( 'Vista previa de ' . Documentate_Document_Data::short_name( $post ) ) . '"'
 			. ' loading="lazy"></iframe>'
 			. '<p class="dcta-pdf-alterna">'

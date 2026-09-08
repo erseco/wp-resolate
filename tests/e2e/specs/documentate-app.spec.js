@@ -275,15 +275,27 @@ test.describe( 'Documentate app', () => {
 		}
 	} );
 
-	test( 'visitor is asked to sign in', async ( { browser, baseURL } ) => {
+	test( 'visitor is sent to the login form and comes back to the view', async ( {
+		browser,
+		baseURL,
+	} ) => {
 		// The browser fixture applies the admin storage state to new contexts.
 		const context = await browser.newContext( { baseURL } );
 		await context.clearCookies();
 		const page = await context.newPage();
 
 		try {
-			await page.goto( APP_PATH );
-			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /Inicia sesión/ );
+			// On this site wp-login.php is where CAS takes over, so landing
+			// there is the whole point; the notice is no longer drawn.
+			await page.goto( `${ APP_PATH }?doc=${ docs.inScope }&vista=editar` );
+			await expect( page ).toHaveURL( /wp-login\.php/ );
+
+			const back = decodeURIComponent(
+				new URL( page.url() ).searchParams.get( 'redirect_to' ) || ''
+			);
+			expect( back ).toContain( `doc=${ docs.inScope }` );
+			expect( back ).toContain( 'vista=editar' );
+			await expect( page.locator( '.dcta-aviso' ) ).toHaveCount( 0 );
 		} finally {
 			await context.close();
 		}

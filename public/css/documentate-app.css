@@ -1490,6 +1490,21 @@ body.documentate-app .wp-block-post-content {
 
 /* --- activity --------------------------------------------------------------- */
 
+/*
+ * Every card is padded by what it carries — the ficha by its own list, the
+ * editor cards by `.dcta-editor-card` — and the activity card carries a
+ * heading, a list and a comment box, none of which pads anything. Left alone
+ * it printed all three flush against its edge.
+ */
+
+.dcta-actividad {
+	padding: 22px 24px;
+}
+
+.dcta-actividad > .dcta-h2:first-child {
+	margin-top: 0;
+}
+
 .dcta-actividad-lista {
 	list-style: none;
 	margin: 0 0 16px;

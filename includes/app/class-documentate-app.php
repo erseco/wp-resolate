@@ -46,12 +46,87 @@ class Documentate_App {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'ensure_page' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_node' ), 100 );
+		// Before the handlers, which would answer a request nobody is signed in for.
+		add_action( 'template_redirect', array( __CLASS__, 'require_login' ), 5 );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_create_document' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_save_document' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_transition' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_comment' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_takeover' ) );
 		Documentate_App_Attachments::init();
+	}
+
+	/**
+	 * Send anonymous visitors of the application to the login form.
+	 *
+	 * Every view of the application is somebody's, and what an anonymous
+	 * visitor used to get was the page with a "sign in" notice inside it. The
+	 * site signs people in through CAS, which is what `wp_login_url()` leads
+	 * to, so the visitor is sent there and comes back to the view they asked
+	 * for — the document a notification linked to, not the tray.
+	 *
+	 * The notice stays in render(): it is the real guard, and it still answers
+	 * whoever puts the shortcode on a page of their own.
+	 *
+	 * @return void
+	 */
+	public static function require_login() {
+		if ( is_user_logged_in() || ! Documentate_App_Shell::is_app_page() ) {
+			return;
+		}
+
+		$login = wp_login_url( self::current_view_url() );
+
+		// The site's login is a page of its own (wp-login.php, which the CAS
+		// plugin takes over), but a plugin may point it straight at the CAS
+		// server: without this the safe redirect would drop the visitor on the
+		// home page instead.
+		$host = wp_parse_url( $login, PHP_URL_HOST );
+		$allow = static function ( $hosts ) use ( $host ) {
+			$hosts[] = $host;
+
+			return $hosts;
+		};
+
+		if ( is_string( $host ) && '' !== $host ) {
+			add_filter( 'allowed_redirect_hosts', $allow );
+		}
+
+		wp_safe_redirect( $login );
+		exit;
+	}
+
+	/**
+	 * The application URL of the current request, arguments included.
+	 *
+	 * A link in a notification points at one document (`?doc=12&vista=editar`),
+	 * and coming back from the login form to the tray instead would leave the
+	 * reader looking for it. Only the view arguments travel, and each one is
+	 * rebuilt from the request rather than copied.
+	 *
+	 * @return string
+	 */
+	private static function current_view_url() {
+		$args = array();
+		foreach ( array( 'vista', 'bandeja', 'estado' ) as $key ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
+			$value = isset( $_GET[ $key ] ) ? sanitize_key( wp_unslash( $_GET[ $key ] ) ) : '';
+			if ( '' !== $value ) {
+				$args[ $key ] = $value;
+			}
+		}
+
+		foreach ( array( 'doc', 'area' ) as $key ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
+			$value = isset( $_GET[ $key ] ) ? absint( $_GET[ $key ] ) : 0;
+			if ( $value > 0 ) {
+				$args[ $key ] = $value;
+			}
+		}
+
+		$url = Documentate_App_Shell::page_url( $args );
+
+		return '' !== $url ? $url : home_url( '/' );
 	}
 
 	/**
