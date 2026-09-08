@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@erseco/autofirma-client": "^1.9.3-canary.20260814200535.6dbe776"
+    "@erseco/autofirma-client": "^1.9.3-canary.20260905100136.e895971"
   },
   "devDependencies": {
     "@matbee/libreoffice-converter": "^2.7.2",
