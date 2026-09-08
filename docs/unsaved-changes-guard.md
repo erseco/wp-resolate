@@ -20,7 +20,7 @@ copies are dead code:
    `wp-includes/js/autosave.js` is `{ tempBlockSave, triggerSave, postChanged,
    suspend, resume }`. The `typeof … === 'function'` test always fails.
 3. Execution falls through to TinyMCE `isDirty()`, which only observes rich-text
-   editors — not the plain inputs, selects, repeater rows or TipTap editors that
+   editors — not the plain inputs, selects, or repeater rows that
    hold most of a document's content.
 
 Switching branch 2 to the real `postChanged()` would not fix it either: core only
@@ -72,7 +72,6 @@ covered without rebinding:
 | Source | Hook |
 | --- | --- |
 | Simple fields and repeaters | `input change` on `input, textarea, select` |
-| TipTap / ProseMirror editors | `input` on `.ProseMirror` (contenteditable emits `input` natively) |
 | TinyMCE | `tinyMCE.on('AddEditor')` → `editor.on('Dirty change')` after `init` |
 | Repeater add / remove / sort | click on `.documentate-array-add`, `.documentate-array-remove`; `sortupdate` |
 
@@ -165,7 +164,7 @@ No changes to the generation layer or the workflow.
 ## Testing
 
 - **Jest** — `isDirty()` after `input` on a plain field, after TinyMCE `Dirty`,
-  after `input` on `.ProseMirror`; starts clean; `sessionStorage` TTL; gate passes
+  after changes to classic editor fields; starts clean; `sessionStorage` TTL; gate passes
   through when clean. Plus one test that evaluates the guard and
   `documentate-actions` in load order and asserts the resumed action reaches
   `$.ajax`, which a test binding its own listener up front cannot catch.

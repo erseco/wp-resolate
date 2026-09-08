@@ -390,17 +390,6 @@ body.documentate-document-locked #poststuff {
 }
 
 /**
- * TipTap/ProseMirror editor locked state.
- */
-.documentate-locked.ProseMirror,
-.documentate-document-locked .ProseMirror[contenteditable="false"] {
-	background-color: #f9f9f9 !important;
-	color: #666 !important;
-	cursor: not-allowed !important;
-	pointer-events: none;
-}
-
-/**
  * Locked overlay for sections container.
  * Blocks all interaction with elements underneath.
  */

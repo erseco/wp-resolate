@@ -71,7 +71,7 @@ const PDF = Buffer.from(
 );
 
 /**
- * The script. `run` receives the page and may navigate, fill and click; if it
+ * The script. `run` receives the page and role sessions and may navigate, fill and click; if it
  * returns false the scene is marked "revisar" in the report (for instance, a
  * button that is missing because the previous step never completed).
  *
@@ -482,6 +482,58 @@ const SCENES = [
 			if ( ! ( await row.count() ) ) return false;
 			if ( ! ( await follow( p, row.locator( 'a.row-title' ).first() ) ) ) return false;
 			return await collapseMetaboxes( p, 'documentate_document_management' );
+		},
+	},
+
+
+	{
+		chapter: 'Bloqueo de edición',
+		title: 'La primera persona obtiene el bloqueo de edición',
+		text: 'Gestión documental abre el documento 0 y obtiene el bloqueo de WordPress. Mientras lo edita, otra persona tendrá que esperar o tomar posesión explícitamente.',
+		as: 'gestion',
+		run: async ( p ) => {
+			if ( ! ( await goToEdit( p, PROVIDERS ) ) ) return false;
+			await expect( p.locator( 'form.dcta-editor' ) ).toBeVisible();
+			await p.fill( '#documentate-app-titulo', 'Actualización del material de las aulas · cambios sin guardar' );
+			return true;
+		},
+	},
+	{
+		chapter: 'Bloqueo de edición',
+		title: 'La segunda persona encuentra el documento bloqueado',
+		text: 'Administración intenta editar el mismo documento y ve quién tiene el bloqueo. El formulario de edición no se muestra y la opción «Tomar posesión» explica sus consecuencias.',
+		as: 'admin',
+		viewportOnly: true,
+		run: async ( p, sessions ) => {
+			await goTo( p, sessions.gestion.page.url() );
+			await expect( p.locator( '#dcta-lock-dialog' ) ).toBeVisible();
+			await expect( p.locator( 'form.dcta-editor' ) ).toHaveCount( 0 );
+			return true;
+		},
+	},
+	{
+		chapter: 'Bloqueo de edición',
+		title: 'Tomar posesión permite editar a la nueva persona',
+		text: 'Administración toma posesión mediante una petición protegida. El editor carga los últimos datos guardados del documento, sin sobrescribirlos con los cambios pendientes de gestión.',
+		as: 'admin',
+		run: async ( p ) => {
+			await p.getByRole( 'button', { name: 'Tomar posesión' } ).click();
+			await expect( p.locator( 'form.dcta-editor' ) ).toBeVisible();
+			return true;
+		},
+	},
+	{
+		chapter: 'Bloqueo de edición',
+		title: 'Heartbeat avisa a la primera persona de que perdió el bloqueo',
+		text: 'Sin recargar la página, Heartbeat detecta que administración tomó posesión. La edición queda bloqueada y los cambios sin guardar permanecen detrás del aviso; el servidor también impide guardarlos.',
+		as: 'gestion',
+		viewportOnly: true,
+		run: async ( p ) => {
+			await p.evaluate( () => wp.heartbeat.connectNow() );
+			await expect( p.locator( '#dcta-lock-dialog' ) ).toBeVisible( { timeout: 25000 } );
+			await expect( p.locator( 'form.dcta-editor' ) ).toHaveJSProperty( 'inert', true );
+			await expect( p.locator( '#documentate-app-titulo' ) ).toHaveValue( 'Actualización del material de las aulas · cambios sin guardar' );
+			return true;
 		},
 	},
 
@@ -936,7 +988,7 @@ async function main() {
 			let ok = true;
 			let error = '';
 			try {
-				ok = ( await scene.run( page ) ) !== false;
+				ok = ( await scene.run( page, sessions ) ) !== false;
 			} catch ( e ) {
 				ok = false;
 				error = String( e.message || e ).split( '\n' )[ 0 ];

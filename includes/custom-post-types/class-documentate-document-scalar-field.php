@@ -64,14 +64,6 @@ class Documentate_Document_Scalar_Field {
 		return Documents_Field_Renderer::get_select_placeholder( $raw_field );
 	}
 	/**
-	 * Check if collaborative editing is enabled in settings.
-	 *
-	 * @return bool True if collaborative editing is enabled.
-	 */
-	public static function is_collaborative_editing_enabled() {
-		return Documentate_Admin::is_collaborative_enabled();
-	}
-	/**
 	 * Map schema type hints to concrete HTML input types.
 	 *
 	 * @param string $field_type Original schema field type.
@@ -118,77 +110,60 @@ class Documentate_Document_Scalar_Field {
 		$describedby = array(),
 		$validation = '',
 	) {
-		$is_collaborative = self::is_collaborative_editing_enabled();
 		$is_required = \Documentate\Documents\Documents_Field_Validator::is_field_required( $raw_field );
 		$describedby_attribute = ! empty( $describedby ) ? implode( ' ', $describedby ) : '';
 
-		if ( $is_collaborative ) {
-			echo '<div class="documentate-collab-container">';
-			echo '<textarea id="'
-					. esc_attr( $meta_key )
-					. '" name="'
-					. esc_attr( $meta_key )
-					. '" class="documentate-collab-textarea" rows="8"'
-					. ( '' !== $describedby_attribute ? ' aria-describedby="' . esc_attr( $describedby_attribute ) . '"' : '' )
-					. ( '' !== $validation ? ' data-validation-message="' . esc_attr( $validation ) . '"' : '' )
-					. ( $is_required ? ' data-required="true"' : '' )
-					. '>'
-					. esc_textarea( $value )
-					. '</textarea>';
-			echo '</div>';
-		} else {
-			$tinymce_config = self::get_rich_editor_tinymce_config();
+		$tinymce_config = self::get_rich_editor_tinymce_config();
 
-			if ( $is_locked ) {
-				$tinymce_config['readonly'] = 1;
-			}
+		if ( $is_locked ) {
+			$tinymce_config['readonly'] = 1;
+		}
 
-			if ( $is_required ) {
-				echo '<div class="documentate-rich-editor-wrap" data-required="true">';
-			}
+		if ( $is_required ) {
+			echo '<div class="documentate-rich-editor-wrap" data-required="true">';
+		}
 
-			ob_start();
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
-			wp_editor(
-				$value,
-				$meta_key,
-				array(
-					'textarea_name' => $meta_key,
-					'textarea_rows' => 8,
-					'media_buttons' => false,
-					'teeny' => false,
-					'wpautop' => false,
-					'tinymce' => $tinymce_config,
-					'quicktags' => true,
-					'editor_height' => 220,
-				)
+		ob_start();
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
+		wp_editor(
+			$value,
+			$meta_key,
+			array(
+				'textarea_name' => $meta_key,
+				'textarea_rows' => 8,
+				'media_buttons' => false,
+				'teeny' => false,
+				'wpautop' => false,
+				'tinymce' => $tinymce_config,
+				'quicktags' => true,
+				'editor_height' => 220,
+			)
+		);
+		$editor_html = ob_get_clean();
+
+		if ( '' !== $describedby_attribute ) {
+			$editor_html = preg_replace(
+				'/<textarea\b/',
+				'<textarea aria-describedby="' . esc_attr( $describedby_attribute ) . '"',
+				$editor_html,
+				1,
 			);
-			$editor_html = ob_get_clean();
+		}
 
-			if ( '' !== $describedby_attribute ) {
-				$editor_html = preg_replace(
-					'/<textarea\b/',
-					'<textarea aria-describedby="' . esc_attr( $describedby_attribute ) . '"',
-					$editor_html,
-					1,
-				);
-			}
+		if ( '' !== $validation ) {
+			$editor_html = preg_replace(
+				'/<textarea\b/',
+				'<textarea data-validation-message="' . esc_attr( $validation ) . '"',
+				$editor_html,
+				1,
+			);
+		}
 
-			if ( '' !== $validation ) {
-				$editor_html = preg_replace(
-					'/<textarea\b/',
-					'<textarea data-validation-message="' . esc_attr( $validation ) . '"',
-					$editor_html,
-					1,
-				);
-			}
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
+		echo $editor_html;
 
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles output escaping.
-			echo $editor_html;
-
-			if ( $is_required ) {
-				echo '</div>';
-			}
+		if ( $is_required ) {
+			echo '</div>';
 		}
 	}
 	/**

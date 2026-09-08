@@ -245,6 +245,7 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-list-row.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-list.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detail.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lock.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-edit.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app.php';
 		( new Documentate_App() )->register();
@@ -293,22 +294,8 @@ class Documentate {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles', 10, 1 );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts', 10, 1 );
-		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_collaborative_editor', 10, 1 );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_revisions_assets', 10, 1 );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_attachments_assets', 10, 1 );
-		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'deregister_heartbeat_for_collaborative', 1, 1 );
-		$this->loader->add_action( 'admin_init', $plugin_admin, 'remove_post_lock_for_collaborative', 1 );
-		$this->loader->add_action(
-			'add_meta_boxes_documentate_document',
-			$plugin_admin,
-			'register_collaborative_status_metabox',
-			10,
-			1,
-		);
-		$this->loader->add_action( 'wp_ajax_documentate_get_collab_avatars', $plugin_admin, 'ajax_get_user_avatars' );
-		$this->loader->add_filter( 'show_post_locked_dialog', $plugin_admin, 'disable_post_lock_dialog', 10, 3 );
-		$this->loader->add_filter( 'wp_check_post_lock', $plugin_admin, 'disable_post_lock', 10, 2 );
-		$this->loader->add_filter( 'wp_check_post_lock_window', $plugin_admin, 'disable_post_lock_window', 10, 1 );
 
 		// TinyMCE table plugin for document editors.
 		$this->loader->add_filter( 'mce_external_plugins', $plugin_admin, 'add_tinymce_table_plugin', 10, 1 );

@@ -25,7 +25,7 @@ It uses OpenTBS to merge the document data into the template, and draws the PDF 
 - **ODT/DOCX generation** from templates via OpenTBS.
 - **Native PDF generation** from an HTML layout per document type, with no external service; Collabora Online (server) or LibreOffice WASM (browser, experimental) can be selected instead.
 - **Per-user scope filtering** (hierarchical categories) to control document visibility.
-- **Revisions, attachments and collaborative editing.**
+- **Revisions, attachments and native WordPress editing locks.**
 - **Multisite compatible.**
 
 ### Third-party libraries

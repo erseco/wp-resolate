@@ -296,6 +296,8 @@ class Documentate_App_Actions {
 			self::redirect_to( $edit_url, array( 'error' => 'bloqueado' ) );
 		}
 
+		Documentate_App_Lock::require_available( $post->ID );
+
 		$basics = self::basic_data( $post );
 		$title = $basics['title'];
 		$data_error = $basics['error'];
@@ -355,9 +357,30 @@ class Documentate_App_Actions {
 		$tray = self::posted_tray();
 		$detail_url = Documentate_App_Shell::page_url( self::detail_args( $post->ID, $tray ) );
 
+		Documentate_App_Lock::require_available( $post->ID );
 		self::apply_transition( $post, $detail_url, $tray );
 
 		self::redirect_to( $detail_url, array( 'error' => 'transicion' ) );
+	}
+
+	/**
+	 * Explicitly take over an editable document using the native post lock.
+	 *
+	 * @return void
+	 */
+	public static function handle_takeover() {
+		if ( ! self::is_action( 'tomar_control' ) ) {
+			return;
+		}
+		$doc_id = self::posted_int( 'documentate_app_doc' );
+		self::require_nonce( 'documentate_app_tomar_control_' . $doc_id );
+		$post = self::editable_document_for_user( $doc_id );
+		if ( ! $post || ! Documentate_App_Edit::can_edit( $post ) ) {
+			self::deny();
+		}
+		require_once ABSPATH . 'wp-admin/includes/post.php';
+		wp_set_post_lock( $post->ID );
+		self::redirect_to( Documentate_App_Edit::url( $post->ID ) );
 	}
 
 	/**
@@ -426,6 +449,7 @@ class Documentate_App_Actions {
 			self::redirect_to( $error_url, array( 'error' => $error ) );
 		}
 
+		Documentate_App_Lock::release( $post->ID );
 		$target = self::transition_target( $post->ID, $key, $tray, $from );
 		self::redirect_to( $target[0], $target[1] );
 	}

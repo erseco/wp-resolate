@@ -50,6 +50,7 @@ class Documentate_App {
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_save_document' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_transition' ) );
 		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_comment' ) );
+		add_action( 'template_redirect', array( 'Documentate_App_Actions', 'handle_takeover' ) );
 		Documentate_App_Attachments::init();
 	}
 
@@ -167,6 +168,15 @@ class Documentate_App {
 		if ( ! self::is_edit_view_request() ) {
 			return;
 		}
+
+		wp_enqueue_script(
+			'documentate-app-lock',
+			plugins_url( 'public/js/documentate-app-lock.js', DOCUMENTATE_PLUGIN_FILE ),
+			array( 'heartbeat' ),
+			DOCUMENTATE_VERSION,
+			true
+		);
+		wp_localize_script( 'documentate-app-lock', 'documentateAppLock', array( 'ajaxUrl' => admin_url( 'admin-ajax.php' ) ) );
 
 		wp_enqueue_editor();
 		wp_enqueue_script(

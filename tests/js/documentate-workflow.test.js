@@ -354,7 +354,6 @@ describe( 'the locked state', () => {
 			renderScreen( '' ) +
 			`<div class="documentate-sections-container">
 				<input type="text" id="campo" name="documentate_field[a]">
-				<div class="ProseMirror" contenteditable="true"></div>
 				<div class="documentate-array-field">
 					<div class="documentate-array-items">
 						<div class="documentate-array-item">
@@ -377,9 +376,6 @@ describe( 'the locked state', () => {
 		expect(
 			document.querySelector( '.documentate-array-remove' ).disabled
 		).toBe( true );
-		expect(
-			document.querySelector( '.ProseMirror' ).getAttribute( 'contenteditable' )
-		).toBe( 'false' );
 		expect(
 			document.querySelector( '.documentate-array-item' ).getAttribute( 'draggable' )
 		).toBe( 'false' );

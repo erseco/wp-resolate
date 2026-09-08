@@ -282,6 +282,6 @@ class DocumentatePluginBootstrapTest extends WP_UnitTestCase {
 		documentate_run_plugin();
 
 		$this->assertNotFalse( has_filter( $links_filter ) );
-		$this->assertNotFalse( has_action( 'wp_ajax_documentate_get_collab_avatars' ) );
+		$this->assertFalse( has_action( 'wp_ajax_documentate_get_collab_avatars' ) );
 	}
 }

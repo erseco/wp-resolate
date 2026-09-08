@@ -90,7 +90,7 @@ the command fail instead of presenting an incomplete journey as successful.
 - Per-user scope filtering (hierarchical categories) for document visibility
 - Front-end application under `/documentate/` (bandejas, detail, edit, attachments,
   export) alongside full wp-admin parity
-- Revisions, attachments, collaborative editing support
+- Revisions, attachments and native WordPress editing locks with explicit takeover
 - Multisite compatible
 
 ## Installation
