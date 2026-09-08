@@ -136,8 +136,6 @@
 			markDirty
 		);
 
-		// TipTap/ProseMirror surfaces are contenteditable, which emits input natively.
-		$form.on('input.documentateUnsaved', '.ProseMirror', markDirty);
 
 		// Repeater rows: added, removed or reordered via native drag and drop.
 		$form.on(

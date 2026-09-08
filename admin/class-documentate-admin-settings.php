@@ -83,8 +83,6 @@ class Documentate_Admin_Settings {
 			'collabora_lang' => 'Idioma de Collabora',
 			'collabora_disable_ssl' => 'Omitir verificación SSL (Collabora)',
 			'autofirma_layer2_text' => 'Texto visible de la firma de AutoFirma',
-			'collaborative_enabled' => 'Modo colaborativo',
-			'collaborative_signaling' => 'Servidor de señalización WebRTC',
 		);
 
 		foreach ( $fields as $field_id => $field_title ) {
@@ -220,50 +218,6 @@ class Documentate_Admin_Settings {
 	}
 
 	/**
-	 * Render collaborative mode toggle.
-	 */
-	public function collaborative_enabled_render() {
-		$options = get_option( 'documentate_settings', array() );
-		$checked = isset( $options['collaborative_enabled'] ) && '1' === $options['collaborative_enabled'];
-
-		echo '<label>';
-		echo '<input type="checkbox" name="documentate_settings[collaborative_enabled]" value="1" '
-				. checked( $checked, true, false )
-				. '> ';
-		echo esc_html( 'Habilitar edición colaborativa en tiempo real usando TipTap y Yjs.' );
-		echo '</label>';
-		echo '<p class="description">'
-				. esc_html(
-					'Reemplaza el editor clásico TinyMCE con TipTap soportando edición colaborativa vía WebRTC.',
-				)
-				. '</p>';
-	}
-
-	/**
-	 * Render WebRTC signaling server field.
-	 */
-	public function collaborative_signaling_render() {
-		$options = get_option( 'documentate_settings', array() );
-		$value = isset( $options['collaborative_signaling'] )
-			? esc_url( $options['collaborative_signaling'], array( 'wss', 'ws' ) )
-			: '';
-		if ( '' === $value ) {
-			$value = 'wss://signaling.yjs.dev';
-		}
-
-		echo '<input type="url" class="regular-text" name="documentate_settings[collaborative_signaling]" value="'
-				. esc_attr( $value )
-				. '" placeholder="wss://signaling.yjs.dev">';
-		echo '<p class="description">'
-				. esc_html( 'Servidor de señalización para WebRTC. Por defecto usa el servidor público de Yjs.' )
-				. '</p>';
-		echo '<p class="description"><strong>' . esc_html( 'Servidores públicos disponibles:' ) . '</strong></p>';
-		echo '<ul class="description" style="list-style:disc;margin-left:20px;">';
-		echo '<li><code>wss://signaling.yjs.dev</code> ' . esc_html( '(Yjs oficial)' ) . '</li>';
-		echo '</ul>';
-	}
-
-	/**
 	 * Options Page.
 	 *
 	 * Renders the settings page.
@@ -294,7 +248,8 @@ class Documentate_Admin_Settings {
 		$input = $this->validate_collabora_settings( $input );
 		$input = $this->validate_autofirma_settings( $input );
 
-		return $this->validate_collaborative_settings( $input );
+		unset( $input['collaborative_enabled'], $input['collaborative_signaling'] );
+		return $input;
 	}
 
 	/**
@@ -349,24 +304,6 @@ class Documentate_Admin_Settings {
 		$input['autofirma_layer2_text'] = '' === trim( $text )
 			? Documentate_AutoFirma::get_default_signature_text()
 			: $text;
-
-		return $input;
-	}
-
-	/**
-	 * Validate the collaborative editing settings.
-	 *
-	 * @param array $input The input fields to validate.
-	 * @return array
-	 */
-	private function validate_collaborative_settings( $input ) {
-		$input['collaborative_enabled'] = $this->validate_checkbox( $input, 'collaborative_enabled' );
-
-		$signaling_url = isset( $input['collaborative_signaling'] ) ? trim( (string) $input['collaborative_signaling'] ) : '';
-		if ( '' === $signaling_url ) {
-			$signaling_url = 'wss://signaling.yjs.dev';
-		}
-		$input['collaborative_signaling'] = esc_url_raw( $signaling_url, array( 'wss', 'ws' ) );
 
 		return $input;
 	}

@@ -358,6 +358,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 		$doc_id = $this->create_document( 'Borrador para gestión', $this->management_type_id );
 
 		wp_set_current_user( $this->area_id );
+		Documentate_App_Lock::render( get_post( $doc_id ) );
 		$this->post_save( $doc_id, array( 'documentate_app_transicion' => 'enviar_gestion' ) );
 		$target = $this->capture( array( 'Documentate_App_Actions', 'handle_save_document' ) );
 
@@ -366,6 +367,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'vista=editar', $target );
 		$this->assertSame( 'en_gestion', get_post_status( $doc_id ) );
 		$this->assertContains( 'envió el documento a gestión', $this->events( $doc_id ) );
+		$this->assertSame( '', get_post_meta( $doc_id, '_edit_lock', true ) );
 	}
 
 	/**
@@ -770,4 +772,18 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'otra_cosa', $_POST['documentate_app_accion'] );
 	}
+	/** A takeover cannot bypass workflow restrictions even with edit_post capability. */
+	public function test_takeover_respects_workflow_permissions() {
+		$doc_id = $this->create_document( 'Pendiente bloqueado', $this->management_type_id, 'pending' );
+		wp_set_current_user( $this->management_id );
+		$this->assertTrue( current_user_can( 'edit_post', $doc_id ) );
+		$_POST = array(
+			'documentate_app_accion' => 'tomar_control',
+			'documentate_app_doc' => $doc_id,
+			'documentate_app_nonce' => wp_create_nonce( 'documentate_app_tomar_control_' . $doc_id ),
+		);
+		$this->expectException( WPDieException::class );
+		Documentate_App_Actions::handle_takeover();
+	}
+
 }

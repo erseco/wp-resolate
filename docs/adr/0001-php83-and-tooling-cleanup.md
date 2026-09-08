@@ -122,8 +122,9 @@ Steps 2 and 3 may be separate stages; step 4 can happen as soon as both the
 preview and any actual proxy consumers have migrated. Do not remove checks
 for converter behavior while that behavior is still shipped. After each
 stage run the applicable required checks and verify project/patch coverage
-remains at least 90%. Keep collaborative editing, AutoFirma, offline
-LibreOffice fixture generation and WordPress Playground.
+remains at least 90%. Keep AutoFirma, offline
+LibreOffice fixture generation and WordPress Playground. The unfinished
+collaborative editor is removed separately; see [ADR 0002](0002-native-document-edit-locks.md).
 
 The older [removal inventory](../removing-collabora.md) is a starting point for
 locating code, not an executable checklist: line numbers and translation

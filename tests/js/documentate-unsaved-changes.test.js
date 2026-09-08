@@ -21,7 +21,6 @@ const FIXTURE = `
 			<option value="2">2</option>
 		</select>
 		<input type="hidden" id="documentate-attachments-field" name="documentate_attachments">
-		<div class="ProseMirror" contenteditable="true"></div>
 		<div class="documentate-array-items">
 			<div class="documentate-array-item"></div>
 		</div>
@@ -152,16 +151,6 @@ describe( 'dirty detection', () => {
 		document
 			.getElementById( 'field-b' )
 			.dispatchEvent( new window.Event( 'change', { bubbles: true } ) );
-
-		expect( window.documentateUnsavedChanges.isDirty() ).toBe( true );
-	} );
-
-	it( 'notices edits in a ProseMirror surface', async () => {
-		await loadGuard();
-
-		document
-			.querySelector( '.ProseMirror' )
-			.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
 
 		expect( window.documentateUnsavedChanges.isDirty() ).toBe( true );
 	} );

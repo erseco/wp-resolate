@@ -247,6 +247,22 @@ Preview/export (PDF, ODT, DOCX) reuses the same admin metabox actions:
 app's detail/edit views, so Collabora, LibreOffice-WASM-in-Playground and the
 disabled/unavailable states behave identically in wp-admin and in the app.
 
+### Editing ownership
+
+`Documentate_App_Lock` shares WordPress's `_edit_lock` with wp-admin. Opening
+an authorized edit view checks `wp_check_post_lock()` before acquiring the
+lock with `wp_set_post_lock()`. The app sends the core `wp-refresh-post-lock`
+payload through Heartbeat every 15 seconds; a takeover makes the old form
+inert and displays an explicit takeover notice. Save and transition handlers
+check ownership before changing any fields, files or status.
+
+The takeover POST checks the nonce, document scope and workflow permission.
+Successful transitions release the current user's lock immediately. Leaving
+the editor uses core `wp-remove-post-lock`; abandoned locks expire using the
+WordPress window (150 seconds by default). Ownership is per WordPress user,
+including multiple tabs logged into the same account. See
+[ADR 0002](docs/adr/0002-native-document-edit-locks.md).
+
 ## 6. Directory Structure
 
 - `admin/`: Classes and assets for the WordPress admin dashboard (Settings page, Meta boxes, custom UI).

@@ -3,7 +3,7 @@
  * Tests for the editor-screen integrations of Documentate_Admin.
  *
  * Covers the TinyMCE wiring, the attachments meta box assets, the revision
- * diff labels and the collaborative-mode post lock removal.
+ * diff labels.
  *
  * @package Documentate
  */
@@ -225,115 +225,6 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * The heartbeat script is deregistered only when collaborative mode is on,
-	 * because WordPress would otherwise keep taking post locks.
-	 */
-	public function test_heartbeat_is_deregistered_in_collaborative_mode() {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-		$this->set_edit_screen( 'documentate_document' );
-		wp_register_script( 'heartbeat', 'https://example.org/heartbeat.js', array(), '1.0', true );
-
-		$this->admin->deregister_heartbeat_for_collaborative( 'post.php' );
-
-		$this->assertFalse( wp_script_is( 'heartbeat', 'registered' ) );
-	}
-
-	/**
-	 * With collaborative mode off the heartbeat keeps running.
-	 */
-	public function test_heartbeat_is_kept_without_collaborative_mode() {
-		$this->set_edit_screen( 'documentate_document' );
-		wp_register_script( 'heartbeat', 'https://example.org/heartbeat.js', array(), '1.0', true );
-
-		$this->admin->deregister_heartbeat_for_collaborative( 'post.php' );
-
-		$this->assertTrue( wp_script_is( 'heartbeat', 'registered' ) );
-
-		wp_deregister_script( 'heartbeat' );
-	}
-
-	/**
-	 * The heartbeat is left alone outside the editor and for other post types.
-	 *
-	 * @dataProvider provide_non_document_editor_contexts
-	 *
-	 * @param string $hook      Admin page hook.
-	 * @param string $post_type Screen post type.
-	 */
-	public function test_heartbeat_is_kept_outside_document_editor( $hook, $post_type ) {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-		$this->set_edit_screen( $post_type );
-		wp_register_script( 'heartbeat', 'https://example.org/heartbeat.js', array(), '1.0', true );
-
-		$this->admin->deregister_heartbeat_for_collaborative( $hook );
-
-		$this->assertTrue( wp_script_is( 'heartbeat', 'registered' ) );
-
-		wp_deregister_script( 'heartbeat' );
-	}
-
-	/**
-	 * Editing an existing document in collaborative mode drops its edit lock.
-	 */
-	public function test_post_lock_is_removed_for_collaborative_documents() {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-		$post_id = $this->create_document();
-		update_post_meta( $post_id, '_edit_lock', time() . ':' . $this->admin_id );
-
-		$GLOBALS['pagenow'] = 'post.php';
-		$_GET['post'] = (string) $post_id;
-
-		$this->admin->remove_post_lock_for_collaborative();
-
-		$this->assertSame( '', get_post_meta( $post_id, '_edit_lock', true ) );
-	}
-
-	/**
-	 * Documents of other post types keep their lock.
-	 */
-	public function test_post_lock_is_kept_for_other_post_types() {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-		$post_id = self::factory()->post->create( array( 'post_type' => 'post' ) );
-		update_post_meta( $post_id, '_edit_lock', '123:1' );
-
-		$GLOBALS['pagenow'] = 'post.php';
-		$_GET['post'] = (string) $post_id;
-
-		$this->admin->remove_post_lock_for_collaborative();
-
-		$this->assertSame( '123:1', get_post_meta( $post_id, '_edit_lock', true ) );
-	}
-
-	/**
-	 * On post-new.php the post type comes from the query string.
-	 */
-	public function test_post_lock_handler_ignores_other_new_post_types() {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-		$GLOBALS['pagenow'] = 'post-new.php';
-		unset( $_GET['post'] );
-		$_GET['post_type'] = 'page';
-
-		$this->admin->remove_post_lock_for_collaborative();
-
-		$this->assertSame( 'page', $_GET['post_type'], 'The handler must return without side effects.' );
-	}
-
-	/**
-	 * Without collaborative mode the lock survives.
-	 */
-	public function test_post_lock_is_kept_without_collaborative_mode() {
-		$post_id = $this->create_document();
-		update_post_meta( $post_id, '_edit_lock', '123:1' );
-
-		$GLOBALS['pagenow'] = 'post.php';
-		$_GET['post'] = (string) $post_id;
-
-		$this->admin->remove_post_lock_for_collaborative();
-
-		$this->assertSame( '123:1', get_post_meta( $post_id, '_edit_lock', true ) );
-	}
-
-	/**
 	 * Revision diff assets load on the revision screen for our documents.
 	 */
 	public function test_revision_assets_load_for_document_revisions() {
@@ -545,17 +436,4 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 		$this->assertSame( 'Asunto', $labels['asunto'] );
 	}
 
-	/**
-	 * The collaborative status meta box only exists for saved documents with
-	 * collaborative editing enabled.
-	 */
-	public function test_collaborative_status_metabox_requires_a_saved_document() {
-		global $wp_meta_boxes;
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-		$wp_meta_boxes = array();
-
-		$this->admin->register_collaborative_status_metabox( null );
-
-		$this->assertEmpty( $wp_meta_boxes );
-	}
 }

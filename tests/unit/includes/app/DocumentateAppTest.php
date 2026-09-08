@@ -141,6 +141,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$_GET = array();
 		wp_dequeue_script( 'documentate-calculations' );
 		wp_dequeue_script( 'documentate-annexes' );
+		wp_dequeue_script( 'documentate-app-lock' );
 		wp_dequeue_style( 'documentate-app' );
 		parent::tear_down();
 	}
@@ -816,11 +817,14 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertTrue( wp_style_is( 'documentate-app', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'documentate-annexes', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'documentate-calculations', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'documentate-app-lock', 'enqueued' ) );
 
 		$this->go_to( Documentate_App_Edit::url( $doc ) );
 		$this->app->enqueue_assets();
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-calculations', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-app-lock', 'enqueued' ) );
+		$this->assertContains( 'heartbeat', wp_scripts()->registered['documentate-app-lock']->deps );
 		$this->assertTrue( wp_script_is( 'editor', 'enqueued' ) );
 	}
 

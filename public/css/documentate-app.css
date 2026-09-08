@@ -1468,6 +1468,11 @@ body.documentate-app .dcta-dialogo {
 	background: var(--dcta-sup);
 }
 
+/* The initial lock notice belongs to the page flow, above the footer. */
+#dcta-edit-lock[data-lock=""] .dcta-dialogo {
+	position: static;
+}
+
 .dcta-dialogo::backdrop {
 	background: rgba(16, 24, 40, .45);
 }

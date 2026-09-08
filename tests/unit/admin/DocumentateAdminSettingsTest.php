@@ -283,58 +283,6 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * Test collaborative_enabled_render outputs checkbox.
-	 */
-	public function test_collaborative_enabled_render_outputs_checkbox() {
-		ob_start();
-		$this->settings->collaborative_enabled_render();
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'type="checkbox"', $output );
-		$this->assertStringContainsString( 'collaborative_enabled', $output );
-	}
-
-	/**
-	 * Test collaborative_enabled_render shows checked state.
-	 */
-	public function test_collaborative_enabled_render_shows_checked() {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-
-		ob_start();
-		$this->settings->collaborative_enabled_render();
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'checked', $output );
-	}
-
-	/**
-	 * Test collaborative_signaling_render outputs URL input.
-	 */
-	public function test_collaborative_signaling_render_outputs_input() {
-		ob_start();
-		$this->settings->collaborative_signaling_render();
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'type="url"', $output );
-		$this->assertStringContainsString( 'collaborative_signaling', $output );
-		$this->assertStringContainsString( 'wss://signaling.yjs.dev', $output );
-		$this->assertStringNotContainsString( 'herokuapp.com', $output );
-	}
-
-	/**
-	 * Test collaborative_signaling_render shows saved value.
-	 */
-	public function test_collaborative_signaling_render_shows_saved_value() {
-		update_option( 'documentate_settings', array( 'collaborative_signaling' => 'wss://custom.signal.com' ) );
-
-		ob_start();
-		$this->settings->collaborative_signaling_render();
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'wss://custom.signal.com', $output );
-	}
-
-	/**
 	 * Test options_page renders form.
 	 */
 	public function test_options_page_renders_form() {
@@ -370,8 +318,8 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 		$this->assertSame( 'es-ES', $result['collabora_lang'] );
 		$this->assertSame( '1', $result['collabora_disable_ssl'] );
 		$this->assertSame( 'Firmado digitalmente por $$SUBJECTCN$$.', $result['autofirma_layer2_text'] );
-		$this->assertSame( '1', $result['collaborative_enabled'] );
-		$this->assertSame( 'wss://signal.example.com', $result['collaborative_signaling'] );
+		$this->assertArrayNotHasKey( 'collaborative_enabled', $result );
+		$this->assertArrayNotHasKey( 'collaborative_signaling', $result );
 	}
 
 	/**
@@ -433,19 +381,6 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * Test settings_validate with empty signaling URL defaults.
-	 */
-	public function test_settings_validate_empty_signaling_defaults() {
-		$input = array(
-			'collaborative_signaling' => '',
-		);
-
-		$result = $this->settings->settings_validate( $input );
-
-		$this->assertSame( 'wss://signaling.yjs.dev', $result['collaborative_signaling'] );
-	}
-
-	/**
 	 * Test settings_validate sanitizes collabora_base_url.
 	 */
 	public function test_settings_validate_sanitizes_base_url() {
@@ -468,7 +403,6 @@ class DocumentateAdminSettingsTest extends Documentate_Test_Base {
 		$result = $this->settings->settings_validate( $input );
 
 		$this->assertSame( '0', $result['collabora_disable_ssl'] );
-		$this->assertSame( '0', $result['collaborative_enabled'] );
 	}
 
 	/**

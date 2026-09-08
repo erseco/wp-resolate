@@ -26,9 +26,11 @@
 
 	// Expose the extraction helper to the unit tests. WordPress serves this
 	// file as a plain script, where `module` is undefined, so the browser
-	// never takes this branch and the handler below is always registered.
+	// never takes this branch.
 	if (typeof module !== 'undefined' && module.exports) {
 		module.exports = { extractPlainText: extractPlainText };
+	}
+	if (!$) {
 		return;
 	}
 
@@ -112,13 +114,6 @@
 
 		// Check wp_editor containers marked with data-required.
 		$('.documentate-rich-editor-wrap[data-required="true"]').each(function() {
-			if (getRichEditorText(this) === '') {
-				invalid.push(this);
-			}
-		});
-
-		// Check collaborative textareas marked with data-required.
-		$('textarea.documentate-collab-textarea[data-required="true"]').each(function() {
 			if (getRichEditorText(this) === '') {
 				invalid.push(this);
 			}

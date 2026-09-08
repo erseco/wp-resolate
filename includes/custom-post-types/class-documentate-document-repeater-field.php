@@ -451,51 +451,26 @@ class Documentate_Document_Repeater_Field {
 			$attributes['rows'] = 8;
 		}
 
-		// Check if collaborative editing is enabled.
-		$is_collaborative = Documentate_Document_Scalar_Field::is_collaborative_editing_enabled();
 		Documentate_Document_Field_Help::render_before_description( $help['before'] );
 
-		if ( $is_collaborative ) {
-			// Render TipTap collaborative editor container for array fields.
-			$classes = trim(
-				Documentate_Document_Scalar_Field::build_input_class( 'textarea' )
-				. ' documentate-array-rich documentate-collab-textarea'
-				. ( $is_template ? ' documentate-array-rich-template' : '' ),
-			);
-			$attributes['class'] = $classes;
-			$attribute_string = Documentate_Document_Field_Help::format_field_attributes( $attributes );
-			echo '<div class="documentate-collab-container">';
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
-			echo '<textarea '
-					. $attribute_string // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					. ' id="'
-					. esc_attr( $field_id )
-					. '" name="'
-					. esc_attr( $field_name )
-					. '">'
-					. esc_textarea( $value )
-					. '</textarea>';
-			echo '</div>';
-		} else {
-			$classes = trim(
-				Documentate_Document_Scalar_Field::build_input_class( 'textarea' )
-				. ' documentate-array-rich'
-				. ( $is_template ? ' documentate-array-rich-template' : '' ),
-			);
-			$attributes['class'] = $classes;
-			$attributes['data-editor-initialized'] = 'false';
-			$attribute_string = Documentate_Document_Field_Help::format_field_attributes( $attributes );
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
-			echo '<textarea '
-					. $attribute_string // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					. ' id="'
-					. esc_attr( $field_id )
-					. '" name="'
-					. esc_attr( $field_name )
-					. '">'
-					. esc_textarea( $value )
-					. '</textarea>';
-		}
+		$classes = trim(
+			Documentate_Document_Scalar_Field::build_input_class( 'textarea' )
+			. ' documentate-array-rich'
+			. ( $is_template ? ' documentate-array-rich-template' : '' ),
+		);
+		$attributes['class'] = $classes;
+		$attributes['data-editor-initialized'] = 'false';
+		$attribute_string = Documentate_Document_Field_Help::format_field_attributes( $attributes );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes escaped in format_field_attributes().
+		echo '<textarea '
+				. $attribute_string // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				. ' id="'
+				. esc_attr( $field_id )
+				. '" name="'
+				. esc_attr( $field_name )
+				. '">'
+				. esc_textarea( $value )
+				. '</textarea>';
 
 		Documentate_Document_Field_Help::render_help_descriptions( $help );
 	}

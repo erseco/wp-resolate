@@ -38,8 +38,6 @@
 			'#documentate_doc_type_selector input',
 			'#documentate_doc_type_selector select',
 			'[name^="documentate_field"]',
-			'.tiptap-editor',
-			'.ProseMirror',
 			// Meta boxes.
 			'#postcustom input',
 			'#postcustom textarea',
@@ -234,11 +232,6 @@
 					// Handle different element types.
 					if ($el.is('input, textarea, select')) {
 						$el.prop('disabled', true).addClass(
-							'documentate-locked'
-						);
-					} else if ($el.hasClass('ProseMirror')) {
-						// TipTap/ProseMirror editor.
-						$el.attr('contenteditable', 'false').addClass(
 							'documentate-locked'
 						);
 					} else {

@@ -572,34 +572,6 @@ class DocumentateDocumentsTest extends Documentate_Test_Base {
 	}
 
 	/**
-	 * Test is_collaborative_editing_enabled on the meta handler.
-	 */
-	public function test_is_collaborative_editing_enabled_false() {
-		delete_option( 'documentate_settings' );
-
-		$method = new ReflectionMethod( 'Documentate_Document_Scalar_Field', 'is_collaborative_editing_enabled' );
-		$method->setAccessible( true );
-
-		$result = $method->invoke( null );
-
-		$this->assertFalse( $result );
-	}
-
-	/**
-	 * Test is_collaborative_editing_enabled true.
-	 */
-	public function test_is_collaborative_editing_enabled_true() {
-		update_option( 'documentate_settings', array( 'collaborative_enabled' => '1' ) );
-
-		$method = new ReflectionMethod( 'Documentate_Document_Scalar_Field', 'is_collaborative_editing_enabled' );
-		$method->setAccessible( true );
-
-		$result = $method->invoke( null );
-
-		$this->assertTrue( $result );
-	}
-
-	/**
 	 * Test get_meta_fields_for_post on the meta handler.
 	 */
 	public function test_get_meta_fields_for_post_empty() {
@@ -2850,18 +2822,6 @@ HTML;
 	}
 
 	/**
-	 * Test is_collaborative_editing_enabled on the meta handler.
-	 */
-	public function test_is_collaborative_editing_enabled() {
-		$method = new ReflectionMethod( 'Documentate_Document_Scalar_Field', 'is_collaborative_editing_enabled' );
-		$method->setAccessible( true );
-
-		$result = $method->invoke( null );
-
-		$this->assertIsBool( $result );
-	}
-
-	/**
 	 * Test render_sections_metabox with field containing description.
 	 */
 	public function test_render_sections_metabox_field_with_description() {
@@ -3218,4 +3178,36 @@ HTML;
 
 		$this->assertStringContainsString( '<style', $output );
 	}
+	/** The classic rich editor retains required fields, accessible help and readonly mode. */
+	public function test_classic_rich_editor_preserves_validation_and_readonly_mode() {
+		$received = array();
+		$observer = static function ( $settings ) use ( &$received ) {
+			$received = $settings;
+			return $settings;
+		};
+		add_filter( 'tiny_mce_before_init', $observer );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		add_filter( 'user_can_richedit', '__return_true' );
+		ob_start();
+		try {
+			Documentate_Document_Scalar_Field::render_rich_editor_control(
+				'documentate_test_rich_lock',
+				'<p>Texto original</p>',
+				true,
+				array( 'parameters' => array( 'required' => true ) ),
+				array( 'help-before', 'help-after' ),
+				'Completa el texto "oficial".'
+			);
+		} finally {
+			$html = ob_get_clean();
+			remove_filter( 'user_can_richedit', '__return_true' );
+			remove_filter( 'tiny_mce_before_init', $observer );
+		}
+		$this->assertStringContainsString( 'class="documentate-rich-editor-wrap" data-required="true"', $html );
+		$this->assertStringContainsString( 'aria-describedby="help-before help-after"', $html );
+		$this->assertStringContainsString( 'data-validation-message="Completa el texto &quot;oficial&quot;."', $html );
+		$this->assertStringContainsString( '&lt;p&gt;Texto original&lt;/p&gt;', $html );
+		$this->assertSame( 1, $received['readonly'] );
+	}
+
 }

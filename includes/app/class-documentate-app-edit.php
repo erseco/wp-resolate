@@ -91,6 +91,12 @@ class Documentate_App_Edit {
 			$type_name . ' · completa los datos y guarda; envíalo cuando esté listo.'
 		);
 
+		$owner = Documentate_App_Lock::owner( $post->ID );
+		$html .= Documentate_App_Lock::render( $post, (int) $owner );
+		if ( $owner ) {
+			return $html . Documentate_App_Shell::close();
+		}
+
 		$html .= self::render_notices();
 		$html .= self::render_banner( $post );
 

@@ -37,6 +37,8 @@ module.exports = {
 	coverageDirectory: 'artifacts/coverage-js',
 	coverageReporters: [ 'lcov', 'text-summary' ],
 	coverageThreshold: {
+		'./public/js/documentate-app-lock.js': { lines: 90 },
+		'./admin/js/documentate-admin.js': { lines: 90 },
 		'./public/js/documentate-app.js': { lines: 88 },
 		'./admin/js/documentate-calculations.js': { lines: 90 },
 		'./admin/js/documentate-workflow.js': { lines: 84 },

@@ -199,10 +199,8 @@ engine needs no picker.
 Both validators go entirely. Also drop the four label entries in the
 settings-labels array (lines 81-84) and the `validate_collabora_settings()` call
 in the main `validate()` chain (line 296). Keep `validate_autofirma_settings()`
-and `validate_collaborative_settings()`.
-
-**Do not touch `collaborative_enabled` or `collaborative_signaling`.** Those are
-the Yjs real-time editor and are unrelated despite the similar name.
+(the unfinished collaborative editor was removed separately; see
+[ADR 0002](adr/0002-native-document-edit-locks.md)).
 
 Leave the stored option keys alone in the database. There is no migration to
 write: unknown keys in `documentate_settings` are simply ignored once nothing
@@ -443,14 +441,7 @@ grep -rn -i "collabora\|wasm\|convert-to" . \
 
 Afterwards this should return **only** the following, all unrelated:
 
-1. **`collaborative_*`** — the Yjs real-time editor: the `collaborative_enabled`
-   and `collaborative_signaling` settings, `admin/js/documentate-collaborative-editor.js`,
-   `admin/css/documentate-collaborative-editor.css`. Similar name, different
-   feature. Never remove these.
-2. **The English words "collaborator" and "collaboration"** — a test helper
-   docblock repeated in `tests/unit/includes/custom-post-types/` and a comment at
-   `admin/class-documentate-admin.php:435` about Yjs handling collaboration.
-3. **`--convert-to`** at `tests/fixtures/templates/generate-templates.php:231` —
+- **`--convert-to`** at `tests/fixtures/templates/generate-templates.php:231` —
    a LibreOffice **command line** used to build test fixtures offline. It is not
    Collabora and not the WASM converter. Leave it.
 
