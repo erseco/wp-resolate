@@ -62,7 +62,7 @@ class Documentate_Pdf_Generator {
 		if ( null === Documentate_Document_Generator::get_document_type_id( $post_id ) ) {
 			return new WP_Error(
 				'documentate_pdf_no_type',
-				__( 'The document has no document type.', 'documentate' )
+				'El documento no tiene tipo de documento.'
 			);
 		}
 
@@ -130,7 +130,7 @@ class Documentate_Pdf_Generator {
 					$tmp,
 					new WP_Error(
 						'documentate_pdf_write_failed',
-						__( 'The generated PDF could not be saved.', 'documentate' )
+						'No se ha podido guardar el PDF generado.'
 					)
 				);
 			}

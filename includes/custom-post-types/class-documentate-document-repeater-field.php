@@ -74,7 +74,9 @@ class Documentate_Document_Repeater_Field {
 		$label = sanitize_text_field( $label );
 		$field_id = 'documentate-array-' . $slug;
 		$items = is_array( $items ) ? $items : array();
-		$item_schema = is_array( $item_schema ) ? $item_schema : array();
+		// Columns gestión documental owns are not drawn for the área, exactly
+		// like the top-level fields of the sections metabox.
+		$item_schema = Documentate_Field_Roles::filter_item_schema( is_array( $item_schema ) ? $item_schema : array() );
 		$raw_fields = isset( $raw_repeater['fields'] ) && is_array( $raw_repeater['fields'] )
 			? $raw_repeater['fields']
 			: array();
@@ -89,7 +91,7 @@ class Documentate_Document_Repeater_Field {
 		echo '<button type="button" class="button button-secondary documentate-array-add" data-array-target="'
 				. esc_attr( $slug )
 				. '">'
-				. esc_html__( 'Add item', 'documentate' )
+				. esc_html( 'Añadir elemento' )
 				. '</button>';
 		echo '</div>';
 
@@ -159,12 +161,12 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a single repeatable array item row.
 	 *
-	 * @param string $slug         Field slug.
-	 * @param string $index        Item index.
-	 * @param array  $item_schema  Item schema definition.
-	 * @param array  $values       Current values.
-	 * @param bool   $is_template  Whether the row is a template placeholder.
-	 * @param array  $raw_fields   Raw schema definitions for the repeater items.
+	 * @param string $slug        Field slug.
+	 * @param string $index       Item index.
+	 * @param array  $item_schema Item schema definition.
+	 * @param array  $values      Current values.
+	 * @param bool   $is_template Whether the row is a template placeholder.
+	 * @param array  $raw_fields  Raw schema definitions for the repeater items.
 	 * @return void
 	 */
 	private static function render_array_field_item(
@@ -186,10 +188,10 @@ class Documentate_Document_Repeater_Field {
 				. '" draggable="true" style="border:1px solid #e5e5e5;padding:16px;margin-bottom:12px;background:#fff;">';
 		echo '<div class="documentate-array-item-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">';
 		echo '<span class="documentate-array-handle" role="button" tabindex="0" aria-label="'
-				. esc_attr__( 'Move item', 'documentate' )
+				. esc_attr( 'Mover elemento' )
 				. '" style="cursor:move;user-select:none;">≡</span>';
 		echo '<button type="button" class="button-link-delete documentate-array-remove">'
-				. esc_html__( 'Delete', 'documentate' )
+				. esc_html( 'Eliminar' )
 				. '</button>';
 		echo '</div>';
 
@@ -261,7 +263,7 @@ class Documentate_Document_Repeater_Field {
 		echo '<div class="documentate-subarray-heading" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">';
 		echo '<span style="font-weight:600;">' . esc_html( $label ) . '</span>';
 		echo '<button type="button" class="button button-secondary documentate-subarray-add">'
-				. esc_html__( 'Add item', 'documentate' )
+				. esc_html( 'Añadir elemento' )
 				. '</button>';
 		echo '</div>';
 
@@ -294,7 +296,7 @@ class Documentate_Document_Repeater_Field {
 				. '" style="border:1px solid #e5e5e5;padding:12px;margin-bottom:8px;background:#fff;">';
 		echo '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">';
 		echo '<button type="button" class="button-link-delete documentate-subarray-remove">'
-				. esc_html__( 'Delete', 'documentate' )
+				. esc_html( 'Eliminar' )
 				. '</button>';
 		echo '</div>';
 
@@ -405,12 +407,12 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a rich text control for one repeater field.
 	 *
-	 * @param string $item_key     Key of the field inside the repeater row.
-	 * @param string $field_name   Submitted input name.
-	 * @param string $field_id     DOM id shared by the control and its descriptions.
-	 * @param array  $raw_field    Raw schema definition for the field.
-	 * @param string $value        Current value.
-	 * @param bool   $is_template  Whether this is the hidden row the JS clones,
+	 * @param string $item_key    Key of the field inside the repeater row.
+	 * @param string $field_name  Submitted input name.
+	 * @param string $field_id    DOM id shared by the control and its descriptions.
+	 * @param array  $raw_field   Raw schema definition for the field.
+	 * @param string $value       Current value.
+	 * @param bool   $is_template Whether this is the hidden row the JS clones,
 	 *                             which must carry the template marker class.
 	 * @return void
 	 */
@@ -475,13 +477,13 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a single-line control for one repeater field.
 	 *
-	 * @param string $item_key     Key of the field inside the repeater row.
-	 * @param string $field_name   Submitted input name.
-	 * @param string $field_id     DOM id shared by the control and its descriptions.
-	 * @param string $label        Visible label, reused by the screen-reader text.
-	 * @param array  $raw_field    Raw schema definition for the field.
-	 * @param string $value        Current value.
-	 * @param array  $definition   Item schema entry, read for its data_type hint.
+	 * @param string $item_key   Key of the field inside the repeater row.
+	 * @param string $field_name Submitted input name.
+	 * @param string $field_id   DOM id shared by the control and its descriptions.
+	 * @param string $label      Visible label, reused by the screen-reader text.
+	 * @param array  $raw_field  Raw schema definition for the field.
+	 * @param string $value      Current value.
+	 * @param array  $definition Item schema entry, read for its data_type hint.
 	 * @return void
 	 */
 	private static function render_array_item_single( $item_key, $field_name, $field_id, $label, $raw_field, $value, $definition ) {
@@ -506,7 +508,7 @@ class Documentate_Document_Repeater_Field {
 			if ( '' !== $placeholder ) {
 				echo '<option value="">' . esc_html( $placeholder ) . '</option>';
 			} elseif ( empty( $attributes['required'] ) ) {
-				echo '<option value="">' . esc_html__( 'Select an option…', 'documentate' ) . '</option>';
+				echo '<option value="">' . esc_html( 'Selecciona una opción…' ) . '</option>';
 			}
 			foreach ( $options as $option_value => $option_label ) {
 				echo '<option value="'
@@ -552,11 +554,11 @@ class Documentate_Document_Repeater_Field {
 	/**
 	 * Render a textarea control for one repeater field.
 	 *
-	 * @param string $item_key     Key of the field inside the repeater row.
-	 * @param string $field_name   Submitted input name.
-	 * @param string $field_id     DOM id shared by the control and its descriptions.
-	 * @param array  $raw_field    Raw schema definition for the field.
-	 * @param string $value        Current value.
+	 * @param string $item_key   Key of the field inside the repeater row.
+	 * @param string $field_name Submitted input name.
+	 * @param string $field_id   DOM id shared by the control and its descriptions.
+	 * @param array  $raw_field  Raw schema definition for the field.
+	 * @param string $value      Current value.
 	 * @return void
 	 */
 	private static function render_array_item_textarea( $item_key, $field_name, $field_id, $raw_field, $value ) {

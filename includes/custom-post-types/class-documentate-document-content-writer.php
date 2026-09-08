@@ -20,6 +20,17 @@ use Documentate\Documents\Documents_Meta_Handler;
 class Documentate_Document_Content_Writer {
 
 	/**
+	 * Sanitizers by control type; any other type is sanitized as a textarea.
+	 *
+	 * @var array<string,callable>
+	 */
+	private static $sanitizer_map = array(
+		'single' => 'sanitize_text_field',
+		'rich' => array( __CLASS__, 'sanitize_rich_text_value' ),
+		'textarea' => 'sanitize_textarea_field',
+	);
+
+	/**
 	 * Encode repeater rows for storage.
 	 *
 	 * Uses the JSON_HEX flags so quotes and other special characters become
@@ -43,24 +54,28 @@ class Documentate_Document_Content_Writer {
 	/**
 	 * Sanitize posted array field items against the schema definition.
 	 *
-	 * @param array $items      Raw submitted items.
-	 * @param array $definition Schema definition for the field.
+	 * @param array $items        Raw submitted items.
+	 * @param array $definition   Schema definition for the field.
+	 * @param array $stored_items Rows already stored, paired by index, so the
+	 *                            columns the current user may not write keep
+	 *                            their value instead of being blanked.
 	 * @return array<int, array<string, string>>
 	 */
-	public static function sanitize_array_field_items( $items, $definition ) {
+	public static function sanitize_array_field_items( $items, $definition, $stored_items = array() ) {
 		if ( ! is_array( $items ) ) {
 			return array();
 		}
 
 		$schema = Documents_Meta_Handler::normalize_array_item_schema( $definition );
+		$stored_items = is_array( $stored_items ) ? $stored_items : array();
 		$clean = array();
 
-		foreach ( $items as $item ) {
+		foreach ( $items as $key => $item ) {
 			if ( ! is_array( $item ) ) {
 				continue;
 			}
 
-			$filtered = self::sanitize_array_item( $item, $schema );
+			$filtered = self::sanitize_array_item( $item, $schema, Documentate_Document_Save_Context::item_at( $stored_items, $key ) );
 
 			if ( self::array_item_has_content( $filtered, $schema ) ) {
 				$clean[] = $filtered;
@@ -74,28 +89,33 @@ class Documentate_Document_Content_Writer {
 	 *
 	 * Uses lookup array instead of switch for reduced complexity.
 	 *
+	 * The "single" type is deliberately single-line: sanitize_text_field()
+	 * collapses newlines into spaces, because a single-line control cannot
+	 * carry them. The meta saver and this writer must agree on that, so both
+	 * store the same value for the same submitted field.
+	 *
 	 * @param string $raw_value Raw value to sanitize.
 	 * @param string $type      Field type (single, rich, or default to textarea).
 	 * @return string Sanitized value.
 	 */
 	public static function sanitize_field_by_type( $raw_value, $type ) {
 		$raw_value = is_scalar( $raw_value ) ? (string) $raw_value : '';
+		$sanitizer = isset( self::$sanitizer_map[ $type ] ) ? self::$sanitizer_map[ $type ] : 'sanitize_textarea_field';
 
-		if ( isset( self::$sanitizer_map[ $type ] ) ) {
-			return call_user_func( self::$sanitizer_map[ $type ], $raw_value );
-		}
-
-		if ( 'rich' === $type ) {
-			return self::sanitize_rich_text_value( $raw_value );
-		}
-
-		return sanitize_textarea_field( $raw_value );
+		return call_user_func( $sanitizer, $raw_value );
 	}
 	/**
-	 * Sanitize rich text content by stripping dangerous elements only.
+	 * Sanitize rich text content the way core treats post_content.
 	 *
-	 * Only removes security-critical elements (script, style, iframe).
-	 * Full sanitization and cleanup is deferred to document generation time.
+	 * The dangerous containers (script, style, iframe) are removed with their
+	 * content, and then everything an author writes goes through
+	 * wp_kses_post(), which is what drops the event attributes and the
+	 * javascript: hrefs a tag-stripping pass leaves behind. This matters here
+	 * because the value travels: the área writes it, gestión documental and
+	 * administración open the same value later in wp_editor(), inside a
+	 * same-origin iframe of a session that can manage_options. Only a user
+	 * with unfiltered_html keeps their markup untouched, exactly as for a
+	 * normal post. The generation-time wp_kses_post() stays where it is.
 	 *
 	 * @param string $value Raw submitted value.
 	 * @return string
@@ -118,8 +138,9 @@ class Documentate_Document_Content_Writer {
 		);
 
 		$clean = preg_replace( $patterns, '', $value );
+		$clean = null === $clean ? $value : $clean;
 
-		return null === $clean ? $value : $clean;
+		return current_user_can( 'unfiltered_html' ) ? $clean : wp_kses_post( $clean );
 	}
 	/**
 	 * Whether a sanitized repeater row carries any visible value.
@@ -186,29 +207,6 @@ class Documentate_Document_Content_Writer {
 		return Documents_Meta_Handler::build_structured_field_fragment( $slug, $type, $value );
 	}
 	/**
-	 * Collect existing structured content from post.
-	 *
-	 * @param array<string,mixed> $postarr  Post array.
-	 * @param int                 $post_id  Post ID.
-	 * @return array<string,array{value:string,type:string}>
-	 */
-	private static function collect_existing_structured_content( $postarr, $post_id ) {
-		$existing_structured = array();
-		if ( isset( $postarr['post_content'] ) && '' !== $postarr['post_content'] ) {
-			$existing_structured = Documents_Meta_Handler::parse_structured_content( (string) $postarr['post_content'] );
-		}
-		if ( empty( $existing_structured ) && $post_id > 0 ) {
-			$current_content = get_post_field( 'post_content', $post_id, 'edit' );
-			if ( is_string( $current_content ) && '' !== $current_content ) {
-				$existing_structured = Documents_Meta_Handler::parse_structured_content( $current_content );
-			}
-			if ( empty( $existing_structured ) ) {
-				$existing_structured = Documents_Meta_Handler::get_structured_field_values( $post_id );
-			}
-		}
-		return $existing_structured;
-	}
-	/**
 	 * Build the entry for a repeater field.
 	 *
 	 * Submitted rows win; otherwise the rows already stored are carried over, so
@@ -221,15 +219,12 @@ class Documentate_Document_Content_Writer {
 	 * @return array{type:string,value:string}
 	 */
 	private static function compose_array_field( $slug, $row, array $existing_structured, array $posted_array_fields ) {
-		$items = array();
+		$items = isset( $existing_structured[ $slug ]['type'] ) && 'array' === $existing_structured[ $slug ]['type']
+			? Documents_Meta_Handler::get_array_field_items_from_structured( $existing_structured[ $slug ] )
+			: array();
 
 		if ( isset( $posted_array_fields[ $slug ] ) && is_array( $posted_array_fields[ $slug ] ) ) {
-			$items = self::sanitize_array_field_items( $posted_array_fields[ $slug ], $row );
-		} elseif (
-			isset( $existing_structured[ $slug ]['type'] )
-			&& 'array' === $existing_structured[ $slug ]['type']
-		) {
-			$items = Documents_Meta_Handler::get_array_field_items_from_structured( $existing_structured[ $slug ] );
+			$items = self::sanitize_array_field_items( $posted_array_fields[ $slug ], $row, $items );
 		}
 
 		// Encoded with the same flags as the meta copy, so both representations
@@ -248,11 +243,13 @@ class Documentate_Document_Content_Writer {
 	 * A posted value still wins, so editing a field that survived a document
 	 * type change is not discarded.
 	 *
-	 * @param array $existing_structured Values already stored in post_content.
+	 * @param array $existing_structured Values the request starts from.
 	 * @param array $known_slugs         Slugs the schema already handled.
+	 * @param array $hidden_slugs        Slugs the current user may not write.
+	 * @param array $stored              Values as the database holds them.
 	 * @return array<string,array{type:string,value:string}>
 	 */
-	private static function compose_carried_over_fields( array $existing_structured, array $known_slugs ) {
+	private static function compose_carried_over_fields( array $existing_structured, array $known_slugs, array $hidden_slugs, array $stored ) {
 		$fields = array();
 
 		foreach ( $existing_structured as $slug => $info ) {
@@ -261,42 +258,53 @@ class Documentate_Document_Content_Writer {
 				continue;
 			}
 
-			$meta_key = 'documentate_field_' . $slug;
-
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			if ( isset( $_POST[ $meta_key ] ) ) {
-				// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized below.
-				$val = wp_unslash( $_POST[ $meta_key ] );
-				$val = is_scalar( $val ) ? (string) $val : '';
-
-				$fields[ $slug ] = array(
-					'type' => 'rich',
-					'value' => self::sanitize_rich_text_value( $val ),
-				);
+			// A field another document type declares for gestión documental
+			// never takes its value from the request, whoever sent it.
+			if ( isset( $hidden_slugs[ $slug ] ) ) {
+				if ( isset( $stored[ $slug ] ) ) {
+					$fields[ $slug ] = Documentate_Document_Save_Context::entry( $stored[ $slug ] );
+				}
 				continue;
 			}
 
-			$type = isset( $info['type'] ) ? sanitize_key( $info['type'] ) : 'rich';
-			if ( ! in_array( $type, array( 'single', 'textarea', 'rich' ), true ) ) {
-				$type = 'rich';
-			}
-
-			$fields[ $slug ] = array(
-				'type' => $type,
-				'value' => (string) $info['value'],
-			);
+			$posted = self::posted_carried_over_entry( $slug );
+			$fields[ $slug ] = null !== $posted ? $posted : Documentate_Document_Save_Context::entry( $info );
 		}
 
 		return $fields;
+	}
+	/**
+	 * Entry for a carried-over value the request edits, or null when absent.
+	 *
+	 * @param string $slug Field slug.
+	 * @return array{type:string,value:string}|null
+	 */
+	private static function posted_carried_over_entry( $slug ) {
+		$meta_key = 'documentate_field_' . $slug;
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( ! isset( $_POST[ $meta_key ] ) ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized below.
+		$val = wp_unslash( $_POST[ $meta_key ] );
+		$val = is_scalar( $val ) ? (string) $val : '';
+
+		return array(
+			'type' => 'rich',
+			'value' => self::sanitize_rich_text_value( $val ),
+		);
 	}
 	/**
 	 * Add posted field values that neither the schema nor the stored content knew.
 	 *
 	 * @param array $structured_fields Entries the schema produced.
 	 * @param array $unknown_fields    Entries carried over so far.
+	 * @param array $hidden_slugs      Slugs the current user may not write.
 	 * @return array<string,array{type:string,value:string}>
 	 */
-	private static function compose_posted_fields( array $structured_fields, array $unknown_fields ) {
+	private static function compose_posted_fields( array $structured_fields, array $unknown_fields, array $hidden_slugs ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		foreach ( $_POST as $key => $value ) {
 			if ( ! is_string( $key ) || ! str_starts_with( $key, 'documentate_field_' ) ) {
@@ -305,6 +313,9 @@ class Documentate_Document_Content_Writer {
 
 			$slug = sanitize_key( substr( $key, strlen( 'documentate_field_' ) ) );
 			if ( '' === $slug || isset( $structured_fields[ $slug ] ) || isset( $unknown_fields[ $slug ] ) ) {
+				continue;
+			}
+			if ( isset( $hidden_slugs[ $slug ] ) ) {
 				continue;
 			}
 			if ( is_array( $value ) ) {
@@ -325,12 +336,16 @@ class Documentate_Document_Content_Writer {
 	/**
 	 * Build the field entries declared by the document type schema.
 	 *
-	 * @param array $schema              Schema rows.
-	 * @param array $existing_structured Values already stored in post_content.
-	 * @param array $known_slugs         Filled with the slugs the schema owns.
+	 * A field the current user cannot see (rol = gestion for an área user) is
+	 * treated as not posted: whatever the request carries for it is ignored
+	 * and the stored value is kept.
+	 *
+	 * @param array $schema      Schema rows.
+	 * @param array $existing    Request and stored values, from Documentate_Document_Save_Context::existing_values().
+	 * @param array $known_slugs Filled with the slugs the schema owns.
 	 * @return array<string,array{type:string,value:string}>
 	 */
-	private static function compose_schema_fields( $schema, array $existing_structured, array &$known_slugs ) {
+	private static function compose_schema_fields( $schema, array $existing, array &$known_slugs ) {
 		$posted_array_fields = self::read_posted_array_fields();
 		$fields = array();
 
@@ -342,9 +357,14 @@ class Documentate_Document_Content_Writer {
 
 			$type = isset( $row['type'] ) ? sanitize_key( $row['type'] ) : 'textarea';
 			$known_slugs[ $slug ] = true;
+			$visible = Documentate_Field_Roles::can_view( (array) $row );
+
+			// A field the user cannot write keeps the value the database
+			// holds, never the one the request happens to carry.
+			$previous = $visible ? $existing['request'] : $existing['stored'];
 
 			if ( 'array' === $type ) {
-				$fields[ $slug ] = self::compose_array_field( $slug, $row, $existing_structured, $posted_array_fields );
+				$fields[ $slug ] = self::compose_array_field( $slug, $row, $previous, $visible ? $posted_array_fields : array() );
 				continue;
 			}
 
@@ -356,7 +376,8 @@ class Documentate_Document_Content_Writer {
 				$slug,
 				$type,
 				'documentate_field_' . $slug,
-				$existing_structured
+				$previous,
+				$visible
 			);
 		}
 
@@ -382,46 +403,28 @@ class Documentate_Document_Content_Writer {
 		// Preserve post dates for existing posts.
 		$data = self::preserve_document_dates( $data, $post_id );
 
-		$term_id = self::get_term_id_from_request_or_post( $post_id );
+		$term_id = Documentate_Document_Save_Context::term_id( $post_id );
 		$schema = $term_id > 0 ? Documents_Meta_Handler::get_term_schema( $term_id ) : array();
 
-		$existing_structured = self::collect_existing_structured_content( $postarr, $post_id );
+		$existing = Documentate_Document_Save_Context::existing_values( $postarr, $post_id );
 
 		$known_slugs = array();
-		$structured_fields = self::compose_schema_fields( $schema, $existing_structured, $known_slugs );
+		$structured_fields = self::compose_schema_fields( $schema, $existing, $known_slugs );
+		$hidden_slugs = Documentate_Document_Save_Context::hidden_slugs( $schema );
 
 		// Values the schema no longer declares, then anything else posted.
-		$unknown_fields = self::compose_carried_over_fields( $existing_structured, $known_slugs );
-		$unknown_fields = self::compose_posted_fields( $structured_fields, $unknown_fields );
+		$unknown_fields = self::compose_carried_over_fields( $existing['request'], $known_slugs, $hidden_slugs, $existing['stored'] );
+		$unknown_fields = self::compose_posted_fields( $structured_fields, $unknown_fields, $hidden_slugs );
 
 		$data['post_content'] = self::build_structured_content( $structured_fields, $unknown_fields );
 
 		return $data;
 	}
 	/**
-	 * Get term ID from request or existing post.
-	 *
-	 * @param int $post_id Post ID.
-	 * @return int
-	 */
-	private static function get_term_id_from_request_or_post( $post_id ) {
-		$term_id = 0;
-		if ( isset( $_POST['documentate_doc_type'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-			$term_id = max( 0, intval( wp_unslash( $_POST['documentate_doc_type'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
-		}
-		if ( $term_id <= 0 && $post_id > 0 ) {
-			$assigned = wp_get_post_terms( $post_id, 'documentate_doc_type', array( 'fields' => 'ids' ) );
-			if ( ! is_wp_error( $assigned ) && ! empty( $assigned ) ) {
-				$term_id = intval( $assigned[0] );
-			}
-		}
-		return $term_id;
-	}
-	/**
 	 * Preserve post dates for existing documents.
 	 *
-	 * @param array<string,mixed> $data      Post data array.
-	 * @param int                 $post_id   Post ID.
+	 * @param array<string,mixed> $data    Post data array.
+	 * @param int                 $post_id Post ID.
 	 * @return array<string,mixed>
 	 */
 	private static function preserve_document_dates( $data, $post_id ) {
@@ -446,12 +449,14 @@ class Documentate_Document_Content_Writer {
 	 * @param string              $type     Field type.
 	 * @param string              $meta_key Meta key.
 	 * @param array<string,array> $existing Existing structured fields.
+	 * @param bool                $posted   Whether the request may carry the field;
+	 *                                      false keeps the stored value.
 	 * @return array{type:string,value:string}
 	 */
-	private static function process_posted_field_value( $slug, $type, $meta_key, $existing ) {
+	private static function process_posted_field_value( $slug, $type, $meta_key, $existing, $posted = true ) {
 		$value = '';
 
-		if ( isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( $posted && isset( $_POST[ $meta_key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			$raw_input = wp_unslash( $_POST[ $meta_key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			$raw_input = is_scalar( $raw_input ) ? (string) $raw_input : '';
 
@@ -459,13 +464,7 @@ class Documentate_Document_Content_Writer {
 				$type = 'rich';
 			}
 
-			if ( 'single' === $type ) {
-				$value = sanitize_text_field( $raw_input );
-			} elseif ( 'rich' === $type ) {
-				$value = self::sanitize_rich_text_value( $raw_input );
-			} else {
-				$value = sanitize_textarea_field( $raw_input );
-			}
+			$value = self::sanitize_field_by_type( $raw_input, $type );
 		} elseif ( isset( $existing[ $slug ] ) ) {
 			$value = (string) $existing[ $slug ]['value'];
 		}
@@ -492,21 +491,36 @@ class Documentate_Document_Content_Writer {
 	/**
 	 * Sanitize one repeater row against its item schema.
 	 *
+	 * A column the current user cannot see (rol = gestion for an área user)
+	 * keeps whatever the row already stored, whatever the request carries.
+	 *
 	 * @param array $item   Raw submitted row.
 	 * @param array $schema Normalized item schema.
+	 * @param array $stored Row already stored at the same index.
 	 * @return array<string,string>
 	 */
-	private static function sanitize_array_item( array $item, array $schema ) {
+	private static function sanitize_array_item( array $item, array $schema, array $stored = array() ) {
 		$filtered = array();
 
 		foreach ( $schema as $key => $settings ) {
-			$raw = isset( $item[ $key ] ) ? $item[ $key ] : '';
 			$type = isset( $settings['type'] ) ? $settings['type'] : 'textarea';
+			$previous = isset( $stored[ $key ] ) ? $stored[ $key ] : null;
+
+			if ( ! Documentate_Field_Roles::can_view( (array) $settings ) ) {
+				$filtered[ $key ] = Documentate_Document_Save_Context::column( $previous, $type );
+				continue;
+			}
+
+			$raw = isset( $item[ $key ] ) ? $item[ $key ] : '';
 
 			// Nested repeater rows (TBS sub-block) are sanitized against their
 			// own item schema instead of being cast to a string.
 			if ( 'array' === $type ) {
-				$filtered[ $key ] = self::sanitize_array_field_items( is_array( $raw ) ? $raw : array(), $settings );
+				$filtered[ $key ] = self::sanitize_array_field_items(
+					is_array( $raw ) ? $raw : array(),
+					$settings,
+					is_array( $previous ) ? $previous : array()
+				);
 				continue;
 			}
 

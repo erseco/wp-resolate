@@ -210,7 +210,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		$this->assertActionDisabled( $markup, 'download', 'docx' );
 
 		$this->assertStringContainsString( 'disabled', $markup );
-		$this->assertStringContainsString( 'Configure a DOCX or ODT template', $markup );
+		$this->assertStringContainsString( 'Configura una plantilla DOCX u ODT', $markup );
 	}
 
 	/**
@@ -256,7 +256,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 
 		$markup = $this->render_for_template( 'odt' );
 
-		$this->assertStringContainsString( 'Editable download:', $markup );
+		$this->assertStringContainsString( 'Descarga editable:', $markup );
 		$this->assertStringNotContainsString( 'Other download formats:', $markup );
 	}
 
@@ -269,7 +269,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 
 		$markup = $this->render_for_template( '' );
 
-		$this->assertStringNotContainsString( 'Editable download:', $markup );
+		$this->assertStringNotContainsString( 'Descarga editable:', $markup );
 		$this->assertStringNotContainsString( 'documentate-actions-secondary', $markup );
 	}
 
@@ -370,7 +370,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		$this->set_conversion( 'collabora', 'https://collabora.example.org' );
 
 		$this->assertStringContainsString(
-			'Configure a DOCX or ODT template',
+			'Configura una plantilla DOCX u ODT',
 			$this->invoke_private( 'build_pdf_message', array( '', '', true ) )
 		);
 
@@ -400,7 +400,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString(
-			'Configure a DOCX or ODT template',
+			'Configura una plantilla DOCX u ODT',
 			$this->invoke_private( 'build_pdf_message', array( '', '', false ) ),
 			'The native engine still needs a template to know what to draw.'
 		);
@@ -492,6 +492,6 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 
 		$this->assertStringNotContainsString( '<a ', $markup );
 		$this->assertStringNotContainsString( 'documentate-actions-primary', $markup );
-		$this->assertStringContainsString( 'Insufficient permissions.', $markup );
+		$this->assertStringContainsString( 'Permisos insuficientes.', $markup );
 	}
 }

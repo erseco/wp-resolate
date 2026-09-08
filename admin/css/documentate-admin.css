@@ -4,3 +4,106 @@
 	border: 2px solid #d63638;
 	border-radius: 4px;
 }
+
+/* Fields by role: the block gestión documental completes. */
+.documentate-seccion-rol {
+	margin: 24px 0 4px;
+	padding: 8px 12px;
+	border-left: 4px solid #2271b1;
+	background: #f0f6fc;
+	font-size: 14px;
+}
+
+.documentate-campo-gestion > th {
+	color: #1d4f7a;
+}
+
+.documentate-field-rol {
+	margin-left: 4px;
+	color: #1d4f7a;
+	font-size: 11px;
+	text-transform: uppercase;
+}
+
+/* Automatic totals (propuesta de gasto). */
+.documentate-resumen {
+	margin: 0 0 8px;
+	padding: 8px 12px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+}
+
+.documentate-resumen dl {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 2px 16px;
+	margin: 0;
+}
+
+.documentate-resumen dd {
+	margin: 0;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.documentate-resumen .documentate-resumen-total {
+	font-weight: 600;
+}
+
+.documentate-proveedor-resumen {
+	margin: -4px 0 12px;
+	color: #50575e;
+	font-size: 13px;
+}
+
+.documentate-sections input[data-calculado] {
+	background: #f6f7f7;
+}
+
+/* "Nombre interno" input under the title. */
+.documentate-nombre-interno {
+	margin: 8px 0 0;
+}
+
+.documentate-nombre-interno__grupo {
+	display: flex;
+	align-items: stretch;
+}
+
+.documentate-nombre-interno__prefijo {
+	display: flex;
+	align-items: center;
+	padding: 0 10px;
+	border: 1px solid #8c8f94;
+	border-right: none;
+	border-radius: 4px 0 0 4px;
+	background: #f0f0f1;
+	color: #50575e;
+	font-weight: 600;
+}
+
+.documentate-nombre-interno__grupo .documentate-nombre-interno__prefijo + input {
+	border-radius: 0 4px 4px 0;
+}
+
+/* Read-only activity list (side metabox). */
+.documentate-actividad-lista {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.documentate-actividad-lista__item {
+	padding: 6px 0;
+	border-top: 1px solid #f0f0f1;
+	font-size: 13px;
+}
+
+.documentate-actividad-lista__item:first-child {
+	border-top: none;
+}
+
+.documentate-actividad-lista__item--comentario {
+	background: #f6f7f7;
+}

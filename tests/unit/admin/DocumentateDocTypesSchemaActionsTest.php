@@ -139,7 +139,7 @@ class DocumentateDocTypesSchemaActionsTest extends WP_Ajax_UnitTestCase {
 		$response = $this->dispatch( 999999 );
 
 		$this->assertFalse( $response['success'] );
-		$this->assertStringContainsString( 'not found', $response['data']['message'] );
+		$this->assertStringContainsString( 'no encontrada', $response['data']['message'] );
 	}
 
 	/**
@@ -153,7 +153,7 @@ class DocumentateDocTypesSchemaActionsTest extends WP_Ajax_UnitTestCase {
 		$response = $this->dispatch( $attachment_id );
 
 		$this->assertFalse( $response['success'] );
-		$this->assertStringContainsString( 'Invalid template ID', $response['data']['message'] );
+		$this->assertStringContainsString( 'ID de plantilla no válido', $response['data']['message'] );
 	}
 
 	/**
@@ -188,6 +188,6 @@ class DocumentateDocTypesSchemaActionsTest extends WP_Ajax_UnitTestCase {
 		$response = $this->dispatch( $this->template_id );
 
 		$this->assertFalse( $response['success'] );
-		$this->assertStringContainsString( 'Insufficient permissions', $response['data']['message'] );
+		$this->assertStringContainsString( 'Permisos insuficientes', $response['data']['message'] );
 	}
 }

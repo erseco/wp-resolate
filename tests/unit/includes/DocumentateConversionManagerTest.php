@@ -128,7 +128,7 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 	public function test_get_engine_label_fpdf() {
 		$result = Documentate_Conversion_Manager::get_engine_label( 'fpdf' );
 
-		$this->assertStringContainsString( 'Native', $result );
+		$this->assertStringContainsString( 'nativo', $result );
 	}
 
 	/**
@@ -334,7 +334,7 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 		// Either it explains the browser flow, or it explains the assets are missing;
 		// both are valid depending on whether the WASM assets are installed.
 		$this->assertTrue(
-			false !== stripos( $message, 'browser' ) || false !== stripos( $message, 'assets' )
+			false !== stripos( $message, 'navegador' ) || false !== stripos( $message, 'recursos' )
 		);
 	}
 

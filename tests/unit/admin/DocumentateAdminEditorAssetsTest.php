@@ -121,6 +121,29 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 	}
 
 	/**
+	 * The front-end application renders the same rich text fields, so it gets
+	 * the same TinyMCE plugins and restrictions; other front-end pages do not.
+	 */
+	public function test_tinymce_wiring_applies_to_the_app_page() {
+		( new Documentate_App() )->ensure_page();
+		set_current_screen( 'front' );
+
+		$this->go_to( home_url( '/' ) );
+		$this->assertFalse( is_admin() );
+		$this->assertSame( array( 'existing' => 'keep.js' ), $this->admin->add_tinymce_table_plugin( array( 'existing' => 'keep.js' ) ) );
+		$this->assertSame( array( 'existing' => 'value' ), $this->admin->configure_tinymce_table_options( array( 'existing' => 'value' ) ) );
+
+		$this->go_to( Documentate_App_Shell::page_url() );
+		$plugins = $this->admin->add_tinymce_table_plugin( array( 'existing' => 'keep.js' ) );
+		$init = $this->admin->configure_tinymce_table_options( array( 'existing' => 'value' ) );
+
+		$this->assertArrayHasKey( 'table', $plugins );
+		$this->assertArrayHasKey( 'searchreplace', $plugins );
+		$this->assertTrue( $init['table_advtab'] );
+		$this->assertStringContainsString( 'script', $init['invalid_elements'] );
+	}
+
+	/**
 	 * The editor is locked down to the tags the ODT/DOCX renderer understands.
 	 */
 	public function test_tinymce_is_restricted_to_renderable_markup() {
@@ -132,6 +155,15 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 		$this->assertTrue( $init['table_advtab'] );
 		$this->assertTrue( $init['paste_remove_styles'] );
 		$this->assertStringContainsString( 'strong/b', $init['valid_elements'] );
+		// One list, not two: the filter runs after wp_editor() has passed the
+		// editor its own settings, so a second copy here would quietly win and
+		// TinyMCE would drop the table sections the editor had just accepted.
+		$config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
+		$this->assertSame( $config['valid_elements'], $init['valid_elements'] );
+		$this->assertSame( $config['invalid_elements'], $init['invalid_elements'] );
+		foreach ( array( 'thead', 'tbody', 'tfoot' ) as $section ) {
+			$this->assertStringContainsString( $section, $init['valid_elements'] );
+		}
 		$this->assertStringContainsString( 'script', $init['invalid_elements'] );
 		$this->assertStringNotContainsString( 'iframe|', $init['valid_elements'] );
 	}
@@ -424,7 +456,7 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 
 		$labels = $this->revision_field_labels();
 
-		$this->assertSame( __( 'Subject', 'documentate' ), $labels['asunto'] );
+		$this->assertSame( 'Asunto', $labels['asunto'] );
 	}
 
 	/**
@@ -510,7 +542,7 @@ class DocumentateAdminEditorAssetsTest extends Documentate_Test_Base {
 
 		$labels = $this->revision_field_labels();
 
-		$this->assertSame( __( 'Subject', 'documentate' ), $labels['asunto'] );
+		$this->assertSame( 'Asunto', $labels['asunto'] );
 	}
 
 	/**

@@ -31,6 +31,8 @@ class Documentate_Document_Meta_Saver {
 		// Handle type selection (lock after set).
 		$this->save_doc_type_selection( $post_id );
 
+		$this->save_internal_name( $post_id );
+		$this->save_notes( $post_id );
 		$this->save_dynamic_fields_meta( $post_id );
 
 		// post_content is composed in wp_insert_post_data filter; avoid recursion here.
@@ -125,6 +127,39 @@ class Documentate_Document_Meta_Saver {
 		}
 	}
 	/**
+	 * Persist the "Nombre interno" input rendered under the title.
+	 *
+	 * Reachable from can_save_meta_boxes() only, so a locked document (the
+	 * role-aware lock inside that gate) never has it overwritten either.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	private function save_internal_name( $post_id ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in can_save_meta_boxes().
+		if ( ! isset( $_POST['documentate_nombre_interno'] ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside save_internal_name().
+		Documentate_Document_Data::save_internal_name( $post_id, wp_unslash( $_POST['documentate_nombre_interno'] ) );
+	}
+	/**
+	 * Persist the "Anotaciones internas" textarea (gestión / administración only).
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	private function save_notes( $post_id ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in can_save_meta_boxes().
+		if ( ! isset( $_POST['documentate_anotaciones'] ) || ! Documentate_Roles::is_management() ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in can_save_meta_boxes(); sanitized inside save_notes().
+		Documentate_Document_Data::save_notes( $post_id, wp_unslash( $_POST['documentate_anotaciones'] ) );
+	}
+	/**
 	 * Persist dynamic field values posted from the sections metabox.
 	 *
 	 * @param int $post_id Post ID.
@@ -159,6 +194,10 @@ class Documentate_Document_Meta_Saver {
 	/**
 	 * Persist one field declared by the document type schema.
 	 *
+	 * A field the current user cannot see (rol = gestion for an área user) is
+	 * treated as not posted, so the stored value survives whatever the request
+	 * carries for it.
+	 *
 	 * @param int    $post_id             Post ID.
 	 * @param array  $definition          Schema field definition.
 	 * @param string $slug                Sanitized field slug.
@@ -168,13 +207,20 @@ class Documentate_Document_Meta_Saver {
 	 * @return void
 	 */
 	private function save_schema_field( $post_id, $definition, $slug, $meta_key, array $post_values, array $posted_array_fields ) {
+		if ( ! Documentate_Field_Roles::can_view( (array) $definition ) ) {
+			return;
+		}
+
 		$type = isset( $definition['type'] ) ? sanitize_key( $definition['type'] ) : 'textarea';
 
 		if ( 'array' === $type ) {
 			// Absent from the request means "not submitted", which must not
 			// clear rows the document already has.
 			if ( isset( $posted_array_fields[ $slug ] ) ) {
-				$items = Documentate_Document_Content_Writer::sanitize_array_field_items( $posted_array_fields[ $slug ], $definition );
+				// The stored rows are handed over so the columns gestión
+				// documental owns survive a save by the área.
+				$stored = Documents_Meta_Handler::decode_array_field_value( get_post_meta( $post_id, $meta_key, true ) );
+				$items = Documentate_Document_Content_Writer::sanitize_array_field_items( $posted_array_fields[ $slug ], $definition, $stored );
 				$this->write_or_delete_meta( $post_id, $meta_key, Documentate_Document_Content_Writer::encode_array_field_items( $items ) );
 			}
 			return;
@@ -198,7 +244,13 @@ class Documentate_Document_Meta_Saver {
 	 * Persist posted field values the current schema does not declare.
 	 *
 	 * Keeps values written by a previous document type, or by any type when the
-	 * schema cannot be resolved.
+	 * schema cannot be resolved — but never a slug that belongs to gestión
+	 * documental in some document type of the site. The current schema does
+	 * not declare these values by definition, so the rol guard of
+	 * save_schema_field() never sees them: without this an área could post
+	 * documentate_field_gasto_numero on a Convocatoria and have it stored,
+	 * which is exactly the invariant ("the área never writes gestión data")
+	 * the rest of the guard establishes.
 	 *
 	 * @param int   $post_id         Post ID.
 	 * @param array $post_values     Unslashed request body.
@@ -206,11 +258,23 @@ class Documentate_Document_Meta_Saver {
 	 * @return void
 	 */
 	private function save_unknown_field_meta( $post_id, array $post_values, array $known_meta_keys ) {
+		$hidden = null;
+
 		foreach ( $post_values as $key => $value ) {
 			if ( ! is_string( $key ) || ! str_starts_with( $key, 'documentate_field_' ) ) {
 				continue;
 			}
 			if ( isset( $known_meta_keys[ $key ] ) || is_array( $value ) ) {
+				continue;
+			}
+
+			// Looked up once, and only for a request that carries unknown
+			// fields at all: for gestión it is an empty list anyway.
+			if ( null === $hidden ) {
+				$hidden = Documentate_Document_Save_Context::management_slugs();
+			}
+
+			if ( isset( $hidden[ sanitize_key( substr( $key, strlen( 'documentate_field_' ) ) ) ] ) ) {
 				continue;
 			}
 

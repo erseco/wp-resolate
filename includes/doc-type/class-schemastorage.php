@@ -48,6 +48,8 @@ class SchemaStorage {
 		update_term_meta( $term_id, self::META_HASH_KEY, $hash );
 
 		update_term_meta( $term_id, self::META_UPDATED_KEY, current_time( 'mysql' ) );
+
+		self::forget_derived_answers( $term_id );
 	}
 
 	/**
@@ -61,6 +63,20 @@ class SchemaStorage {
 		delete_term_meta( $term_id, self::META_SUMMARY_KEY );
 		delete_term_meta( $term_id, self::META_HASH_KEY );
 		delete_term_meta( $term_id, self::META_UPDATED_KEY );
+
+		self::forget_derived_answers( $term_id );
+	}
+
+	/**
+	 * Drop what other classes memoised about this schema.
+	 *
+	 * @param int $term_id Term ID.
+	 * @return void
+	 */
+	private static function forget_derived_answers( $term_id ) {
+		if ( class_exists( '\\Documentate_Field_Roles' ) ) {
+			\Documentate_Field_Roles::forget_type( (int) $term_id );
+		}
 	}
 
 	/**

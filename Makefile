@@ -49,15 +49,12 @@ install-requirements:
 
 # ─── Docker (port 8989, requires Docker) ─────────────────────────────────────
 
-# The runtime translation files are generated rather than committed, and the
-# wp-env configs run WordPress in Spanish, so they have to exist before the
-# environment serves the plugin. Otherwise the site silently falls back to
-# English and any test or manual check that reads translated UI is misleading.
-start-docker-if-not-running: check-docker package-translations
+start-docker-if-not-running: check-docker
 	@if [ "$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$(DOCKER_PORT))" = "000" ]; then \
 		echo "Docker env is NOT running. Starting..."; \
 		$(WP_ENV) start $(DOCKER_CONFIG) --update; \
 		$(WP_CLI) plugin activate documentate; \
+		$(MAKE) --no-print-directory seed-demo; \
 		echo "Visit http://localhost:$(DOCKER_PORT)/wp-admin/ to access the Docker environment."; \
 	else \
 		echo "Docker env is already running on port $(DOCKER_PORT), skipping start."; \
@@ -81,8 +78,6 @@ clean: check-docker
 	$(WP_ENV) reset $(DOCKER_CONFIG) development
 	$(WP_ENV) reset $(DOCKER_CONFIG) tests
 	$(WP_CLI) plugin activate documentate
-	$(WP_CLI) language core install es_ES --activate
-	$(WP_CLI) site switch-language es_ES
 
 destroy:
 	$(WP_ENV) destroy
@@ -91,8 +86,15 @@ destroy:
 
 tests: test
 
+# The WP test bootstrap reinstalls the tests database: two PHPUnit runs at
+# once corrupt each other. Refuse to start while another run is alive.
+# Keep the guard on its own recipe line: joined to the command that names
+# ./vendor/bin/phpunit it would match its own shell under procps pgrep (Linux).
+PHPUNIT_GUARD = if pgrep -f 'vendor/bin/[p]hpunit' >/dev/null 2>&1; then echo 'PHPUnit ya está en ejecución'; exit 1; fi
+
 # Run unit tests with PHPUnit. Use FILE or FILTER (or both).
 test: start-docker-if-not-running
+	@$(PHPUNIT_GUARD)
 	@CMD="./vendor/bin/phpunit"; \
 	if [ -n "$(FILE)" ]; then CMD="$$CMD $(FILE)"; fi; \
 	if [ -n "$(FILTER)" ]; then CMD="$$CMD --filter $(FILTER)"; fi; \
@@ -114,6 +116,7 @@ test-verbose: start-docker-if-not-running
 #   wp-env start --config=.wp-env.docker.json --xdebug=coverage
 # If coverage shows 0%, restart wp-env with the --xdebug=coverage flag.
 test-coverage: start-docker-if-not-running
+	@$(PHPUNIT_GUARD)
 	@mkdir -p artifacts/coverage
 	@CMD="env XDEBUG_MODE=coverage ./vendor/bin/phpunit --colors=always --coverage-text=artifacts/coverage/coverage.txt --coverage-html artifacts/coverage/html --coverage-clover artifacts/coverage/clover.xml"; \
 	if [ -n "$(FILE)" ]; then CMD="$$CMD $(FILE)"; fi; \
@@ -142,8 +145,6 @@ setup-e2e-env:
 		--admin_password=password \
 		--admin_email=admin@example.com \
 		--skip-email 2>/dev/null || true
-	@$(WP_CLI) language core install es_ES --activate 2>/dev/null || true
-	@$(WP_CLI) site switch-language es_ES 2>/dev/null || true
 	@$(WP_CLI) plugin activate documentate 2>/dev/null || true
 	@$(WP_CLI) rewrite structure '/%postname%/' --hard 2>/dev/null || true
 
@@ -154,9 +155,54 @@ test-e2e: start-docker-if-not-running setup-e2e-env
 # Alias kept for CI / back-compat.
 test-e2e-docker: test-e2e
 
+# Run the LibreOffice-WASM conversion spec, which playwright.config.js ignores
+# unless DOCUMENTATE_E2E_WASM is set: it downloads the LibreOffice bundle and
+# needs a cross-origin-isolated context, so it is not part of the per-PR gate.
+# CI runs this target weekly (.github/workflows/ci.yml, job e2e-wasm).
+test-e2e-wasm: start-docker-if-not-running setup-e2e-env
+	DOCUMENTATE_E2E_WASM=1 WP_BASE_URL=http://localhost:$(DOCKER_PORT) \
+		npm run test:e2e -- tests/e2e/specs/wasm-conversion.spec.js $(ARGS)
+
 # Run E2E tests with the visual UI / inspector (Docker).
 test-e2e-visual: start-docker-if-not-running setup-e2e-env
 	WP_BASE_URL=http://localhost:$(DOCKER_PORT) npm run test:e2e -- --ui $(ARGS)
+
+# Siembra los datos de ejemplo (cuentas, categorías, tipos y los documentos que
+# recorren el circuito). Es idempotente: repetirlo no duplica nada, así que
+# `make up` lo lanza siempre y un entorno viejo se pone al día sin recrearlo.
+seed-demo: ## Crea o completa los datos de ejemplo del entorno de desarrollo
+	@$(WP_CLI) eval 'if ( class_exists( "Documentate_Demo_App" ) ) { Documentate_Demo_App::ensure_environment(); $$ids = Documentate_Demo_App::seed(); echo "Datos de ejemplo: ", count( $$ids ), " documentos del circuito.\n"; } else { echo "El plugin no está activo.\n"; }' 2>/dev/null || true
+
+# Deja el sitio de desarrollo con solo los datos de ejemplo: borra lo que van
+# dejando los E2E (documentos con nombres de un solo uso, sus adjuntos y
+# comentarios, y las cuentas, categorías y tipos que crean) y vuelve a sembrar.
+# Se niega a correr donde no esté permitido el contenido de ejemplo.
+reset-demo: ## Borra lo que dejan las pruebas y deja solo los datos de ejemplo
+	@$(WP_CLI) eval-file wp-content/plugins/documentate/scripts/reset-demo.php
+
+# ─── Capturas (informe con capturas del ciclo completo) ──────────────────────
+
+# Recorre la aplicación con Playwright y deja capturas/informe.html: verificación
+# de que el ciclo funciona de punta a punta y base del manual.
+# Admite SOLO=escritorio|movil y DOCUMENTATE_SIN_SEMBRAR=1.
+#
+# El guion siembra la demo y recorre el ciclo en el sitio de desarrollo
+# (puerto $(DOCKER_PORT)), el mismo que usan los E2E: si hay una tanda de
+# pruebas viva se para aquí en vez de pisarle los datos a mitad de una prueba.
+# Los corchetes del patrón evitan que pgrep encuentre el propio shell de esta
+# receta, cuya línea de órdenes contiene el patrón; un servidor MCP de
+# Playwright no cuenta, porque no escribe en el sitio.
+capturas: start-docker-if-not-running setup-e2e-env
+	@if pgrep -f '[t]est-playwright|[p]laywright/cli\.js|[c]apturas\.mjs' > /dev/null 2>&1; then \
+		echo ""; \
+		echo "Error: hay una tanda de Playwright en marcha (¿make test-e2e?, ¿otras capturas?)."; \
+		echo "Las capturas y los E2E escriben en el mismo sitio; espera a que termine."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@npx playwright install chromium
+	@DOCUMENTATE_URL=http://localhost:$(DOCKER_PORT) node scripts/capturas.mjs
+	@echo "Informe: $(CURDIR)/capturas/informe.html"
 
 # ─── WP-CLI helpers (Docker) ─────────────────────────────────────────────────
 
@@ -214,9 +260,9 @@ check-plugin: check-docker start-docker-if-not-running
 
 # ─── Linting & Code Quality ──────────────────────────────────────────────────
 
-# Combined check for lint, tests, untranslated, and more.
+# Combined check for lint, tests, and more.
 # Verification targets do not modify source files.
-check: lint check-plugin test check-untranslated mo
+check: lint phpmd check-plugin test
 
 check-all: check
 
@@ -255,61 +301,35 @@ mago-lint: require-mago
 
 mago-format: require-mago
 	composer mago:format
-# Run PHP Mess Detector ignoring vendor and node_modules
+# Run PHP Mess Detector against the complexity budget in phpmd.xml, only
+# failing on violations outside phpmd-baseline.xml (the debt inherited from
+# the OpenTBS conversion code). See phpmd.xml and the "Complexity budget"
+# section in AGENTS.md. -d suppresses deprecation noise from PHPMD's own
+# PHP-Parser dependency, unrelated to the code being scanned.
 phpmd:
-	phpmd . text cleancode,codesize,controversial,design,naming,unusedcode --exclude vendor,node_modules,tests
+	@if [ ! -x "./vendor/bin/phpmd" ]; then \
+		echo "Error: PHPMD is not installed."; \
+		echo "Run: composer install --prefer-dist"; \
+		exit 1; \
+	fi
+	@php -d error_reporting=E_ALL^E_DEPRECATED ./vendor/bin/phpmd \
+		includes,admin,public,documentate.php,uninstall.php \
+		text phpmd.xml --baseline-file phpmd-baseline.xml; \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo ""; \
+		echo "PHPMD: hay violaciones de complejidad fuera de phpmd-baseline.xml."; \
+		echo "Divide el método o la clase señalada arriba; no amplíes el baseline."; \
+		exit $$EXIT_CODE; \
+	fi
+	@echo "PHPMD: sin violaciones nuevas fuera de phpmd-baseline.xml."
 
-# ─── Composer / Translations / Packaging ─────────────────────────────────────
+# ─── Composer / Packaging ─────────────────────────────────────────────────────
 
 # Update Composer dependencies
 update: check-docker
 	composer update --no-cache --with-all-dependencies
 	npm update
-
-# Generate a .pot file for translations
-pot:
-	composer make-pot
-
-# Update .po files from .pot file
-po:
-	composer update-po
-
-# Generate .mo files from .po files
-mo:
-	composer make-mo
-
-# Generate .l10n.php files from .po files.
-# WordPress 6.5+ loads these instead of the .mo when both are present; the .mo
-# stays as the fallback for the 6.1-6.4 range declared in readme.txt.
-l10n-php:
-	composer make-php
-
-# Build and validate the runtime translation files that ship in the package.
-# They are generated from the committed .po sources and deliberately kept out
-# of the repository, so packaging must never assume they are already present.
-package-translations: mo l10n-php
-	@set -e; \
-	found=0; \
-	for po in languages/documentate-*.po; do \
-		if [ ! -e "$$po" ]; then continue; fi; \
-		found=1; \
-		mo="$${po%.po}.mo"; \
-		l10n="$${po%.po}.l10n.php"; \
-		for f in "$$mo" "$$l10n"; do \
-			if [ ! -s "$$f" ]; then \
-				echo "Error: Missing or empty generated translation file: $$f" >&2; \
-				exit 1; \
-			fi; \
-		done; \
-	done; \
-	if [ "$$found" -eq 0 ]; then \
-		echo "Error: No translation source files found under languages/." >&2; \
-		exit 1; \
-	fi
-
-# Check the untranslated strings
-check-untranslated:
-	composer check-untranslated
 
 # Generate the LibreOffice WASM glue that the plugin ships but does not track.
 # `wp dist-archive` packages the working tree and ignores .gitignore, so these
@@ -331,7 +351,6 @@ package:
 		exit 1; \
 	fi
 	$(MAKE) package-assets
-	$(MAKE) package-translations
 
 	# Update the version in documentate.php & readme.txt
 	$(SED_INPLACE) "s/^ \* Version:.*/ * Version:           $(VERSION)/" documentate.php
@@ -340,8 +359,8 @@ package:
 
 	@# Create the ZIP package with proper folder structure.
 	@# `wp dist-archive` reads .distignore straight from the working tree, so the
-	@# generated files that .gitignore keeps out of the repository (the WASM glue,
-	@# the runtime translations) are packaged like any other file.
+	@# generated files that .gitignore keeps out of the repository (the WASM
+	@# glue) are packaged like any other file.
 	@# --plugin-dirname is what makes the archive extract as documentate/. Without
 	@# it WordPress names the plugin folder after the ZIP file and every release
 	@# lands in a new directory.
@@ -381,9 +400,9 @@ help:
 	@echo "  lint-no-tty        - Alias for lint (for git hooks)"
 	@echo "  mago-lint          - Optional secondary Mago lint"
 	@echo "  mago-format        - Optional secondary Mago formatter"
+	@echo "  phpmd              - Check complexity budget (phpmd.xml) against phpmd-baseline.xml"
 	@echo "  check-plugin       - Run WordPress plugin-check (Docker)"
-	@echo "  check-untranslated - Check for untranslated strings"
-	@echo "  check              - Run lint, plugin-check, tests, untranslated, and mo"
+	@echo "  check              - Run lint, phpmd, plugin-check, and tests"
 	@echo "  check-all          - Alias for check"
 	@echo ""
 	@echo "Testing:"
@@ -394,12 +413,10 @@ help:
 	@echo "  test-coverage      - Run PHPUnit with coverage (Docker, requires --xdebug=coverage)"
 	@echo ""
 	@echo "  test-e2e           - Run E2E tests against Docker (port $(DOCKER_PORT))"
+	@echo "  test-e2e-wasm      - Run the LibreOffice-WASM E2E spec (opt-in, slow)"
 	@echo "  test-e2e-visual    - Run E2E tests with visual UI (Docker)"
-	@echo ""
-	@echo "Translations:"
-	@echo "  pot                - Generate a .pot file for translations"
-	@echo "  po                 - Update .po files from .pot file"
-	@echo "  mo                 - Generate .mo files from .po files"
+	@echo "  capturas           - Walk the whole cycle and write capturas/informe.html"
+	@echo "                       SOLO=escritorio|movil (one screen size only)"
 	@echo ""
 	@echo "Packaging & Updates:"
 	@echo "  update             - Update Composer dependencies"

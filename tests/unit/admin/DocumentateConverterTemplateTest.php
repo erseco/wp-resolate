@@ -72,14 +72,13 @@ class DocumentateConverterTemplateTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test template contains translation functions.
+	 * Test template escapes its output.
 	 */
-	public function test_template_contains_translations() {
+	public function test_template_escapes_output() {
 		$content = file_get_contents( $this->template_path );
 
-		$this->assertStringContainsString( "esc_html_e(", $content );
+		$this->assertStringContainsString( "esc_html(", $content );
 		$this->assertStringContainsString( "wp_json_encode(", $content );
-		$this->assertStringContainsString( "'documentate'", $content );
 	}
 
 	/**

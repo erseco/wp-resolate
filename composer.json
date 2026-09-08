@@ -14,7 +14,6 @@
         "phpunit/phpunit": "^9.6.35",
         "squizlabs/php_codesniffer": "^3.13.5",
         "wp-cli/dist-archive-command": "^3.1",
-        "wp-cli/i18n-command": "^2.7.0",
         "wp-coding-standards/wpcs": "^3.4",
         "wp-phpunit/wp-phpunit": "^7.0.2",
         "yoast/phpunit-polyfills": "^1.1.5",
@@ -48,15 +47,7 @@
         "phpcs": "phpcs --standard=.phpcs.xml.dist",
         "phpcbf": "phpcbf --standard=.phpcs.xml.dist",
         "mago:lint": "@php ./vendor/bin/mago lint",
-        "mago:format": "@php ./vendor/bin/mago format",
-        "make-pot": "wp i18n make-pot . languages/documentate.pot --domain=documentate --exclude=vendor,assets,node_modules,tests,wp,wp-content --include=**/*.php",
-        "pot-remove-refs": "sed -i.bak '/^#: /d' languages/documentate.pot && rm languages/documentate.pot.bak",
-        "update-po": "wp i18n update-po languages/documentate.pot languages/documentate-es_ES.po",
-        "make-mo": "wp i18n make-mo languages/ languages/",
-        "make-php": "wp i18n make-php languages/ languages/",
-        "pot-remove-ctime": "sed -i.bak '/POT-Creation-Date:/d' languages/documentate.pot && rm languages/documentate.pot.bak",
-        "untranslated": "msgattrib --untranslated languages/documentate-es_ES.po && [ $(msgattrib --untranslated languages/documentate-es_ES.po | wc -l) -eq 0 ]",
-        "check-untranslated": "composer make-pot && composer pot-remove-ctime && composer pot-remove-refs && composer update-po && composer untranslated && composer make-mo && composer make-php"
+        "mago:format": "@php ./vendor/bin/mago format"
     },
     "config": {
         "allow-plugins": {

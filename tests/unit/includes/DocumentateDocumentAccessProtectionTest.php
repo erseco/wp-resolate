@@ -349,10 +349,14 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that editors can see comments on documents.
+	 * Whoever may edit the document reads its activity; whoever may not, does not.
+	 *
+	 * The gate is the document, not the capability to edit posts in general:
+	 * every área author has edit_posts and none of them has any business
+	 * reading the workflow events — which carry the reason of every return —
+	 * of another área's document.
 	 */
-	public function test_editor_can_see_document_comments() {
-		// Create a comment on the document as admin.
+	public function test_document_comments_follow_the_document_permission() {
 		wp_set_current_user( $this->admin_user_id );
 		$comment_id = wp_insert_comment(
 			array(
@@ -363,18 +367,72 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 		);
 		$this->assertGreaterThan( 0, $comment_id );
 
-		// Switch to editor.
+		// An editor outside the scope of the document cannot edit it.
+		wp_set_current_user( $this->editor_user_id );
+		$this->assertFalse( current_user_can( 'edit_post', $this->document_id ) );
+		$this->assertEmpty(
+			get_comments( array( 'post_id' => $this->document_id ) ),
+			'A document nobody may edit hands over no activity.'
+		);
+
+		// Gestión documental may open every document that entered the pipeline
+		// (a document with no type never leaves draft, so it gets one first).
+		$type = wp_insert_term( 'Tipo comentarios ' . uniqid(), 'documentate_doc_type' );
+		wp_set_object_terms( $this->document_id, array( (int) $type['term_id'] ), 'documentate_doc_type' );
+		wp_set_current_user( $this->admin_user_id );
+		wp_update_post(
+			array(
+				'ID' => $this->document_id,
+				'post_status' => 'pending',
+			)
+		);
+		( new WP_User( $this->editor_user_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
 		wp_set_current_user( $this->editor_user_id );
 
-		// Query comments for this document.
-		$comments = get_comments(
+		$this->assertSame( 'pending', get_post_status( $this->document_id ) );
+		$this->assertTrue( current_user_can( 'edit_post', $this->document_id ) );
+
+		$comments = get_comments( array( 'post_id' => $this->document_id ) );
+		$this->assertNotEmpty( $comments, 'Gestión documental reads the activity of the document.' );
+		$this->assertEquals( $comment_id, $comments[0]->comment_ID );
+	}
+
+	/**
+	 * A workflow event never turns up in a comment query that names no document.
+	 *
+	 * wp_dashboard_recent_comments() and the Recent Comments widget run exactly
+	 * this query for anybody with edit_posts, so the return reasons written into
+	 * the event text would otherwise be readable site-wide.
+	 */
+	public function test_events_are_absent_from_a_bare_comment_query() {
+		wp_set_current_user( $this->admin_user_id );
+		Documentate_Activity::record_event(
+			$this->document_id,
+			'devolvió el documento al área: «Falta el anexo firmado»',
+			'Falta el anexo firmado'
+		);
+		$regular = wp_insert_comment(
 			array(
-				'post_id' => $this->document_id,
+				'comment_post_ID' => $this->regular_post_id,
+				'comment_content' => 'Comentario de una entrada normal',
+				'comment_approved' => 1,
 			)
 		);
 
-		$this->assertNotEmpty( $comments, 'Editors should be able to see comments on documents.' );
-		$this->assertEquals( $comment_id, $comments[0]->comment_ID );
+		foreach ( array( $this->admin_user_id, $this->editor_user_id, $this->subscriber_user_id ) as $user_id ) {
+			wp_set_current_user( $user_id );
+
+			$contents = wp_list_pluck( get_comments( array( 'status' => 'approve' ) ), 'comment_content' );
+
+			$this->assertNotContains(
+				'devolvió el documento al área: «Falta el anexo firmado»',
+				$contents,
+				'The activity of a document never leaks into a general comment query.'
+			);
+			$this->assertContains( 'Comentario de una entrada normal', $contents );
+		}
+
+		wp_delete_comment( $regular, true );
 	}
 
 	/**
@@ -694,10 +752,10 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test filter_comment_queries for authorized user.
+	 * Test filter_comment_queries for a user who may edit the document.
 	 */
 	public function test_filter_comment_queries_authorized() {
-		wp_set_current_user( $this->editor_user_id );
+		wp_set_current_user( $this->admin_user_id );
 
 		$query = new WP_Comment_Query();
 		$query->query_vars = array( 'post_id' => $this->document_id );
@@ -706,6 +764,62 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 
 		// Should return null unchanged for authorized users.
 		$this->assertNull( $result );
+
+		// And an empty result for anybody else, whatever they may do elsewhere.
+		wp_set_current_user( $this->editor_user_id );
+		$this->assertSame( array(), $this->protection->filter_comment_queries( null, $query ) );
+	}
+
+	/**
+	 * The site-wide comment feed never carries document comments or events.
+	 */
+	public function test_comment_feed_excludes_document_comments_and_events() {
+		wp_set_current_user( $this->admin_user_id );
+		$doc_comment = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $this->document_id,
+				'comment_content'  => 'Comentario en documento',
+				'comment_approved' => 1,
+				'user_id'          => $this->admin_user_id,
+			)
+		);
+		$event = Documentate_Activity::record_event( $this->document_id, 'aprobó y publicó el documento' );
+		$post_comment = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $this->regular_post_id,
+				'comment_content'  => 'Comentario en entrada',
+				'comment_approved' => 1,
+				'user_id'          => $this->admin_user_id,
+			)
+		);
+		wp_set_current_user( 0 );
+
+		$feed = new WP_Query(
+			array(
+				'feed'         => 'rss2',
+				'withcomments' => 1,
+			)
+		);
+
+		$ids = array_map( 'intval', wp_list_pluck( (array) $feed->comments, 'comment_ID' ) );
+		$this->assertContains( $post_comment, $ids, 'Regular post comments stay in the feed.' );
+		$this->assertNotContains( $doc_comment, $ids, 'Document comments must not leak into the feed.' );
+		$this->assertNotContains( $event, $ids, 'Workflow events must not leak into the feed.' );
+	}
+
+	/**
+	 * The comment feed of a single document is empty; other posts keep theirs.
+	 */
+	public function test_single_comment_feed_where_clause() {
+		$query = new WP_Query();
+		$query->is_singular = true;
+		$query->posts = array( get_post( $this->document_id ) );
+		$this->assertStringEndsWith( ' AND 1 = 0', $this->protection->exclude_documents_from_comment_feed( 'WHERE 1=1', $query ) );
+
+		$query->posts = array( get_post( $this->regular_post_id ) );
+		$this->assertSame( 'WHERE 1=1', $this->protection->exclude_documents_from_comment_feed( 'WHERE 1=1', $query ) );
+
+		$this->assertNotFalse( has_filter( 'comment_feed_where', array( $this->protection, 'exclude_documents_from_comment_feed' ) ) );
 	}
 
 	/**

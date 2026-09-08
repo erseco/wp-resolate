@@ -62,7 +62,7 @@ class Documentate_Admin {
 			'<a href="'
 			. admin_url( 'options-general.php?page=documentate_settings' )
 			. '">'
-			. __( 'Settings', 'documentate' )
+			. 'Ajustes'
 			. '</a>';
 		array_unshift( $links, $settings_link );
 		return $links;
@@ -269,7 +269,7 @@ class Documentate_Admin {
 
 		add_meta_box(
 			'documentate_collaborative_status',
-			__( 'Collaborative Mode', 'documentate' ),
+			'Modo colaborativo',
 			array( $this, 'render_collaborative_status_metabox' ),
 			'documentate_document',
 			'side',
@@ -287,11 +287,11 @@ class Documentate_Admin {
 		<div id="documentate-collab-status-metabox" class="documentate-collab-metabox">
 			<div class="documentate-collab-metabox__status" data-status="connecting">
 				<span class="documentate-collab-metabox__indicator"></span>
-				<span class="documentate-collab-metabox__label"><?php esc_html_e( 'Connecting...', 'documentate' ); ?></span>
+				<span class="documentate-collab-metabox__label"><?php echo esc_html( 'Conectando...' ); ?></span>
 				<div class="documentate-collab-metabox__avatars"></div>
 			</div>
 			<div class="documentate-collab-metabox__retries" style="display: none;">
-				<span class="documentate-collab-metabox__retry-count">0</span>/5 <?php esc_html_e( 'retries', 'documentate' ); ?>
+				<span class="documentate-collab-metabox__retry-count">0</span>/5 <?php echo esc_html( 'reintentos' ); ?>
 			</div>
 		</div>
 		<?php
@@ -305,7 +305,7 @@ class Documentate_Admin {
 
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_error(
-				array( 'message' => __( 'You are not authorized to access this resource.', 'documentate' ) ),
+				array( 'message' => 'No estás autorizado para acceder a este recurso.' ),
 				403,
 			);
 		}
@@ -499,7 +499,7 @@ class Documentate_Admin {
 			array(
 				'fieldLabels' => $field_labels,
 				'strings' => array(
-					'fieldContent' => __( 'Field content ↓', 'documentate' ),
+					'fieldContent' => 'Contenido del campo ↓',
 				),
 			)
 		);
@@ -516,22 +516,22 @@ class Documentate_Admin {
 	private function get_revision_field_labels() {
 		$labels = array(
 			// Default labels for common fields.
-			'post_title' => __( 'Document Title', 'documentate' ),
-			'post_content' => __( 'Content', 'documentate' ),
-			'resolution_number' => __( 'Resolution Number', 'documentate' ),
-			'date' => __( 'Date', 'documentate' ),
-			'antecedentes' => __( 'Background', 'documentate' ),
-			'fundamentos' => __( 'Legal Grounds', 'documentate' ),
-			'resuelve' => __( 'Resolution', 'documentate' ),
-			'anexos' => __( 'Annexes', 'documentate' ),
-			'firma' => __( 'Signature', 'documentate' ),
-			'cargo' => __( 'Position', 'documentate' ),
-			'lugar' => __( 'Place', 'documentate' ),
-			'destinatario' => __( 'Recipient', 'documentate' ),
-			'asunto' => __( 'Subject', 'documentate' ),
-			'cuerpo' => __( 'Body', 'documentate' ),
-			'saludo' => __( 'Greeting', 'documentate' ),
-			'despedida' => __( 'Closing', 'documentate' ),
+			'post_title' => 'Título del documento',
+			'post_content' => 'Contenido',
+			'resolution_number' => 'Número de resolución',
+			'date' => 'Fecha',
+			'antecedentes' => 'Antecedentes',
+			'fundamentos' => 'Fundamentos de derecho',
+			'resuelve' => 'Resolución',
+			'anexos' => 'Anexos',
+			'firma' => 'Firma',
+			'cargo' => 'Cargo',
+			'lugar' => 'Lugar',
+			'destinatario' => 'Destinatario',
+			'asunto' => 'Asunto',
+			'cuerpo' => 'Cuerpo',
+			'saludo' => 'Saludo',
+			'despedida' => 'Despedida',
 		);
 
 		// Try to get labels from the current revision's parent document type.
@@ -632,14 +632,31 @@ class Documentate_Admin {
 	}
 
 	/**
+	 * Whether the request renders document editors: the wp-admin document
+	 * screen or the front-end application page. `get_current_screen()` does
+	 * not exist on the front end, so it must not be assumed.
+	 *
+	 * @return bool
+	 */
+	private function is_document_editor_context() {
+		if ( function_exists( 'get_current_screen' ) ) {
+			$screen = get_current_screen();
+			if ( $screen && 'documentate_document' === $screen->post_type ) {
+				return true;
+			}
+		}
+
+		return class_exists( 'Documentate_App_Shell' ) && Documentate_App_Shell::is_app_page();
+	}
+
+	/**
 	 * Register TinyMCE table and searchreplace plugins for document editors.
 	 *
 	 * @param array<string,string> $plugins Array of external TinyMCE plugins.
 	 * @return array<string,string> Modified array of plugins.
 	 */
 	public function add_tinymce_table_plugin( $plugins ) {
-		$screen = get_current_screen();
-		if ( $screen && 'documentate_document' === $screen->post_type ) {
+		if ( $this->is_document_editor_context() ) {
 			$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 			$plugins['table'] = plugin_dir_url( __FILE__ ) . 'mce/table/plugin' . $suffix . '.js';
 			$plugins['searchreplace'] = plugin_dir_url( __FILE__ ) . 'mce/searchreplace/plugin' . $suffix . '.js';
@@ -654,8 +671,7 @@ class Documentate_Admin {
 	 * @return array<string,mixed> Modified init settings.
 	 */
 	public function configure_tinymce_table_options( $init ) {
-		$screen = get_current_screen();
-		if ( $screen && 'documentate_document' === $screen->post_type ) {
+		if ( $this->is_document_editor_context() ) {
 			$init['table_toolbar'] = false;
 			$init['table_responsive_width'] = true;
 			$init['table_resize_bars'] = true;
@@ -669,9 +685,13 @@ class Documentate_Admin {
 			$init['paste_remove_styles'] = true;
 			$init['paste_remove_styles_if_webkit'] = true;
 			$init['paste_strip_class_attributes'] = 'all';
-			// Allow desired tags; preserve style/align on p, td, th for user-set formatting (e.g. text-align: justify).
-			$init['valid_elements'] = 'a[href|title|target],strong/b,em/i,u,p[style|class|align],br,ul,ol,li,h1,h2,h3,h4,h5,h6,blockquote,code,pre,table[border|cellpadding|cellspacing|style|class|align],tr,td[colspan|rowspan|style|class|align],th[colspan|rowspan|style|class|align]';
-			$init['invalid_elements'] = 'span,button,form,select,input,textarea,div,iframe,embed,object,label,font,img,video,audio,canvas,svg,script,style,noscript,map,area,applet';
+			// The lists live with the editor that uses them: this filter runs
+			// after wp_editor() has passed its own settings and would silently
+			// win, so a second copy here meant the editor accepted table
+			// sections that TinyMCE then threw away (thead, tbody, tfoot).
+			$config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
+			$init['valid_elements'] = $config['valid_elements'];
+			$init['invalid_elements'] = $config['invalid_elements'];
 		}
 		return $init;
 	}
@@ -713,12 +733,9 @@ class Documentate_Admin {
 			'documentateAttachments',
 			array(
 				'i18n' => array(
-					/* translators: Title of the WordPress Media Library frame for selecting attachment files */
-					'title' => __( 'Select files', 'documentate' ),
-					/* translators: Button label in the Media Library to confirm selection of attachment files */
-					'button' => __( 'Add to document', 'documentate' ),
-					/* translators: Tooltip for the remove attachment button */
-					'remove' => __( 'Remove', 'documentate' ),
+					'title' => 'Seleccionar archivos',
+					'button' => 'Añadir al documento',
+					'remove' => 'Eliminar',
 				),
 			)
 		);

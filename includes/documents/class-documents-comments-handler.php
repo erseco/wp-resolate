@@ -109,7 +109,7 @@ class Documents_Comments_Handler {
 
 		$user = wp_get_current_user();
 		if ( ! $user->exists() ) {
-			wp_die( esc_html__( 'Sorry, you must be logged in to reply to a comment.', 'default' ) );
+			wp_die( esc_html( 'Debes iniciar sesión para responder a un comentario.' ) );
 		}
 
 		return $user;
@@ -130,7 +130,7 @@ class Documents_Comments_Handler {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$comment_content = isset( $_POST['content'] ) ? trim( wp_unslash( $_POST['content'] ) ) : '';
 		if ( '' === $comment_content ) {
-			wp_die( esc_html__( 'Please type your comment text.', 'default' ) );
+			wp_die( esc_html( 'Escribe el texto de tu comentario.' ) );
 		}
 
 		$comment_parent = isset( $_POST['comment_ID'] ) ? absint( wp_unslash( $_POST['comment_ID'] ) ) : 0;

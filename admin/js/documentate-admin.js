@@ -138,9 +138,7 @@
 				$(el).addClass('documentate-rich-required-error');
 			});
 
-			var message = wp.i18n
-				? wp.i18n.__('Please fill in all required fields.', 'documentate')
-				: 'Please fill in all required fields.';
+			var message = 'Rellena todos los campos obligatorios.';
 			showValidationError($(invalid[0]), message);
 		}
 	});

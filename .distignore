@@ -3,8 +3,7 @@
 # This is the single source of truth for what ships. `make package` builds the
 # archive with `wp dist-archive`, which reads this file straight from the working
 # tree, so the generated files that .gitignore keeps out of the repository (the
-# LibreOffice WASM glue under admin/vendor/, the runtime translations) are
-# packaged like any other file.
+# LibreOffice WASM glue under admin/vendor/) are packaged like any other file.
 #
 # `.gitattributes` does NOT feed this archive. It only shapes the source ZIP that
 # GitHub serves at archive/refs/heads/*.zip, the one blueprint.json installs in
@@ -49,6 +48,7 @@
 /Makefile
 /package.json
 /package-lock.json
+/phpmd-baseline.xml
 /phpmd.xml
 /phpunit.xml.dist
 /renovate.json
@@ -56,6 +56,7 @@
 
 # Tests and everything they write
 /artifacts
+/capturas
 /test-results
 /tests
 
@@ -99,17 +100,8 @@ fixtures/*_OLD.odt
 fixtures/resolucion_logos_europeos.odt
 fixtures/test-sign-placeholder.odt
 
-# Translation sources. Only the runtime files ship: .l10n.php (WordPress 6.5+),
-# .mo (fallback for 6.1-6.4) and the JS .json files. Both rules contain a slash,
-# which already anchors them to the root.
-languages/*.po
-languages/*.pot
-
 # The packaging metadata itself
 /.distignore
-
-# Placeholder that only exists to keep an empty directory in git
-languages/.gitkeep
 
 # Rules that must match at any depth: none of these is ever legitimate inside a
 # release, wherever it turns up. .gitignore and .gitattributes are here rather

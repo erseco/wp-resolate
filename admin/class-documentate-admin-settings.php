@@ -54,8 +54,8 @@ class Documentate_Admin_Settings {
 	 */
 	public function create_menu() {
 		add_options_page(
-			__( 'Documentate Settings', 'documentate' ),
-			__( 'Documentate', 'documentate' ),
+			'Ajustes de Documentate',
+			'Documentate',
 			'manage_options',
 			'documentate_settings',
 			array( $this, 'options_page' ),
@@ -72,19 +72,19 @@ class Documentate_Admin_Settings {
 
 		add_settings_section(
 			'documentate_main_section',
-			__( 'Documentate Configuration', 'documentate' ),
+			'Configuración de Documentate',
 			array( $this, 'settings_section_callback' ),
 			'documentate',
 		);
 
 		$fields = array(
-			'conversion_engine' => __( 'Conversion Engine', 'documentate' ),
-			'collabora_base_url' => __( 'Collabora Online URL', 'documentate' ),
-			'collabora_lang' => __( 'Collabora Language', 'documentate' ),
-			'collabora_disable_ssl' => __( 'Skip SSL verification (Collabora)', 'documentate' ),
-			'autofirma_layer2_text' => __( 'AutoFirma visible signature text', 'documentate' ),
-			'collaborative_enabled' => __( 'Collaborative Mode', 'documentate' ),
-			'collaborative_signaling' => __( 'WebRTC Signaling Server', 'documentate' ),
+			'conversion_engine' => 'Motor de conversión',
+			'collabora_base_url' => 'URL de Collabora Online',
+			'collabora_lang' => 'Idioma de Collabora',
+			'collabora_disable_ssl' => 'Omitir verificación SSL (Collabora)',
+			'autofirma_layer2_text' => 'Texto visible de la firma de AutoFirma',
+			'collaborative_enabled' => 'Modo colaborativo',
+			'collaborative_signaling' => 'Servidor de señalización WebRTC',
 		);
 
 		foreach ( $fields as $field_id => $field_title ) {
@@ -104,7 +104,7 @@ class Documentate_Admin_Settings {
 	 * Outputs a description for the settings section.
 	 */
 	public function settings_section_callback() {
-		echo '<p>' . esc_html__( 'Configure Documentate plugin options.', 'documentate' ) . '</p>';
+		echo '<p>' . esc_html( 'Configura las opciones del plugin Documentate.' ) . '</p>';
 	}
 
 	/**
@@ -118,9 +118,9 @@ class Documentate_Admin_Settings {
 		$is_playground = Documentate_Collabora_Converter::is_playground();
 
 		$engines = array(
-			'fpdf' => __( 'Native PDF rendering (recommended)', 'documentate' ),
-			'collabora' => __( 'Collabora Online web service', 'documentate' ),
-			'wasm' => __( 'LibreOffice WASM in browser (experimental)', 'documentate' ),
+			'fpdf' => 'PDF nativo (recomendado)',
+			'collabora' => 'Servicio web Collabora Online',
+			'wasm' => 'LibreOffice WASM en navegador (experimental)',
 		);
 
 		echo '<fieldset>';
@@ -138,14 +138,13 @@ class Documentate_Admin_Settings {
 					. '> ';
 			echo esc_html( $label );
 			if ( $disabled ) {
-				echo ' <em>' . esc_html__( '(not available in WordPress Playground)', 'documentate' ) . '</em>';
+				echo ' <em>' . esc_html( '(no disponible en WordPress Playground)' ) . '</em>';
 			}
 			echo '</label>';
 		}
 		echo '<p class="description">'
-				. esc_html__(
-					'Native PDF rendering draws the PDF on this server from the layout of the document type, with no external service. The other two engines produce the PDF by converting the DOCX or ODT template, either through a Collabora Online server or with LibreOffice WASM in the browser; LibreOffice WASM downloads large assets and requires a cross-origin isolated browser (COOP/COEP headers and SharedArrayBuffer).',
-					'documentate',
+				. esc_html(
+					'El PDF nativo se dibuja en este servidor a partir de la maqueta del tipo de documento, sin servicio externo. Los otros dos motores obtienen el PDF convirtiendo la plantilla DOCX u ODT, mediante un servidor Collabora Online o con LibreOffice WASM en el navegador; LibreOffice WASM descarga archivos de gran tamaño y requiere un navegador con aislamiento de origen cruzado (cabeceras COOP/COEP y SharedArrayBuffer).',
 				)
 				. '</p>';
 		echo '</fieldset>';
@@ -164,7 +163,7 @@ class Documentate_Admin_Settings {
 		echo '<input type="url" class="regular-text" name="documentate_settings[collabora_base_url]" value="'
 				. esc_attr( $value )
 				. '" placeholder="https://example.com">';
-		echo '<p class="description">' . esc_html__( 'Example: https://demo.us.collaboraonline.com', 'documentate' ) . '</p>';
+		echo '<p class="description">' . esc_html( 'Ejemplo: https://demo.us.collaboraonline.com' ) . '</p>';
 	}
 
 	/**
@@ -178,7 +177,7 @@ class Documentate_Admin_Settings {
 				. esc_attr( $value )
 				. '" placeholder="en-US">';
 		echo '<p class="description">'
-				. esc_html__( 'Language code to send to Collabora Online (default en-US).', 'documentate' )
+				. esc_html( 'Código de idioma a enviar a Collabora Online (predeterminado en-US).' )
 				. '</p>';
 	}
 
@@ -193,7 +192,7 @@ class Documentate_Admin_Settings {
 		echo '<input type="checkbox" name="documentate_settings[collabora_disable_ssl]" value="1" '
 				. checked( $checked, true, false )
 				. '> ';
-		echo esc_html__( 'Disable SSL certificate verification (use only in test environments).', 'documentate' );
+		echo esc_html( 'Desactivar verificación del certificado SSL (usar solo en entornos de prueba).' );
 		echo '</label>';
 	}
 
@@ -214,9 +213,8 @@ class Documentate_Admin_Settings {
 				. esc_textarea( $value )
 				. '</textarea>';
 		echo '<p class="description">'
-				. esc_html__(
-					'Text shown in the visible PDF signature. The default matches AutoFirma. Supported variables include $$SUBJECTCN$$, $$ISSUERCN$$, $$CERTSERIAL$$ and $$SIGNDATE=dd/MM/yyyy$$. A text parameter in [sign;text=...] overrides this setting for that template.',
-					'documentate',
+				. esc_html(
+					'Texto mostrado en la firma visible del PDF. El valor predeterminado coincide con AutoFirma. Las variables compatibles incluyen $$SUBJECTCN$$, $$ISSUERCN$$, $$CERTSERIAL$$ y $$SIGNDATE=dd/MM/yyyy$$. Un parámetro text en [sign;text=...] sobrescribe este ajuste para esa plantilla.',
 				)
 				. '</p>';
 	}
@@ -232,12 +230,11 @@ class Documentate_Admin_Settings {
 		echo '<input type="checkbox" name="documentate_settings[collaborative_enabled]" value="1" '
 				. checked( $checked, true, false )
 				. '> ';
-		echo esc_html__( 'Enable real-time collaborative editing using TipTap and Yjs.', 'documentate' );
+		echo esc_html( 'Habilitar edición colaborativa en tiempo real usando TipTap y Yjs.' );
 		echo '</label>';
 		echo '<p class="description">'
-				. esc_html__(
-					'Replaces the classic TinyMCE editor with TipTap supporting collaborative editing via WebRTC.',
-					'documentate',
+				. esc_html(
+					'Reemplaza el editor clásico TinyMCE con TipTap soportando edición colaborativa vía WebRTC.',
 				)
 				. '</p>';
 	}
@@ -258,11 +255,11 @@ class Documentate_Admin_Settings {
 				. esc_attr( $value )
 				. '" placeholder="wss://signaling.yjs.dev">';
 		echo '<p class="description">'
-				. esc_html__( 'Signaling server for WebRTC. By default uses the public Yjs server.', 'documentate' )
+				. esc_html( 'Servidor de señalización para WebRTC. Por defecto usa el servidor público de Yjs.' )
 				. '</p>';
-		echo '<p class="description"><strong>' . esc_html__( 'Available public servers:', 'documentate' ) . '</strong></p>';
+		echo '<p class="description"><strong>' . esc_html( 'Servidores públicos disponibles:' ) . '</strong></p>';
 		echo '<ul class="description" style="list-style:disc;margin-left:20px;">';
-		echo '<li><code>wss://signaling.yjs.dev</code> ' . esc_html__( '(Yjs official)', 'documentate' ) . '</li>';
+		echo '<li><code>wss://signaling.yjs.dev</code> ' . esc_html( '(Yjs oficial)' ) . '</li>';
 		echo '</ul>';
 	}
 

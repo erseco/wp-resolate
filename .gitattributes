@@ -6,6 +6,15 @@
 admin/vendor/**    -text
 includes/vendor/** -text
 
+# Same idea for the AutoFirma client script, which is not copied by composer
+# but by `npm run build:autofirma` (the postinstall hook) from
+# node_modules/@erseco/autofirma-client. Nobody edits it by hand: marking it
+# generated keeps its 5 000 lines out of diffs and reviews, and `-text` keeps
+# the bytes exactly as upstream ships them. When it shows up in `git status`
+# after an install, the fix is `git restore` unless the package version in
+# package.json really moved.
+admin/js/vendor/autoscript.js -text linguist-generated=true -diff
+
 # Nothing below feeds the release ZIP. That archive is built by `wp dist-archive`
 # and its exclusion list is .distignore, the single source of truth for what
 # ships.

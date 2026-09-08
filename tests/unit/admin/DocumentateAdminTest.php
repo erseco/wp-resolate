@@ -37,7 +37,7 @@ class DocumentateAdminTest extends WP_UnitTestCase {
 		$this->assertIsArray( $new_links );
 		$this->assertCount( 1, $new_links );
 		$this->assertStringContainsString( 'options-general.php?page=documentate_settings', $new_links[0] );
-		$this->assertStringContainsString( 'Settings', $new_links[0] );
+		$this->assertStringContainsString( 'Ajustes', $new_links[0] );
 	}
 
 	public function test_enqueue_styles() {
@@ -255,7 +255,7 @@ class DocumentateAdminTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'documentate-collab-status-metabox', $output );
 		$this->assertStringContainsString( 'documentate-collab-metabox__status', $output );
-		$this->assertStringContainsString( 'Connecting', $output );
+		$this->assertStringContainsString( 'Conectando', $output );
 	}
 
 	/**

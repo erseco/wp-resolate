@@ -50,11 +50,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      # The runtime translation files are generated the same way, which needs
-      # the WP-CLI i18n command from require-dev. --no-scripts on purpose:
-      # post-install-cmd copies the committed runtime vendor trees under
-      # admin/vendor and includes/vendor, and a release must ship those exactly
-      # as reviewed rather than as re-resolved at build time.
+      # --no-scripts on purpose: post-install-cmd copies the committed runtime
+      # vendor trees under admin/vendor and includes/vendor, and a release must
+      # ship those exactly as reviewed rather than as re-resolved at build time.
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:

@@ -20,7 +20,6 @@ make lint                  # lint PHP with PHPCS / WPCS       (always required)
 make check-plugin          # WordPress plugin-check           (always required)
 make test                  # PHPUnit unit tests               (always required)
 make test-e2e              # Playwright E2E                   (UI/browser changes)
-make check-untranslated    # translation check                (string changes)
 make check                 # verify only (does not reformat)
 make mago-lint             # optional secondary Mago lint
 make mago-format           # optional secondary Mago format
@@ -31,7 +30,6 @@ make mago-format           # optional secondary Mago format
 - Plugin-check errors (`make check-plugin`)
 - Failing PHPUnit tests (`make test`)
 - Failing E2E tests for affected flows (`make test-e2e`)
-- Untranslated string failures (`make check-untranslated`)
 - Warnings or errors that would break CI
 
 ---
@@ -66,7 +64,13 @@ They are vendored verbatim from upstream: never reformat or edit them in place.
 - **Capability checks** with `current_user_can()` before privileged actions.
 - **SQL**: always use `$wpdb->prepare()`.
 - **UI text**: Spanish; all code, comments, and docblocks in English.
-- **Text domain**: `documentate`.
+  Identifiers are English too — file, class, method, property, variable and
+  test names (PHPUnit methods, Jest `it()`, Playwright `test()`) — while CSS
+  classes, `data-*` attributes, query args and stored keys (meta, options,
+  capabilities, `en_gestion`) are contracts and are never renamed for
+  language reasons. See *Coding Expectations → Language* in `AGENTS.md`.
+- La interfaz está en español directamente en el código; no hay i18n ni
+  ficheros de traducción.
 - **AutoFirma exception**: the intermediate routes in `includes/autofirma/` use
   `permission_callback => '__return_true'` deliberately — AutoFirma is a desktop
   app with no WordPress session, and a 32-char session token authorises them.

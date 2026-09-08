@@ -241,10 +241,7 @@ class Documentate_OpenTBS {
 		if ( true !== $zip->open( $archive_path ) ) {
 			return new WP_Error(
 				'documentate_zip_open_failed',
-				__(
-					'Could not open the archive to sanitize HTML.',
-					'documentate',
-				)
+				'No se pudo abrir el archivo para limpiar el código HTML.'
 			);
 		}
 
@@ -294,10 +291,10 @@ class Documentate_OpenTBS {
 	 */
 	private static function render_template_to_file( $template_path, $fields, $dest_path ) {
 		if ( ! self::load_libs() ) {
-			return new WP_Error( 'documentate_opentbs_missing', __( 'OpenTBS is not available.', 'documentate' ) );
+			return new WP_Error( 'documentate_opentbs_missing', 'OpenTBS no está disponible.' );
 		}
 		if ( ! file_exists( $template_path ) ) {
-			return new WP_Error( 'documentate_template_missing', __( 'Template not found.', 'documentate' ) );
+			return new WP_Error( 'documentate_template_missing', 'Plantilla no encontrada.' );
 		}
 		// Set locale for TBS date formatting (month/day names in local language).
 		// LC_TIME is process wide, so the finally below puts it back on every
@@ -319,10 +316,7 @@ class Documentate_OpenTBS {
 			if ( null === $tbs_engine->Source ) {
 				return new \WP_Error(
 					'documentate_regex_error',
-					__(
-						'Template pre-processing failed (visibility blocks).',
-						'documentate',
-					)
+					'Falló el preprocesamiento de la plantilla (bloques de visibilidad).'
 				);
 			}
 
@@ -331,10 +325,7 @@ class Documentate_OpenTBS {
 			if ( null === $tbs_engine->Source ) {
 				return new \WP_Error(
 					'documentate_regex_error',
-					__(
-						'Template pre-processing failed (placeholder normalization).',
-						'documentate',
-					)
+					'Falló el preprocesamiento de la plantilla (normalización de marcadores).'
 				);
 			}
 
@@ -498,20 +489,14 @@ class Documentate_OpenTBS {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			return new WP_Error(
 				'documentate_docx_zip_missing',
-				__(
-					'ZipArchive is not available for rich text formatting.',
-					'documentate',
-				)
+				'ZipArchive no está disponible para formato de texto enriquecido.'
 			);
 		}
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $doc_path ) ) {
 			return new WP_Error(
 				'documentate_docx_zip_open',
-				__(
-					'Could not open the generated DOCX for formatting.',
-					'documentate',
-				)
+				'No se pudo abrir el DOCX generado para formatear.'
 			);
 		}
 		$targets = array();
@@ -817,10 +802,7 @@ class Documentate_OpenTBS {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			return new WP_Error(
 				'documentate_odt_zip_missing',
-				__(
-					'ZipArchive is not available for ODT post-processing.',
-					'documentate',
-				)
+				'ZipArchive no está disponible para el post-procesado del ODT.'
 			);
 		}
 
@@ -828,10 +810,7 @@ class Documentate_OpenTBS {
 		if ( true !== $zip->open( $odt_path ) ) {
 			return new WP_Error(
 				'documentate_odt_open_failed',
-				__(
-					'Could not open the ODT file for post-processing.',
-					'documentate',
-				)
+				'No se pudo abrir el archivo ODT para el post-procesado.'
 			);
 		}
 		++self::$odt_archive_open_count;
@@ -911,24 +890,24 @@ class Documentate_OpenTBS {
 		}
 
 		if ( ! class_exists( 'ZipArchive' ) ) {
-			return new WP_Error( 'documentate_odt_zip_missing', __( 'ZipArchive is not available for metadata.', 'documentate' ) );
+			return new WP_Error( 'documentate_odt_zip_missing', 'ZipArchive no está disponible para metadatos.' );
 		}
 
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $odt_path ) ) {
-			return new WP_Error( 'documentate_odt_open_failed', __( 'Could not open the ODT file for metadata.', 'documentate' ) );
+			return new WP_Error( 'documentate_odt_open_failed', 'No se pudo abrir el archivo ODT para metadatos.' );
 		}
 
 		$xml = $zip->getFromName( 'meta.xml' );
 		if ( false === $xml ) {
 			$zip->close();
-			return new WP_Error( 'documentate_meta_missing', __( 'meta.xml not found in ODT.', 'documentate' ) );
+			return new WP_Error( 'documentate_meta_missing', 'meta.xml no encontrado en ODT.' );
 		}
 
 		$dom = self::create_xml_document( $xml );
 		if ( ! $dom ) {
 			$zip->close();
-			return new WP_Error( 'documentate_meta_parse', __( 'Could not parse meta.xml.', 'documentate' ) );
+			return new WP_Error( 'documentate_meta_parse', 'No se pudo analizar meta.xml.' );
 		}
 
 		$xpath = new DOMXPath( $dom );
@@ -940,7 +919,7 @@ class Documentate_OpenTBS {
 		$office_meta_list = $xpath->query( '//office:meta' );
 		if ( 0 === $office_meta_list->length ) {
 			$zip->close();
-			return new WP_Error( 'documentate_meta_element', __( 'office:meta element not found.', 'documentate' ) );
+			return new WP_Error( 'documentate_meta_element', 'Elemento office:meta no encontrado.' );
 		}
 		$office_meta = $office_meta_list->item( 0 );
 
@@ -1036,24 +1015,24 @@ class Documentate_OpenTBS {
 		}
 
 		if ( ! class_exists( 'ZipArchive' ) ) {
-			return new WP_Error( 'documentate_docx_zip_missing', __( 'ZipArchive is not available for metadata.', 'documentate' ) );
+			return new WP_Error( 'documentate_docx_zip_missing', 'ZipArchive no está disponible para metadatos.' );
 		}
 
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $docx_path ) ) {
-			return new WP_Error( 'documentate_docx_open_failed', __( 'Could not open the DOCX file for metadata.', 'documentate' ) );
+			return new WP_Error( 'documentate_docx_open_failed', 'No se pudo abrir el archivo DOCX para metadatos.' );
 		}
 
 		$xml = $zip->getFromName( 'docProps/core.xml' );
 		if ( false === $xml ) {
 			$zip->close();
-			return new WP_Error( 'documentate_core_missing', __( 'docProps/core.xml not found in DOCX.', 'documentate' ) );
+			return new WP_Error( 'documentate_core_missing', 'docProps/core.xml no encontrado en DOCX.' );
 		}
 
 		$dom = self::create_xml_document( $xml );
 		if ( ! $dom ) {
 			$zip->close();
-			return new WP_Error( 'documentate_core_parse', __( 'Could not parse core.xml.', 'documentate' ) );
+			return new WP_Error( 'documentate_core_parse', 'No se pudo analizar core.xml.' );
 		}
 
 		$xpath = new DOMXPath( $dom );
@@ -1064,7 +1043,7 @@ class Documentate_OpenTBS {
 		$core_props_list = $xpath->query( '//cp:coreProperties' );
 		if ( 0 === $core_props_list->length ) {
 			$zip->close();
-			return new WP_Error( 'documentate_core_element', __( 'cp:coreProperties element not found.', 'documentate' ) );
+			return new WP_Error( 'documentate_core_element', 'Elemento cp:coreProperties no encontrado.' );
 		}
 		$core_props = $core_props_list->item( 0 );
 

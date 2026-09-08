@@ -213,13 +213,20 @@ class DocumentateConverterTemplateRenderTest extends WP_UnitTestCase {
 
 	/**
 	 * With no Collabora URL configured the popup receives an empty string, which
-	 * is what makes its init() abort with "Collabora URL not configured".
+	 * is what makes its init() abort with "La URL de Collabora no está
+	 * configurada.".
 	 */
 	public function test_playground_template_emits_empty_collabora_url_when_unset() {
 		$markup = $this->render( 'admin/documentate-collabora-playground-template.php' );
 
 		$this->assertSame( '', $this->extract_playground_value( $markup, 'collaboraUrl' ) );
-		$this->assertStringContainsString( 'Collabora URL not configured.', $markup );
+		// wp_json_encode() escapes non-ASCII characters, so the message is not
+		// present in the markup as literal UTF-8; compare against the same
+		// JSON-encoded form the template itself echoes.
+		$this->assertStringContainsString(
+			wp_json_encode( 'La URL de Collabora no está configurada.' ),
+			$markup
+		);
 	}
 
 	/**

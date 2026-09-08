@@ -25,7 +25,12 @@
  *   the post-login redirect before navigating (a shared context stays admin).
  */
 const { test, expect } = require( '../fixtures' );
-const { execSync } = require( 'child_process' );
+const {
+	runWpCmd,
+	loginAs,
+	createFixture,
+	removeFixture,
+} = require( '../fixtures/site' );
 
 // Unique id for this run so fixtures never collide across parallel specs/retries.
 const RUN = `e2e${ Date.now() }`;
@@ -33,109 +38,19 @@ const RUN = `e2e${ Date.now() }`;
 const EDITOR_LOGIN = `${ RUN }editor`;
 const AUTHOR_LOGIN = `${ RUN }author`;
 const SUBSCRIBER_LOGIN = `${ RUN }subscriber`;
-const PASSWORD = 'password';
 
 const TITLES = {
 	adminParent: `Admin Doc Parent ${ RUN }`,
 	adminChild: `Admin Doc Child ${ RUN }`,
 	authorParent: `Author Doc Parent ${ RUN }`,
 	adminOther: `Admin Doc Other ${ RUN }`,
+	adminOtherPublished: `Admin Doc Other Published ${ RUN }`,
 	editorDraft: `Editor Draft In Scope ${ RUN }`,
 };
 
 /** Spanish/English capability denial body text. */
 const PERMISSION_DENIED_RE =
 	/You need a higher level of permission|Lo siento, no tienes permiso|Sorry, you are not allowed|Insufficient permissions|Permisos insuficientes|No tienes permiso|no est[aá]s autorizado|Access Denied|Acceso denegado/i;
-
-/**
- * Run a WP-CLI command on the tests environment (the site the browser uses).
- *
- * wp-env prints progress decorations to stderr, so stdout is the clean command
- * output (e.g. a `--porcelain` id).
- *
- * @param {string} cmd WP-CLI command (without the leading `wp`).
- * @return {string} Trimmed stdout.
- */
-function runWpCmd( cmd ) {
-	try {
-		return execSync(
-			`npx @wordpress/env run cli --config=.wp-env.docker.json wp ${ cmd }`,
-			{ encoding: 'utf8' }
-		).trim();
-	} catch ( error ) {
-		// eslint-disable-next-line no-console
-		console.error(
-			`Error executing WP-CLI command: ${ cmd }`,
-			error.stdout,
-			error.stderr
-		);
-		throw error;
-	}
-}
-
-/**
- * Run a WP-CLI command, ignoring failures (used for best-effort cleanup).
- *
- * @param {string} cmd WP-CLI command (without the leading `wp`).
- */
-function runWpCmdSafe( cmd ) {
-	try {
-		runWpCmd( cmd );
-	} catch ( e ) {
-		// Ignore: the entity may already be gone.
-	}
-}
-
-/**
- * Log in as the given user in a fresh (cookie-less) browser context.
- *
- * Retries under CI load: concurrent workers can make the first form post slow
- * or leave us on wp-login.php without a clean navigation.
- *
- * @param {import('@playwright/test').Browser} browser  Playwright browser.
- * @param {string}                             baseURL  Base URL for the context.
- * @param {string}                             username User login.
- * @return {Promise<{context: import('@playwright/test').BrowserContext, page: import('@playwright/test').Page}>} Context and page.
- */
-async function loginAs( browser, baseURL, username ) {
-	const context = await browser.newContext( { baseURL } );
-	const page = await context.newPage();
-	let lastError;
-
-	for ( let attempt = 1; attempt <= 3; attempt++ ) {
-		try {
-			await page.goto( '/wp-login.php', {
-				waitUntil: 'domcontentloaded',
-				timeout: 60_000,
-			} );
-			await page.locator( '#user_login' ).waitFor( { state: 'visible' } );
-			await page.fill( '#user_login', username );
-			await page.fill( '#user_pass', PASSWORD );
-
-			await Promise.all( [
-				page.waitForURL(
-					( url ) => ! url.pathname.endsWith( '/wp-login.php' ),
-					{ waitUntil: 'domcontentloaded', timeout: 60_000 }
-				),
-				page.click( '#wp-submit' ),
-			] );
-
-			// Confirm we actually left the login screen.
-			if ( ! page.url().includes( 'wp-login.php' ) ) {
-				return { context, page };
-			}
-			lastError = new Error(
-				`Still on wp-login after attempt ${ attempt } for ${ username }`
-			);
-		} catch ( err ) {
-			lastError = err;
-		}
-		// Brief backoff before retrying under CI parallelism.
-		await page.waitForTimeout( 1000 * attempt );
-	}
-
-	throw lastError || new Error( `Login failed for ${ username }` );
-}
 
 /**
  * Navigate to the documents list filtered to this run's documents.
@@ -161,163 +76,112 @@ function rowByTitle( page, title ) {
 	return page.locator( 'a.row-title', { hasText: title } );
 }
 
-/**
- * Create a documentate_document with category (+ optional type/status).
- *
- * Without a document type, Documentate_Workflow forces status back to draft on
- * insert/update — so "published" fixtures must also assign a doc type + lock meta.
- *
- * @param {Object} opts Options.
- * @param {string} opts.title      Post title.
- * @param {number} opts.categoryId Scope category term ID.
- * @param {string} [opts.status='draft'] Post status.
- * @param {number} [opts.authorId] Post author.
- * @param {number} [opts.docTypeId] documentate_doc_type term ID.
- * @return {number} Post ID.
- */
-function createDocument( { title, categoryId, status = 'draft', authorId, docTypeId } ) {
-	let cmd = `post create --post_type=documentate_document --post_title="${ title }" --post_status=draft --post_category=${ categoryId } --porcelain`;
-	if ( authorId ) {
-		cmd += ` --post_author=${ authorId }`;
-	}
-	const postId = parseInt( runWpCmd( cmd ), 10 );
-
-	if ( docTypeId ) {
-		runWpCmd(
-			`post term set ${ postId } documentate_doc_type ${ docTypeId }`
-		);
-		runWpCmd(
-			`post meta update ${ postId } documentate_locked_doc_type ${ docTypeId }`
-		);
-	}
-
-	if ( 'draft' !== status ) {
-		// Set status after classification so the workflow does not force draft.
-		// WP-CLI without --user has no manage_options, so the workflow would
-		// force non-admin publish attempts to "pending" — run as admin.
-		runWpCmd(
-			`post update ${ postId } --post_status=${ status } --user=1`
-		);
-	}
-
-	return postId;
-}
-
 test.describe( 'Roles and Scope Filtering', () => {
-	let parentCatId, childCatId, otherCatId, docTypeId;
-	let editorId, authorId;
-	/** @type {{ adminParent: number, adminChild: number, authorParent: number, adminOther: number, editorDraft: number }} */
+	let fixture;
+	let parentCatId = 0;
+	let otherCatId = 0;
+	let editorId = 0;
+	/** @type {{ adminParent: number, adminChild: number, authorParent: number, adminOther: number, adminOtherPublished: number, editorDraft: number }} */
 	const docs = {};
-	const docIds = [];
 
 	test.beforeAll( async () => {
-		// Categories: parent -> child, plus an out-of-scope category.
-		parentCatId = parseInt(
-			runWpCmd( `term create category "Scope Parent ${ RUN }" --porcelain` ),
-			10
-		);
-		childCatId = parseInt(
-			runWpCmd(
-				`term create category "Scope Child ${ RUN }" --parent=${ parentCatId } --porcelain`
-			),
-			10
-		);
-		otherCatId = parseInt(
-			runWpCmd( `term create category "Other Category ${ RUN }" --porcelain` ),
-			10
-		);
+		// Every worker's WP-CLI calls queue on the same lock, so a hook that
+		// waits its turn must not die on the ordinary test budget.
+		test.setTimeout( 300_000 );
 
-		// Document type so published fixtures stay published under the workflow.
-		docTypeId = parseInt(
-			runWpCmd(
-				`term create documentate_doc_type "Scope Doc Type ${ RUN }" --porcelain`
-			),
-			10
-		);
-
-		// Users (unique logins so parallel runs never collide).
-		runWpCmd(
-			`user create ${ SUBSCRIBER_LOGIN } ${ SUBSCRIBER_LOGIN }@example.com --role=subscriber --user_pass=${ PASSWORD }`
-		);
-		authorId = parseInt(
-			runWpCmd(
-				`user create ${ AUTHOR_LOGIN } ${ AUTHOR_LOGIN }@example.com --role=author --user_pass=${ PASSWORD } --porcelain`
-			),
-			10
-		);
-		editorId = parseInt(
-			runWpCmd(
-				`user create ${ EDITOR_LOGIN } ${ EDITOR_LOGIN }@example.com --role=editor --user_pass=${ PASSWORD } --porcelain`
-			),
-			10
-		);
-
-		// Assign the scope category to the editor and the author.
-		runWpCmd(
-			`user meta update ${ editorId } documentate_scope_term_id ${ parentCatId }`
-		);
-		runWpCmd(
-			`user meta update ${ authorId } documentate_scope_term_id ${ parentCatId }`
-		);
-
-		docs.adminParent = createDocument( {
-			title: TITLES.adminParent,
-			categoryId: parentCatId,
-			status: 'publish',
-			docTypeId,
-		} );
-		docs.adminChild = createDocument( {
-			title: TITLES.adminChild,
-			categoryId: childCatId,
-			status: 'publish',
-			docTypeId,
-		} );
-		docs.authorParent = createDocument( {
-			title: TITLES.authorParent,
-			categoryId: parentCatId,
-			status: 'publish',
-			authorId,
-			docTypeId,
-		} );
-		docs.adminOther = createDocument( {
-			title: TITLES.adminOther,
-			categoryId: otherCatId,
-			status: 'publish',
-			docTypeId,
-		} );
-		// Editable draft owned by the editor, in-scope (export/open checks).
-		docs.editorDraft = createDocument( {
-			title: TITLES.editorDraft,
-			categoryId: parentCatId,
-			status: 'draft',
-			authorId: editorId,
-			docTypeId,
+		fixture = createFixture( {
+			categories: {
+				// Categories: parent -> child, plus an out-of-scope category.
+				parent: `Scope Parent ${ RUN }`,
+				child: { name: `Scope Child ${ RUN }`, parent: 'parent' },
+				other: `Other Category ${ RUN }`,
+			},
+			// Document type so published fixtures stay published under the workflow.
+			types: { propio: `Scope Doc Type ${ RUN }` },
+			// Users (unique logins so parallel runs never collide).
+			users: {
+				subscriber: { login: SUBSCRIBER_LOGIN, role: 'subscriber' },
+				author: {
+					login: AUTHOR_LOGIN,
+					role: 'author',
+					scope: 'parent',
+				},
+				editor: {
+					login: EDITOR_LOGIN,
+					role: 'editor',
+					management: true,
+					scope: 'parent',
+				},
+			},
+			documents: {
+				adminParent: {
+					title: TITLES.adminParent,
+					category: 'parent',
+					type: 'propio',
+					status: 'publish',
+				},
+				adminChild: {
+					title: TITLES.adminChild,
+					category: 'child',
+					type: 'propio',
+					status: 'publish',
+				},
+				authorParent: {
+					title: TITLES.authorParent,
+					category: 'parent',
+					type: 'propio',
+					author: 'author',
+					status: 'publish',
+				},
+				// Out of scope and still in its own área: nobody outside it may see it.
+				adminOther: {
+					title: TITLES.adminOther,
+					category: 'other',
+					type: 'propio',
+				},
+				// Out of scope but already published: gestión documental reviews
+				// every área, so a document that has left its own is theirs to
+				// look at.
+				adminOtherPublished: {
+					title: TITLES.adminOtherPublished,
+					category: 'other',
+					type: 'propio',
+					status: 'publish',
+				},
+				// Editable draft owned by the editor, in-scope (export/open checks).
+				editorDraft: {
+					title: TITLES.editorDraft,
+					category: 'parent',
+					type: 'propio',
+					author: 'editor',
+				},
+			},
 		} );
 
-		docIds.push(
-			docs.adminParent,
-			docs.adminChild,
-			docs.authorParent,
-			docs.adminOther,
-			docs.editorDraft
-		);
+		parentCatId = fixture.categories.parent;
+		otherCatId = fixture.categories.other;
+		editorId = fixture.users.editor;
+		Object.assign( docs, fixture.documents );
 	} );
 
 	test.afterAll( async () => {
 		// Best-effort cleanup of this run's documents, users and terms.
-		const validDocIds = docIds.filter( ( id ) => ! Number.isNaN( id ) );
-		if ( validDocIds.length ) {
-			runWpCmdSafe( `post delete ${ validDocIds.join( ' ' ) } --force` );
+		test.setTimeout( 300_000 );
+
+		// A beforeAll that threw (a WP-CLI lock that never cleared, an
+		// unexpected answer) leaves the fixture unbuilt, and Playwright still
+		// runs this hook: without the guard it dies dereferencing it and the
+		// report shows that TypeError instead of the real failure.
+		if ( ! fixture ) {
+			return;
 		}
-		runWpCmdSafe( `user delete ${ SUBSCRIBER_LOGIN } --yes --reassign=1` );
-		runWpCmdSafe( `user delete ${ AUTHOR_LOGIN } --yes --reassign=1` );
-		runWpCmdSafe( `user delete ${ EDITOR_LOGIN } --yes --reassign=1` );
-		runWpCmdSafe(
-			`term delete category ${ parentCatId } ${ childCatId } ${ otherCatId }`
-		);
-		if ( docTypeId ) {
-			runWpCmdSafe( `term delete documentate_doc_type ${ docTypeId }` );
-		}
+
+		removeFixture( {
+			documents: Object.values( fixture.documents ),
+			users: [ SUBSCRIBER_LOGIN, AUTHOR_LOGIN, EDITOR_LOGIN ],
+			categories: Object.values( fixture.categories ),
+			types: Object.values( fixture.types ),
+		} );
 	} );
 
 	test( 'Administrator can see all documents', async ( { admin, page } ) => {
@@ -330,9 +194,12 @@ test.describe( 'Roles and Scope Filtering', () => {
 		await expect( rowByTitle( page, TITLES.adminChild ) ).toBeVisible();
 		await expect( rowByTitle( page, TITLES.authorParent ) ).toBeVisible();
 		await expect( rowByTitle( page, TITLES.adminOther ) ).toBeVisible();
+		await expect(
+			rowByTitle( page, TITLES.adminOtherPublished )
+		).toBeVisible();
 	} );
 
-	test( 'Editor can only see documents in their scope', async ( {
+	test( 'Editor sees their scope, and as management what has left its area', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -355,10 +222,17 @@ test.describe( 'Roles and Scope Filtering', () => {
 				rowByTitle( page, TITLES.authorParent )
 			).toBeVisible();
 
-			// Out of scope.
+			// Out of scope and still a draft: it belongs to its own área.
 			await expect( rowByTitle( page, TITLES.adminOther ) ).toHaveCount(
 				0
 			);
+
+			// Out of scope but already in the pipeline: an editor carries the
+			// gestión documental capability, and reviewing means looking
+			// outside your own área.
+			await expect(
+				rowByTitle( page, TITLES.adminOtherPublished )
+			).toBeVisible();
 		} finally {
 			await context.close();
 		}
@@ -395,6 +269,10 @@ test.describe( 'Roles and Scope Filtering', () => {
 			await expect( rowByTitle( page, TITLES.adminOther ) ).toHaveCount(
 				0
 			);
+			// An author is not gestión: the bypass is not theirs.
+			await expect(
+				rowByTitle( page, TITLES.adminOtherPublished )
+			).toHaveCount( 0 );
 		} finally {
 			await context.close();
 		}
@@ -499,7 +377,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 			expect( afterScope ).toBe( originalScope );
 			expect( afterScope ).toBe( String( parentCatId ) );
 
-			// --- 2) Out-of-scope document by ID: edit + export denied. ---
+			// --- 2) Out-of-scope draft by ID: edit + export denied. ---
 			await page.goto(
 				`/wp-admin/post.php?post=${ docs.adminOther }&action=edit`,
 				{ waitUntil: 'domcontentloaded' }
@@ -518,6 +396,20 @@ test.describe( 'Roles and Scope Filtering', () => {
 			await expect( page.locator( 'body' ) ).toContainText(
 				/Insufficient permissions|Permisos insuficientes|not allowed|no tienes permiso/i
 			);
+
+			// The same document once it has left its área is open to gestión.
+			await page.goto(
+				`/wp-admin/post.php?post=${ docs.adminOtherPublished }&action=edit`,
+				{ waitUntil: 'domcontentloaded' }
+			);
+			await expect( page.locator( 'body' ) ).not.toContainText(
+				PERMISSION_DENIED_RE
+			);
+			// A blank sheet or a redirect would also carry no denial, so the
+			// editor screen itself has to be there.
+			await expect(
+				page.locator( '#documentate_title_textarea' )
+			).toBeVisible();
 
 			// --- 3) Published in-scope doc: locked UI + content freeze. ---
 			await page.goto(

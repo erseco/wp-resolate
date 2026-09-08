@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<phpmd-baseline>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="admin/class-documentate-admin.php"/>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="includes/class-documentate-admin-helper.php"/>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="includes/class-documentate-demo-data.php"/>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="includes/class-documentate-document-generator.php"/>
+  <violation rule="PHPMD\Rule\Design\LongClass" file="includes/class-documentate-opentbs.php"/>
+  <violation rule="PHPMD\Rule\Design\TooManyMethods" file="includes/class-documentate-opentbs.php"/>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="includes/class-documentate-opentbs.php"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="render_template_to_file"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="render_template_to_file"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="apply_docx_rich_text"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="apply_docx_rich_text"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_docx_part_rich_text"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_docx_part_rich_text"/>
+  <violation rule="PHPMD\Rule\Design\LongMethod" file="includes/class-documentate-opentbs.php" method="convert_docx_part_rich_text"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="apply_odt_metadata"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="apply_odt_metadata"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="apply_docx_metadata"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="apply_docx_metadata"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_odt_part_rich_text"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_odt_part_rich_text"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="replace_odt_paragraph_html"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="replace_odt_paragraph_html"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="replace_odt_paragraph_with_blocks"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="replace_odt_paragraph_with_blocks"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="replace_odt_text_node_html"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="replace_odt_text_node_html"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_html_node_to_odt"/>
+  <violation rule="PHPMD\Rule\Design\LongMethod" file="includes/class-documentate-opentbs.php" method="convert_html_node_to_odt"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_table_row_to_odt"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_table_row_to_odt"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_table_cell_to_odt"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_table_cell_to_odt"/>
+  <violation rule="PHPMD\Rule\Design\LongMethod" file="includes/class-documentate-opentbs.php" method="convert_table_cell_to_odt"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="ensure_odt_styles"/>
+  <violation rule="PHPMD\Rule\Design\LongMethod" file="includes/class-documentate-opentbs.php" method="ensure_odt_styles"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_html_children_to_docx"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_html_children_to_docx"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_table_node_to_docx"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_table_node_to_docx"/>
+  <violation rule="PHPMD\Rule\Design\LongMethod" file="includes/class-documentate-opentbs.php" method="convert_table_node_to_docx"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="convert_cell_content_to_docx"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="convert_cell_content_to_docx"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="split_odt_content_paragraphs"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="includes/class-documentate-opentbs.php" method="split_odt_paragraph_at_span_linebreaks"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/class-documentate-opentbs.php" method="split_odt_paragraph_at_span_linebreaks"/>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="includes/class-documentate-template-parser.php"/>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="includes/doc-type/class-schemaextractor.php"/>
+  <violation rule="PHPMD\Rule\Design\NpathComplexity" file="includes/documents/class-documents-meta-handler.php" method="normalize_array_item_schema"/>
+</phpmd-baseline>

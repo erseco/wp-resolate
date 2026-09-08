@@ -22,10 +22,19 @@ module.exports = defineConfig( {
 	workers: process.env.CI
 		? '100%'
 		: parseInt( process.env.PLAYWRIGHT_WORKERS || '', 10 ) || 2,
-	retries: process.env.CI ? 2 : 0,
+	// One retry is enough with the e2e job sharded: a rerun of a whole shard is
+	// expensive, and a test that only passes on the third attempt is a flake
+	// worth fixing rather than hiding.
+	retries: process.env.CI ? 1 : 0,
 	timeout: parseInt( process.env.TIMEOUT || '', 10 ) || 100_000,
 	reportSlowTests: null,
 	testDir: path.join( __dirname, 'specs' ),
+	// The WASM conversion spec downloads the LibreOffice bundle and needs a
+	// cross-origin-isolated context, so it is not part of the deterministic CI
+	// gate. Opt in with DOCUMENTATE_E2E_WASM=1.
+	testIgnore: process.env.DOCUMENTATE_E2E_WASM
+		? undefined
+		: '**/wasm-conversion.spec.js',
 	outputDir: path.join( process.env.WP_ARTIFACTS_PATH, 'test-results' ),
 	snapshotPathTemplate:
 		'{testDir}/{testFileDir}/__snapshots__/{arg}-{projectName}{ext}',

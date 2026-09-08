@@ -17,8 +17,6 @@
  * Author URI:        https://www3.gobiernodecanarias.org/medusa/ecoescuela/ate/
  * License:           GPL-3.0+
  * License URI:       https://www.gnu.org/licenses/gpl-3.0-standalone.html
- * Text Domain:       documentate
- * Domain Path:       /languages
  */
 
 // If this file is called directly, abort.
@@ -61,7 +59,14 @@ if ( interface_exists( 'Erseco\AutoFirma\IntermediateServer\Storage\StoreInterfa
 	require_once plugin_dir_path( __FILE__ ) . 'includes/autofirma/class-documentate-autofirma-transient-store.php';
 }
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-gate.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-field-values.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-data.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app-clock.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-names.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-reset.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-demo-app.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-roles.php';
 
 /**
  * The code that runs during plugin activation.
@@ -77,6 +82,9 @@ function documentate_activate_plugin() {
 	update_option( 'documentate_flush_rewrites', true );
 	update_option( 'documentate_version', DOCUMENTATE_VERSION );
 
+	// Grant the gestión documental capability to the roles that carry it.
+	Documentate_Roles::ensure_caps( true );
+
 	// Only request demo seeding in non-production environments (and Playground).
 	// This prevents demo login accounts from ever being created on production.
 	if ( Documentate_Demo_Data::should_allow_demo_seeding() ) {
@@ -85,6 +93,13 @@ function documentate_activate_plugin() {
 
 	// Ensure default fixtures (templates) are available in Media Library and settings.
 	Documentate_Demo_Data::ensure_default_media();
+
+	// The application page must exist before the first front-end request:
+	// Playground lands on /documentate/ right after activation, with no
+	// admin_init in between.
+	if ( class_exists( 'Documentate_App' ) ) {
+		( new Documentate_App() )->ensure_page();
+	}
 }
 
 /**

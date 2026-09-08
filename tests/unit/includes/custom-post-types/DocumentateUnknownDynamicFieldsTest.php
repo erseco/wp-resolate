@@ -77,7 +77,7 @@ class DocumentateUnknownDynamicFieldsTest extends Documentate_Test_Base {
 	public function test_document_without_a_type_shows_the_configuration_hint() {
 		$markup = $this->render_sections( $this->create_document() );
 
-		$this->assertStringContainsString( 'Configure a document type with fields', $markup );
+		$this->assertStringContainsString( 'Configura un tipo de documento con campos', $markup );
 		$this->assertStringNotContainsString( 'documentate-unknown-dynamic', $markup );
 	}
 
@@ -92,7 +92,7 @@ class DocumentateUnknownDynamicFieldsTest extends Documentate_Test_Base {
 		$markup = $this->render_sections( $post_id );
 
 		$this->assertStringContainsString( 'documentate-unknown-dynamic', $markup );
-		$this->assertStringContainsString( 'do not belong to the selected type', $markup );
+		$this->assertStringContainsString( 'no pertenecen al tipo seleccionado', $markup );
 		$this->assertStringContainsString( 'Motivo Baja', $markup );
 		$this->assertStringContainsString( 'documentate_field_motivo_baja', $markup );
 	}

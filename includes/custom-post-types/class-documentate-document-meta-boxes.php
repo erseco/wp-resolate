@@ -28,7 +28,7 @@ class Documentate_Document_Meta_Boxes {
 	public function register_meta_boxes() {
 		add_meta_box(
 			'documentate_sections',
-			__( 'Document Sections', 'documentate' ),
+			'Secciones del documento',
 			array( $this, 'render_sections_metabox' ),
 			'documentate_document',
 			'normal',
@@ -36,12 +36,12 @@ class Documentate_Document_Meta_Boxes {
 		);
 
 		if ( post_type_supports( 'documentate_document', 'comments' ) ) {
-			add_meta_box( 'commentsdiv', __( 'Comments', 'default' ), 'post_comment_meta_box', 'documentate_document', 'normal', 'core' );
+			add_meta_box( 'commentsdiv', 'Comentarios', 'post_comment_meta_box', 'documentate_document', 'normal', 'core' );
 		}
 
 		// Move author metabox to side with low priority.
 		remove_meta_box( 'authordiv', 'documentate_document', 'normal' );
-		add_meta_box( 'authordiv', __( 'Author', 'documentate' ), 'post_author_meta_box', 'documentate_document', 'side', 'low' );
+		add_meta_box( 'authordiv', 'Autor', 'post_author_meta_box', 'documentate_document', 'side', 'low' );
 	}
 	/**
 	 * Render the document type selector metabox.
@@ -63,25 +63,25 @@ class Documentate_Document_Meta_Boxes {
 		);
 
 		if ( ! $terms || is_wp_error( $terms ) ) {
-			echo '<p>' . esc_html__( 'No document types defined. Create one in Document Types.', 'documentate' ) . '</p>';
+			echo '<p>' . esc_html( 'No hay tipos de documento definidos. Crea uno en Tipos de documento.' ) . '</p>';
 			return;
 		}
 
 		$locked = $current > 0 && 'auto-draft' !== $post->post_status;
 		echo '<p class="description">'
-				. esc_html__( 'Choose the type when creating the document. It cannot be changed later.', 'documentate' )
+				. esc_html( 'Elige el tipo al crear el documento. No se puede cambiar después.' )
 				. '</p>';
 		if ( $locked ) {
 			$term = get_term( $current, 'documentate_doc_type' );
 			echo '<p><strong>'
-					. esc_html__( 'Selected type:', 'documentate' )
+					. esc_html( 'Tipo seleccionado:' )
 					. '</strong> '
 					. esc_html( $term ? $term->name : '' )
 					. '</p>';
 			echo '<input type="hidden" name="documentate_doc_type" value="' . esc_attr( (string) $current ) . '" />';
 		} else {
 			echo '<select name="documentate_doc_type" class="widefat">';
-			echo '<option value="">' . esc_html__( 'Select a type…', 'documentate' ) . '</option>';
+			echo '<option value="">' . esc_html( 'Selecciona un tipo…' ) . '</option>';
 			foreach ( $terms as $t ) {
 				echo '<option value="'
 						. esc_attr( (string) $t->term_id )
@@ -97,20 +97,33 @@ class Documentate_Document_Meta_Boxes {
 	/**
 	 * Render the sections meta box (dynamic by document type, with legacy fallback).
 	 *
-	 * @param WP_Post $post Current post.
+	 * The front-end application reuses this renderer and needs its own layout
+	 * around the rol groups: the área rows folded into a <details> and its
+	 * "Anotaciones internas" box inside the gestión section. It passes that
+	 * markup in $wrappers; wp-admin passes nothing (WordPress hands the
+	 * metabox definition to the callback, and none of its keys is read) and
+	 * gets the flat layout it has always had.
+	 *
+	 * @param WP_Post $post        Current post.
+	 * @param array   $wrappers Markup printed around a group that has visible
+	 *                             rows: area_open, area_close, management_close.
+	 * @return void
 	 */
-	public function render_sections_metabox( $post ) {
+	public function render_sections_metabox( $post, array $wrappers = array() ) {
+		$wrappers += array(
+			'area_open' => '',
+			'area_close' => '',
+			'management_close' => '',
+		);
+
 		wp_nonce_field( 'documentate_sections_nonce', 'documentate_sections_nonce' );
 
 		$schema = Documents_Meta_Handler::get_dynamic_fields_schema_for_post( $post->ID );
-		$raw_schema = $this->get_raw_schema_for_post( $post->ID );
-		$raw_fields = isset( $raw_schema['fields'] ) && is_array( $raw_schema['fields'] ) ? $raw_schema['fields'] : array();
-		// Load the raw schema so we can expose placeholders, constraints and help text.
 
 		if ( empty( $schema ) ) {
 			echo '<div class="documentate-sections">';
 			echo '<p class="description">'
-					. esc_html__( 'Configure a document type with fields to edit its content.', 'documentate' )
+					. esc_html( 'Configura un tipo de documento con campos para editar su contenido.' )
 					. '</p>';
 			$unknown = $this->collect_unknown_dynamic_fields( $post->ID, array() );
 			$this->render_unknown_dynamic_fields_ui( $unknown );
@@ -118,24 +131,83 @@ class Documentate_Document_Meta_Boxes {
 			return;
 		}
 
-		$stored_fields = Documents_Meta_Handler::get_structured_field_values( $post->ID );
-		$known_meta_keys = array();
+		// The raw schema exposes placeholders, constraints and help text.
+		$raw_schema = $this->get_raw_schema_for_post( $post->ID );
+		$context = array(
+			'post' => $post,
+			'raw_schema' => $raw_schema,
+			'raw_fields' => isset( $raw_schema['fields'] ) && is_array( $raw_schema['fields'] ) ? $raw_schema['fields'] : array(),
+			'stored_fields' => Documents_Meta_Handler::get_structured_field_values( $post->ID ),
+		);
+		$groups = Documentate_Field_Roles::group_by_role( $schema );
 
 		echo '<div class="documentate-sections">';
-		echo '<table class="form-table"><tbody>';
-
-		foreach ( $schema as $row ) {
-			$meta_key = $this->render_schema_row( $post, $row, $raw_schema, $raw_fields, $stored_fields );
-			if ( '' !== $meta_key ) {
-				$known_meta_keys[] = $meta_key;
-			}
-		}
-
-		echo '</tbody></table>';
+		$known_meta_keys = array_merge(
+			$this->render_rows_by_role( $groups['area'], $context, '', $wrappers['area_open'], $wrappers['area_close'] ),
+			$this->render_rows_by_role( $groups['gestion'], $context, 'Datos oficiales · los completa gestión documental', '', $wrappers['management_close'] )
+		);
 
 		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );
 		$this->render_unknown_dynamic_fields_ui( $unknown );
 		echo '</div>';
+	}
+	/**
+	 * Render the rows of one rol group the current user may see.
+	 *
+	 * Rows the user cannot see are not drawn, but their meta keys are still
+	 * claimed so their stored values never surface as unknown fields.
+	 *
+	 * @param array  $rows    Schema rows of the group.
+	 * @param array  $context Post, raw schema, raw fields and stored values.
+	 * @param string $heading Heading drawn above the group, or '' for none.
+	 * @param string $open    Markup printed before the group, already escaped.
+	 * @param string $close   Markup printed after the group, already escaped.
+	 * @return string[] Meta keys claimed by the group.
+	 */
+	private function render_rows_by_role( array $rows, array $context, $heading, $open = '', $close = '' ) {
+		$known_meta_keys = array();
+		$visible = array();
+
+		foreach ( $rows as $row ) {
+			if ( Documentate_Field_Roles::can_view( $row ) ) {
+				$visible[] = $row;
+			} elseif ( ! empty( $row['slug'] ) ) {
+				$known_meta_keys[] = 'documentate_field_' . sanitize_key( $row['slug'] );
+			}
+		}
+
+		if ( empty( $visible ) ) {
+			return $known_meta_keys;
+		}
+
+		// The wrappers come from the application and are already escaped.
+		echo $open; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+		if ( '' !== $heading ) {
+			echo '<h3 class="documentate-seccion-rol">' . esc_html( $heading ) . '</h3>';
+		}
+
+		echo '<table class="form-table"><tbody>';
+		foreach ( $visible as $row ) {
+			$meta_key = $this->render_schema_row( $context['post'], $row, $context['raw_schema'], $context['raw_fields'], $context['stored_fields'] );
+			if ( '' !== $meta_key ) {
+				$known_meta_keys[] = $meta_key;
+			}
+		}
+		echo '</tbody></table>';
+
+		echo $close; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+		return $known_meta_keys;
+	}
+	/**
+	 * CSS class marking a row gestión documental fills in.
+	 *
+	 * @param array $field Prepared field from prepare_schema_row().
+	 * @return string Leading-space class, or '' for área rows.
+	 */
+	private function role_css_class( array $field ) {
+		return isset( $field['rol'] ) && Documentate_Field_Roles::ROLE_MANAGEMENT === $field['rol'] ? ' documentate-campo-gestion' : '';
 	}
 	/**
 	 * Collect meta values whose keys start with documentate_field_ but are not part of the schema.
@@ -345,6 +417,7 @@ class Documentate_Document_Meta_Boxes {
 				'slug' => $slug,
 				'field_type' => \Documentate\Documents\Documents_Field_Validator::extract_raw_type( $raw_field ),
 				'data_type' => isset( $row['data_type'] ) ? sanitize_key( $row['data_type'] ) : '',
+				'rol' => Documentate_Field_Roles::field_role( $row ),
 			)
 		);
 	}
@@ -373,7 +446,7 @@ class Documentate_Document_Meta_Boxes {
 		$items = $this->get_repeater_rows( $slug, $stored_fields );
 		$help = Documentate_Document_Field_Help::build_field_help_context( $meta_key, $slug, $field['raw_field'] );
 
-		echo '<tr class="documentate-field documentate-field-array documentate-field-' . esc_attr( $slug ) . '">';
+		echo '<tr class="documentate-field documentate-field-array documentate-field-' . esc_attr( $slug . $this->role_css_class( $field ) ) . '">';
 		echo '<th scope="row"><label';
 		if ( '' !== $title_attribute ) {
 			echo ' title="' . esc_attr( $title_attribute ) . '"';
@@ -420,7 +493,8 @@ class Documentate_Document_Meta_Boxes {
 		}
 
 		if ( 'rich' === $type ) {
-			$is_locked = in_array( $post->post_status, array( 'publish', 'archived' ), true );
+			$is_locked = in_array( $post->post_status, array( 'publish', 'archived' ), true )
+				|| ! Documentate_Workflow::user_can_modify_status( (string) $post->post_status, get_current_user_id() );
 			Documentate_Document_Scalar_Field::render_rich_editor_control(
 				$meta_key,
 				$value,
@@ -453,7 +527,7 @@ class Documentate_Document_Meta_Boxes {
 		echo '<tr class="documentate-field documentate-field-'
 				. esc_attr( $slug )
 				. ' documentate-field-control-'
-				. esc_attr( $type )
+				. esc_attr( $type . $this->role_css_class( $field ) )
 				. '">';
 		echo '<th scope="row"><label for="' . esc_attr( $meta_key ) . '"';
 		if ( '' !== $field['title_attribute'] ) {
@@ -515,9 +589,8 @@ class Documentate_Document_Meta_Boxes {
 
 		echo '<div class="documentate-unknown-dynamic" style="margin-top:24px;">';
 		echo '<div class="notice notice-warning inline" style="margin:0 0 12px;">'
-				. esc_html__(
-					'The document contains additional fields that do not belong to the selected type. Review their content before saving.',
-					'documentate',
+				. esc_html(
+					'El documento contiene campos adicionales que no pertenecen al tipo seleccionado. Revisa su contenido antes de guardar.',
 				)
 				. '</div>';
 
@@ -528,15 +601,14 @@ class Documentate_Document_Meta_Boxes {
 				$value = wp_kses_post( $data['value'] );
 			}
 			echo '<div class="documentate-field documentate-field-warning" style="margin-bottom:16px;border:1px solid #dba617;padding:12px;background:#fffbea;">';
-			/* translators: %s: detected dynamic field key. */
-			$additional_field_label = sprintf( __( 'Additional field: %s', 'documentate' ), $label );
+			$additional_field_label = sprintf( 'Campo adicional: %s', $label );
 			echo '<label for="'
 					. esc_attr( $meta_key )
 					. '" style="font-weight:600;display:block;margin-bottom:4px;">'
 					. esc_html( $additional_field_label )
 					. '</label>';
 			echo '<p class="description" style="margin-top:0;margin-bottom:8px;">'
-					. esc_html__( 'This field is not defined in the current document type taxonomy.', 'documentate' )
+					. esc_html( 'Este campo no está definido en la taxonomía de tipo de documento actual.' )
 					. '</p>';
 			$tinymce_config = Documentate_Document_Scalar_Field::get_rich_editor_tinymce_config();
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_editor handles escaping.

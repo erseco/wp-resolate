@@ -200,8 +200,8 @@ class DocumentateDocTypesAdminPdfLayoutTest extends Documentate_Test_Base {
 		$edit = $this->render_edit_form( $term_id );
 
 		foreach ( array( $add, $edit ) as $html ) {
-			$this->assertStringContainsString( 'PDF layout', $html );
-			$this->assertStringContainsString( 'Layout used to render the PDF.', $html );
+			$this->assertStringContainsString( 'Maqueta PDF', $html );
+			$this->assertStringContainsString( 'Maqueta con la que se dibuja el PDF.', $html );
 		}
 	}
 

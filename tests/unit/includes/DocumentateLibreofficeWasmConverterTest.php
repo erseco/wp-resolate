@@ -241,7 +241,7 @@ class DocumentateLibreofficeWasmConverterTest extends Documentate_Test_Base {
 
 		// The browser message explains conversion happens in the browser and points to Collabora
 		// for server-side generation.
-		$this->assertStringContainsStringIgnoringCase( 'browser', $browser );
+		$this->assertStringContainsStringIgnoringCase( 'navegador', $browser );
 		$this->assertStringContainsStringIgnoringCase( 'Collabora', $browser );
 
 		// The headers message explains the cross-origin isolation requirement.

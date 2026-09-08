@@ -77,6 +77,33 @@ jobs:
             --sarif \
             --output=semgrep-results.sarif
 
+      - name: Drop findings suppressed in source
+        # A `// nosemgrep:` comment removes a finding from Semgrep's own
+        # output, but the SARIF still carries it with `suppressions:
+        # [{kind: inSource}]`, and GitHub raises it as an open alert anyway —
+        # so a reviewed false positive keeps commenting on every pull request.
+        # Dropping only the suppressed results honours the annotation (which
+        # is reviewed in code, next to the reason) and leaves every other
+        # finding, and the rule itself, untouched.
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+
+          ruta = pathlib.Path('semgrep-results.sarif')
+          if not ruta.exists():
+              raise SystemExit(0)
+
+          informe = json.loads(ruta.read_text())
+          for corrida in informe.get('runs', []):
+              resultados = corrida.get('results', [])
+              quedan = [r for r in resultados if not r.get('suppressions')]
+              corrida['results'] = quedan
+              print(f'{len(resultados) - len(quedan)} suprimidos, {len(quedan)} publicados')
+
+          ruta.write_text(json.dumps(informe))
+          PY
+
       - name: Upload analysis results to GitHub
         # Runs even when the scan step reports findings.
         if: always()

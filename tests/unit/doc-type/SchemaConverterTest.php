@@ -211,6 +211,64 @@ class SchemaConverterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A placeholder name with no title of its own is humanized, not shown raw.
+	 *
+	 * The block placeholders of the propuesta de gasto are called "servicios",
+	 * "suministros" and "expertos"; without this the editor headed them with
+	 * the raw lowercase slug next to properly titled fields.
+	 */
+	public function test_to_legacy_humanizes_a_one_word_placeholder_name() {
+		$v2_schema = array(
+			'version' => 2,
+			'fields' => array(
+				array(
+					'slug' => 'objeto',
+					'name' => 'objeto',
+					'type' => 'text',
+				),
+			),
+			'repeaters' => array(
+				array(
+					'slug' => 'servicios',
+					'name' => 'servicios',
+					'fields' => array(
+						array( 'slug' => 'proveedor', 'type' => 'text' ),
+					),
+				),
+			),
+		);
+
+		$result = SchemaConverter::to_legacy( $v2_schema );
+
+		$this->assertSame( 'Objeto', $this->find_field_by_slug( $result, 'objeto' )['label'] );
+		$this->assertSame( 'Servicios', $this->find_field_by_slug( $result, 'servicios' )['label'] );
+	}
+
+	/**
+	 * A title written by a person is used exactly as written.
+	 */
+	public function test_to_legacy_keeps_a_written_title_verbatim() {
+		$v2_schema = array(
+			'version' => 2,
+			'fields' => array(
+				array(
+					'slug' => 'gasto_letra',
+					'name' => 'gasto_letra',
+					'title' => 'Gasto total (en letra)',
+					'type' => 'text',
+				),
+			),
+		);
+
+		$result = SchemaConverter::to_legacy( $v2_schema );
+
+		$this->assertSame(
+			'Gasto total (en letra)',
+			$this->find_field_by_slug( $result, 'gasto_letra' )['label']
+		);
+	}
+
+	/**
 	 * Test to_legacy with multiple fields.
 	 */
 	public function test_to_legacy_multiple_fields() {
@@ -248,5 +306,124 @@ class SchemaConverterTest extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $result );
 		$this->assertNotNull( $this->find_field_by_slug( $result, 'valid' ) );
+	}
+
+	/**
+	 * The rol of fields, blocks and block items reaches the legacy rows (default area).
+	 */
+	public function test_to_legacy_passes_role_through() {
+		$schema = array(
+			'version' => 2,
+			'fields' => array(
+				array( 'slug' => 'objeto', 'type' => 'textarea' ),
+				array( 'slug' => 'numero', 'type' => 'text', 'rol' => 'gestion' ),
+				array( 'slug' => 'raro', 'type' => 'text', 'rol' => 'otro' ),
+			),
+			'repeaters' => array(
+				array(
+					'slug' => 'servicios',
+					'name' => 'servicios',
+					'rol' => 'gestion',
+					'fields' => array(
+						array( 'slug' => 'proveedor', 'type' => 'text', 'rol' => 'gestion' ),
+						array(
+							'slug' => 'conceptos',
+							'type' => 'array',
+							'rol' => 'gestion',
+							'fields' => array(
+								array( 'slug' => 'total', 'type' => 'number', 'rol' => 'gestion' ),
+							),
+						),
+					),
+				),
+				array(
+					'slug' => 'anexos',
+					'name' => 'anexos',
+					'fields' => array(
+						array( 'slug' => 'code', 'type' => 'text' ),
+					),
+				),
+			),
+		);
+
+		$rows = array();
+		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {
+			$rows[ $row['slug'] ] = $row;
+		}
+
+		$this->assertSame( 'area', $rows['objeto']['rol'] );
+		$this->assertSame( 'gestion', $rows['numero']['rol'] );
+		$this->assertSame( 'area', $rows['raro']['rol'], 'Unknown values fall back to area.' );
+
+		$this->assertSame( 'gestion', $rows['servicios']['rol'] );
+		$this->assertSame( 'gestion', $rows['servicios']['item_schema']['proveedor']['rol'] );
+		$this->assertSame( 'gestion', $rows['servicios']['item_schema']['conceptos']['rol'] );
+		$this->assertSame( 'gestion', $rows['servicios']['item_schema']['conceptos']['item_schema']['total']['rol'] );
+
+		$this->assertSame( 'area', $rows['anexos']['rol'] );
+		$this->assertSame( 'area', $rows['anexos']['item_schema']['code']['rol'] );
+	}
+
+	/**
+	 * The rol is read the same way everywhere: alias, case and spacing included.
+	 *
+	 * A schema written by hand, by an older version or by a test does not go
+	 * through the extractor's normalisation, so the converter must not be
+	 * stricter than Documentate_Field_Roles::field_role().
+	 */
+	public function test_to_legacy_normalises_the_role_like_the_single_normaliser() {
+		$schema = array(
+			'version' => 2,
+			'fields' => array(
+				array( 'slug' => 'mayusculas', 'type' => 'text', 'rol' => ' GESTIÓN ' ),
+				array( 'slug' => 'alias', 'type' => 'text', 'role' => 'gestion' ),
+			),
+		);
+
+		$rows = array();
+		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {
+			$rows[ $row['slug'] ] = $row;
+		}
+
+		$this->assertSame( 'gestion', $rows['mayusculas']['rol'] );
+		$this->assertSame( 'gestion', $rows['alias']['rol'] );
+	}
+
+	/**
+	 * The entries of a block inherit its rol when they declare none.
+	 */
+	public function test_to_legacy_inherits_the_block_role_in_the_item_schema() {
+		$schema = array(
+			'version' => 2,
+			'repeaters' => array(
+				array(
+					'slug' => 'servicios',
+					'name' => 'servicios',
+					'rol' => 'gestion',
+					'fields' => array(
+						array( 'slug' => 'proveedor', 'type' => 'text' ),
+						array( 'slug' => 'nota', 'type' => 'text', 'rol' => 'area' ),
+						array(
+							'slug' => 'conceptos',
+							'type' => 'array',
+							'fields' => array(
+								array( 'slug' => 'total', 'type' => 'number' ),
+							),
+						),
+					),
+				),
+			),
+		);
+
+		$rows = array();
+		foreach ( SchemaConverter::to_legacy( $schema ) as $row ) {
+			$rows[ $row['slug'] ] = $row;
+		}
+		$items = $rows['servicios']['item_schema'];
+
+		$this->assertSame( 'gestion', $items['proveedor']['rol'], 'Inherited from the block.' );
+		$this->assertSame( 'area', $items['nota']['rol'], 'Its own rol wins.' );
+		$this->assertSame( 'gestion', $items['conceptos']['rol'] );
+		$this->assertSame( 'gestion', $items['conceptos']['item_schema']['total']['rol'], 'Inherited down the nesting.' );
 	}
 }

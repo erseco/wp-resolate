@@ -57,6 +57,9 @@ class Documentate_Document_Access_Protection {
 
 		// Filter comment queries to exclude document comments for unauthorized users.
 		add_filter( 'comments_pre_query', array( $this, 'filter_comment_queries' ), 10, 2 );
+
+		// Comment feeds (RSS) are public: keep document comments and events out of them.
+		add_filter( 'comment_feed_where', array( $this, 'exclude_documents_from_comment_feed' ), 10, 2 );
 	}
 
 	/**
@@ -97,8 +100,8 @@ class Documentate_Document_Access_Protection {
 
 		// Fallback if no 404 template.
 		wp_die(
-			esc_html__( 'You are not authorized to access this resource.', 'documentate' ),
-			esc_html__( 'Access Denied', 'documentate' ),
+			esc_html( 'No estás autorizado para acceder a este recurso.' ),
+			esc_html( 'Acceso denegado' ),
 			array( 'response' => 404 ),
 		);
 	}
@@ -178,7 +181,7 @@ class Documentate_Document_Access_Protection {
 		if ( preg_match( '#^/wp/v2/' . self::POST_TYPE . '(?:/|$)#', $route ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You are not authorized to access this resource.', 'documentate' ),
+				'No estás autorizado para acceder a este recurso.',
 				array( 'status' => rest_authorization_required_code() ),
 			);
 		}
@@ -189,7 +192,7 @@ class Documentate_Document_Access_Protection {
 			if ( get_post_type( $post_id ) === self::POST_TYPE ) {
 				return new WP_Error(
 					'rest_forbidden',
-					__( 'You are not authorized to access this resource.', 'documentate' ),
+					'No estás autorizado para acceder a este recurso.',
 					array( 'status' => rest_authorization_required_code() ),
 				);
 			}
@@ -255,23 +258,29 @@ class Documentate_Document_Access_Protection {
 	}
 
 	/**
-	 * Filter comment queries to exclude document comments for unauthorized users.
+	 * Keep document comments out of every query that is not about one document.
+	 *
+	 * The activity of a document — the workflow events, which carry the reason
+	 * of every return, and the comments people write on it — is readable by
+	 * whoever may edit that document, and by nobody else. A query naming the
+	 * document is answered normally after that per-document check; every other
+	 * comment query (the dashboard activity widget, the Recent Comments widget,
+	 * the Comments screen, a theme's "latest comments" loop) gets the clause
+	 * that excludes the post type, whatever the visitor may do elsewhere on
+	 * the site. Capabilities are not enough here: every área author has
+	 * edit_posts, which says nothing about the documents of other áreas.
 	 *
 	 * @param array|null       $comments Return value. Default null to continue with query.
 	 * @param WP_Comment_Query $query    Comment query object.
 	 * @return array|null Empty array to block, null to continue.
 	 */
 	public function filter_comment_queries( $comments, $query ) {
-		if ( $this->user_can_access() ) {
-			return $comments;
-		}
-
 		// Check if query is for a specific post.
 		$query_vars = $query->query_vars;
 		if ( ! empty( $query_vars['post_id'] ) ) {
 			$post_id = (int) $query_vars['post_id'];
 			if ( get_post_type( $post_id ) === self::POST_TYPE ) {
-				return array();
+				return current_user_can( 'edit_post', $post_id ) ? $comments : array();
 			}
 		}
 
@@ -279,6 +288,29 @@ class Documentate_Document_Access_Protection {
 		add_filter( 'comments_clauses', array( $this, 'exclude_document_comments_clause' ) );
 
 		return $comments;
+	}
+
+	/**
+	 * Keep document comments (and workflow events) out of the comment feeds.
+	 *
+	 * The site-wide feed joins the posts table, so the post type can be
+	 * excluded directly; the single-post feed does not join it, so the
+	 * document's own feed is emptied instead.
+	 *
+	 * @param string   $where WHERE clause of the comment feed query.
+	 * @param WP_Query $query The query being built.
+	 * @return string
+	 */
+	public function exclude_documents_from_comment_feed( $where, $query ) {
+		global $wpdb;
+
+		if ( $query instanceof WP_Query && $query->is_singular() ) {
+			$post = isset( $query->posts[0] ) ? $query->posts[0] : null;
+
+			return $post instanceof WP_Post && self::POST_TYPE === $post->post_type ? $where . ' AND 1 = 0' : $where;
+		}
+
+		return $where . $wpdb->prepare( " AND {$wpdb->posts}.post_type <> %s", self::POST_TYPE );
 	}
 
 	/**

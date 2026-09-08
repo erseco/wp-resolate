@@ -224,11 +224,10 @@ class Documentate_Private_Output {
 	 * @throws RuntimeException Always.
 	 */
 	private static function fail( $guard = '' ) {
-		$message = __( 'The generated PDF could not be saved.', 'documentate' );
+		$message = 'No se ha podido guardar el PDF generado.';
 		if ( '' !== $guard ) {
 			$message .= ' ' . sprintf(
-				/* translators: %s: file name of an access guard, such as .htaccess. */
-				__( 'The access guard «%s» of the output directory could not be verified.', 'documentate' ),
+				'No se ha podido verificar la protección «%s» del directorio de salida.',
 				$guard
 			);
 		}

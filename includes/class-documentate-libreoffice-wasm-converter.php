@@ -237,10 +237,7 @@ class Documentate_Libreoffice_Wasm_Converter {
 	 * @return string
 	 */
 	public static function get_browser_conversion_message() {
-		return __(
-			'PDF conversion is performed in the browser using LibreOffice WASM. Server-side or background PDF generation requires Collabora Online or another server-side service.',
-			'documentate',
-		);
+		return 'La conversión a PDF se realiza en el navegador mediante LibreOffice WASM. La generación de PDF en el servidor o en segundo plano requiere Collabora Online u otro servicio del lado del servidor.';
 	}
 
 	/**
@@ -249,10 +246,7 @@ class Documentate_Libreoffice_Wasm_Converter {
 	 * @return string
 	 */
 	public static function get_missing_assets_message() {
-		return __(
-			'The LibreOffice WASM assets are not installed. Run "npm install" (or "npm run copy:libreoffice-converter") to enable in-browser conversion, or use Collabora Online.',
-			'documentate',
-		);
+		return 'Los recursos de LibreOffice WASM no están instalados. Ejecuta «npm install» (o «npm run copy:libreoffice-converter») para habilitar la conversión en el navegador, o usa Collabora Online.';
 	}
 
 	/**
@@ -261,10 +255,7 @@ class Documentate_Libreoffice_Wasm_Converter {
 	 * @return string
 	 */
 	public static function get_headers_help_message() {
-		return __(
-			'In-browser conversion requires a cross-origin isolated context (Cross-Origin-Opener-Policy: same-origin and Cross-Origin-Embedder-Policy: require-corp) and SharedArrayBuffer support. If your browser cannot provide them, use Collabora Online instead.',
-			'documentate',
-		);
+		return 'La conversión en el navegador requiere un contexto con aislamiento de origen cruzado (Cross-Origin-Opener-Policy: same-origin y Cross-Origin-Embedder-Policy: require-corp) y compatibilidad con SharedArrayBuffer. Si tu navegador no puede proporcionarlos, usa Collabora Online en su lugar.';
 	}
 
 	/**
@@ -274,21 +265,18 @@ class Documentate_Libreoffice_Wasm_Converter {
 	 */
 	public static function get_browser_strings() {
 		return array(
-			'loading' => __( 'Loading LibreOffice...', 'documentate' ),
-			'loadingDetail' => __(
-				'Downloading LibreOffice WASM components. This may take a while the first time.',
-				'documentate',
-			),
-			'generating' => __( 'Generating document...', 'documentate' ),
-			'generatingDetail' => __( 'Processing template on server.', 'documentate' ),
-			'downloading' => __( 'Downloading document...', 'documentate' ),
-			'downloadingDetail' => __( 'Fetching source document.', 'documentate' ),
-			'converting' => __( 'Converting to PDF...', 'documentate' ),
-			'convertingDetail' => __( 'Processing with LibreOffice WASM.', 'documentate' ),
-			'completed' => __( 'Completed!', 'documentate' ),
-			'completedDetail' => __( 'Document converted.', 'documentate' ),
-			'error' => __( 'Error', 'documentate' ),
-			'errorGeneric' => __( 'Conversion error.', 'documentate' ),
+			'loading' => 'Cargando LibreOffice...',
+			'loadingDetail' => 'Descargando componentes de LibreOffice WASM. Esto puede tardar la primera vez.',
+			'generating' => 'Generando documento...',
+			'generatingDetail' => 'Procesando plantilla en el servidor.',
+			'downloading' => 'Descargando documento...',
+			'downloadingDetail' => 'Obteniendo documento fuente.',
+			'converting' => 'Convirtiendo a PDF...',
+			'convertingDetail' => 'Procesando con LibreOffice WASM.',
+			'completed' => '¡Completado!',
+			'completedDetail' => 'Documento convertido.',
+			'error' => 'Error',
+			'errorGeneric' => 'Error en la conversión.',
 			'sharedArrayBufferError' => self::get_headers_help_message(),
 			'missingAssets' => self::get_missing_assets_message(),
 		);

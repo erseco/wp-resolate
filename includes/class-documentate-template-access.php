@@ -76,8 +76,8 @@ class Documentate_Template_Access {
 		}
 
 		wp_die(
-			esc_html__( 'You do not have permission to manage templates.', 'documentate' ),
-			esc_html__( 'Access Denied', 'documentate' ),
+			esc_html( 'No tienes permiso para gestionar plantillas.' ),
+			esc_html( 'Acceso denegado' ),
 			array( 'response' => 403 ),
 		);
 	}

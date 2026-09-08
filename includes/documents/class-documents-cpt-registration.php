@@ -34,19 +34,19 @@ class Documents_CPT_Registration {
 	 */
 	public function register_post_type() {
 		$labels = array(
-			'name' => __( 'Documents', 'documentate' ),
-			'singular_name' => __( 'Document', 'documentate' ),
-			'menu_name' => __( 'Documents', 'documentate' ),
-			'name_admin_bar' => __( 'Document', 'documentate' ),
-			'add_new' => __( 'Add New', 'documentate' ),
-			'add_new_item' => __( 'Add New Document', 'documentate' ),
-			'new_item' => __( 'New Document', 'documentate' ),
-			'edit_item' => __( 'Edit Document', 'documentate' ),
-			'view_item' => __( 'View Document', 'documentate' ),
-			'all_items' => __( 'All Documents', 'documentate' ),
-			'search_items' => __( 'Search Documents', 'documentate' ),
-			'not_found' => __( 'No documents found.', 'documentate' ),
-			'not_found_in_trash' => __( 'No documents found in trash.', 'documentate' ),
+			'name' => 'Documentos',
+			'singular_name' => 'Documento',
+			'menu_name' => 'Documentos',
+			'name_admin_bar' => 'Documento',
+			'add_new' => 'Añadir nuevo',
+			'add_new_item' => 'Añadir nuevo documento',
+			'new_item' => 'Nuevo documento',
+			'edit_item' => 'Editar documento',
+			'view_item' => 'Ver documento',
+			'all_items' => 'Todos los documentos',
+			'search_items' => 'Buscar documentos',
+			'not_found' => 'No se encontraron documentos.',
+			'not_found_in_trash' => 'No se encontraron documentos en la papelera.',
 		);
 
 		$args = array(
@@ -76,15 +76,15 @@ class Documents_CPT_Registration {
 	public function register_taxonomies() {
 		// Document types (define templates and custom fields for the document).
 		$types_labels = array(
-			'name' => __( 'Document Types', 'documentate' ),
-			'singular_name' => __( 'Document Type', 'documentate' ),
-			'search_items' => __( 'Search Types', 'documentate' ),
-			'all_items' => __( 'All Types', 'documentate' ),
-			'edit_item' => __( 'Edit Type', 'documentate' ),
-			'update_item' => __( 'Update Type', 'documentate' ),
-			'add_new_item' => __( 'Add New Type', 'documentate' ),
-			'new_item_name' => __( 'New Type', 'documentate' ),
-			'menu_name' => __( 'Document Types', 'documentate' ),
+			'name' => 'Tipos de documento',
+			'singular_name' => 'Tipo de documento',
+			'search_items' => 'Buscar tipos',
+			'all_items' => 'Todos los tipos',
+			'edit_item' => 'Editar tipo',
+			'update_item' => 'Actualizar tipo',
+			'add_new_item' => 'Añadir nuevo tipo',
+			'new_item_name' => 'Nuevo tipo',
+			'menu_name' => 'Tipos de documento',
 		);
 
 		register_taxonomy(

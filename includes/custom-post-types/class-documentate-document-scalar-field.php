@@ -436,7 +436,7 @@ class Documentate_Document_Scalar_Field {
 		if ( '' !== $placeholder ) {
 			echo '<option value="">' . esc_html( $placeholder ) . '</option>';
 		} elseif ( empty( $attributes['required'] ) ) {
-			echo '<option value="">' . esc_html__( 'Select an option…', 'documentate' ) . '</option>';
+			echo '<option value="">' . esc_html( 'Selecciona una opción…' ) . '</option>';
 		}
 		foreach ( $options as $option_value => $option_label ) {
 			echo '<option value="'

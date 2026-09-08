@@ -44,7 +44,6 @@ make lint                  # lint PHP (PHPCS / WPCS)       — always required
 make check-plugin          # WordPress plugin-check         — always required
 make test                  # PHPUnit tests                  — always required
 make test-e2e              # Playwright E2E                 — UI/browser changes
-make check-untranslated    # translation check              — string changes
 make check                 # verify only (does not reformat)
 make mago-lint             # optional secondary Mago lint
 make mago-format           # optional secondary Mago format
@@ -60,7 +59,13 @@ A task is **not done** until all relevant checks pass.
 - Linter: PHPCS / WPCS via `make lint` / `make fix` (canonical). Mago is optional.
 - Escape output, sanitise and unslash input, use nonces, check capabilities.
 - UI text in **Spanish**; code, comments, docblocks in **English**.
-- Text domain: `documentate`.
+  Identifiers are English too — file, class, method, property, variable and
+  test names (PHPUnit methods, Jest `it()`, Playwright `test()`) — while CSS
+  classes, `data-*` attributes, query args and stored keys (meta, options,
+  capabilities, `en_gestion`) are contracts and are never renamed for
+  language reasons. See *Coding Expectations → Language* in `AGENTS.md`.
+- La interfaz está en español directamente en el código; no hay i18n ni
+  ficheros de traducción.
 - Requires Docker / wp-env for `make check-plugin` and `make test`.
 - AutoFirma's intermediate routes use `permission_callback => '__return_true'`
   deliberately — a 32-char session token authorises them, not the WP session.

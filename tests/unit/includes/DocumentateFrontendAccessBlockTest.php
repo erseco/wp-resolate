@@ -81,7 +81,7 @@ class DocumentateFrontendAccessBlockTest extends Documentate_Test_Base {
 			$this->protection->block_frontend_access();
 			$this->fail( 'The request should have been blocked.' );
 		} catch ( WPDieException $exception ) {
-			$this->assertStringContainsString( 'not authorized', $exception->getMessage() );
+			$this->assertStringContainsString( 'No estás autorizado', $exception->getMessage() );
 		}
 
 		$this->assertTrue( is_404() );

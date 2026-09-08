@@ -107,7 +107,7 @@ class DocumentateUserScopeTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'documentate_scope_term_id', $output );
 		$this->assertStringContainsString( 'documentate_scope_nonce', $output );
-		$this->assertStringContainsString( 'Scope category', $output );
+		$this->assertStringContainsString( 'Categoría de ámbito', $output );
 	}
 
 	/**

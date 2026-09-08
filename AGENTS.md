@@ -52,7 +52,7 @@ make clean       # Reset WordPress environment
 ### Full local verification (preferred when Docker is available)
 
 ```bash
-make check       # Runs: lint -> check-plugin -> test -> check-untranslated -> mo
+make check       # Runs: lint -> phpmd -> check-plugin -> test
                  # (verification only; does not modify source files)
 ```
 
@@ -62,14 +62,19 @@ make check       # Runs: lint -> check-plugin -> test -> check-untranslated -> m
 |--------------------------|----------------------------------------------------------|
 | `make fix`               | Auto-fix PHP with PHPCBF / WPCS                         |
 | `make lint`              | Lint PHP with PHPCS / WPCS — **always required**         |
+| `make phpmd`             | Complexity budget vs. `phpmd-baseline.xml` — **always required** |
 | `make mago-format`       | Optional secondary Mago formatter (may be removed)       |
 | `make mago-lint`         | Optional secondary Mago lint (may be removed)            |
 | `make check-plugin`      | Run WordPress plugin-check — **always required**         |
 | `make test`              | Run PHPUnit unit tests — **always required**             |
+| `make test-generation`   | PHPUnit generation suite only (OpenTBS/templates)        |
 | `make test-coverage`     | PHPUnit with Xdebug coverage (needs `--xdebug=coverage`) |
 | `make test-e2e`          | Run Playwright E2E tests against wp-env                  |
+| `make test-e2e-wasm`     | LibreOffice-WASM spec (`DOCUMENTATE_E2E_WASM=1`; opt-in) |
 | `make test-e2e-visual`   | Playwright with interactive UI                           |
-| `make check-untranslated`| Check all Spanish strings are translated                 |
+| `make capturas`          | Walk the document workflow with a real browser, write `capturas/informe.html` (re-seeds demo data; `SOLO=escritorio\|movil`; refuses to run alongside a live E2E/capturas job) |
+| `make seed-demo`        | Create or top up the demo content of the dev site (idempotent; `make up` runs it) |
+| `make reset-demo`       | Delete what the E2E suite left behind and leave only the demo content |
 
 Targeted test runs:
 
@@ -84,31 +89,14 @@ make test FILE=tests/unit/Foo.php # run a specific test file
 
 | Situation                                           | Required checks                              |
 |-----------------------------------------------------|----------------------------------------------|
-| Any PHP change                                      | `make fix`, `make lint`, `make test`         |
+| Any PHP change                                      | `make fix`, `make lint`, `make phpmd`, `make test` |
 | Any PHP change merged to main                       | also `make check-plugin`                     |
-| New or changed user-facing strings                  | also `make check-untranslated`               |
 | UI, admin flows, editor flows, or browser behaviour | also `make test-e2e`                         |
 | Full pre-merge verification                         | `make check` (covers all of the above)       |
-| **Before every `git push` / opening a PR**          | at least `make lint`, `make test`, and **`make check-untranslated`** |
+| **Before every `git push` / opening a PR**          | at least `make lint` and `make test`         |
 
 If Docker / wp-env is unavailable, still write code that is designed to pass all
 checks, and state clearly which checks could not be run locally.
-
-### Pre-push gate (agents — mandatory)
-
-**Never push or open a PR without verifying translations.** CI runs
-`make check-untranslated` and **fails the job** if any Spanish `msgstr` is empty.
-
-Before `git push` or `gh pr create`:
-
-1. Search the diff for new/changed `__()` / `_e()` / `_n()` / `_x()` strings.
-2. Update `languages/documentate-es_ES.po` in the **same commit** (Spanish
-   `msgstr` filled in — not left blank).
-3. Run **`make check-untranslated`** and confirm it exits 0.
-4. If it fails, fix the empty `msgstr` entries (and re-run) before pushing.
-
-Do not treat “tests passed” as enough for a push: PHPUnit does not catch missing
-`.po` entries. Untranslated strings are a **CI blocker**, same as lint failures.
 
 ---
 
@@ -118,7 +106,6 @@ A task is **not complete** if any of the following remain:
 
 - Lint errors reported by `make lint`
 - Plugin-check errors reported by `make check-plugin`
-- Untranslated string failures from `make check-untranslated`
 - Failing PHPUnit tests (`make test`)
 - Failing E2E tests relevant to the change (`make test-e2e`)
 - Warnings or errors that would break CI (see `.github/workflows/ci.yml`)
@@ -126,6 +113,41 @@ A task is **not complete** if any of the following remain:
 ---
 
 ## Coding Expectations
+
+### Language: English code, Spanish interface
+
+Two languages live in this repository and the line between them is not a
+matter of taste:
+
+- **English** — everything the compiler, the test runner or another developer
+  reads as a name: file names, class names, method and function names,
+  constants, properties, local variables, parameters, array keys that are only
+  internal state, PHPUnit test method names and data-set names, and the titles
+  of Jest `it()` and Playwright `test()` cases. Comments and PHPDoc are English
+  too, and so is the developer documentation: `README.md`, `ARCHITECTURE.md`
+  and `AGENTS.md` are written in English throughout.
+- **Spanish** — everything a person using the plugin reads: labels, notices,
+  dialogs, emails, activity sentences, the assertion strings that pin those
+  texts down in the tests, and the functional guides written for the team under
+  `docs/` (`docs/flujo-documentos.md`, `docs/campos-por-rol.md`). The rest of
+  `docs/` is reference material and stays in the language it was written in.
+- **Never renamed for language reasons** — anything that is part of a contract
+  with the browser, the database or a bookmark: CSS classes (`dcta-*`,
+  `documentate-*`), `data-*` attributes, DOM ids, query-string keys and their
+  values (`vista`, `doc`, `bandeja`, `estado`, `area`, `guardado`, `enviado`,
+  `devuelto`, `error`), `name` attributes of form fields (`documentate_app_*`),
+  post meta and term meta keys, option names, capability and role names, hook
+  names, the `en_gestion` post status, schema attributes such as `rol`, and the
+  Spanish slugs of the document types. Those stay exactly as they are, in
+  Spanish, however English the code around them becomes.
+
+  wp-admin list-table column ids belong to this group whatever language they
+  are in: `WP_List_Table` renders each one as a CSS class on every header and
+  cell, WordPress persists it per user in the `manageedit-<post_type>columnshidden`
+  user meta once somebody hides the column in Screen Options, and third parties
+  read it through the `manage_<post_type>_posts_columns` filter. The document
+  list's ids (`doc_type`, `doc_category`, `internal_name`) are English because
+  that is how they were introduced, and they are frozen at that spelling.
 
 ### PHP
 
@@ -178,36 +200,8 @@ A task is **not complete** if any of the following remain:
 
 ### Translations
 
-- All user-facing text must be in **Spanish**, wrapped in i18n functions
-  (`__()`, `_e()`, `_n()`, `_x()`).
-- Text domain: `documentate`. Strings reused verbatim from WordPress core
-  (e.g. `__('Comments', 'default')`) may use the `default` domain.
-- **Required (CI fails otherwise):** any `__()`/`_e()`/`_n()`/`_x()` call
-  whose string contains placeholders (`%s`, `%d`, `%1$s`, …) must have a
-  `/* translators: */` comment on the line directly above, naming each
-  placeholder. Plugin-check / WPCS reports this as
-  `WordPress.WP.I18n.MissingTranslatorsComment` and treats it as an error.
-
-  ```php
-  /* translators: %1$s: old status, %2$s: new status. */
-  sprintf(__('Cambio de estado: %1$s → %2$s', 'documentate'), $old, $new);
-  ```
-
-- **Required:** every time you add, change, or remove a translatable string,
-  update `languages/documentate-es_ES.po` (and any other `.po` files present)
-  in the same commit. A change that touches `__()`/`_e()`/`_n()`/`_x()` and
-  ships without a `.po` update is incomplete.
-- **Required before push/PR:** run `make check-untranslated` and ensure it
-  passes. Empty `msgstr ""` entries after a new `msgid` are CI failures —
-  fill the Spanish translation, do not leave placeholders empty.
-- Practical workflow when adding a string:
-
-  ```bash
-  # After adding/changing __() strings in PHP:
-  make check-untranslated   # regenerates pot/po and lists untranslated
-  # Edit languages/documentate-es_ES.po: fill msgstr for each new msgid
-  make check-untranslated   # must exit 0 before git push
-  ```
+La interfaz está en español directamente en el código; no hay i18n ni ficheros
+de traducción.
 
 ### PHPDoc
 
@@ -228,17 +222,38 @@ A task is **not complete** if any of the following remain:
 
 ### Complexity budget
 
-- Always review cyclomatic complexity and function/method length while writing
-  code and before committing, including existing functions you modify. Inspect
-  `phpmd.xml` for the actual enforced limits; do not rely on remembered defaults.
-- Keep cyclomatic complexity at **10 or less** as the project coding target
-  (the current PHPMD reporting threshold is 15), NPath complexity below **500**,
-  and function/method length below **150 lines**, as measured by PHPMD.
-- Run PHPMD on changed PHP files before committing. Fix new function/method
-  violations and do not worsen existing ones. Report inherited warnings
-  separately; passing tests or lint does not establish compliance with these
-  budgets.
-- When a method approaches any of these limits, extract pure helpers (input
+- Keep methods small. `phpmd.xml` sets the budget: **cyclomatic complexity 15**,
+  **NPath complexity 500**, **method length 150 lines**, **class length 2500
+  lines**, **class complexity (WeightedMethodCount) 100** — the class rule
+  fires when the class *reaches* the threshold (`>= 100`), not only above it.
+- `make phpmd` enforces this and is part of `make check` and of CI
+  (`.github/workflows/ci.yml`, right after `make lint`): it runs
+  `phpmd.xml` against `includes,admin,public,documentate.php,uninstall.php`
+  with `--baseline-file phpmd-baseline.xml` and **fails the build** on any
+  violation that isn't already in the baseline. `phpmd-baseline.xml` records
+  the debt inherited from the OpenTBS conversion code (mostly
+  `includes/class-documentate-opentbs.php`, plus a few other pre-existing
+  files) — see the comment at the top of `phpmd.xml`. Nothing new may be
+  added to it: shrinking it is fine (simplify the flagged method/class until
+  PHPMD stops reporting it, then regenerate with
+  `vendor/bin/phpmd ... --update-baseline`); growing it is not — a new
+  violation must be fixed by splitting the method or class, never by adding
+  it to `phpmd-baseline.xml` or raising a threshold in `phpmd.xml`.
+  `.github/workflows/phpmd.yml` is separate and unrelated to this gate: it
+  runs the ruleset with `--ignore-violations-on-exit`/`continue-on-error` to
+  upload SARIF to code scanning, and it never fails the build.
+- The baseline is named `phpmd-baseline.xml`, not `phpmd.baseline.xml`, on
+  purpose: PHPMD auto-discovers a file with the latter name next to the
+  ruleset and would then apply it to every run, `.github/workflows/phpmd.yml`
+  included, and the code-scanning dashboard would stop showing the inherited
+  debt. With this name only the commands that pass `--baseline-file` are
+  baselined — the gate — while the dashboard keeps reporting the whole
+  picture (48 violations today).
+- Check a single file or directory by hand with
+  `php -d error_reporting=E_ALL^E_DEPRECATED vendor/bin/phpmd includes/app/class-documentate-app-detail.php text phpmd.xml`
+  — no baseline, so everything the file carries shows up. Add
+  `--baseline-file phpmd-baseline.xml` to ask the gate's question instead.
+- When a method approaches either threshold, extract pure helpers (input
   parsing, authorization checks, response building) instead of disabling the
   rule or raising the threshold.
 - A long sequence of `if`/ternary guards multiplies NPath quickly — split
@@ -252,9 +267,47 @@ A task is **not complete** if any of the following remain:
 
 ### Tests
 
-- Write tests for new behaviour (TDD preferred).
+- Write tests for new behaviour (TDD preferred). Read the `testing` skill
+  before writing them (AAA pattern, one behaviour per test, data providers,
+  mocking `pre_http_request`, WordPress factories).
 - Tests live in `tests/unit/`; use factory classes from `tests/includes/`.
-- Run `make test` to execute the PHPUnit suite inside wp-env.
+- Run `make test` to execute the PHPUnit suite inside wp-env;
+  `make test-coverage` produces the same report CI sends to Codecov.
+
+#### Coverage: 90 % minimum, no tricks
+
+- Line coverage must stay **at or above 90 %**, both for the whole plugin
+  (`project`) and for the lines touched by a PR (`patch`). Codecov enforces
+  both thresholds from `codecov.yml`; a PR that drops either below 90 % is
+  not ready.
+- The number must reflect real tests of real behaviour. **Never** raise it
+  by gaming the measurement:
+  - no `@codeCoverageIgnore`, `@codeCoverageIgnoreStart/End` or
+    `// @codeCoverageIgnore` annotations;
+  - no adding files or directories to the `ignore:` list of `codecov.yml` or
+    to the `<exclude>` filter of `phpunit.xml.dist` to hide untested code
+    (only vendored third-party sources and generated assets belong there);
+  - no lowering the thresholds, disabling the Codecov status checks or
+    marking them informational;
+  - no assertion-free tests, tests that only instantiate a class, or tests
+    that mirror the implementation line by line without checking an
+    observable outcome (return value, stored data, hook side effect,
+    rendered output, thrown exception);
+  - no `@covers` annotations pointing at code the test does not exercise.
+- If a branch is hard to reach, refactor the code so it becomes testable
+  (extract the pure part, inject the dependency) instead of excluding it.
+- **JavaScript is measured by jest, not by Codecov.** `npm run test:unit-js`
+  collects coverage for `admin/js/documentate-*.js` and `public/js/*.js` and
+  fails when a module its suite owns falls below the floor in
+  `tests/js/jest.config.js`; the report lands in `artifacts/coverage-js/`.
+  A jest test only shows up in that report when it loads the module with
+  `require()` (or `jest.isolateModules()` for the IIFEs that need a fresh
+  evaluation per test) — `new Function( source )()` reports 0 %. Touching a
+  browser module means adding or extending its jest test and, when it gains
+  one, its floor.
+- Untestable-by-design code (`exit`, `wp_die` with output, external
+  processes) is a narrow exception: keep it in the thinnest possible wrapper
+  and test everything around it.
 
 ---
 
@@ -264,13 +317,11 @@ A change is ready when **all** of the following are true:
 
 1. `make lint` passes with no errors.
 2. `make check-plugin` passes with no errors.
-3. `make test` passes with no failures.
-4. `make check-untranslated` passes with no empty Spanish translations
-   (**always** before push/PR — not optional “if you remember strings”).
-5. `make test-e2e` passes for the affected flows (if UI/browser behaviour changed).
-6. PHPDoc is updated for any modified functions or classes.
-7. No unrelated files, classes, or hooks were renamed or removed.
-8. No push/PR is opened while `make check-untranslated` is red.
+3. `make test` passes with no failures, and coverage stays at or above 90 %
+   (project and patch) without any of the tricks listed under *Tests*.
+4. `make test-e2e` passes for the affected flows (if UI/browser behaviour changed).
+5. PHPDoc is updated for any modified functions or classes.
+6. No unrelated files, classes, or hooks were renamed or removed.
 
 ---
 
@@ -321,6 +372,7 @@ in the plugin's supported version range.
 | `wp-project-triage` | Inspecting what kind of WordPress repo this is before changing tooling or layout | idem |
 | `wp-plugin-security` | Writing or reviewing code that handles input, output, AJAX/REST, capabilities or files | [`fernandotellado/ai-skills`](https://github.com/fernandotellado/ai-skills), GPL-2.0-or-later |
 | `security-audit` | Hunting vulnerabilities and validating findings | [`cloudflare/security-audit-skill`](https://github.com/cloudflare/security-audit-skill) |
+| `testing` | Writing or reviewing PHPUnit tests: structure, naming, data providers, mocking, coverage targets | [`dr-robert-li/cowork-wordpress-expert`](https://github.com/dr-robert-li/cowork-wordpress-expert), MIT |
 
 All of them are **third party and vendored verbatim**. Do not reformat or edit
 them: diverging from upstream makes `gh skill update` harder. Fix the problem
@@ -368,6 +420,16 @@ Read `ARCHITECTURE.md` for details on:
 - Native PDF rendering (`includes/pdf/`, layouts in `templates/pdf/`)
 - Conversion engines (Collabora, LibreOffice WASM in the browser)
 - Access control and scope filtering
+- Roles, statuses and the approval workflow (área → gestión documental → administración)
+- Fields by role in templates and the document data model
+- The front-end application under `/documentate/`
+
+`Documentate_Transitions::rules()` (`includes/class-documentate-transitions.php`)
+is the **single source of truth** for which status a document can move to,
+from which status, for which role, and whether a reason is required. Both
+wp-admin and the front-end app read it to draw their buttons and to validate
+every save — never hard-code a transition or a status label anywhere else;
+extend the rule table instead.
 
 ---
 

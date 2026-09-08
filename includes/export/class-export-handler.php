@@ -82,7 +82,7 @@ abstract class Export_Handler {
 	 */
 	protected function validate_request( $post_id ) {
 		if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'documentate' ) );
+			wp_die( esc_html( 'Permisos insuficientes.' ) );
 			return false;
 		}
 
@@ -91,7 +91,7 @@ abstract class Export_Handler {
 			! isset( $_GET['_wpnonce'] )
 			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'documentate_export_' . $post_id )
 		) {
-			wp_die( esc_html__( 'Invalid nonce.', 'documentate' ) );
+			wp_die( esc_html( 'Nonce no válido.' ) );
 			return false;
 		}
 
@@ -127,15 +127,12 @@ abstract class Export_Handler {
 		if ( ! WP_Filesystem() ) {
 			return new \WP_Error(
 				'documentate_fs_unavailable',
-				__(
-					'Could not initialize the WordPress filesystem.',
-					'documentate',
-				)
+				'No se pudo inicializar el sistema de archivos de WordPress.'
 			);
 		}
 
 		if ( ! $wp_filesystem->exists( $file_path ) || ! $wp_filesystem->is_readable( $file_path ) ) {
-			return new \WP_Error( 'documentate_file_not_found', __( 'Generated file not found.', 'documentate' ) );
+			return new \WP_Error( 'documentate_file_not_found', 'Fichero generado no encontrado.' );
 		}
 
 		$filesize = (int) $wp_filesystem->size( $file_path );

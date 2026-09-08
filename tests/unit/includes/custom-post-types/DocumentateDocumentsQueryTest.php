@@ -271,6 +271,8 @@ class DocumentateDocumentsQueryTest extends WP_UnitTestCase {
 					),
 				),
 				array(),
+				array(),
+				array(),
 			)
 		);
 
@@ -294,6 +296,8 @@ class DocumentateDocumentsQueryTest extends WP_UnitTestCase {
 					),
 				),
 				array(),
+				array(),
+				array(),
 			)
 		);
 
@@ -314,6 +318,8 @@ class DocumentateDocumentsQueryTest extends WP_UnitTestCase {
 					),
 				),
 				array( 'conocido' => true ),
+				array(),
+				array(),
 			)
 		);
 
@@ -334,10 +340,49 @@ class DocumentateDocumentsQueryTest extends WP_UnitTestCase {
 					),
 				),
 				array(),
+				array(),
+				array(),
 			)
 		);
 
 		$this->assertSame( 'rich', $fields['raro']['type'] );
+	}
+
+	/**
+	 * A slug the user may not write takes the stored value, never the posted one.
+	 */
+	public function test_carried_over_field_uses_the_stored_value_for_hidden_slugs() {
+		$_POST['documentate_field_partida'] = 'Editado por el área';
+
+		$fields = $this->invoke(
+			'compose_carried_over_fields',
+			array(
+				array( 'partida' => array( 'value' => 'Falsificado', 'type' => 'single' ) ),
+				array(),
+				array( 'partida' => true ),
+				array( 'partida' => array( 'value' => '18.02.322C.227.06', 'type' => 'single' ) ),
+			)
+		);
+
+		$this->assertSame( '18.02.322C.227.06', $fields['partida']['value'] );
+		$this->assertSame( 'single', $fields['partida']['type'] );
+	}
+
+	/**
+	 * A hidden slug with nothing stored is dropped instead of carried over.
+	 */
+	public function test_carried_over_field_drops_hidden_slugs_without_stored_value() {
+		$fields = $this->invoke(
+			'compose_carried_over_fields',
+			array(
+				array( 'partida' => array( 'value' => 'Falsificado', 'type' => 'single' ) ),
+				array(),
+				array( 'partida' => true ),
+				array(),
+			)
+		);
+
+		$this->assertSame( array(), $fields );
 	}
 
 	/**
@@ -347,10 +392,21 @@ class DocumentateDocumentsQueryTest extends WP_UnitTestCase {
 		$_POST['documentate_field_nuevo'] = 'Contenido';
 		$_POST['otra_cosa'] = 'ignorar';
 
-		$fields = $this->invoke( 'compose_posted_fields', array( array(), array() ) );
+		$fields = $this->invoke( 'compose_posted_fields', array( array(), array(), array() ) );
 
 		$this->assertArrayHasKey( 'nuevo', $fields );
 		$this->assertArrayNotHasKey( 'otra_cosa', $fields );
+	}
+
+	/**
+	 * The posted pass never introduces a slug the user may not write.
+	 */
+	public function test_posted_fields_skip_hidden_slugs() {
+		$_POST['documentate_field_partida'] = 'Editado por el área';
+
+		$fields = $this->invoke( 'compose_posted_fields', array( array(), array(), array( 'partida' => true ) ) );
+
+		$this->assertSame( array(), $fields );
 	}
 
 	/**
@@ -363,6 +419,7 @@ class DocumentateDocumentsQueryTest extends WP_UnitTestCase {
 			'compose_posted_fields',
 			array(
 				array( 'ya' => array( 'type' => 'rich', 'value' => 'Original' ) ),
+				array(),
 				array(),
 			)
 		);

@@ -390,8 +390,11 @@ class Documents_Meta_Handler {
 	/**
 	 * Normalize the item schema for an array field definition.
 	 *
+	 * Each entry keeps the rol its column declares, so the editor and the
+	 * content writer agree on which columns gestión documental owns.
+	 *
 	 * @param array $definition Field definition from the schema.
-	 * @return array<string, array{label:string,type:string,data_type:string}>
+	 * @return array<string, array{label:string,type:string,data_type:string,rol:string}>
 	 */
 	public static function normalize_array_item_schema( $definition ) {
 		$schema = array();
@@ -415,6 +418,7 @@ class Documents_Meta_Handler {
 						'label' => $label,
 						'type' => 'array',
 						'data_type' => 'array',
+						'rol' => \Documentate_Field_Roles::field_role( (array) $item ),
 						'item_schema' => self::normalize_array_item_schema( $item ),
 					);
 					continue;
@@ -433,15 +437,17 @@ class Documents_Meta_Handler {
 					'label' => $label,
 					'type' => $type,
 					'data_type' => $data_type,
+					'rol' => \Documentate_Field_Roles::field_role( (array) $item ),
 				);
 			}
 		}
 
 		if ( empty( $schema ) ) {
 			$schema['content'] = array(
-				'label' => __( 'Content', 'documentate' ),
+				'label' => 'Contenido',
 				'type' => 'textarea',
 				'data_type' => 'text',
+				'rol' => \Documentate_Field_Roles::ROLE_AREA,
 			);
 		}
 

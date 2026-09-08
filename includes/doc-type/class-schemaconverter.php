@@ -79,7 +79,28 @@ class SchemaConverter {
 			'name' => $tbs_name,
 			'data_type' => self::map_data_type( $type ),
 			'case' => $case,
+			'rol' => self::resolve_role( $field ),
 		);
+	}
+
+	/**
+	 * Rol of a schema record: who fills the field in.
+	 *
+	 * Normalisation (alias `role`, case, whitespace) lives in a single place,
+	 * Documentate_Field_Roles::field_role(), so a hand-edited or older
+	 * schema is read exactly like the extractor writes it. A record that
+	 * declares no rol at all inherits the one of the block it belongs to.
+	 *
+	 * @param array  $record  Field, repeater or item definition.
+	 * @param string $default Rol inherited when the record declares none.
+	 * @return string "gestion" or "area".
+	 */
+	private static function resolve_role( $record, $default = \Documentate_Field_Roles::ROLE_AREA ) {
+		if ( ! is_array( $record ) || ( ! isset( $record['rol'] ) && ! isset( $record['role'] ) ) ) {
+			return $default;
+		}
+
+		return \Documentate_Field_Roles::field_role( $record );
 	}
 
 	/**
@@ -101,7 +122,8 @@ class SchemaConverter {
 		$label = self::resolve_label( $repeater, $slug );
 		// Preserve the base block name used in the template (e.g., "items").
 		$tbs_name = self::sanitize_tbs_name( $repeater, $slug );
-		$item_schema = self::map_item_schema( $repeater );
+		$role = self::resolve_role( $repeater );
+		$item_schema = self::map_item_schema( $repeater, $role );
 
 		return array(
 			'slug' => $slug,
@@ -112,6 +134,7 @@ class SchemaConverter {
 			'name' => $tbs_name,
 			'data_type' => 'array',
 			'item_schema' => $item_schema,
+			'rol' => $role,
 		);
 	}
 
@@ -122,10 +145,12 @@ class SchemaConverter {
 	 * "array" carrying its own item_schema, so the editor can render the rows
 	 * of each parent record.
 	 *
-	 * @param array $repeater Repeater (or nested array field) definition.
+	 * @param array  $repeater   Repeater (or nested array field) definition.
+	 * @param string $parent_role Rol of the block, inherited by every entry
+	 *                           that does not declare one of its own.
 	 * @return array<string,array>
 	 */
-	private static function map_item_schema( $repeater ) {
+	private static function map_item_schema( $repeater, $parent_role = \Documentate_Field_Roles::ROLE_AREA ) {
 		$fields = isset( $repeater['fields'] ) && is_array( $repeater['fields'] ) ? $repeater['fields'] : array();
 		$item_schema = array();
 
@@ -146,12 +171,14 @@ class SchemaConverter {
 			}
 
 			if ( 'array' === $item_type && isset( $field['fields'] ) ) {
+				$nested_role = self::resolve_role( $field, $parent_role );
 				$item_schema[ $item_slug ] = array(
 					'label' => $item_label,
 					'type' => 'array',
 					'data_type' => 'array',
 					'case' => '',
-					'item_schema' => self::map_item_schema( $field ),
+					'rol' => $nested_role,
+					'item_schema' => self::map_item_schema( $field, $nested_role ),
 				);
 				continue;
 			}
@@ -163,6 +190,7 @@ class SchemaConverter {
 				'type' => self::guess_array_item_control_type( $item_type, $item_slug, $item_label ),
 				'data_type' => self::map_data_type( $item_type ),
 				'case' => $item_case,
+				'rol' => self::resolve_role( $field, $parent_role ),
 			);
 		}
 
@@ -207,9 +235,9 @@ class SchemaConverter {
 	/**
 	 * Guess the control type for a scalar field using heuristics similar to legacy parser.
 	 *
-	 * @param string $field_type Field type string.
-	 * @param string $slug       Field slug.
-	 * @param string $label      Field label.
+	 * @param string $field_type  Field type string.
+	 * @param string $slug        Field slug.
+	 * @param string $label       Field label.
 	 * @param string $placeholder Placeholder text.
 	 * @return string
 	 */
@@ -288,13 +316,15 @@ class SchemaConverter {
 	 * @return string
 	 */
 	private static function resolve_label( $record, $fallback ) {
-		$candidates = array(
+		// title and label are text a person wrote and are used verbatim; the
+		// placeholder name is an identifier, so a one-word block like
+		// "servicios" is humanized instead of rendered raw and lowercase.
+		$written = array(
 			isset( $record['title'] ) ? sanitize_text_field( $record['title'] ) : '',
 			isset( $record['label'] ) ? sanitize_text_field( $record['label'] ) : '',
-			isset( $record['name'] ) ? sanitize_text_field( $record['name'] ) : '',
 		);
 
-		foreach ( $candidates as $candidate ) {
+		foreach ( $written as $candidate ) {
 			$candidate = trim( $candidate );
 			if ( '' === $candidate ) {
 				continue;
@@ -305,7 +335,9 @@ class SchemaConverter {
 			return $candidate;
 		}
 
-		return self::humanize( $fallback );
+		$name = isset( $record['name'] ) ? trim( sanitize_text_field( $record['name'] ) ) : '';
+
+		return self::humanize( '' !== $name ? $name : $fallback );
 	}
 
 	/**

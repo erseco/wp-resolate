@@ -428,9 +428,25 @@ class DocumentEditorPage {
 	}
 
 	/**
-	 * Return a pending document to draft.
+	 * Reason textarea shown before a "Devolver" submit.
 	 */
-	async returnToDraft() {
+	get returnMotivoField() {
+		return this.page.locator( '#documentate-return-draft-motivo' );
+	}
+
+	/**
+	 * Return a pending document to draft, giving the reason the workflow requires.
+	 *
+	 * The first click on "Devolver al área" reveals the reason box; the
+	 * second one submits.
+	 *
+	 * @param {string} motivo - Reason of the return.
+	 */
+	async returnToDraft( motivo = 'Revisión E2E' ) {
+		if ( ! ( await this.returnMotivoField.isVisible().catch( () => false ) ) ) {
+			await this.returnToDraftButton.click();
+		}
+		await this.returnMotivoField.fill( motivo );
 		await Promise.all( [
 			this.page.waitForNavigation( { waitUntil: 'domcontentloaded' } ),
 			this.returnToDraftButton.click(),

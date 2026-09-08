@@ -26,7 +26,7 @@ class DocumentateTaskCommentsTest extends Documentate_Test_Base {
 		wp_set_current_user( $this->administrator );
 
 		// Create a test document using our custom factory
-		$documento_result = self::factory()->document->create(
+		$document_result = self::factory()->document->create(
 			array(
 				'post_title'  => 'Test Comments Document',
 				'post_author' => $this->administrator,
@@ -34,10 +34,10 @@ class DocumentateTaskCommentsTest extends Documentate_Test_Base {
 		);
 
 		// Verify document creation was successful
-		if ( is_wp_error( $documento_result ) ) {
-			$this->fail( 'Failed to create document: ' . $documento_result->get_error_message() );
+		if ( is_wp_error( $document_result ) ) {
+			$this->fail( 'Failed to create document: ' . $document_result->get_error_message() );
 		}
-		$this->document_id = $documento_result;
+		$this->document_id = $document_result;
 
 		wp_set_current_user( 0 );
 	}

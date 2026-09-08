@@ -100,7 +100,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$result = $this->helper->add_row_actions( $actions, $post );
 
 		$this->assertArrayHasKey( 'documentate_export_docx', $result );
-		$this->assertStringContainsString( 'Export DOCX', $result['documentate_export_docx'] );
+		$this->assertStringContainsString( 'Exportar DOCX', $result['documentate_export_docx'] );
 		$this->assertStringContainsString( 'documentate_export_docx', $result['documentate_export_docx'] );
 	}
 
@@ -224,6 +224,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertTrue( wp_style_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-calculations', 'enqueued' ) );
+		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculations']->deps );
 	}
 
 	/**
@@ -462,8 +464,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->helper->render_actions_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Preview', $output );
-		$this->assertStringContainsString( 'Download PDF', $output );
+		$this->assertStringContainsString( 'Previsualizar PDF', $output );
+		$this->assertStringContainsString( 'Descargar PDF', $output );
 		$this->assertStringContainsString( 'DOCX', $output );
 		$this->assertStringContainsString( 'ODT', $output );
 	}
@@ -479,7 +481,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->helper->render_actions_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Insufficient permissions', $output );
+		$this->assertStringContainsString( 'Permisos insuficientes', $output );
 	}
 
 	/**
@@ -699,7 +701,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->helper->render_actions_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Preview', $output );
+		$this->assertStringContainsString( 'Previsualizar PDF', $output );
 	}
 
 	/**
@@ -1571,6 +1573,26 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 	}
 
 	/**
+	 * Each requested format picks its own generator, and anything else is a PDF.
+	 *
+	 * The endpoint never builds a callable out of the request, so this walks
+	 * the branch that answers it.
+	 */
+	public function test_each_format_reaches_its_generator() {
+		$method_name = new ReflectionMethod( $this->helper, 'generate' );
+		$method_name->setAccessible( true );
+
+		// A document without a type has no template, so every branch comes back
+		// as the generator's own error: which one it is says which branch ran.
+		$post_id = self::factory()->post->create( array( 'post_type' => 'documentate_document' ) );
+
+		foreach ( array( 'docx', 'odt', 'pdf', 'ristra-inventada', '' ) as $format ) {
+			$result = $method_name->invoke( null, $format, $post_id );
+			$this->assertInstanceOf( WP_Error::class, $result, 'Formato: ' . $format );
+		}
+	}
+
+	/**
 	 * Test format_generator_map static property exists.
 	 */
 	public function test_format_generator_map_exists() {
@@ -1729,6 +1751,8 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		// Verify scripts are enqueued.
 		$this->assertTrue( wp_script_is( 'documentate-title-textarea', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'documentate-annexes', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-calculations', 'enqueued' ) );
+		$this->assertContains( 'documentate-annexes', wp_scripts()->registered['documentate-calculations']->deps );
 	}
 
 	/**
@@ -1742,7 +1766,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$this->assertArrayHasKey( 'documentate_actions', $wp_meta_boxes['documentate_document']['side']['high'] );
 
 		$metabox = $wp_meta_boxes['documentate_document']['side']['high']['documentate_actions'];
-		$this->assertSame( __( 'Document Actions', 'documentate' ), $metabox['title'] );
+		$this->assertSame( 'Acciones del documento', $metabox['title'] );
 	}
 
 	/**
@@ -1937,7 +1961,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-actions-primary', $output );
-		$this->assertStringNotContainsString( 'Editable download:', $output );
+		$this->assertStringNotContainsString( 'Descarga editable:', $output );
 		$this->assertStringNotContainsString( 'documentate-actions-secondary', $output );
 	}
 
@@ -2206,5 +2230,84 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 
 		// Download actions should still be available for archived documents.
 		$this->assertStringContainsString( 'DOCX', $output );
+	}
+
+	/**
+	 * The export block of the front-end application carries the anchor lists link to.
+	 */
+	public function test_render_actions_for_post_wraps_the_export_anchor() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		ob_start();
+		$this->helper->render_actions_for_post( $post );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'id="exportar"', $output );
+		$this->assertStringContainsString( 'dcta-exportar', $output );
+		$this->assertStringContainsString( 'Descargar PDF', $output );
+		$this->assertStringContainsString( 'DOCX', $output );
+		// documentate-unsaved-changes.js only subscribes to the dirty state
+		// when the indicator is on the page: without it the application never
+		// warns, and the first the user hears of it is the blocking modal.
+		$this->assertStringContainsString(
+			'<p class="documentate-unsaved-indicator" role="status" hidden>',
+			$output
+		);
+		$this->assertStringContainsString( 'Cambios sin guardar', $output );
+	}
+
+	/**
+	 * The export block is not drawn for whoever cannot edit the document.
+	 */
+	public function test_render_actions_for_post_refuses_a_stranger() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+		wp_set_current_user( 0 );
+
+		ob_start();
+		$this->helper->render_actions_for_post( $post );
+
+		$this->assertSame( '', ob_get_clean() );
+	}
+
+	/**
+	 * The string helper the application views use returns the same markup.
+	 */
+	public function test_export_block_returns_the_markup() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		$html = Documentate_Admin_Helper::export_block( $post );
+
+		$this->assertStringContainsString( 'id="exportar"', $html );
+		$this->assertInstanceOf( Documentate_Admin_Helper::class, Documentate_Admin_Helper::instance() );
+	}
+
+	/**
+	 * The application tells the unsaved-changes guard which form to watch.
+	 */
+	public function test_enqueue_actions_assets_for_post_takes_a_form_selector() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		$this->helper->enqueue_actions_assets_for_post( $post->ID, 'form.dcta-editor' );
+
+		$this->assertTrue( wp_style_is( 'documentate-actions', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'documentate-actions', 'enqueued' ) );
+
+		$data = wp_scripts()->get_data( 'documentate-unsaved-changes', 'data' );
+		$this->assertStringContainsString( '"formSelector":"form.dcta-editor"', (string) $data );
+		// wp_localize_script() casts every scalar to a string.
+		$this->assertStringContainsString( '"postId":"' . $post->ID . '"', (string) $data );
+	}
+
+	/**
+	 * Without a document there is nothing to enqueue.
+	 */
+	public function test_enqueue_actions_assets_for_post_ignores_an_empty_document() {
+		wp_dequeue_style( 'documentate-actions' );
+		wp_dequeue_script( 'documentate-actions' );
+
+		$this->helper->enqueue_actions_assets_for_post( 0 );
+
+		$this->assertFalse( wp_style_is( 'documentate-actions', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'documentate-actions', 'enqueued' ) );
 	}
 }

@@ -4,7 +4,7 @@
  * Uses Page Object Model, REST API setup, and accessible selectors
  * following WordPress/Gutenberg E2E best practices.
  */
-const { test, expect } = require( '../fixtures' );
+const { test, expect, getDownloadUrlViaAjax } = require( '../fixtures' );
 
 test.describe( 'Document Preview and Download', () => {
 	/**
@@ -15,50 +15,6 @@ test.describe( 'Document Preview and Download', () => {
 	 */
 	const ODT_TYPE = /\(ODT\)/;
 	const DOCX_TYPE = /\(DOCX\)/;
-
-	/**
-	 * Call the document generation AJAX endpoint directly from the page
-	 * context and return the download URL. Buttons use href="#" with
-	 * data-documentate-action attributes; the actual download URL is
-	 * returned by the AJAX endpoint.
-	 *
-	 * @param {import('@playwright/test').Page} page   - Playwright page
-	 * @param {string} format                          - 'docx', 'odt', or 'pdf'
-	 * @param {string} [output='download']             - 'download' or 'preview'
-	 * @return {Promise<string|null>} Download URL or null on failure
-	 */
-	async function getDownloadUrlViaAjax( page, format, output = 'download' ) {
-		return await page.evaluate(
-			async ( { fmt, out } ) => {
-				const cfg = window.documentateActionsConfig;
-				if ( ! cfg || ! cfg.ajaxUrl || ! cfg.postId ) {
-					return null;
-				}
-
-				const body = new URLSearchParams( {
-					action: 'documentate_generate_document',
-					post_id: cfg.postId,
-					format: fmt,
-					output: out,
-					_wpnonce: cfg.nonce,
-				} );
-
-				const resp = await fetch( cfg.ajaxUrl, {
-					method: 'POST',
-					credentials: 'same-origin',
-					body,
-				} );
-
-				if ( ! resp.ok ) {
-					return null;
-				}
-
-				const json = await resp.json();
-				return json.success && json.data?.url ? json.data.url : null;
-			},
-			{ fmt: format, out: output }
-		);
-	}
 
 	/**
 	 * Create and publish a document of one of the seeded demo types.
@@ -98,7 +54,9 @@ test.describe( 'Document Preview and Download', () => {
 	 */
 	function getActionButtons( page ) {
 		return {
-			preview: page.locator( '#documentate_actions a:has-text("Vista previa")' ),
+			preview: page.locator(
+				'#documentate_actions a:has-text("Previsualizar PDF")'
+			),
 			docx: page.locator( '#documentate_actions a:has-text("DOCX")' ),
 			odt: page.locator( '#documentate_actions a:has-text("ODT")' ),
 			pdf: page.locator( '#documentate_actions a:has-text("Descargar PDF")' ),
