@@ -215,8 +215,8 @@ test.describe( 'Documentate app', () => {
 		await expect( page.locator( '.dcta-h1' ) ).toContainText( NAMES.created );
 
 		// Revisión completes it: the área can no longer edit it, and the
-		// document is waiting in the review tray.
-		await page.goto( `${ APP_PATH }?bandeja=revisar&estado=en_gestion` );
+		// document is waiting behind the "En revisión" chip.
+		await page.goto( `${ APP_PATH }?estado=en_gestion` );
 		await expect(
 			page.locator( '.dcta-doc-nombre', { hasText: NAMES.created } )
 		).toBeVisible();
@@ -228,7 +228,9 @@ test.describe( 'Documentate app', () => {
 		try {
 			await page.goto( APP_PATH );
 			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
-			await page.goto( `${ APP_PATH }?user_switched=true` );
+			// The list opens on what waits for revisión; "todos" is how every
+			// status is asked for at once.
+			await page.goto( `${ APP_PATH }?user_switched=true&estado=todos` );
 			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Documentos' );
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.inScope } ) ).toBeVisible();
@@ -255,7 +257,7 @@ test.describe( 'Documentate app', () => {
 			await expect( page.locator( '#documentate-app-nombre' ) ).toHaveValue( `Corto ${ RUN }` );
 
 			// The list shows the internal name, not the official title.
-			await page.goto( APP_PATH );
+			await page.goto( `${ APP_PATH }?estado=todos` );
 			await expect(
 				page.locator( '.dcta-doc-nombre', { hasText: `Corto ${ RUN }` } )
 			).toBeVisible();

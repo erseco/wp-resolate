@@ -175,9 +175,12 @@ class Documentate_Demo_Data {
 		// ODT template for resolutions.
 		self::import_fixture_file( 'resolucion.odt' );
 
-		// Ensure demo fixtures are present for testing scenarios.
+		// Ensure demo fixtures are present for testing scenarios. The DOCX
+		// twin of the advanced example is still there for the tests that read
+		// a DOCX template, but it is not seeded as a document type: the site
+		// draws every PDF from the ODT, and one example of the advanced
+		// template is enough to show what a schema can carry.
 		self::import_fixture_file( 'demo-wp-documentate.odt' );
-		self::import_fixture_file( 'demo-wp-documentate.docx' );
 		self::import_fixture_file( 'autorizacionviaje.odt' );
 		self::import_fixture_file( 'gastossuplidos.odt' );
 		self::import_fixture_file( 'propuestagasto.odt' );
@@ -207,6 +210,42 @@ class Documentate_Demo_Data {
 		foreach ( self::get_doc_type_definitions() as $definition ) {
 			self::seed_doc_type( $definition );
 		}
+
+		self::retire_docx_example();
+	}
+
+	/**
+	 * Take the DOCX twin of the advanced example off a site that has it.
+	 *
+	 * It was seeded beside the ODT one to show the same schema in the other
+	 * office format, and it only ever added a second entry that nobody picks
+	 * to the type selector. The term goes only where it is a demo example
+	 * (its fixture mark) and only while no document uses it: whoever wrote a
+	 * document of that type keeps it.
+	 *
+	 * @return void
+	 */
+	private static function retire_docx_example() {
+		$term = get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' );
+		if ( ! $term instanceof WP_Term ) {
+			return;
+		}
+
+		// The mark is the slug of the fixture the seeder gave it.
+		if ( 'documentate-demo-wp-documentate-docx' !== get_term_meta( $term->term_id, '_documentate_fixture', true ) ) {
+			return;
+		}
+
+		// Straight off the term relationships, not through WP_Query: seeding
+		// runs wherever the plugin is activated, and the front-end query
+		// filters would answer "nothing" for a visitor and take the type of a
+		// document with it. A draft is a document too.
+		$documents = get_objects_in_term( $term->term_id, 'documentate_doc_type' );
+		if ( is_wp_error( $documents ) || ! empty( $documents ) ) {
+			return;
+		}
+
+		wp_delete_term( $term->term_id, 'documentate_doc_type' );
 	}
 
 	/**
@@ -233,6 +272,7 @@ class Documentate_Demo_Data {
 		}
 
 		update_term_meta( $term_id, '_documentate_fixture', $definition['fixture_key'] );
+		self::rename_doc_type( $term_id, $definition );
 		update_term_meta( $term_id, 'documentate_type_color', $definition['color'] );
 		update_term_meta( $term_id, Documentate_Pdf_Layout::META_KEY, $definition['pdf_layout'] );
 		update_term_meta( $term_id, 'documentate_type_template_id', $template_id );
@@ -273,6 +313,41 @@ class Documentate_Demo_Data {
 		}
 
 		return intval( $created['term_id'] );
+	}
+
+	/**
+	 * Keep the name of a seeded document type up to date.
+	 *
+	 * Seeding again is how an environment created by an earlier version
+	 * catches up, and the name of an example is part of what it teaches. A
+	 * name somebody edited by hand is left alone: only the one the seeder
+	 * itself last wrote is replaced.
+	 *
+	 * @param int   $term_id    Document type term ID.
+	 * @param array $definition Document type definition.
+	 * @return void
+	 */
+	private static function rename_doc_type( $term_id, $definition ) {
+		$term = get_term( $term_id, 'documentate_doc_type' );
+		if ( ! $term instanceof WP_Term ) {
+			return;
+		}
+
+		if ( $term->name === $definition['name'] ) {
+			// Seeding wrote this name, whether now or on an earlier run: the
+			// mark is what tells it apart from a name somebody typed.
+			update_term_meta( $term_id, '_documentate_fixture_name', $definition['name'] );
+
+			return;
+		}
+
+		$seeded = (string) get_term_meta( $term_id, '_documentate_fixture_name', true );
+		if ( '' !== $seeded && $seeded !== $term->name ) {
+			return;
+		}
+
+		wp_update_term( $term_id, 'documentate_doc_type', array( 'name' => $definition['name'] ) );
+		update_term_meta( $term_id, '_documentate_fixture_name', $definition['name'] );
 	}
 
 	/**
@@ -400,13 +475,6 @@ class Documentate_Demo_Data {
 				'color' => '#6c5ce7',
 				'pdf_layout' => 'generic',
 			),
-			'demo-wp-documentate.docx' => array(
-				'slug' => 'documentate-demo-wp-documentate-docx',
-				'name' => 'Tipo de documento de prueba avanzado (DOCX)',
-				'description' => 'Ejemplo creado automáticamente con la plantilla demo-wp-documentate.docx incluida.',
-				'color' => '#0f9d58',
-				'pdf_layout' => 'generic',
-			),
 			'autorizacionviaje.odt' => array(
 				'slug' => 'autorizacion-viaje',
 				'name' => 'Autorización de viaje',
@@ -425,7 +493,7 @@ class Documentate_Demo_Data {
 			),
 			'propuestagasto.odt' => array(
 				'slug' => 'propuesta-gasto',
-				'name' => 'Propuesta de gasto',
+				'name' => 'Propuesta de gasto (Documento 0)',
 				'description' => 'Plantilla para propuestas de gasto con libramientos, servicios, suministros y expertos.',
 				'color' => '#9b59b6',
 				'pdf_layout' => 'propuestagasto',

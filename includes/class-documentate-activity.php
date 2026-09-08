@@ -52,7 +52,7 @@ class Documentate_Activity {
 	 * Record a workflow event on a document.
 	 *
 	 * @param int    $post_id Document ID.
-	 * @param string $text    What happened, in the third person ("aprobó y publicó el documento").
+	 * @param string $text    What happened, in the third person ("aprobó el documento").
 	 * @param string $reason  Optional reason stored as comment meta.
 	 * @return int Comment ID, or 0 when it could not be stored.
 	 */

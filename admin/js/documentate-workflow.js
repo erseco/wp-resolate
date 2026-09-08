@@ -131,7 +131,7 @@
 				self.submitWithStatus('en_gestion');
 			});
 
-			// "Aprobar y publicar" button.
+			// "Aprobar" button.
 			$('#documentate-approve-publish').on('click', function (e) {
 				e.preventDefault();
 				self.submitWithStatus('publish');

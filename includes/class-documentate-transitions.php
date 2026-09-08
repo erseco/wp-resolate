@@ -137,7 +137,7 @@ class Documentate_Transitions {
 				'label' => 'Devolver al área',
 				'confirm' => '',
 				'event' => 'devolvió el documento al área',
-				'redirect' => 'bandeja',
+				'redirect' => 'lista',
 				'flag' => 'devuelto',
 			),
 			array(
@@ -147,9 +147,9 @@ class Documentate_Transitions {
 				'who' => 'jefatura',
 				'has_management' => null,
 				'reason' => false,
-				'label' => 'Aprobar y publicar',
-				'confirm' => '¿Aprobar y publicar el documento? Quedará bloqueado; solo se podrá consultar y descargar.',
-				'event' => 'aprobó y publicó el documento',
+				'label' => 'Aprobar',
+				'confirm' => '¿Aprobar el documento? Quedará bloqueado; solo se podrá consultar y descargar.',
+				'event' => 'aprobó el documento',
 				'redirect' => 'detalle',
 				'flag' => 'aprobado',
 			),
@@ -163,7 +163,7 @@ class Documentate_Transitions {
 				'label' => 'Devolver a revisión',
 				'confirm' => '',
 				'event' => 'devolvió el documento a revisión',
-				'redirect' => 'bandeja',
+				'redirect' => 'lista',
 				'flag' => 'devuelto',
 			),
 			array(
@@ -176,7 +176,7 @@ class Documentate_Transitions {
 				'label' => 'Devolver al área',
 				'confirm' => '',
 				'event' => 'devolvió el documento al área',
-				'redirect' => 'bandeja',
+				'redirect' => 'lista',
 				'flag' => 'devuelto',
 			),
 			array(
@@ -187,7 +187,7 @@ class Documentate_Transitions {
 				'has_management' => null,
 				'reason' => false,
 				'label' => 'Devolver a aprobación',
-				'confirm' => '¿Devolver el documento a aprobación? Dejará de estar aprobado y volverá a la bandeja de la jefatura de servicio.',
+				'confirm' => '¿Devolver el documento a aprobación? Dejará de estar aprobado y volverá a la lista de la jefatura de servicio.',
 				'event' => 'devolvió el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => '',
@@ -613,7 +613,7 @@ class Documentate_Transitions {
 	 * @param string $key  Rule key, or "guardar" for a plain save.
 	 * @param string $from Optional stored status, to pick between two rules
 	 *                     that share a key.
-	 * @return string "editar", "detalle" or "bandeja".
+	 * @return string "editar", "detalle" or "lista".
 	 */
 	public static function redirect( $key, $from = '' ) {
 		$rule = self::rule( $key, $from );

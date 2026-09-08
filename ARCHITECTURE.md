@@ -237,7 +237,7 @@ the app and in wp-admin.
 
 `includes/app/` holds a small application served by one WordPress page via the
 `[documentate_app]` shortcode; every view lives under a single URL,
-distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
+distinguished by query args (`vista`, `doc`, `estado`, `area`):
 
 - `class-documentate-app.php` (`Documentate_App`) — shortcode, asset
   enqueueing, admin-bar entry, and wiring of the `template_redirect` handlers.
@@ -251,14 +251,14 @@ distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
   signed in: initials avatar, name, role via `Documentate_Roles::role_label()`
   and ámbito via `scope_label()`, in a native `<details>` menu with "Salir"),
   tabs per role (`sections()`), sheet and dialogs shared by every view.
-- `class-documentate-app-list.php`, `-detail.php`, `-edit.php` —
-  bandejas/list, document detail (status stepper, actividad, export) and the
-  edit screen (fields grouped by role, attachment dropzone, transition
-  buttons) respectively.
-- `class-documentate-app-tray.php` (`Documentate_App_Tray`) — which
-  trays a role may open, which one the request means, the active status/área
-  filters, and the `WP_Query` arguments and counts behind them. The list view
-  and the tab badges ask it; they never build a query themselves.
+- `class-documentate-app-list.php`, `-detail.php`, `-edit.php` — the document
+  list, document detail (status stepper, actividad, export) and the edit
+  screen (fields grouped by role, attachment dropzone, transition buttons)
+  respectively.
+- `class-documentate-app-tray.php` (`Documentate_App_Tray`) — the active
+  status/área filters, the status chip a role's list opens on
+  (`default_status()`), and the `WP_Query` arguments and counts behind them.
+  The list view asks it; it never builds a query itself.
 - `class-documentate-app-list-row.php` (`Documentate_App_List_Row`) — one
   row of that list: the text the quick filter matches against, the paper-clip
   of a document with a file, the sublines and the single action offered.
@@ -271,15 +271,18 @@ distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
   and sideloads the single source-file attachment (PDF/ODT/DOCX, ≤ 20 MB) via
   `media_handle_sideload()`.
 
-Tabs differ per role: área gets "Mis documentos" / "Nuevo documento"; revisión
-"Documentos" (every document of its scope) / "Para revisar" (`en_gestion`) /
-"Nuevo documento"; jefatura "Documentos" / "Para aprobar" (`pending`) / "Nuevo
-documento"; administración "Todos los documentos" / "Para aprobar" / "Nuevo
-documento". Every tray is scoped (§2.5); only the actionable tab carries a
-badge, and "Nuevo documento" a plus icon. Whoever looks after several áreas
-— revisión, jefatura and administración — also gets the área select, which
-offers the categories of their ámbito (every one of them for administración)
-and narrows a tray without ever reaching past it.
+There is one list per person and two tabs: área gets "Mis documentos" /
+"Nuevo documento", revisión and jefatura "Documentos" / "Nuevo documento",
+administración "Todos los documentos" / "Nuevo documento" ("Nuevo documento"
+carries a plus icon). What waits for a role is not a tab but a status chip of
+that list: every chip carries the count of what it holds, a chip that would
+find nothing is not drawn, and the list opens on the chip of the role —
+`draft` for the área, `en_gestion` for revisión, `pending` for jefatura and
+administración. The list is scoped (§2.5). Whoever looks after several áreas
+— revisión, jefatura and administración — also gets the área select at the end
+of the chip row, which offers the categories of their ámbito (every one of
+them for administración), filters as soon as one is chosen and never reaches
+past the scope.
 
 Preview/export (PDF, ODT, DOCX) reuses the same admin metabox actions:
 `Documentate_Admin_Helper::render_actions_for_post()` /

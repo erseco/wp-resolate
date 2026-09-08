@@ -245,13 +245,33 @@ foreach ( (array) $plan['categories'] as $key => $def ) {
 }
 
 foreach ( (array) $plan['types'] as $key => $def ) {
-	if ( is_array( $def ) ) {
+	if ( is_array( $def ) && isset( $def['slug'] ) ) {
 		$term = get_term_by( 'slug', $def['slug'], 'documentate_doc_type' );
 		$out['types'][ $key ] = $term ? (int) $term->term_id : 0;
 		continue;
 	}
-	$term = wp_insert_term( $def, 'documentate_doc_type' );
-	$out['types'][ $key ] = is_wp_error( $term ) ? 0 : (int) $term['term_id'];
+	$name = is_array( $def ) ? $def['name'] : $def;
+	$term = wp_insert_term( $name, 'documentate_doc_type' );
+	$term_id = is_wp_error( $term ) ? 0 : (int) $term['term_id'];
+	$out['types'][ $key ] = $term_id;
+	if ( ! $term_id || ! is_array( $def ) || empty( $def['template'] ) ) {
+		continue;
+	}
+
+	// A type with a template of its own: the bundled fixture becomes its
+	// attachment and its schema, the way the seeder builds the examples.
+	$template_id = (int) Documentate_Demo_Data::import_fixture_file( $def['template'] );
+	$path = $template_id ? get_attached_file( $template_id ) : '';
+	if ( ! $path ) {
+		throw new Exception( 'Fixture template not found: ' . $def['template'] );
+	}
+	update_term_meta( $term_id, 'documentate_type_template_id', $template_id );
+	update_term_meta( $term_id, 'documentate_type_template_type', strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) );
+	$schema = ( new Documentate\\DocType\\SchemaExtractor() )->extract( $path );
+	if ( is_wp_error( $schema ) ) {
+		throw new Exception( 'Fixture template unreadable: ' . $schema->get_error_message() );
+	}
+	( new Documentate\\DocType\\SchemaStorage() )->save_schema( $term_id, $schema );
 }
 
 foreach ( (array) $plan['users'] as $key => $u ) {
@@ -401,7 +421,9 @@ function runPhp( php, plan ) {
  *
  * @param {Object}          plan               Fixture plan.
  * @param {Object}          [plan.categories]  Category name, or `{ name, parent }`, by key.
- * @param {Object}          [plan.types]       Type name to create, or `{ slug }` to look up, by key.
+ * @param {Object}          [plan.types]       Type name to create, `{ name, template }` to create
+ *                                             one from a bundled fixture (its schema included), or
+ *                                             `{ slug }` to look up an existing one, by key.
  * @param {Object}          [plan.users]    `{ login, role, scope, management, head }` by key (the password is PASSWORD);
  *                                             `management: true` appoints that account revisión, `head: true` jefatura de servicio.
  * @param {Object}          [plan.documents]  `{ title, category, type, author, status, name }` by key.

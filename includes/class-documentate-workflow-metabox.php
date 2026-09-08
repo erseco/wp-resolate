@@ -155,7 +155,7 @@ class Documentate_Workflow_Metabox {
 			'adminUnlock' => 'Devuélvelo a aprobación o al área para habilitar la edición.',
 			'adminUnarchive' => 'Desarchívalo para habilitar la edición.',
 			'needsDocType' => 'Selecciona un tipo de documento antes de enviarlo.',
-			'editorRestriction' => 'Solo la jefatura de servicio puede aprobar y publicar.',
+			'editorRestriction' => 'Solo la jefatura de servicio puede aprobar.',
 			'confirmSendReview' => Documentate_Transitions::confirmation( 'enviar_revision' ),
 			'confirmSendManagement' => Documentate_Transitions::confirmation( 'enviar_gestion' ),
 			'confirmPassAdmin' => Documentate_Transitions::confirmation( 'pasar_admin' ),

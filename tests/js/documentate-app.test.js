@@ -443,7 +443,7 @@ const LIST = `
 	</div>`;
 
 /**
- * Build a tray and run the module on it.
+ * Build a list and run the module on it.
  */
 function mountList() {
 	document.body.innerHTML = LIST;
@@ -525,12 +525,12 @@ describe( 'quick filter', () => {
 		expect( document.querySelector( '[data-dcta-pie]' ).textContent ).toBe( '3 documentos' );
 	} );
 
-	it( 'does nothing on a page without a tray', () => {
+	it( 'does nothing on a page without a list', () => {
 		document.body.innerHTML = '<div class="dcta-hoja"></div>';
 		expect( () => load() ).not.toThrow();
 	} );
 
-	it( 'keeps the truncation warning of a capped tray in every count', () => {
+	it( 'keeps the truncation warning of a capped list in every count', () => {
 		document.body.innerHTML = LIST.replace(
 			'data-dcta-pie-total="3">3 documentos',
 			'data-dcta-pie-total="500">mostrando 3 de 500 documentos · afina con los filtros'
@@ -547,7 +547,7 @@ describe( 'quick filter', () => {
 		typeInFilter( 'nada de nada' );
 		expect( document.querySelector( '.dcta-vacio' ).hidden ).toBe( false );
 		expect( document.querySelector( '.dcta-vacio' ).textContent ).toBe(
-			'Ningún documento de los 3 que hay en pantalla coincide con el filtro · la bandeja tiene 500, afina con los filtros.'
+			'Ningún documento de los 3 que hay en pantalla coincide con el filtro · la lista tiene 500, afina con los filtros.'
 		);
 	} );
 
@@ -561,5 +561,62 @@ describe( 'quick filter', () => {
 		expect( document.querySelector( '[data-dcta-pie]' ).textContent ).toBe(
 			'0 de 3 documentos'
 		);
+	} );
+} );
+
+describe( 'área filter', () => {
+	const AREAS = `
+	<form class="dcta-areas" method="get" action="/documentate/" data-dcta-areas="1">
+		<input type="hidden" name="estado" value="todos" />
+		<select id="dcta-area" name="area">
+			<option value="0">Todas las áreas</option>
+			<option value="12">Departamento de Proyectos</option>
+		</select>
+		<button type="submit" class="dcta-btn dcta-btn-ton dcta-areas-ok">Filtrar</button>
+	</form>`;
+
+	/**
+	 * Choose an área in the select.
+	 *
+	 * @param {string} value Term ID of the option.
+	 */
+	function chooseArea( value ) {
+		const select = document.getElementById( 'dcta-area' );
+		select.value = value;
+		select.dispatchEvent( new window.Event( 'change' ) );
+	}
+
+	it( 'submits on change and hides the button it replaces', () => {
+		document.body.innerHTML = AREAS;
+		const form = document.querySelector( '[data-dcta-areas]' );
+		form.submit = jest.fn();
+
+		// Without the script the button is the only way to filter, so it is
+		// there until the script takes over.
+		expect( document.querySelector( '.dcta-areas-ok' ).hidden ).toBe( false );
+
+		load();
+
+		expect( document.querySelector( '.dcta-areas-ok' ).hidden ).toBe( true );
+		chooseArea( '12' );
+		expect( form.submit ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'is wired once however often the module runs', () => {
+		document.body.innerHTML = AREAS;
+		const form = document.querySelector( '[data-dcta-areas]' );
+		form.submit = jest.fn();
+
+		load();
+		load();
+		chooseArea( '12' );
+
+		expect( form.submit ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'does nothing on a page without the filter', () => {
+		document.body.innerHTML = '<div class="dcta-filtros"></div>';
+
+		expect( () => load() ).not.toThrow();
 	} );
 } );

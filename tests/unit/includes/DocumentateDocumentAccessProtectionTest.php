@@ -829,7 +829,7 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 				'user_id'          => $this->admin_user_id,
 			)
 		);
-		$event = Documentate_Activity::record_event( $this->document_id, 'aprobó y publicó el documento' );
+		$event = Documentate_Activity::record_event( $this->document_id, 'aprobó el documento' );
 		$post_comment = wp_insert_comment(
 			array(
 				'comment_post_ID'  => $this->regular_post_id,

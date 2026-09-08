@@ -288,11 +288,8 @@ class Documentate_Doc_Types_Admin {
 		<tr class="form-field">
 			<th scope="row"><label for="documentate_type_color"><?php echo esc_html( 'Color' ); ?></label></th>
 			<td>
-				<input type="text" id="documentate_type_color" name="documentate_type_color" class="documentate-color-field" value="
-				<?php
-				echo esc_attr( $color );
-				?>
-				" />
+				<?php // The value is printed inside the attribute: broken over lines, the colour arrives with newlines around it, the picker refuses it and the type is saved with the colour of the form instead of its own. ?>
+				<input type="text" id="documentate_type_color" name="documentate_type_color" class="documentate-color-field" value="<?php echo esc_attr( $color ); ?>" />
 			</td>
 		</tr>
 		<tr class="form-field">

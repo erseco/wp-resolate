@@ -132,7 +132,7 @@ matter of taste:
 - **Never renamed for language reasons** — anything that is part of a contract
   with the browser, the database or a bookmark: CSS classes (`dcta-*`,
   `documentate-*`), `data-*` attributes, DOM ids, query-string keys and their
-  values (`vista`, `doc`, `bandeja`, `estado`, `area`, `guardado`, `enviado`,
+  values (`vista`, `doc`, `estado`, `area`, `guardado`, `enviado`,
   `devuelto`, `error`), `name` attributes of form fields (`documentate_app_*`),
   post meta and term meta keys, option names, capability and role names, hook
   names, the `en_gestion` post status, schema attributes such as `rol`, and the

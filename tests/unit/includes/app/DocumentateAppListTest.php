@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the document trays of the front-end application.
+ * Tests for the document list of the front-end application.
  *
  * @package Documentate
  */
@@ -211,10 +211,10 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Render a tray as a user.
+	 * Render the list as a user.
 	 *
-	 * @param int    $user_id User to render as.
-	 * @param array  $args    Query arguments (bandeja, estado, area).
+	 * @param int   $user_id User to render as.
+	 * @param array $args    Query arguments (estado, area).
 	 * @return string HTML.
 	 */
 	private function render( $user_id, array $args = array() ) {
@@ -227,7 +227,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	/**
 	 * The label of the action offered by the row of a document.
 	 *
-	 * @param string $html   Rendered tray.
+	 * @param string $html Rendered list.
 	 * @param string $name Short name of the document.
 	 * @return string Empty when the row is not there.
 	 */
@@ -244,33 +244,49 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The tray each role lands on.
+	 * The list opens on the chip that holds what waits for each rol.
 	 */
-	public function test_each_role_lands_on_its_own_tray() {
+	public function test_each_role_lands_on_its_own_chip() {
 		wp_set_current_user( $this->area_id );
-		$this->assertSame( 'mis', Documentate_App_List::current_tray() );
+		$this->assertSame( 'draft', Documentate_App_Tray::default_status(), 'The área lands on what it has still to send.' );
 
 		wp_set_current_user( $this->management_id );
-		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Revisión lands on every document of its scope.' );
+		$this->assertSame( 'en_gestion', Documentate_App_Tray::default_status(), 'Revisión lands on what waits for review.' );
 
 		wp_set_current_user( $this->head_id );
-		$this->assertSame( 'todos', Documentate_App_List::current_tray() );
+		$this->assertSame( 'pending', Documentate_App_Tray::default_status(), 'The head of service lands on what waits for approval.' );
 
 		wp_set_current_user( $this->admin_id );
-		$this->assertSame( 'todos', Documentate_App_List::current_tray() );
+		$this->assertSame( 'pending', Documentate_App_Tray::default_status() );
 
-		$_GET['bandeja'] = 'revisar';
-		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Administración has no revisión tray.' );
-		wp_set_current_user( $this->head_id );
-		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Neither has the head of service.' );
-		wp_set_current_user( $this->area_id );
-		$this->assertSame( 'mis', Documentate_App_List::current_tray(), 'The área has no review tray at all.' );
+		// And that is the chip the list draws as the active one, with the
+		// documents of that status alone.
+		$html = $this->render( $this->head_id );
+		$this->assertMatchesRegularExpression( '/class="dcta-fchip dcta-fchip-on dcta-fchip-mio"[^>]*>En aprobación/', $html );
+		$this->assertStringContainsString( 'RES · Formación profesorado', $html );
+		$this->assertStringNotContainsString( 'RES · Jornadas digitales', $html );
 	}
 
 	/**
-	 * The tabs of each role, and the badge on the one that needs attention.
+	 * Each chip carries what it holds, and "Todos" the whole list.
 	 */
-	public function test_tabs_and_badges_per_role() {
+	public function test_the_chips_carry_their_counts() {
+		$html = $this->render( $this->management_id );
+
+		$this->assertMatchesRegularExpression( '/>Todos<span class="dcta-fchip-n">5<\/span>/', $html, 'Five documents in the ámbito.' );
+		$this->assertMatchesRegularExpression( '/>Por enviar<span class="dcta-fchip-n">2<\/span>/', $html );
+		$this->assertMatchesRegularExpression( '/>En revisión<span class="dcta-fchip-n">1<\/span>/', $html );
+		$this->assertMatchesRegularExpression( '/>En aprobación<span class="dcta-fchip-n">1<\/span>/', $html );
+		$this->assertMatchesRegularExpression( '/>Devuelto<span class="dcta-fchip-n">1<\/span>/', $html );
+
+		// An área counts its own ámbito, not the site.
+		$this->assertMatchesRegularExpression( '/>Todos<span class="dcta-fchip-n">3<\/span>/', $this->render( $this->area_id ) );
+	}
+
+	/**
+	 * The tabs of each role: the list, and the new document.
+	 */
+	public function test_tabs_per_role() {
 		wp_set_current_user( $this->area_id );
 		$sections = Documentate_App_Shell::sections();
 		$this->assertSame( array( 'lista', 'nuevo' ), array_keys( $sections ) );
@@ -278,29 +294,16 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 
 		wp_set_current_user( $this->management_id );
 		$sections = Documentate_App_Shell::sections();
-		$this->assertSame( array( 'lista', 'revisar', 'nuevo' ), array_keys( $sections ) );
+		// What waits for a rol is a chip of the list, not a tab of its own.
+		$this->assertSame( array( 'lista', 'nuevo' ), array_keys( $sections ) );
 		$this->assertSame( 'Documentos', $sections['lista']['tab'] );
-		$this->assertSame( 'Para revisar', $sections['revisar']['tab'] );
-		$this->assertSame( 1, $sections['revisar']['n'], 'One document waits in revisión.' );
 
 		wp_set_current_user( $this->head_id );
-		$sections = Documentate_App_Shell::sections();
-		// Same shape as revisión: the whole list first, then the tray of what waits.
-		$this->assertSame( array( 'lista', 'revision', 'nuevo' ), array_keys( $sections ) );
-		$this->assertSame( 'Documentos', $sections['lista']['tab'] );
-		$this->assertSame( 'Para aprobar', $sections['revision']['tab'] );
-		$this->assertSame( 1, $sections['revision']['n'], 'One document waits for approval.' );
-
-		// A head of service whose scope holds nothing pending has no badge.
-		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_b );
-		Documentate_App_Shell::open( 'lista', '' );
-		$this->assertSame( 0, Documentate_App_Shell::sections()['revision']['n'], 'The badge counts the scope, not the site.' );
-		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_service );
+		$this->assertSame( array( 'lista', 'nuevo' ), array_keys( Documentate_App_Shell::sections() ) );
 
 		wp_set_current_user( $this->admin_id );
 		$sections = Documentate_App_Shell::sections();
-		$this->assertSame( array( 'lista', 'revision', 'nuevo' ), array_keys( $sections ) );
-		$this->assertSame( 1, $sections['revision']['n'], 'One document waits for approval.' );
+		$this->assertSame( array( 'lista', 'nuevo' ), array_keys( $sections ) );
 		$this->assertSame( 'Todos los documentos', $sections['lista']['tab'] );
 		// Document types and their templates are wp-admin work, not a tab.
 		$this->assertStringNotContainsString( 'edit-tags.php', wp_json_encode( $sections ) );
@@ -310,7 +313,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	 * "Mis documentos" keeps the scope rules and shows what is still ours.
 	 */
 	public function test_my_documents_keeps_the_scope() {
-		$html = $this->render( $this->area_id );
+		$html = $this->render( $this->area_id, array( 'estado' => 'todos' ) );
 
 		$this->assertStringContainsString( 'RES · Jornadas digitales', $html );
 		$this->assertStringContainsString( 'Jornadas de competencia digital', $html, 'The official title is the second line.' );
@@ -331,7 +334,6 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Devuelto por revisión', $html );
 		$this->assertStringContainsString( 'Falta el anexo firmado por la dirección', $html );
 		$this->assertStringContainsString( 'Editar', $html );
-		$this->assertStringContainsString( ' (1 devuelto)', $html );
 	}
 
 	/**
@@ -341,7 +343,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	 * editor, `Ver` when it opens the document.
 	 */
 	public function test_the_area_edits_drafts_and_only_views_the_rest() {
-		$html = $this->render( $this->area_id );
+		$html = $this->render( $this->area_id, array( 'estado' => 'todos' ) );
 
 		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Jornadas digitales' ) );
 		$this->assertSame(
@@ -352,28 +354,26 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Revisión reviews every área of its scope, and the tray pre-selects "En revisión".
+	 * Revisión reads every área of its scope, and opens on what waits for it.
 	 */
-	public function test_the_management_tray_shows_every_area() {
-		$html = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
+	public function test_the_management_list_shows_every_area() {
+		$html = $this->render( $this->management_id );
 
 		$this->assertStringContainsString( 'RES · Listado piloto', $html );
-		$this->assertStringNotContainsString( 'Jornadas digitales', $html, 'Drafts stay with their área.' );
+		$this->assertStringNotContainsString( 'Jornadas digitales', $html, 'The chip opens on what waits for review.' );
 		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Listado piloto' ) );
-		$this->assertStringContainsString( 'Ana Área', $html, 'The review trays name the área and the person.' );
+		$this->assertStringContainsString( 'Ana Área', $html, 'Reading several áreas, the rows name the área and the person.' );
 		$this->assertStringContainsString( '1 documento', $html );
 	}
 
 	/**
 	 * A reviewer whose scope is one department only sees that department.
 	 */
-	public function test_the_review_tray_stops_at_the_scope() {
+	public function test_the_list_stops_at_the_scope() {
 		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_a );
 
-		$html = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
-		$this->assertStringNotContainsString( 'Listado piloto', $html, 'Another department is out of scope, pipeline or not.' );
-
-		$html = $this->render( $this->management_id );
+		$html = $this->render( $this->management_id, array( 'estado' => 'todos' ) );
+		$this->assertStringNotContainsString( 'Listado piloto', $html, 'Another department is out of scope.' );
 		$this->assertStringContainsString( 'RES · Jornadas digitales', $html );
 		$this->assertStringNotContainsString( 'Bases piloto', $html );
 	}
@@ -381,41 +381,28 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	/**
 	 * The head of service opens what waits for approval, and edits it.
 	 */
-	public function test_the_head_tray_shows_what_waits_for_approval() {
-		$html = $this->render( $this->head_id, array( 'bandeja' => 'revision' ) );
+	public function test_the_head_opens_on_what_waits_for_approval() {
+		$html = $this->render( $this->head_id );
 
-		$this->assertStringContainsString( 'Para aprobar', $html );
 		$this->assertStringContainsString( 'RES · Formación profesorado', $html );
 		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Formación profesorado' ) );
 		$this->assertStringNotContainsString( 'Listado piloto', $html, 'What is still in revisión is not theirs yet.' );
 
-		$html = $this->render( $this->head_id );
+		$html = $this->render( $this->head_id, array( 'estado' => 'todos' ) );
 		$this->assertStringContainsString( '<h1 class="dcta-h1">Documentos</h1>', $html );
 		$this->assertSame( 'Ver', $this->row_action( $html, 'RES · Listado piloto' ), 'Revisión has not finished with it.' );
 	}
 
 	/**
-	 * The chips of the gestión tray narrow it down.
+	 * The chips narrow the list down.
 	 */
-	public function test_the_chips_narrow_the_tray_down() {
-		$html = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'estado' => 'publish',
-			)
-		);
+	public function test_the_chips_narrow_the_list_down() {
+		$html = $this->render( $this->management_id, array( 'estado' => 'publish' ) );
 
 		$this->assertStringContainsString( 'RES · Bases piloto', $html );
 		$this->assertStringNotContainsString( 'RES · Listado piloto', $html );
 
-		$all = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'estado' => 'todos',
-			)
-		);
+		$all = $this->render( $this->management_id, array( 'estado' => 'todos' ) );
 
 		$this->assertStringContainsString( 'RES · Bases piloto', $all );
 		$this->assertStringContainsString( 'RES · Listado piloto', $all );
@@ -425,119 +412,74 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	 * A chip nothing would match is not drawn.
 	 */
 	public function test_chips_are_only_drawn_when_they_find_something() {
-		$html = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
+		$html = $this->render( $this->management_id );
 
-		$this->assertStringContainsString( '>Todos</a>', $html );
-		$this->assertStringNotContainsString( 'estado=draft', $html, 'Drafts are not part of this tray.' );
-		$this->assertStringNotContainsString( 'estado=archived', $html, 'Nothing in this tray is archived.' );
+		$this->assertStringContainsString( '>Todos<span class="dcta-fchip-n">', $html );
+		$this->assertStringContainsString( 'estado=draft', $html, 'Two drafts wait in the ámbito.' );
+		$this->assertStringNotContainsString( 'estado=archived', $html, 'Nothing is archived.' );
 		// "Devuelto" is not a status but a mark, and it follows the document
 		// wherever it was sent back to — including the drafts of the áreas.
 		$this->assertStringContainsString( 'estado=devuelto', $html );
 
 		Documentate_Document_Data::clear_returned( $this->docs['devuelto'] );
-		$is_empty = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
+		$is_empty = $this->render( $this->management_id );
 		$this->assertStringNotContainsString( 'estado=devuelto', $is_empty, 'With nothing returned the chip is gone.' );
 	}
 
 	/**
-	 * Administración sees everything, and its review tray only what waits.
+	 * Administración sees everything, and opens on what waits for approval.
 	 */
-	public function test_administration_sees_everything_and_reviews_the_pending() {
-		$all = $this->render( $this->admin_id );
+	public function test_administration_sees_everything_and_opens_on_the_pending() {
+		$all = $this->render( $this->admin_id, array( 'estado' => 'todos' ) );
 		$this->assertStringContainsString( 'RES · Jornadas digitales', $all );
 		$this->assertStringContainsString( 'RES · Listado piloto', $all );
 		$this->assertStringContainsString( '5 documentos', $all );
 
-		$revision = $this->render( $this->admin_id, array( 'bandeja' => 'revision' ) );
-		$this->assertStringContainsString( 'RES · Formación profesorado', $revision );
-		$this->assertStringNotContainsString( 'RES · Jornadas digitales', $revision );
-		$this->assertSame( 'Editar', $this->row_action( $revision, 'RES · Formación profesorado' ) );
+		$pending = $this->render( $this->admin_id );
+		$this->assertStringContainsString( 'RES · Formación profesorado', $pending );
+		$this->assertStringNotContainsString( 'RES · Jornadas digitales', $pending );
+		$this->assertSame( 'Editar', $this->row_action( $pending, 'RES · Formación profesorado' ) );
 
 		$this->assertSame(
 			'Ver',
 			$this->row_action( $all, 'RES · Listado piloto' ),
-			'A document gestión has not finished with is not administración\'s to review yet.'
+			'A document revisión has not finished with is not administración\'s to review yet.'
 		);
 	}
 
 	/**
-	 * A return lands on the tray, and the tray says it went through.
+	 * A return lands on the list, and the list says it went through.
 	 */
-	public function test_the_tray_confirms_a_returned_document() {
-		$html = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'devuelto' => '1',
-			)
-		);
+	public function test_the_list_confirms_a_returned_document() {
+		$html = $this->render( $this->management_id, array( 'devuelto' => '1' ) );
 
 		$this->assertStringContainsString( 'dcta-aviso-ok', $html );
 		$this->assertStringContainsString( 'Documento devuelto con el motivo indicado.', $html );
 
-		$error = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'error' => 'motivo',
-			)
-		);
+		$error = $this->render( $this->management_id, array( 'error' => 'motivo' ) );
 
 		$this->assertStringContainsString( 'dcta-aviso-mal', $error );
 		$this->assertStringContainsString( 'Para devolver un documento hay que decir por qué.', $error );
 	}
 
 	/**
-	 * "Devueltos" means the same in every tray it is drawn in.
+	 * The "Devuelto" chip counts the returns of every status, and finds them.
 	 */
-	public function test_the_returned_tile_counts_the_same_everywhere() {
+	public function test_the_returned_chip_reaches_across_statuses() {
 		$doc = $this->create_document( 'Devuelto al área', 'Devuelto área', $this->cat_a, 'draft' );
 		Documentate_Document_Data::mark_returned( $doc, 'Falta el número de expediente', 'administracion', 'area', $this->admin_id );
 
-		$revision = $this->render( $this->admin_id, array( 'bandeja' => 'revision' ) );
-		$all = $this->render( $this->admin_id, array( 'bandeja' => 'todos' ) );
+		$html = $this->render( $this->admin_id );
+		$this->assertMatchesRegularExpression( '/>Devuelto<span class="dcta-fchip-n">2<\/span>/', $html );
 
-		$counter = static function ( $html ) {
-			preg_match( '/<b>(\d+)<\/b><span>Devueltos<\/span>/', $html, $m );
-
-			return isset( $m[1] ) ? (int) $m[1] : -1;
-		};
-
-		$this->assertGreaterThan( 0, $counter( $all ) );
-		$this->assertSame( $counter( $all ), $counter( $revision ), 'The tile promises the same set in both trays.' );
-
-		// And the chip finds it: clicking it is how the count is read.
-		$chip = $this->render(
-			$this->admin_id,
-			array(
-				'bandeja' => 'revision',
-				'estado' => 'devuelto',
-			)
-		);
+		// And the chip finds them: clicking it is how the count is read.
+		$chip = $this->render( $this->admin_id, array( 'estado' => 'devuelto' ) );
 		$this->assertStringContainsString( 'Devuelto área', $chip );
+		$this->assertStringContainsString( 'Certificación tribunal', $chip );
 	}
 
 	/**
-	 * Each review tray leads with the figure it exists for.
-	 */
-	public function test_each_review_tray_accents_its_own_figure() {
-		$management = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
-		$this->assertMatchesRegularExpression(
-			'/dcta-cifra-acento"><b>[^<]*<\/b><span>En revisión<\/span>/',
-			$management,
-			'Revisión is there for what is in revisión.'
-		);
-
-		$admin = $this->render( $this->admin_id, array( 'bandeja' => 'revision' ) );
-		$this->assertMatchesRegularExpression(
-			'/dcta-cifra-acento"><b>[^<]*<\/b><span>En aprobación<\/span>/',
-			$admin,
-			'The head of service is there for what waits for approval.'
-		);
-	}
-
-	/**
-	 * Revisión and jefatura narrow their trays by área, inside their ámbito.
+	 * Revisión and jefatura narrow the list by área, inside their ámbito.
 	 */
 	public function test_the_reviewing_roles_filter_by_area() {
 		foreach ( array( $this->management_id, $this->head_id ) as $user_id ) {
@@ -546,6 +488,10 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 			$this->assertStringContainsString( 'RES · Bases piloto', $html, 'Área B is in their ámbito.' );
 			$this->assertStringNotContainsString( 'RES · Jornadas digitales', $html, 'Área A is filtered out.' );
 			$this->assertStringContainsString( 'id="dcta-area"', $html );
+			// The select rides in the chip row and is the whole interaction:
+			// the script submits on change and hides the button behind it.
+			$this->assertStringContainsString( 'data-dcta-areas="1"', $html );
+			$this->assertStringContainsString( 'class="screen-reader-text" for="dcta-area"', $html, 'No visible label: the options say what it filters.' );
 		}
 
 		// The área has a single category: there is nothing to narrow.
@@ -564,7 +510,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		wp_set_current_user( $this->management_id );
 		$this->assertSame( 0, Documentate_App_Tray::current_area(), 'A term outside the ámbito is no filter at all.' );
 
-		$args = Documentate_App_List::query_args( 'todos', '', $outside_id );
+		$args = Documentate_App_List::query_args( '', $outside_id );
 		$this->assertSame(
 			array( $this->cat_service, $this->cat_a, $this->cat_b ),
 			$args['tax_query'][0]['terms'],
@@ -582,7 +528,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Administración narrows the trays by área.
+	 * Administración narrows the list by área.
 	 */
 	public function test_administration_filters_by_area() {
 		$html = $this->render(
@@ -617,9 +563,9 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A tray longer than one page says how much of it is on screen.
+	 * A list longer than one page says how much of it is on screen.
 	 */
-	public function test_a_tray_longer_than_one_page_says_so() {
+	public function test_a_list_longer_than_one_page_says_so() {
 		add_filter(
 			'found_posts',
 			static function () {
@@ -639,7 +585,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	 * An approved document is opened straight at its export block.
 	 */
 	public function test_an_approved_document_opens_its_document_view() {
-		$html = $this->render( $this->admin_id );
+		$html = $this->render( $this->admin_id, array( 'estado' => 'todos' ) );
 
 		$this->assertSame( 'Ver', $this->row_action( $html, 'RES · Bases piloto' ) );
 		$this->assertStringNotContainsString(
@@ -669,19 +615,27 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Every tray says something of its own when it is empty.
+	 * An empty list says whether it is the filter or the ámbito that is empty.
 	 */
-	public function test_empty_trays_explain_themselves() {
-		$is_empty = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'estado' => 'archived',
-			)
-		);
+	public function test_an_empty_list_explains_itself() {
+		$is_empty = $this->render( $this->management_id, array( 'estado' => 'archived' ) );
 
 		$this->assertStringContainsString( 'dcta-vacio', $is_empty );
-		$this->assertStringContainsString( 'No hay documentos pendientes de revisar.', $is_empty );
+		$this->assertStringContainsString( 'No hay documentos con este filtro.', $is_empty );
+
+		// With no filter and nothing there, the área is pointed at the way in;
+		// whoever reads several áreas has nothing to be pointed at.
+		foreach ( $this->docs as $doc_id ) {
+			wp_delete_post( $doc_id, true );
+		}
+		$this->assertStringContainsString(
+			'Crea el primero desde «Nuevo documento»',
+			$this->render( $this->area_id, array( 'estado' => 'todos' ) )
+		);
+		$this->assertStringContainsString(
+			'>No hay documentos.<',
+			$this->render( $this->management_id, array( 'estado' => 'todos' ) )
+		);
 
 		$without_scope = self::factory()->user->create( array( 'role' => 'author' ) );
 		$html = $this->render( $without_scope );
@@ -689,46 +643,41 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The tray of the área shows its own drafts; the review trays never do.
+	 * The query arguments of each chip, and of the scope behind them.
 	 */
-	public function test_query_arguments_per_tray() {
+	public function test_query_arguments_per_chip() {
 		wp_set_current_user( $this->management_id );
 
-		$mine = Documentate_App_List::query_args( 'mis', '', 0 );
-		$this->assertContains( 'draft', $mine['post_status'] );
-		$this->assertArrayHasKey( 'tax_query', $mine, 'The own tray is scoped.' );
-
-		$to_review = Documentate_App_List::query_args( 'revisar', '', 0 );
-		$this->assertNotContains( 'draft', $to_review['post_status'] );
-		$this->assertSame( array( $this->cat_service, $this->cat_a, $this->cat_b ), $to_review['tax_query'][0]['terms'], 'The review tray covers every área of the scope.' );
+		$every = Documentate_App_List::query_args( '', 0 );
+		$this->assertContains( 'draft', $every['post_status'], 'The list carries the drafts of its ámbito.' );
+		$this->assertSame(
+			array( $this->cat_service, $this->cat_a, $this->cat_b ),
+			$every['tax_query'][0]['terms'],
+			'The list covers every área of the scope.'
+		);
 
 		wp_set_current_user( $this->admin_id );
-		$this->assertArrayNotHasKey( 'tax_query', Documentate_App_List::query_args( 'revision', '', 0 ), 'Administración is unrestricted.' );
+		$this->assertArrayNotHasKey( 'tax_query', Documentate_App_List::query_args( '', 0 ), 'Administración is unrestricted.' );
 		wp_set_current_user( $this->management_id );
 
-		$returned = Documentate_App_List::query_args( 'revisar', 'devuelto', 0 );
+		$returned = Documentate_App_List::query_args( 'devuelto', 0 );
 		$this->assertSame( Documentate_Document_Data::META_RETURNED, $returned['meta_key'] );
 		$this->assertSame( 'EXISTS', $returned['meta_compare'] );
 		// A return travels with the document: the most common one lands in a
-		// draft, which the review trays would otherwise never show, so the
-		// "Devueltos" tile and chip would count something else than they say.
+		// draft, so narrowing by status would make the chip count something
+		// else than it says.
 		$this->assertContains( 'draft', $returned['post_status'], 'The returned filter reaches across statuses.' );
 
-		$area = Documentate_App_List::query_args( 'todos', 'pending', $this->cat_b );
+		$area = Documentate_App_List::query_args( 'pending', $this->cat_b );
 		$this->assertSame( 'pending', $area['post_status'] );
 		$this->assertSame( array( $this->cat_b ), $area['tax_query'][0]['terms'] );
 	}
 
 	/**
-	 * The back link of a document names the tray it was opened from.
+	 * The back link of a document names the list tab it goes back to.
 	 */
-	public function test_the_back_link_names_the_tray() {
+	public function test_the_back_link_names_the_list() {
 		wp_set_current_user( $this->management_id );
-
-		$_GET = array( 'bandeja' => 'revisar' );
-		$this->assertStringContainsString( '← Para revisar', Documentate_App_Shell::back_link() );
-
-		$_GET = array();
 		$this->assertStringContainsString( '← Documentos', Documentate_App_Shell::back_link() );
 
 		wp_set_current_user( $this->area_id );
@@ -739,9 +688,9 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The quick filter is offered on every tray and carries what to match on.
+	 * The quick filter is offered on the list and carries what to match on.
 	 */
-	public function test_the_tray_offers_a_quick_filter() {
+	public function test_the_list_offers_a_quick_filter() {
 		$html = $this->render( $this->area_id );
 
 		$this->assertStringContainsString( 'data-dcta-busqueda', $html );
@@ -766,10 +715,10 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The footer publishes the documents the tray holds, not the rows drawn.
+	 * The footer publishes the documents the filter holds, not the rows drawn.
 	 */
-	public function test_the_footer_publishes_the_tray_total() {
-		$html = $this->render( $this->area_id );
+	public function test_the_footer_publishes_the_list_total() {
+		$html = $this->render( $this->area_id, array( 'estado' => 'todos' ) );
 
 		$this->assertStringContainsString( 'data-dcta-pie-total="3"', $html );
 		$this->assertStringContainsString( '>3 documentos</div>', $html );
@@ -790,30 +739,28 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Outside "mis documentos" the rows show the área and the person, so the
-	 * filter has to match them: they are what a reviewer types.
+	 * Reading several áreas the rows name the área, so the filter has to match
+	 * it: it is what a reviewer types.
 	 */
 	public function test_the_filter_text_carries_the_area_and_the_person() {
-		$html = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'estado' => 'todos',
-			)
-		);
+		$html = $this->render( $this->management_id, array( 'estado' => 'todos' ) );
 
 		$area = get_term( $this->cat_a )->name;
 		$this->assertStringContainsString( $area . ' · Ana Área', $html, 'The row draws them.' );
 		$this->assertMatchesRegularExpression(
-			'/data-dcta-texto="[^"]*' . preg_quote( $area, '/' ) . ' Ana Área[^"]*"/u',
+			'/data-dcta-texto="[^"]*Ana Área ' . preg_quote( $area, '/' ) . '[^"]*"/u',
 			$html
 		);
 
-		// "Mis documentos" draws neither, so neither belongs in its text.
+		// An área reads one área: every row would carry the same name, so the
+		// row names the person alone and the text follows it.
+		$own = $this->render( $this->area_id, array( 'estado' => 'todos' ) );
+		$this->assertStringContainsString( 'Ana Área', $own, 'Whose document it is still tells the área apart from itself.' );
+		$this->assertStringNotContainsString( $area . ' · Ana Área', $own );
 		$this->assertDoesNotMatchRegularExpression(
-			'/data-dcta-texto="[^"]*Ana Área[^"]*"/u',
-			$this->render( $this->area_id ),
-			'The own tray shows no person, so the filter must not carry one.'
+			'/data-dcta-texto="[^"]*' . preg_quote( $area, '/' ) . '[^"]*"/u',
+			$own,
+			'The área of every row is the reader\'s own: nothing to match on.'
 		);
 	}
 
@@ -831,13 +778,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 			$this->admin_id
 		);
 
-		$html = $this->render(
-			$this->management_id,
-			array(
-				'bandeja' => 'revisar',
-				'estado' => 'todos',
-			)
-		);
+		$html = $this->render( $this->management_id, array( 'estado' => 'todos' ) );
 
 		$this->assertMatchesRegularExpression(
 			'/data-dcta-texto="[^"]*En revisión Devuelto por la jefatura de servicio[^"]*Falta la firma de la persona titular[^"]*"/u',
