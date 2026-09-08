@@ -1117,7 +1117,7 @@ class Documentate_Admin_Helper {
 
 		echo '<div class="documentate-actions-secondary">';
 		echo '<span class="documentate-actions-secondary__label">'
-				. esc_html( 'Otros formatos de descarga:' )
+				. esc_html( 'Descarga editable:' )
 				. '</span>';
 		echo '<span class="documentate-actions-secondary__buttons">';
 

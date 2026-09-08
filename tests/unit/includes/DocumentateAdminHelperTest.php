@@ -1961,7 +1961,7 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-actions-primary', $output );
-		$this->assertStringNotContainsString( 'Otros formatos de descarga:', $output );
+		$this->assertStringNotContainsString( 'Descarga editable:', $output );
 		$this->assertStringNotContainsString( 'documentate-actions-secondary', $output );
 	}
 

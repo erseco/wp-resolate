@@ -37,10 +37,10 @@ class Documentate_Pdf_Merger {
 	 */
 	public static function merge( $layout_path, array $fields ) {
 		if ( ! file_exists( $layout_path ) ) {
-			return new WP_Error( 'documentate_pdf_layout_missing', __( 'PDF layout not found.', 'documentate' ) );
+			return new WP_Error( 'documentate_pdf_layout_missing', 'Maqueta PDF no encontrada.' );
 		}
 		if ( ! Documentate_OpenTBS::load_libs() ) {
-			return new WP_Error( 'documentate_opentbs_missing', __( 'OpenTBS is not available.', 'documentate' ) );
+			return new WP_Error( 'documentate_opentbs_missing', 'OpenTBS no está disponible.' );
 		}
 
 		$old_locale = Documentate_OpenTBS::push_locale();
@@ -63,7 +63,7 @@ class Documentate_Pdf_Merger {
 			if ( null === $source ) {
 				return new WP_Error(
 					'documentate_regex_error',
-					__( 'Could not process the visibility blocks of the layout.', 'documentate' )
+					'No se pudieron procesar los bloques de visibilidad de la maqueta.'
 				);
 			}
 			$tbs->Source = $source;
@@ -79,7 +79,7 @@ class Documentate_Pdf_Merger {
 			if ( null === $leftovers ) {
 				return new WP_Error(
 					'documentate_regex_error',
-					__( 'Could not scan the layout for unmatched fields.', 'documentate' )
+					'No se pudo analizar la maqueta en busca de campos sin fusionar.'
 				);
 			}
 			self::clear_leftovers( $tbs, $leftovers );
@@ -93,7 +93,7 @@ class Documentate_Pdf_Merger {
 			$tbs->Show( TBS_NOTHING );
 
 			if ( $tbs->ErrCount > 0 ) {
-				return new WP_Error( 'documentate_pdf_merge_error', __( 'The PDF layout could not be merged.', 'documentate' ) );
+				return new WP_Error( 'documentate_pdf_merge_error', 'No se pudo fusionar la maqueta del PDF.' );
 			}
 
 			return (string) $tbs->Source;
@@ -102,7 +102,7 @@ class Documentate_Pdf_Merger {
 			// travels as error data for the log rather than as the message.
 			return new WP_Error(
 				'documentate_pdf_merge_error',
-				__( 'The PDF layout could not be merged.', 'documentate' ),
+				'No se pudo fusionar la maqueta del PDF.',
 				$e->getMessage()
 			);
 		} finally {

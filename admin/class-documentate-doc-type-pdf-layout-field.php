@@ -35,7 +35,7 @@ class Documentate_Doc_Type_Pdf_Layout_Field {
 				<option value="<?php echo esc_attr( $slug ); ?>"<?php selected( $slug, $selected ); ?>><?php echo esc_html( $title ); ?></option>
 			<?php endforeach; ?>
 		</select>
-		<p class="description"><?php esc_html_e( 'Layout used to render the PDF. "Generic" lists every field.', 'documentate' ); ?></p>
+		<p class="description"><?php echo esc_html( 'Maqueta con la que se dibuja el PDF. «Genérica» lista todos los campos.' ); ?></p>
 		<?php
 	}
 

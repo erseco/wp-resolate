@@ -133,10 +133,7 @@ class Documentate_Conversion_Manager {
 		$context = self::build_context_text( $source_format, $target_format );
 
 		if ( self::ENGINE_FPDF === $engine ) {
-			return __(
-				'Native PDF rendering does not convert documents between office formats. Select Collabora Online to convert them.',
-				'documentate',
-			) . $context;
+			return 'El PDF nativo no convierte documentos entre formatos de oficina. Elige Collabora Online para convertirlos.' . $context;
 		}
 
 		if ( self::ENGINE_COLLABORA === $engine ) {

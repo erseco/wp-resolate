@@ -256,7 +256,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 
 		$markup = $this->render_for_template( 'odt' );
 
-		$this->assertStringContainsString( 'Editable download:', $markup );
+		$this->assertStringContainsString( 'Descarga editable:', $markup );
 		$this->assertStringNotContainsString( 'Other download formats:', $markup );
 	}
 
@@ -269,7 +269,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 
 		$markup = $this->render_for_template( '' );
 
-		$this->assertStringNotContainsString( 'Editable download:', $markup );
+		$this->assertStringNotContainsString( 'Descarga editable:', $markup );
 		$this->assertStringNotContainsString( 'documentate-actions-secondary', $markup );
 	}
 
@@ -400,7 +400,7 @@ class DocumentateActionsMetaboxStateTest extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString(
-			'Configure a DOCX or ODT template',
+			'Configura una plantilla DOCX u ODT',
 			$this->invoke_private( 'build_pdf_message', array( '', '', false ) ),
 			'The native engine still needs a template to know what to draw.'
 		);

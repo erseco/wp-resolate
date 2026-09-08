@@ -504,7 +504,7 @@ class DocumentateAdminHelperRequestsTest extends Documentate_Test_Base {
 			}
 		);
 
-		$this->assertStringContainsString( 'plantilla', strtolower( $message ) );
+		$this->assertStringContainsString( 'tipo de documento', strtolower( $message ) );
 	}
 
 	/**

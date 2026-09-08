@@ -226,7 +226,18 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-workflow.php';
 		new Documentate_Workflow();
 
-		// Front-end application under /documentate/ (shell, list, detail, edit, new).
+		self::load_app_dependencies();
+
+		$this->loader = new Documentate_Loader();
+	}
+
+	/**
+	 * Load the front-end application under `/documentate/` and register it.
+	 *
+	 * Its own group: the shell, the list with its rows, the detail and edit
+	 * views, the tray and the attachment and action helpers.
+	 */
+	private static function load_app_dependencies() {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-attachments.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-actions.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-shell.php';
@@ -237,8 +248,6 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-edit.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app.php';
 		( new Documentate_App() )->register();
-
-		$this->loader = new Documentate_Loader();
 	}
 
 	/**

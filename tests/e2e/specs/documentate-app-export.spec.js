@@ -15,30 +15,48 @@ const RUN = `export${ Date.now() }`;
 const APP_PATH = '/documentate/';
 
 /**
- * The controls the export block draws, and how each looks in both states.
+ * Open the document in another tab. The editor offers it; the document view
+ * does not, because there the PDF is drawn into the page itself.
  *
- * @type {Array<{name: string, activo: string, inactivo: string, texto: string}>}
+ * @type {{name: string, activo: string, inactivo: string}}
  */
-const CONTROLS = [
-	{
-		name: 'Previsualizar PDF',
-		activo: 'a[data-documentate-action="preview"][data-documentate-format="pdf"]',
-		inactivo: 'button.documentate-action-btn--preview[disabled]',
-		texto: '',
-	},
-	{
-		name: 'Descargar PDF',
-		activo: 'a[data-documentate-action="download"][data-documentate-format="pdf"]',
-		inactivo: 'button.documentate-action-btn--pdf[disabled]',
-		texto: '',
-	},
-	{
-		name: 'DOCX',
-		activo: 'a[data-documentate-action="download"][data-documentate-format="docx"]',
-		inactivo: '.documentate-actions-secondary button[disabled]',
-		texto: 'DOCX',
-	},
-];
+const PREVIEW = {
+	name: 'Previsualizar PDF',
+	activo: 'a[data-documentate-action="preview"][data-documentate-format="pdf"]',
+	inactivo: 'button.documentate-action-btn--preview[disabled]',
+};
+
+/**
+ * Take the file away. Both views offer it.
+ *
+ * @type {{name: string, activo: string, inactivo: string}}
+ */
+const DESCARGA_PDF = {
+	name: 'Descargar PDF',
+	activo: 'a[data-documentate-action="download"][data-documentate-format="pdf"]',
+	inactivo: 'button.documentate-action-btn--pdf[disabled]',
+};
+
+/**
+ * Every control the editor draws.
+ *
+ * @type {Array<{name: string, activo: string, inactivo: string}>}
+ */
+const CONTROLS = [ PREVIEW, DESCARGA_PDF ];
+
+/**
+ * Selector for an editable-download control of a format, active or not.
+ *
+ * @param {string} format Office format, 'odt' or 'docx'.
+ * @return {string} CSS selector.
+ */
+function editableControl( format ) {
+	return (
+		'.documentate-actions-secondary [data-documentate-format="' +
+		format +
+		'"]'
+	);
+}
 
 /**
  * Assert that one export control is either usable or disabled with a reason.
@@ -56,10 +74,7 @@ async function checkControl( block, control ) {
 		return;
 	}
 
-	let button = block.locator( control.inactivo );
-	if ( '' !== control.texto ) {
-		button = button.filter( { hasText: control.texto } );
-	}
+	const button = block.locator( control.inactivo );
 
 	await expect( button ).toHaveCount( 1 );
 	const reason = await button.getAttribute( 'title' );
@@ -128,9 +143,20 @@ test.describe( 'Documentate app · export', () => {
 		await expect( odt ).toHaveCount( 1 );
 		await expect( odt ).toHaveText( 'ODT' );
 
-		for ( const control of CONTROLS ) {
-			await checkControl( block, control );
-		}
+		// The editable download offers the format of the template and no
+		// other: nothing converts an ODT into a DOCX any more.
+		await expect( block.locator( editableControl( 'docx' ) ) ).toHaveCount(
+			0
+		);
+
+		// The native engine draws the document into the view, so the button
+		// that would open it in another tab has nothing left to add.
+		await expect( page.locator( '.dcta-pdf-visor' ) ).toHaveCount( 1 );
+		await expect( block.locator( PREVIEW.activo ) ).toHaveCount( 0 );
+		await expect( block.locator( PREVIEW.inactivo ) ).toHaveCount( 0 );
+
+		// Taking the file away is still a button.
+		await checkControl( block, DESCARGA_PDF );
 
 		// The script that turns those attributes into a download is configured.
 		const config = await page.evaluate(
@@ -156,6 +182,10 @@ test.describe( 'Documentate app · export', () => {
 				'a[data-documentate-action="download"][data-documentate-format="odt"]'
 			)
 		).toHaveCount( 1 );
+
+		await expect( block.locator( editableControl( 'docx' ) ) ).toHaveCount(
+			0
+		);
 
 		for ( const control of CONTROLS ) {
 			await checkControl( block, control );
