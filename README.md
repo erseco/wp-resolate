@@ -137,6 +137,20 @@ with `gh skill add` / `gh skill update --all` (see `AGENTS.md`).
 
 None of it reaches the release ZIP; `.gitattributes` marks it `export-ignore`.
 
+### PHP runtime and tooling
+
+CI and both wp-env configurations use PHP 8.3, matching the deployment runtime.
+Composer keeps `require.php >=8.3` and `config.platform.php = 8.3.0` so dependency
+updates remain compatible with the whole supported 8.3 series. CI also validates
+the lock file and checks the real runtime requirements. After pulling this
+change, recreate existing containers with
+`npx wp-env start --config=.wp-env.docker.json` before running tests.
+
+`composer lint:syntax` runs PHP's parser over plugin, script and test PHP files. It complements
+`make lint` (PHPCS/WPCS and PHPCompatibilityWP), rather than replacing it.
+[ADR 0001](docs/adr/0001-php83-and-tooling-cleanup.md) records the tooling decision
+and the staged retirement of Mago, Collabora, LibreOffice WASM and their Worker.
+
 ### Key make targets
 
 | Target                 | Description                                            |

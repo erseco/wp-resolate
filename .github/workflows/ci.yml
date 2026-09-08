@@ -60,7 +60,7 @@ jobs:
 
       - name: Get Composer cache directory
         id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Composer dependencies
         uses: actions/cache@v6
@@ -71,6 +71,14 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist
+
+      - name: Validate Composer configuration and runtime requirements
+        run: |
+          composer validate --no-check-publish
+          composer check-platform-reqs
+
+      - name: Check PHP syntax on PHP 8.3
+        run: composer lint:syntax
 
       - name: Run WordPress Coding Standards
         run: make lint
@@ -113,6 +121,12 @@ jobs:
             sleep $((attempt * 10))
           done
 
+      - name: Verify wp-env uses PHP 8.3
+        run: |
+          for container in cli tests-cli; do
+            npx wp-env run "$container" --config=.wp-env.docker.json php -r 'echo PHP_VERSION, PHP_EOL; exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 3 ? 0 : 1);'
+          done
+
       - name: Run plugin check
         run: make check-plugin
 
@@ -125,33 +139,33 @@ jobs:
         run: |
           if [ -f artifacts/coverage/coverage.txt ]; then
             COVERAGE=$(grep -oP 'Lines:\s+\K[\d.]+(?=%)' artifacts/coverage/coverage.txt | head -1 || echo "0")
-            echo "percentage=${COVERAGE}" >> $GITHUB_OUTPUT
+            echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
             # Determine badge color based on coverage
             if (( $(echo "$COVERAGE >= 80" | bc -l) )); then
-              echo "color=brightgreen" >> $GITHUB_OUTPUT
+              echo "color=brightgreen" >> "$GITHUB_OUTPUT"
             elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
-              echo "color=yellow" >> $GITHUB_OUTPUT
+              echo "color=yellow" >> "$GITHUB_OUTPUT"
             elif (( $(echo "$COVERAGE >= 40" | bc -l) )); then
-              echo "color=orange" >> $GITHUB_OUTPUT
+              echo "color=orange" >> "$GITHUB_OUTPUT"
             else
-              echo "color=red" >> $GITHUB_OUTPUT
+              echo "color=red" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "percentage=0" >> $GITHUB_OUTPUT
-            echo "color=red" >> $GITHUB_OUTPUT
+            echo "percentage=0" >> "$GITHUB_OUTPUT"
+            echo "color=red" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Add coverage to job summary
         if: always()
         run: |
-          echo "## 📊 Code Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Code Coverage" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -f artifacts/coverage/coverage.txt ]; then
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -E "^\s*(Lines|Functions|Classes|Methods):" artifacts/coverage/coverage.txt >> $GITHUB_STEP_SUMMARY || echo "No coverage data"
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "^\s*(Lines|Functions|Classes|Methods):" artifacts/coverage/coverage.txt >> "$GITHUB_STEP_SUMMARY" || echo "No coverage data"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "⚠️ Coverage report not generated" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Coverage report not generated" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload coverage report
