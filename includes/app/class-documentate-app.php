@@ -41,6 +41,7 @@ class Documentate_App {
 	 */
 	public function register() {
 		add_shortcode( self::SHORTCODE, array( $this, 'render' ) );
+		add_filter( 'show_admin_bar', array( 'Documentate_App_Shell', 'show_admin_bar' ), 100 );
 		add_filter( 'body_class', array( 'Documentate_App_Shell', 'body_class' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'ensure_page' ) );

@@ -123,6 +123,41 @@ test.describe( 'Documentate app', () => {
 		await expect.poll( () => logo.evaluate( ( image ) => image.naturalWidth ) ).toBeGreaterThan( 0 );
 	} );
 
+	test( 'institutional footer shows the ATE credit and policy links', async ( { page } ) => {
+		await page.goto( APP_PATH );
+		const footer = page.locator( '.dcta-pie' );
+		await footer.scrollIntoViewIfNeeded();
+		await expect( footer ).toBeVisible();
+		await expect( footer ).toContainText( 'Desarrollado por el Área de Tecnología Educativa' );
+		await expect( footer.getByRole( 'link', { name: '© Gobierno de Canarias' } ) ).toHaveAttribute( 'href', /\/documentate\/?$/ );
+		await expect( footer.getByRole( 'link', { name: 'Aviso legal' } ) ).toHaveAttribute( 'href', 'https://www.gobiernodecanarias.org/principal/avisolegal.html' );
+		await expect( footer.getByRole( 'link', { name: 'Política de privacidad' } ) ).toHaveAttribute( 'href', 'https://www.gobiernodecanarias.org/eucd/politica_privacidad/' );
+	} );
+
+	test( 'switched editor keeps the toolbar and can return to the administrator', async ( { page } ) => {
+		await page.goto( `/wp-admin/users.php?s=${ EDITOR_LOGIN }` );
+		const row = page.locator( '#the-list tr' ).filter( { hasText: EDITOR_LOGIN } );
+		await row.hover();
+		await row.locator( 'a[href*="action=switch_to_user"]' ).click();
+
+		try {
+			await page.goto( APP_PATH );
+			await expect( page.locator( '.dcta-rol' ) ).toContainText( 'Gestión documental' );
+			await expect( page.locator( '#wpadminbar' ) ).toBeVisible();
+			const back = page.locator( '#wp-admin-bar-documentate-dev-switch-back > a' );
+			await expect( back ).toBeVisible();
+			await back.click();
+			await page.goto( APP_PATH );
+			await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Administración' );
+			await expect( page.locator( '#wpadminbar' ) ).toBeVisible();
+		} finally {
+			const back = page.locator( '#wp-admin-bar-documentate-dev-switch-back > a' );
+			if ( await back.count() ) {
+				await back.click();
+			}
+		}
+	} );
+
 	test( 'administrator creates a document, saves the fields and sends it for review', async ( { page } ) => {
 		await page.goto( `${ APP_PATH }?vista=nuevo` );
 
@@ -192,6 +227,9 @@ test.describe( 'Documentate app', () => {
 
 		try {
 			await page.goto( APP_PATH );
+			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
+			await page.goto( `${ APP_PATH }?user_switched=true` );
+			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Mis documentos' );
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.inScope } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.pending } ) ).toBeVisible();

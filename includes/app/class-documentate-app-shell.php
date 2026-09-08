@@ -4,7 +4,7 @@
  *
  * Same shell pattern as the Registro de Visitas application: a header with the
  * institutional mark, a tab bar with what this person can do, the sheet the
- * content goes in and a one-line footer. The theme chrome is hidden by the
+ * content goes in and the institutional footer. The theme chrome is hidden by the
  * stylesheet under `body.documentate-app`, so the app owns the whole page.
  *
  * @package Documentate
@@ -170,6 +170,18 @@ class Documentate_App_Shell {
 		}
 
 		return $classes;
+	}
+
+	/**
+	 * Show the front-end toolbar for administrators and switched sessions.
+	 *
+	 * User Switching validates its own session; visibility grants no capability.
+	 *
+	 * @return bool
+	 */
+	public static function show_admin_bar() {
+		return Documentate_Roles::is_administration()
+			|| ( function_exists( 'current_user_switched' ) && current_user_switched() instanceof WP_User );
 	}
 
 	/**
@@ -584,7 +596,7 @@ class Documentate_App_Shell {
 	}
 
 	/**
-	 * Close the page: the sheet, the one-line footer and the dialogs.
+	 * Close the page: the sheet, institutional footer and dialogs.
 	 *
 	 * @param bool $dialogs Whether the view has a form the dialogs post through.
 	 * @return string
@@ -596,10 +608,16 @@ class Documentate_App_Shell {
 		ob_start();
 		echo '</div>';
 		?>
-		<div class="dcta-pie"><div>
-			<span>Dirección General de Ordenación de las Enseñanzas, Inclusión e Innovación</span>
-			<a href="<?php echo esc_url( $home_url ); ?>">Inicio</a>
-		</div></div>
+		<footer class="dcta-pie"><div>
+			<span class="dcta-pie-quien">
+				<a href="<?php echo esc_url( $home_url ); ?>">&copy; Gobierno de Canarias</a>
+				<span class="dcta-pie-ate">Desarrollado por el Área de Tecnología Educativa</span>
+			</span>
+			<span class="dcta-pie-enlaces">
+				<a href="https://www.gobiernodecanarias.org/principal/avisolegal.html" rel="noopener">Aviso legal</a>
+				<a href="https://www.gobiernodecanarias.org/eucd/politica_privacidad/" rel="noopener">Política de privacidad</a>
+			</span>
+		</div></footer>
 		<?php
 		$html = (string) ob_get_clean();
 
