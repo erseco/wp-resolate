@@ -94,7 +94,18 @@ class Documentate_App_Shell {
 	 * @return string Empty when the page does not exist yet.
 	 */
 	public static function page_url( array $args = array() ) {
-		$page = get_page_by_path( self::PAGE_SLUG );
+		// The stored ID first: the page can be renamed, and the shortcode can
+		// be moved to a page of another name entirely, which `is_app_page()`
+		// supports. Resolving by slug alone would then return nothing and
+		// every link, tab and post-save redirect in the application would
+		// point at the empty string.
+		$page_id = (int) get_option( Documentate_App::OPTION_PAGE_ID );
+		$page    = $page_id > 0 ? get_post( $page_id ) : null;
+
+		if ( ! $page instanceof WP_Post || 'page' !== $page->post_type || 'publish' !== $page->post_status ) {
+			$page = get_page_by_path( self::PAGE_SLUG );
+		}
+
 		if ( ! $page ) {
 			return '';
 		}

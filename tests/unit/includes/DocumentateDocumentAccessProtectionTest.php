@@ -736,7 +736,7 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test filter_comment_queries with general query adds clause filter.
+	 * A query that is not about one document is left to the clause filter.
 	 */
 	public function test_filter_comment_queries_general() {
 		wp_set_current_user( 0 );
@@ -744,11 +744,49 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 		$query = new WP_Comment_Query();
 		$query->query_vars = array();
 
-		$result = $this->protection->filter_comment_queries( null, $query );
+		$this->assertNull( $this->protection->filter_comment_queries( null, $query ) );
+	}
 
-		// Should return null (continue with query) but add the clause filter.
-		$this->assertNull( $result );
-		$this->assertNotFalse( has_filter( 'comments_clauses', array( $this->protection, 'exclude_document_comments_clause' ) ) );
+	/**
+	 * The clause filter is registered once, when the protection is built.
+	 *
+	 * It used to be added per query and unhook itself on its first call, which
+	 * leaked whenever `WP_Comment_Query` answered from its `comment-queries`
+	 * cache and never reached the clauses at all: the filter survived and
+	 * emptied the next comment query instead.
+	 */
+	public function test_clause_filter_is_registered_once_for_the_request() {
+		$protection = new Documentate_Document_Access_Protection();
+
+		$this->assertNotFalse( has_filter( 'comments_clauses', array( $protection, 'exclude_document_comments_clause' ) ) );
+
+		remove_filter( 'comments_clauses', array( $protection, 'exclude_document_comments_clause' ) );
+	}
+
+	/**
+	 * The clause stands aside for the activity of one document.
+	 *
+	 * That query is settled on the reader's capability over the document by
+	 * filter_comment_queries(); excluding the post type there as well would
+	 * empty the activity card of a document its reader may fully see.
+	 */
+	public function test_clause_leaves_a_document_query_alone() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_type' => 'documentate_document',
+				'post_status' => 'draft',
+			)
+		);
+
+		$query = new WP_Comment_Query();
+		$query->query_vars = array( 'post_id' => $post_id );
+
+		$clauses = array(
+			'join' => '',
+			'where' => '',
+		);
+
+		$this->assertSame( $clauses, $this->protection->exclude_document_comments_clause( $clauses, $query ) );
 	}
 
 	/**

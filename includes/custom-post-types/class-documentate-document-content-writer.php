@@ -75,7 +75,14 @@ class Documentate_Document_Content_Writer {
 				continue;
 			}
 
-			$filtered = self::sanitize_array_item( $item, $schema, Documentate_Document_Save_Context::item_at( $stored_items, $key ) );
+			// The row says which stored row it is; its position in the request
+			// does not, because the browser renumbers rows as they are added,
+			// removed and dragged.
+			$identity = isset( $item[ Documentate_Document_Repeater_Field::ROW_KEY ] )
+				? $item[ Documentate_Document_Repeater_Field::ROW_KEY ]
+				: $key;
+
+			$filtered = self::sanitize_array_item( $item, $schema, Documentate_Document_Save_Context::item_at( $stored_items, $identity ) );
 
 			if ( self::array_item_has_content( $filtered, $schema ) ) {
 				$clean[] = $filtered;

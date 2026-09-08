@@ -22,6 +22,14 @@ use Documentate\Documents\Documents_Meta_Handler;
 class Documentate_Document_Repeater_Field {
 
 	/**
+	 * Name of the hidden column that carries a repeater row's identity.
+	 *
+	 * It is not part of any schema and is never stored: the save reads it to
+	 * pair a submitted row with the stored one, then drops it.
+	 */
+	const ROW_KEY = '__row';
+
+	/**
 	 * Retrieve the field title from the raw schema record.
 	 *
 	 * @param array $raw_field Raw field definition.
@@ -195,6 +203,17 @@ class Documentate_Document_Repeater_Field {
 				. '</button>';
 		echo '</div>';
 
+		// Identity of the row as it was stored, so the save can pair a
+		// submitted row with the stored one it came from. The position cannot
+		// do that: the browser renumbers every row on an insert, a delete or a
+		// drag, and pairing by position would move the columns only gestión
+		// may write onto whichever record happens to land on that index. A
+		// row the browser cloned carries an `n` key, which matches no stored
+		// row, so a new record starts with those columns empty.
+		echo '<input type="hidden" name="tpl_fields[' . esc_attr( $slug ) . '][' . esc_attr( $index_attr ) . '][' . esc_attr( self::ROW_KEY ) . ']" value="'
+				. esc_attr( ( $is_template ? 'n' : 's' ) . $index_attr )
+				. '" />';
+
 		foreach ( $item_schema as $key => $definition ) {
 			if ( isset( $definition['type'] ) && 'array' === $definition['type'] ) {
 				self::render_subarray_field( $slug, $index_attr, $key, $definition, $values, $raw_fields );
@@ -299,6 +318,12 @@ class Documentate_Document_Repeater_Field {
 				. esc_html( 'Eliminar' )
 				. '</button>';
 		echo '</div>';
+
+		// Same row identity as the parent repeater, for the same reason: the
+		// browser renumbers sub-rows as they are added and removed.
+		echo '<input type="hidden" name="tpl_fields[' . esc_attr( $slug ) . '][' . esc_attr( $parent_index ) . '][' . esc_attr( $item_key ) . '][' . esc_attr( $sub_index ) . '][' . esc_attr( self::ROW_KEY ) . ']" value="'
+				. esc_attr( ( '__SUBINDEX__' === $sub_index ? 'n' : 's' ) . $sub_index )
+				. '" />';
 
 		foreach ( $sub_schema as $sub_key => $sub_definition ) {
 			$column = sanitize_key( $sub_key );

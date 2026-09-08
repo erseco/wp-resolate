@@ -75,6 +75,44 @@ class DocumentatePdfHtmlWriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A surplus closing tag in a field does not truncate the document.
+	 *
+	 * A rich field is free to carry unbalanced markup — `wp_kses_post()` keeps
+	 * a stray `</div>`, and a layout that merges with `strconv=no` injects it
+	 * raw. Parsing the body inside a wrapper element of our own made libxml
+	 * treat that tag as closing the wrapper, and everything after it, the
+	 * RESUELVO and the signature block included, was dropped from the PDF
+	 * without a word.
+	 */
+	public function test_a_stray_closing_tag_does_not_drop_the_rest_of_the_document() {
+		$pdf   = $this->render( '<p>ANTECEDENTES</p><div>cuerpo</div></div></div><p>RESUELVO</p><p>Firmado</p>' );
+		$texts = Documentate_Pdf_Test_Helper::texts( $pdf );
+
+		$this->assertContains( 'ANTECEDENTES', $texts );
+		$this->assertContains( 'RESUELVO', $texts, 'Todo lo que sigue a la etiqueta sobrante se perdía del PDF.' );
+		$this->assertContains( 'Firmado', $texts );
+	}
+
+	/**
+	 * Deeply nested lists never lay text out one character per line.
+	 *
+	 * Each level adds a fixed indent, so in a narrow column the indent used to
+	 * outgrow the column and leave a non-positive width, which the text layout
+	 * can only fill one character at a time — pages of single letters instead
+	 * of a paragraph.
+	 */
+	public function test_nested_lists_in_a_narrow_column_keep_a_usable_width() {
+		$pdf    = $this->document();
+		$writer = $this->writer( $pdf );
+		$html   = '<ul><ul><ul><ul><li>palabra</li></ul></ul></ul></ul>';
+
+		$height = $writer->measure_block( $this->column( $html ), 20.0 );
+
+		// One short item: a handful of lines at most, not one per character.
+		$this->assertLessThan( 20.0, $height );
+	}
+
+	/**
 	 * ODT line advances inherit through containers and match measured height.
 	 */
 	public function test_inherited_line_height_matches_drawing_and_measurement() {

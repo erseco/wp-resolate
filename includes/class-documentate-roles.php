@@ -235,6 +235,28 @@ class Documentate_Roles {
 		}
 
 		if ( get_role( self::ROLE_MANAGEMENT ) ) {
+			// remove_role() only forgets the definition: a user left on the
+			// role keeps a wp_capabilities entry pointing at nothing and ends
+			// up with no capabilities at all, not even `read`, so they can log
+			// in to an empty admin and no further. Give them the default role
+			// first, which is what a site without this plugin would have.
+			$fallback = (string) get_option( 'default_role', 'subscriber' );
+			$fallback = ( '' !== $fallback && get_role( $fallback ) ) ? $fallback : 'subscriber';
+
+			$members = get_users(
+				array(
+					'role' => self::ROLE_MANAGEMENT,
+					'fields' => 'ID',
+				)
+			);
+
+			foreach ( $members as $user_id ) {
+				$user = get_userdata( (int) $user_id );
+				if ( $user instanceof WP_User ) {
+					$user->set_role( $fallback );
+				}
+			}
+
 			remove_role( self::ROLE_MANAGEMENT );
 		}
 

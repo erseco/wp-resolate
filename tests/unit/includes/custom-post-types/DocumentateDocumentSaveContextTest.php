@@ -220,9 +220,33 @@ class DocumentateDocumentSaveContextTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Rows are paired by index; anything else yields no stored row.
+	 * A row is paired by the identity it carries, not by where it was posted.
 	 */
-	public function test_item_at_pairs_rows_by_index() {
+	public function test_item_at_pairs_rows_by_stored_identity() {
+		$rows = array( array( 'a' => '1' ), array( 'a' => '2' ) );
+
+		$this->assertSame( array( 'a' => '2' ), Documentate_Document_Save_Context::item_at( $rows, 's1' ) );
+		$this->assertSame( array( 'a' => '1' ), Documentate_Document_Save_Context::item_at( $rows, 's0' ) );
+		$this->assertSame( array(), Documentate_Document_Save_Context::item_at( $rows, 's7' ) );
+	}
+
+	/**
+	 * A row the browser cloned matches nothing, whatever index it landed on.
+	 *
+	 * Pairing by position would carry the columns only gestión may write over
+	 * to a record the área just created, which is what the write guard is for.
+	 */
+	public function test_item_at_never_pairs_a_new_row() {
+		$rows = array( array( 'igic' => '100' ), array( 'igic' => '0' ) );
+
+		$this->assertSame( array(), Documentate_Document_Save_Context::item_at( $rows, 'n0' ) );
+		$this->assertSame( array(), Documentate_Document_Save_Context::item_at( $rows, 'n1' ) );
+	}
+
+	/**
+	 * A page rendered before the identity column existed still pairs by index.
+	 */
+	public function test_item_at_falls_back_to_the_index() {
 		$rows = array( array( 'a' => '1' ), array( 'a' => '2' ) );
 
 		$this->assertSame( array( 'a' => '2' ), Documentate_Document_Save_Context::item_at( $rows, '1' ) );

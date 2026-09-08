@@ -49,6 +49,12 @@ class Documentate_Demo_Field_Values {
 				},
 			),
 			array(
+				array( 'nombre_completo' ),
+				static function ( $i ) {
+					return 1 === $i ? 'María García López' : 'Juan Rodríguez Martínez';
+				},
+			),
+			array(
 				array( 'nombre', 'name' ),
 				static function ( $i ) {
 					return 1 === $i ? 'Jane Doe' : 'John Smith';
@@ -154,12 +160,6 @@ class Documentate_Demo_Field_Values {
 				array( 'iban' ),
 				static function () {
 					return 'ES9121000418450200051332';
-				},
-			),
-			array(
-				array( 'nombre_completo' ),
-				static function ( $i ) {
-					return 1 === $i ? 'María García López' : 'Juan Rodríguez Martínez';
 				},
 			),
 			array(

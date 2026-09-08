@@ -99,6 +99,14 @@ class Documentate_Pdf_Html_Writer {
 	const LIST_INDENT = 6.0;
 
 	/**
+	 * Narrowest column text is ever laid out in, in mm.
+	 *
+	 * Roughly one character at body size: below it the layout can only break
+	 * every character onto its own line, which is never what was meant.
+	 */
+	const MIN_TEXT_WIDTH = 4.0;
+
+	/**
 	 * Space left after a paragraph, in mm.
 	 *
 	 * The `Standard` paragraph style of the ODT templates declares no
@@ -224,14 +232,21 @@ class Documentate_Pdf_Html_Writer {
 	public function write( $html ) {
 		$dom      = new DOMDocument();
 		$reported = libxml_use_internal_errors( true );
+		// `body` rather than a wrapper div of our own: libxml recovers from a
+		// surplus `</div>` inside the body, but treats one inside a div as
+		// closing that div — and a rich field is free to carry unbalanced
+		// markup, so a wrapper div would let a single stray tag drop the whole
+		// rest of the document out of the PDF without a word. A literal
+		// `</body>` is the one thing that would still end it early, so it goes
+		// before the fragment is wrapped.
 		$dom->loadHTML(
-			'<?xml encoding="UTF-8"><div id="documentate-root">' . $html . '</div>',
+			'<?xml encoding="UTF-8"><body>' . str_ireplace( array( '<body', '</body>' ), '', (string) $html ) . '</body>',
 			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
 		);
 		libxml_clear_errors();
 		libxml_use_internal_errors( $reported );
 
-		$root = $dom->getElementById( 'documentate-root' );
+		$root = $dom->getElementsByTagName( 'body' )->item( 0 );
 		if ( $root instanceof DOMElement ) {
 			$this->children( $root, array() );
 		}
@@ -316,7 +331,9 @@ class Documentate_Pdf_Html_Writer {
 			)
 		);
 
-		$width = $this->flow_width() - $format['indent'];
+		// An indent deeper than the column would otherwise fit one character
+		// per line and turn a paragraph into pages of single letters.
+		$width = max( self::MIN_TEXT_WIDTH, $this->flow_width() - $format['indent'] );
 		$lines = $this->text_layout->lines( $runs, $width );
 
 		$this->advance( $format['space_before'] );
@@ -563,7 +580,8 @@ class Documentate_Pdf_Html_Writer {
 		$outer  = $this->indent;
 		$number = 1;
 
-		$this->indent = $outer + self::LIST_INDENT;
+		// Nested lists in a narrow cell must not indent past the column.
+		$this->indent = min( $outer + self::LIST_INDENT, max( 0.0, $this->flow_width() - self::MIN_TEXT_WIDTH ) );
 
 		foreach ( $el->childNodes as $child ) {
 			if ( ! $child instanceof DOMElement || 'li' !== strtolower( $child->tagName ) ) {

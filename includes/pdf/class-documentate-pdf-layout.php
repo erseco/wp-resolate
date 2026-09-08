@@ -216,18 +216,23 @@ class Documentate_Pdf_Layout {
 			)
 		);
 
-		if ( ! is_wp_error( $terms ) ) {
-			$available = self::available();
+		// A failed lookup leaves the marker unwritten so the pass runs again:
+		// giving up for good would leave every existing type on the generic
+		// layout with nothing to show for it.
+		if ( is_wp_error( $terms ) ) {
+			return;
+		}
 
-			foreach ( $terms as $term_id ) {
-				if ( '' !== (string) get_term_meta( (int) $term_id, self::META_KEY, true ) ) {
-					continue;
-				}
+		$available = self::available();
 
-				$slug = self::slug_from_template( (int) $term_id );
-				if ( '' !== $slug && array_key_exists( $slug, $available ) ) {
-					update_term_meta( (int) $term_id, self::META_KEY, $slug );
-				}
+		foreach ( $terms as $term_id ) {
+			if ( '' !== (string) get_term_meta( (int) $term_id, self::META_KEY, true ) ) {
+				continue;
+			}
+
+			$slug = self::slug_from_template( (int) $term_id );
+			if ( '' !== $slug && array_key_exists( $slug, $available ) ) {
+				update_term_meta( (int) $term_id, self::META_KEY, $slug );
 			}
 		}
 

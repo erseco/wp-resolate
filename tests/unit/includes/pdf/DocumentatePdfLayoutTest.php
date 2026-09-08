@@ -519,4 +519,27 @@ class DocumentatePdfLayoutTest extends WP_UnitTestCase {
 		$this->assertSame( '', get_term_meta( $unknown, Documentate_Pdf_Layout::META_KEY, true ), 'The pass runs once.' );
 	}
 
+	/**
+	 * A failed term lookup leaves the pass to run again.
+	 *
+	 * Writing the marker whatever happened would give up for good on the first
+	 * hiccup, and every document type created before this release would stay
+	 * on the generic layout with nothing to show for it.
+	 */
+	public function test_assign_missing_does_not_give_up_on_a_failed_lookup() {
+		delete_option( Documentate_Pdf_Layout::ASSIGNED_OPTION );
+
+		$fail = static function () {
+			return new WP_Error( 'boom', 'sin taxonomía' );
+		};
+		add_filter( 'terms_pre_query', $fail );
+		Documentate_Pdf_Layout::assign_missing();
+		remove_filter( 'terms_pre_query', $fail );
+
+		$this->assertFalse( get_option( Documentate_Pdf_Layout::ASSIGNED_OPTION ), 'The marker is only written on a pass that ran.' );
+
+		Documentate_Pdf_Layout::assign_missing();
+		$this->assertNotFalse( get_option( Documentate_Pdf_Layout::ASSIGNED_OPTION ), 'The next request runs the pass.' );
+	}
+
 }

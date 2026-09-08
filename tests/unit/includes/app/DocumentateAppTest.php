@@ -770,6 +770,34 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The application page is found by its stored ID, not by its slug.
+	 *
+	 * The page can be renamed, and the shortcode can be moved to a page of
+	 * another name entirely, which is_app_page() supports. Resolving by slug
+	 * alone returned nothing then, and every link, tab and post-save redirect
+	 * in the application pointed at the empty string — which wp_safe_redirect
+	 * turns into wp-admin, dropping the user out of the application after
+	 * creating a document.
+	 */
+	public function test_page_url_survives_the_page_being_renamed() {
+		$page_id = (int) get_option( Documentate_App::OPTION_PAGE_ID );
+		$this->assertGreaterThan( 0, $page_id, 'The application page is created on activation.' );
+
+		wp_update_post(
+			array(
+				'ID' => $page_id,
+				'post_name' => 'documentos-' . uniqid(),
+			)
+		);
+		clean_post_cache( $page_id );
+
+		$url = Documentate_App_Shell::page_url();
+
+		$this->assertNotSame( '', $url );
+		$this->assertSame( get_permalink( $page_id ), $url );
+	}
+
+	/**
 	 * The stylesheet loads on the app page; the editor only on the edit view.
 	 */
 	public function test_enqueue_assets_loads_editor_only_on_edit_view() {

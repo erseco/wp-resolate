@@ -194,14 +194,35 @@ class Documentate_Document_Save_Context {
 		);
 	}
 	/**
-	 * Stored repeater row matching a submitted row index.
+	 * Stored repeater row a submitted row came from.
+	 *
+	 * The row carries its stored position in a hidden `__row` column as `s3`,
+	 * because its position in the request is not that position: the browser
+	 * renumbers every row whenever one is inserted, removed or dragged. Pairing
+	 * by position would carry the columns only gestión may write — an IGIC, an
+	 * approved amount — over to whichever record happened to land on that
+	 * index, which is the very thing the write guard exists to prevent. A row
+	 * the browser cloned carries an `n` key instead and matches nothing, so a
+	 * new record starts those columns empty.
+	 *
+	 * A submitted row with no `__row` at all comes from a page rendered before
+	 * this column existed; it falls back to its position, which is what that
+	 * page assumed.
 	 *
 	 * @param array      $stored_items Rows already stored.
-	 * @param int|string $key          Index of the submitted row.
+	 * @param int|string $key          Identity of the submitted row.
 	 * @return array<string,mixed>
 	 */
 	public static function item_at( array $stored_items, $key ) {
-		if ( ! is_int( $key ) && ! ctype_digit( (string) $key ) ) {
+		$key = is_scalar( $key ) ? (string) $key : '';
+
+		if ( 'n' === substr( $key, 0, 1 ) ) {
+			return array();
+		}
+		if ( 's' === substr( $key, 0, 1 ) ) {
+			$key = substr( $key, 1 );
+		}
+		if ( '' === $key || ! ctype_digit( $key ) ) {
 			return array();
 		}
 
