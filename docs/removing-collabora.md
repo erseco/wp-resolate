@@ -1,5 +1,10 @@
 # Retiring Collabora and the LibreOffice WASM converter
 
+> Historical inventory: [ADR 0001](adr/0001-php83-and-tooling-cleanup.md) now
+> governs the retirement order. Re-check symbols and paths before editing;
+> line numbers and the translation commands below are stale. The current
+> plugin has no translation build pipeline.
+
 The plugin draws PDFs natively by default.
 `Documentate_Document_Generator::generate_pdf()` hands the post to
 `Documentate_Pdf_Generator::generate()`, which renders an HTML layout with FPDF

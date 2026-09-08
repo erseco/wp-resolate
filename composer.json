@@ -44,6 +44,7 @@
         "test:coverage": "XDEBUG_MODE=coverage ./vendor/bin/phpunit --colors=always --coverage-text --coverage-html artifacts/coverage/html --coverage-clover artifacts/coverage/clover.xml --coverage-filter=admin --coverage-filter=includes --coverage-filter=public --coverage-filter=documentate.php --coverage-filter=uninstall.php",
         "test:e2e": "wp-scripts test-playwright",
         "test:e2e:ui": "wp-scripts test-playwright --ui",
+        "lint:syntax": "find documentate.php uninstall.php admin includes public scripts tests -type f -name '*.php' -exec php -l {} +",
         "phpcs": "phpcs --standard=.phpcs.xml.dist",
         "phpcbf": "phpcbf --standard=.phpcs.xml.dist",
         "mago:lint": "@php ./vendor/bin/mago lint",
