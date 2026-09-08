@@ -163,6 +163,16 @@ class DocumentateAppDetailRoleTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'dcta-pdf-visor', $html );
 		$this->assertStringContainsString( 'action=documentate_preview', $html );
+		$this->assertMatchesRegularExpression(
+			'/<iframe class="dcta-pdf-visor" src="[^"]*#navpanes=0"/',
+			$html,
+			'The frame asks the viewer for the document alone, without its page pane.'
+		);
+		$this->assertStringNotContainsString(
+			'#navpanes=0"' . " target=\"_blank\"",
+			$html,
+			'The link that opens another tab hands over the plain document.'
+		);
 		$this->assertStringContainsString(
 			'dcta-campos-plegados',
 			$html,

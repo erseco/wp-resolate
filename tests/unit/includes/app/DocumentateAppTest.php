@@ -916,4 +916,100 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertSame( 'dcta-estado dcta-estado-archivado', Documentate_App_Shell::status_chip( 'archived' )['class'] );
 		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::status_chip( 'unknown' )['class'] );
 	}
+
+	/**
+	 * An anonymous visitor of the application is sent to the login form, which
+	 * on this site is where CAS takes over, and comes back to the view asked for.
+	 */
+	public function test_anonymous_visitors_go_to_the_login_form() {
+		wp_set_current_user( 0 );
+		$this->go_to( Documentate_App_Shell::page_url() );
+
+		$destination = $this->exit_url( array( 'Documentate_App', 'require_login' ) );
+
+		$this->assertNotNull( $destination, 'Nothing of the application is drawn without a session.' );
+		$this->assertStringContainsString( 'wp-login.php', (string) $destination );
+		$this->assertStringContainsString( 'redirect_to', (string) $destination, 'And the visitor comes back.' );
+		$this->assertSame( wp_login_url( Documentate_App_Shell::page_url() ), $destination );
+	}
+
+	/**
+	 * The document a notification linked to is where the visitor lands, not the tray.
+	 */
+	public function test_the_login_detour_keeps_the_view_of_the_request() {
+		$doc_id = $this->create_document( 'Documento enlazado', $this->cat_scope );
+		wp_set_current_user( 0 );
+		$this->go_to(
+			Documentate_App_Shell::page_url(
+				array(
+					'doc' => $doc_id,
+					'vista' => 'editar',
+					'bandeja' => 'revisar',
+				)
+			)
+		);
+
+		$destination = (string) $this->exit_url( array( 'Documentate_App', 'require_login' ) );
+		$back = urldecode( (string) wp_parse_url( $destination, PHP_URL_QUERY ) );
+
+		$this->assertStringContainsString( 'doc=' . $doc_id, $back );
+		$this->assertStringContainsString( 'vista=editar', $back );
+		$this->assertStringContainsString( 'bandeja=revisar', $back );
+	}
+
+	/**
+	 * A session, or a page that is not the application, is left alone.
+	 */
+	public function test_the_login_detour_leaves_everything_else_alone() {
+		wp_set_current_user( $this->editor_id );
+		$this->go_to( Documentate_App_Shell::page_url() );
+		$this->assertNull( $this->exit_url( array( 'Documentate_App', 'require_login' ) ), 'A session is not sent anywhere.' );
+
+		wp_set_current_user( 0 );
+		$this->go_to( get_permalink( self::factory()->post->create( array( 'post_type' => 'page' ) ) ) );
+		$this->assertNull( $this->exit_url( array( 'Documentate_App', 'require_login' ) ), 'Another page is not ours to guard.' );
+	}
+
+	/**
+	 * The redirect survives a login URL that points at another host.
+	 *
+	 * A site whose CAS plugin answers with the address of the CAS server would
+	 * otherwise be sent to its own home page by wp_safe_redirect().
+	 */
+	public function test_the_login_detour_reaches_an_external_login() {
+		$cas = static function () {
+			return 'https://cas.example.org/login?service=documentate';
+		};
+		add_filter( 'login_url', $cas );
+		wp_set_current_user( 0 );
+		$this->go_to( Documentate_App_Shell::page_url() );
+
+		$destination = $this->exit_url( array( 'Documentate_App', 'require_login' ) );
+
+		remove_filter( 'login_url', $cas );
+		$this->assertSame( 'https://cas.example.org/login?service=documentate', $destination );
+	}
+
+	/**
+	 * Run a handler that ends in a redirect and return where it went.
+	 *
+	 * @param callable $handler Handler to run.
+	 * @return string|null Destination, or null when the handler returned instead.
+	 */
+	private function exit_url( callable $handler ) {
+		$interceptor = static function ( $location ) {
+			throw new Documentate_Exit_Exception( $location );
+		};
+		add_filter( 'wp_redirect', $interceptor );
+
+		try {
+			$handler();
+
+			return null;
+		} catch ( Documentate_Exit_Exception $error ) {
+			return $error->get_location();
+		} finally {
+			remove_filter( 'wp_redirect', $interceptor );
+		}
+	}
 }

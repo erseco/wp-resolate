@@ -69,6 +69,13 @@ wp-admin la consultan para decidir qué botones mostrar y qué guardados
 aceptar. Si algo de este documento y el comportamiento real de la aplicación
 no coinciden, manda esa tabla — y hay que corregir aquí, no allí.
 
+## Entrar
+
+Todo el mundo entra por la misma dirección, `/documentate/`. Quien llega sin
+sesión pasa por el acceso corporativo (CAS) y vuelve exactamente a donde iba:
+si el enlace era el de un aviso por correo, aterriza en ese documento y no en
+la bandeja.
+
 ## Dónde se hace cada cosa
 
 - **Aplicación** (`/documentate/`): pensada para el trabajo diario de las
