@@ -140,6 +140,26 @@ class DocumentateDocumentSaveContextTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The request arrives slashed, as core hands it to the save.
+	 *
+	 * wp_insert_post() is documented to take slashed data, and
+	 * wp_filter_post_kses() re-slashes what an área user sends even when the
+	 * caller did not. Reading it without unslashing leaves `slug=\"objeto\"`,
+	 * which matches no attribute: the save would keep the stored value.
+	 */
+	public function test_existing_values_reads_a_slashed_request() {
+		$forged = Documents_Meta_Handler::build_structured_field_fragment( 'objeto', 'single', 'Del request' );
+
+		$values = Documentate_Document_Save_Context::existing_values(
+			array( 'post_content' => wp_slash( $forged ) ),
+			$this->doc_id
+		);
+
+		$this->assertSame( 'Del request', $values['request']['objeto']['value'] );
+		$this->assertSame( 'Almacenado', $values['stored']['objeto']['value'] );
+	}
+
+	/**
 	 * With nothing in the request both maps are the stored one.
 	 */
 	public function test_existing_values_falls_back_to_the_stored_map() {
