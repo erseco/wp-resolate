@@ -21,8 +21,6 @@ make check-plugin          # WordPress plugin-check           (always required)
 make test                  # PHPUnit unit tests               (always required)
 make test-e2e              # Playwright E2E                   (UI/browser changes)
 make check                 # verify only (does not reformat)
-make mago-lint             # optional secondary Mago lint
-make mago-format           # optional secondary Mago format
 ```
 
 ### Failure policy — a task is NOT done if any of these remain
@@ -56,7 +54,7 @@ They are vendored verbatim from upstream: never reformat or edit them in place.
 ## Key Coding Rules
 
 - **PHP indentation**: tab characters (tab-width = 4), per WordPress Coding Standards and `.editorconfig`.
-- **Linter/formatter**: PHPCS / WPCS via `make lint` / `make fix` (canonical). Mago is optional only.
+- **Linter/formatter**: PHPCS / WPCS via `make lint` / `make fix` (canonical).
 - **Escaping**: `esc_html()`, `esc_attr()`, `esc_url()`, `wp_kses_post()`.
 - **Sanitising**: `sanitize_text_field()`, `sanitize_textarea_field()`, `absint()`.
 - **Unslash** superglobals before sanitising: `wp_unslash( $_POST['field'] )`.

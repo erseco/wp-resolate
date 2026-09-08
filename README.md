@@ -149,7 +149,7 @@ change, recreate existing containers with
 `composer lint:syntax` runs PHP's parser over plugin, script and test PHP files. It complements
 `make lint` (PHPCS/WPCS and PHPCompatibilityWP), rather than replacing it.
 [ADR 0001](docs/adr/0001-php83-and-tooling-cleanup.md) records the tooling decision
-and the staged retirement of Mago, Collabora, LibreOffice WASM and their Worker.
+and the staged retirement of Collabora, LibreOffice WASM and their Worker.
 
 ### Key make targets
 
@@ -157,8 +157,6 @@ and the staged retirement of Mago, Collabora, LibreOffice WASM and their Worker.
 |------------------------|--------------------------------------------------------|
 | `make fix`             | Format PHP with PHPCBF / WordPress Coding Standards    |
 | `make lint`            | Lint PHP with PHPCS / WordPress Coding Standards       |
-| `make mago-lint`       | Optional secondary Mago lint (may be removed)          |
-| `make mago-format`     | Optional secondary Mago format (may be removed)        |
 | `make check-plugin`    | WordPress plugin-check                                 |
 | `make test`            | PHPUnit unit tests                                     |
 | `make test-e2e`        | Playwright E2E tests                                   |

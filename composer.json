@@ -8,7 +8,6 @@
     },
     "require-dev": {
         "brianium/paratest": "^6.11",
-        "carthage-software/mago": "^1.13",
         "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
         "phpmd/phpmd": "^2.15",
         "phpunit/phpunit": "^9.6.35",
@@ -46,9 +45,7 @@
         "test:e2e:ui": "wp-scripts test-playwright --ui",
         "lint:syntax": "find documentate.php uninstall.php admin includes public scripts tests -type f -name '*.php' -exec php -l {} +",
         "phpcs": "phpcs --standard=.phpcs.xml.dist",
-        "phpcbf": "phpcbf --standard=.phpcs.xml.dist",
-        "mago:lint": "@php ./vendor/bin/mago lint",
-        "mago:format": "@php ./vendor/bin/mago format"
+        "phpcbf": "phpcbf --standard=.phpcs.xml.dist"
     },
     "config": {
         "allow-plugins": {

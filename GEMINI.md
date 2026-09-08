@@ -45,8 +45,6 @@ make check-plugin          # WordPress plugin-check         — always required
 make test                  # PHPUnit tests                  — always required
 make test-e2e              # Playwright E2E                 — UI/browser changes
 make check                 # verify only (does not reformat)
-make mago-lint             # optional secondary Mago lint
-make mago-format           # optional secondary Mago format
 ```
 
 A task is **not done** until all relevant checks pass.
@@ -56,7 +54,7 @@ A task is **not done** until all relevant checks pass.
 ## Key coding rules
 
 - PHP indentation: **tabs** (WordPress Coding Standards, `.editorconfig`).
-- Linter: PHPCS / WPCS via `make lint` / `make fix` (canonical). Mago is optional.
+- Linter: PHPCS / WPCS via `make lint` / `make fix` (canonical).
 - Escape output, sanitise and unslash input, use nonces, check capabilities.
 - UI text in **Spanish**; code, comments, docblocks in **English**.
   Identifiers are English too — file, class, method, property, variable and

@@ -1,8 +1,9 @@
 # ADR 0001: PHP 8.3 and a smaller verification toolchain
 
 - Date: 2026-09-08
-- Status: Accepted; runtime pinning and syntax checks implemented in this PR.
-  Dependency and converter removals are follow-up work.
+- Status: Accepted; runtime pinning and syntax checks implemented in PR #292.
+  Mago removal implemented in the follow-up cleanup. Converter removals remain
+  follow-up work.
 
 ## Context
 
@@ -71,11 +72,14 @@ with syntax checks would lose WordPress-specific checks. Replacing PHP's
 parser with a second formatter would not test the deployed interpreter.
 Keep coverage floors and mandatory checks unchanged.
 
-Mago is already optional and is absent from the required CI gate. Remove it
-in a focused cleanup PR: its Composer dependency and scripts, Make targets,
-`mago.toml`, and documentation references. Recompute the lock file without
-upgrading unrelated dependencies; check which transitive packages remain in
-use. Do not introduce another formatter as its replacement.
+Mago has been removed: its Composer dependency and scripts, Make targets,
+`mago.toml`, `linter-baseline.toml`, packaging exclusions and operational
+instructions. Its unused `revolt/event-loop` dependency was removed as well.
+Regenerating the lock also pruned the already-orphaned `wp-cli/i18n-command`
+and its unused dependencies (`eftec/bladeone`, `gettext/gettext`,
+`gettext/languages`, `mck89/peast`). No retained dependency requires them; all
+remaining lock entries were preserved unchanged. PHPCS/PHPCBF remains
+the canonical linter/formatter, with no replacement tool added.
 
 ### Wrangler, Collabora and LibreOffice WASM
 
