@@ -63,6 +63,7 @@ class Documentate_App_Detail {
 		$html .= self::render_field_cards( $post, '' !== $pdf );
 		$html .= self::render_attachment( $post );
 		$html .= self::render_activity( $post );
+		$html .= self::render_history_link( $post );
 		$html .= '</div>';
 		$html .= self::render_side( $post, '' === $pdf );
 		$html .= '</div>';
@@ -499,6 +500,32 @@ class Documentate_App_Detail {
 			. '</div>';
 
 		return $html . '</div>';
+	}
+
+	/**
+	 * The way to the history view, at the very bottom of the document.
+	 *
+	 * Every save leaves a version behind; this is where to see what changed
+	 * between any two of them, in the red and green of wp-admin's revisions
+	 * screen.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string
+	 */
+	private static function render_history_link( $post ) {
+		$count = count( Documentate_App_History::revisions( $post ) );
+		$url = Documentate_App_History::url( $post->ID );
+
+		$text = 'Ver historial de cambios';
+		if ( $count > 0 ) {
+			$text .= ' (' . $count . ( 1 === $count ? ' versión' : ' versiones' ) . ')';
+		}
+
+		return '<div class="dcta-historial-pie">'
+			. '<a class="dcta-btn dcta-btn-ton dcta-historial-btn" href="' . esc_url( $url ) . '">'
+			. Documentate_App_Shell::icon( 'clock' )
+			. esc_html( $text )
+			. '</a></div>';
 	}
 
 	/**

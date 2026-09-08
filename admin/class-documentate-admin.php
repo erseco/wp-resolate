@@ -220,6 +220,35 @@ class Documentate_Admin {
 	 * @return array<string,string> Map of slug => label.
 	 */
 	private function get_revision_field_labels() {
+		// Try to get labels from the current revision's parent document type.
+		$revision_id = isset( $_GET['revision'] ) ? intval( $_GET['revision'] ) : 0;
+		$post_id = isset( $_GET['post'] ) ? intval( $_GET['post'] ) : 0;
+
+		// Determine the parent post ID.
+		$parent_id = 0;
+		if ( $revision_id > 0 ) {
+			$revision = wp_get_post_revision( $revision_id );
+			if ( $revision ) {
+				$parent_id = $revision->post_parent;
+			}
+		} elseif ( $post_id > 0 ) {
+			$parent_id = $post_id;
+		}
+
+		return self::revision_field_labels( $parent_id );
+	}
+
+	/**
+	 * Field labels for the revision diff of one document.
+	 *
+	 * The defaults cover the common fields; the schema of the document's type
+	 * overrides them. Shared with the history view of the front-end
+	 * application, which localises the same script.
+	 *
+	 * @param int $parent_id Parent document post ID; 0 for the defaults alone.
+	 * @return array<string,string> Map of slug => label.
+	 */
+	public static function revision_field_labels( $parent_id ) {
 		$labels = array(
 			// Default labels for common fields.
 			'post_title' => 'Título del documento',
@@ -240,23 +269,8 @@ class Documentate_Admin {
 			'despedida' => 'Despedida',
 		);
 
-		// Try to get labels from the current revision's parent document type.
-		$revision_id = isset( $_GET['revision'] ) ? intval( $_GET['revision'] ) : 0;
-		$post_id = isset( $_GET['post'] ) ? intval( $_GET['post'] ) : 0;
-
-		// Determine the parent post ID.
-		$parent_id = 0;
-		if ( $revision_id > 0 ) {
-			$revision = wp_get_post_revision( $revision_id );
-			if ( $revision ) {
-				$parent_id = $revision->post_parent;
-			}
-		} elseif ( $post_id > 0 ) {
-			$parent_id = $post_id;
-		}
-
 		if ( $parent_id > 0 ) {
-			$schema_labels = $this->get_schema_labels_for_post( $parent_id );
+			$schema_labels = self::get_schema_labels_for_post( $parent_id );
 			if ( ! empty( $schema_labels ) ) {
 				$labels = array_merge( $labels, $schema_labels );
 			}
@@ -277,7 +291,7 @@ class Documentate_Admin {
 	 * @param int $post_id Post ID.
 	 * @return array<string,string> Map of slug => label.
 	 */
-	private function get_schema_labels_for_post( $post_id ) {
+	private static function get_schema_labels_for_post( $post_id ) {
 		$labels = array();
 
 		// Get the document type term.
@@ -302,7 +316,7 @@ class Documentate_Admin {
 			if ( empty( $schema[ $group ] ) || ! is_array( $schema[ $group ] ) ) {
 				continue;
 			}
-			$labels = array_merge( $labels, $this->collect_schema_entry_labels( $schema[ $group ] ) );
+			$labels = array_merge( $labels, self::collect_schema_entry_labels( $schema[ $group ] ) );
 		}
 
 		return $labels;
@@ -314,7 +328,7 @@ class Documentate_Admin {
 	 * @param array<int,array<string,mixed>> $entries Schema fields or repeaters.
 	 * @return array<string,string> Map of slug => label.
 	 */
-	private function collect_schema_entry_labels( array $entries ) {
+	private static function collect_schema_entry_labels( array $entries ) {
 		$labels = array();
 
 		foreach ( $entries as $entry ) {

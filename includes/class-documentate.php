@@ -245,6 +245,7 @@ class Documentate {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-list-row.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-list.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-detail.php';
+		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-history.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-lock.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app-edit.php';
 		require_once plugin_dir_path( __DIR__ ) . 'includes/app/class-documentate-app.php';

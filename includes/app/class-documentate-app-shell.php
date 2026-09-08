@@ -232,7 +232,7 @@ class Documentate_App_Shell {
 	/**
 	 * One of the inline icons of the shell.
 	 *
-	 * @param string $name plus, lock or chevron.
+	 * @param string $name plus, lock, chevron or clock.
 	 * @return string SVG markup, empty for an unknown name.
 	 */
 	public static function icon( $name ) {
@@ -240,6 +240,7 @@ class Documentate_App_Shell {
 			'plus' => 'M12 4a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5a1 1 0 0 1 1-1Z',
 			'lock' => 'M7 10V8a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V8a3 3 0 0 0-6 0v2Z',
 			'chevron' => 'M6.7 9.3a1 1 0 0 1 1.4 0l3.9 3.9 3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0L6.7 10.7a1 1 0 0 1 0-1.4Z',
+			'clock' => 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 3a1 1 0 0 1 1 1v3.6l2.7 1.6a1 1 0 1 1-1 1.7l-3.2-1.9a1 1 0 0 1-.5-.9V8a1 1 0 0 1 1-1Z',
 		);
 
 		if ( ! isset( $paths[ $name ] ) ) {
