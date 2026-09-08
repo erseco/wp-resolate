@@ -433,7 +433,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 		$this->assertSame( 'enviado', Documentate_Transitions::flag( 'enviar_gestion' ) );
 		$this->assertSame( 'detalle', Documentate_Transitions::redirect( 'pasar_admin' ) );
 		$this->assertSame( 'enviado', Documentate_Transitions::flag( 'pasar_admin' ) );
-		$this->assertSame( 'bandeja', Documentate_Transitions::redirect( 'devolver_area' ) );
+		$this->assertSame( 'lista', Documentate_Transitions::redirect( 'devolver_area' ) );
 		$this->assertSame( 'devuelto', Documentate_Transitions::flag( 'devolver_gestion' ) );
 		$this->assertSame( 'detalle', Documentate_Transitions::redirect( 'aprobar' ) );
 		$this->assertSame( 'aprobado', Documentate_Transitions::flag( 'aprobar' ) );
@@ -468,7 +468,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 		$this->assertSame( 'admin', Documentate_Transitions::rule( 'archivar' )['who'], 'Archiving stays with administración.' );
 		$this->assertSame( 'gestion', Documentate_Transitions::rule( 'devolver_area', 'en_gestion' )['who'] );
 		$this->assertSame( 'en_gestion', Documentate_Transitions::rule( 'devolver_area' )['from'] );
-		$this->assertSame( 'Aprobar y publicar', Documentate_Transitions::rule( 'aprobar' )['label'] );
+		$this->assertSame( 'Aprobar', Documentate_Transitions::rule( 'aprobar' )['label'] );
 		$this->assertNull( Documentate_Transitions::rule( 'inventada' ) );
 		$this->assertNull( Documentate_Transitions::rule( 'aprobar', 'draft' ) );
 	}

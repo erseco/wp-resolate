@@ -1,13 +1,13 @@
 <?php
 /**
- * Tray decisions behind the document list of the front-end application.
+ * Filter decisions behind the document list of the front-end application.
  *
- * The list view asks this class three things, and prints none of them: which
- * tray the request means, which filters are active inside it, and which query
- * arguments — and counts — that combination stands for. Every tray keeps the
- * scope rules of the admin list: a scoped user sees the documents of their
- * category and its descendants, and the people who review and approve for
- * several áreas do so because their category sits above them in the tree.
+ * The list view asks this class two things, and prints neither: which filters
+ * the request means, and which query arguments — and counts — they stand for.
+ * The list keeps the scope rules of the admin one: a scoped user sees the
+ * documents of their category and its descendants, and the people who review
+ * and approve for several áreas do so because their category sits above them
+ * in the tree.
  *
  * @package Documentate
  * @subpackage App
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Trays, filters and query arguments of the document list.
+ * Filters and query arguments of the document list.
  */
 class Documentate_App_Tray {
 
@@ -44,75 +44,38 @@ class Documentate_App_Tray {
 	const PER_PAGE = 100;
 
 	/**
-	 * Statuses of every tray, in workflow order.
+	 * Statuses a document can be in, in workflow order.
 	 *
-	 * @param string $tray Tray key.
 	 * @return string[]
 	 */
-	public static function statuses( $tray ) {
-		$all = array_keys( Documentate_Statuses::labels() );
-
-		// The review trays start where the pipeline starts: a draft belongs to
-		// its área until it is sent.
-		return 'mis' === $tray || 'todos' === $tray
-			? $all
-			: array_values( array_diff( $all, array( 'draft' ) ) );
+	public static function statuses() {
+		return array_keys( Documentate_Statuses::labels() );
 	}
 
 	/**
-	 * Trays this person may open, and the one they land on.
+	 * Status chip a list opens on, which is what waits for that rol.
 	 *
-	 * Whoever reviews or approves lands on every document of their scope
-	 * ("todos"), with the tray of what waits for them beside it; the área
-	 * only has its own documents.
+	 * The jefatura de servicio opens on what waits for its approval, revisión
+	 * on what waits for review and the área on what it has still to send.
 	 *
-	 * @return string[] First element is the default tray.
+	 * @return string Status key.
 	 */
-	public static function trays() {
+	public static function default_status() {
 		if ( Documentate_Roles::is_head() ) {
-			return array( 'todos', 'revision' );
+			return 'pending';
 		}
 
-		return Documentate_Roles::is_management() ? array( 'todos', 'revisar' ) : array( 'mis' );
-	}
-
-	/**
-	 * Tray asked for by the request, falling back to the default one.
-	 *
-	 * @return string
-	 */
-	public static function current() {
-		$trays = self::trays();
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-		$tray = isset( $_GET['bandeja'] ) ? sanitize_key( wp_unslash( $_GET['bandeja'] ) ) : '';
-
-		return in_array( $tray, $trays, true ) ? $tray : $trays[0];
-	}
-
-	/**
-	 * Status chip pre-selected in a tray when the request names none.
-	 *
-	 * @param string $tray Tray key.
-	 * @return string Status key, or empty for "every status".
-	 */
-	private static function default_status( $tray ) {
-		$defaults = array(
-			'revisar' => 'en_gestion',
-			'revision' => 'pending',
-		);
-
-		return isset( $defaults[ $tray ] ) ? $defaults[ $tray ] : '';
+		return Documentate_Roles::is_management() ? 'en_gestion' : 'draft';
 	}
 
 	/**
 	 * Status filter asked for by the request.
 	 *
-	 * "todos" is the explicit way of clearing the chip a tray pre-selects.
+	 * "todos" is the explicit way of clearing the chip the list pre-selects.
 	 *
-	 * @param string $tray Tray key.
 	 * @return string Status key, "devuelto", or empty for every status.
 	 */
-	public static function current_status( $tray ) {
+	public static function current_status() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter.
 		$status = isset( $_GET['estado'] ) ? sanitize_key( wp_unslash( $_GET['estado'] ) ) : '';
 
@@ -120,9 +83,9 @@ class Documentate_App_Tray {
 			return '';
 		}
 
-		$valid_values = array_merge( self::statuses( $tray ), array( 'devuelto' ) );
+		$valid_values = array_merge( self::statuses(), array( 'devuelto' ) );
 
-		return in_array( $status, $valid_values, true ) ? $status : self::default_status( $tray );
+		return in_array( $status, $valid_values, true ) ? $status : self::default_status();
 	}
 
 	/**
@@ -130,8 +93,8 @@ class Documentate_App_Tray {
 	 *
 	 * Whoever looks after several áreas has one: revisión, jefatura de
 	 * servicio and administración. A term outside the user's own scope is
-	 * ignored, so the filter only ever narrows a tray — it can never reach
-	 * past the ámbito the tray already stands for.
+	 * ignored, so the filter only ever narrows the list — it can never reach
+	 * past the ámbito the list already stands for.
 	 *
 	 * @return int Category term ID, 0 when there is no filter.
 	 */
@@ -147,7 +110,7 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * Whether a category is one the current user may narrow their trays to.
+	 * Whether a category is one the current user may narrow their list to.
 	 *
 	 * @param int $area Category term ID.
 	 * @return bool
@@ -163,7 +126,7 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * The áreas the current user may narrow their trays to.
+	 * The áreas the current user may narrow their list to.
 	 *
 	 * The categories of their ámbito, or every one of them for
 	 * administración. A single category is nothing to narrow: an área has
@@ -192,10 +155,10 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * Whether the trays cannot show anything because the user has no ámbito.
+	 * Whether the list cannot show anything because the user has no ámbito.
 	 *
-	 * Every tray is scoped; a restricted account without a category of its
-	 * own has nothing to look at, and the list says so instead of drawing an
+	 * The list is scoped; a restricted account without a category of its own
+	 * has nothing to look at, and the list says so instead of drawing an
 	 * empty table.
 	 *
 	 * @return bool
@@ -224,17 +187,16 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * Query arguments of a tray.
+	 * Query arguments of the list.
 	 *
-	 * @param string $tray   Tray key (mis, revisar, revision, todos).
 	 * @param string $status Status chip, "devuelto", or empty for every status.
 	 * @param int    $area   Category term ID to narrow by, 0 for every área.
 	 * @return array<string,mixed>
 	 */
-	public static function query_args( $tray, $status, $area = 0 ) {
+	public static function query_args( $status, $area = 0 ) {
 		$args = array(
 			'post_type' => self::POST_TYPE,
-			'post_status' => self::statuses( $tray ),
+			'post_status' => self::statuses(),
 			'posts_per_page' => self::PER_PAGE,
 			'orderby' => 'modified',
 			'order' => 'DESC',
@@ -247,8 +209,8 @@ class Documentate_App_Tray {
 			$args['meta_compare'] = 'EXISTS';
 			// A return leaves the document wherever it was sent back to, and
 			// the most common one (administración → área) lands in a draft.
-			// The tray statuses would hide exactly those, so the counter and
-			// the chip would promise a set the tray cannot show.
+			// Narrowing by status would hide exactly those, so the chip would
+			// promise a set the list cannot show.
 			$args['post_status'] = array_keys( Documentate_Statuses::labels() );
 		} elseif ( '' !== $status ) {
 			$args['post_status'] = $status;
@@ -273,11 +235,10 @@ class Documentate_App_Tray {
 	 * @return int
 	 */
 	public static function count_documents( array $extra ) {
-		// Rendering one tray asks for the same set several times over — the
-		// counter row, the "devueltos" suffix, the filter chips and the tab
-		// badge all count documents, and several of them count the very same
-		// documents. Each ask is a SQL_CALC_FOUND_ROWS query, so the repeats
-		// are worth remembering for the rest of the request.
+		// Rendering the list asks for the same set several times over: every
+		// filter chip counts documents, and "Todos" counts what the chips
+		// counted again. Each ask is a SQL_CALC_FOUND_ROWS query, so the
+		// repeats are worth remembering for the rest of the request.
 		// The posts "last changed" stamp is part of the key, so anything that
 		// writes a post invalidates the memo the way core invalidates its own
 		// query caches — no hook of ours to keep in step with.

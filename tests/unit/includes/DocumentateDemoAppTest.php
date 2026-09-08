@@ -228,7 +228,7 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 		$events_rules = $texts( $map['Bases programa piloto innovación'] );
 		$this->assertContains( 'envió el documento a revisión', $events_rules );
 		$this->assertContains( 'pasó el documento a aprobación', $events_rules );
-		$this->assertContains( 'aprobó y publicó el documento', $events_rules );
+		$this->assertContains( 'aprobó el documento', $events_rules );
 
 		$events_hc = $texts( $map['Certificación tribunal materiales'] );
 		$this->assertContains( 'devolvió el documento al área: «Falta el anexo firmado por la dirección»', $events_hc );
@@ -241,7 +241,7 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 
 		$events_archived = $texts( $map['Instrucciones inicio de curso 2025-26'] );
 		$this->assertContains( 'archivó el documento', $events_archived );
-		$this->assertContains( 'aprobó y publicó el documento', $events_archived );
+		$this->assertContains( 'aprobó el documento', $events_archived );
 	}
 
 	/**

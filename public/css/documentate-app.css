@@ -141,7 +141,15 @@ body.documentate-app .wp-block-post-content {
 
 /* --- header -------------------------------------------------------------- */
 
+/*
+ * Each band breaks out of the sheet with a transform, and a transform is a
+ * stacking context of its own: without this the menu of the header, however
+ * high its own z-index, is painted under the tab bar that follows it.
+ */
+
 .dcta-top {
+	position: relative;
+	z-index: 2;
 	background: var(--dcta-sup);
 	border-bottom: 1px solid var(--dcta-linea);
 }
@@ -362,15 +370,6 @@ body.documentate-app .wp-block-post-content {
 	border-bottom-color: var(--dcta-pri);
 }
 
-.dcta-tab-n {
-	padding: .05em .5em;
-	border-radius: 999px;
-	background: var(--dcta-esp-cont);
-	color: var(--dcta-esp);
-	font-size: 12px;
-	font-weight: 700;
-}
-
 /* "Nuevo documento" carries a blue plus, so it reads as an action, not a list. */
 
 .dcta-tab-nuevo {
@@ -455,44 +454,21 @@ body.documentate-app .wp-block-post-content {
 
 /* --- cards, stats and alerts --------------------------------------------- */
 
+/*
+ * A card pads what it carries. Leaving that to each card meant every new one
+ * printed flush against its edge until somebody noticed, so the padding lives
+ * here and the two cards that want their content full-bleed take it off.
+ */
+
 .dcta-card {
 	background: var(--dcta-sup);
 	border-radius: var(--dcta-r);
 	box-shadow: var(--dcta-e1);
+	padding: 22px 24px;
 }
 
-.dcta-cifras {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-	gap: 14px;
-	margin: 0 0 20px;
-}
-
-.dcta-cifra {
-	background: var(--dcta-sup);
-	border-radius: var(--dcta-r);
-	box-shadow: var(--dcta-e1);
-	padding: 16px 18px;
-}
-
-.dcta-cifra b {
-	display: block;
-	font-size: 32px;
-	font-weight: 700;
-	line-height: 1.05;
-	letter-spacing: -.03em;
-	font-variant-numeric: tabular-nums;
-}
-
-.dcta-cifra span {
-	display: block;
-	margin-top: 3px;
-	font-size: 12.5px;
-	color: var(--dcta-texto-2);
-}
-
-.dcta-cifra-acento b {
-	color: var(--dcta-pri);
+.dcta-card > .dcta-h2:first-child {
+	margin-top: 0;
 }
 
 .dcta-aviso {
@@ -673,6 +649,31 @@ body.documentate-app .wp-block-post-content {
 	box-shadow: none;
 }
 
+/*
+ * The number of a chip is a badge: quiet on the chips that merely say what is
+ * there, and in the warm tone on the one that holds what waits for this
+ * person, which is where the list opens.
+ */
+
+.dcta-fchip-n {
+	padding: .05em .5em;
+	border-radius: 999px;
+	background: var(--dcta-sup-2);
+	color: var(--dcta-texto-2);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.dcta-fchip-on .dcta-fchip-n {
+	background: var(--dcta-sup);
+	color: var(--dcta-pri);
+}
+
+.dcta-fchip-mio .dcta-fchip-n {
+	background: var(--dcta-esp-cont);
+	color: var(--dcta-esp);
+}
+
 /* --- document list -------------------------------------------------------- */
 
 .dcta-tabla {
@@ -819,10 +820,18 @@ body.documentate-app .wp-block-post-content {
 }
 
 .dcta-ficha {
-	padding: 20px 24px;
+	margin: 0;
 }
 
 /* The document itself, drawn into the page where this site renders the PDF. */
+
+.dcta-pdf {
+	padding: 22px 0 0;
+}
+
+.dcta-pdf > .dcta-h2 {
+	padding: 0 24px;
+}
 
 .dcta-pdf-visor {
 	display: block;
@@ -954,10 +963,6 @@ body.documentate-app .wp-block-post-content {
 .dcta-editor-acciones .dcta-ayuda {
 	margin-top: 10px;
 	text-align: center;
-}
-
-.dcta-editor-card {
-	padding: 22px 24px;
 }
 
 /*
@@ -1366,24 +1371,35 @@ body.documentate-app .wp-block-post-content {
 	color: var(--dcta-texto-2);
 }
 
+/* One more control of the chip row, not a line of its own. */
+
 .dcta-areas {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: 10px;
-	margin: 0 0 18px;
+	gap: 8px;
+	margin: 0;
 	font-size: 13.5px;
 	color: var(--dcta-texto-2);
-	flex-wrap: wrap;
 }
 
 .dcta-areas select {
 	min-height: 40px;
-	padding: 0 10px;
+	padding: 0 32px 0 14px;
 	border: 1px solid var(--dcta-linea);
-	border-radius: 10px;
+	border-radius: 999px;
 	background: var(--dcta-sup);
+	box-shadow: var(--dcta-e1);
 	color: var(--dcta-texto);
+	font-size: 13.5px;
 	max-width: 100%;
+}
+
+/* The script submits on change, so the button is the fallback without it. */
+
+.dcta-areas-ok {
+	min-height: 40px;
+	padding: 0 16px;
+	font-size: 13.5px;
 }
 
 /* --- detail and editor bodies ---------------------------------------------- */
@@ -1489,21 +1505,6 @@ body.documentate-app .wp-block-post-content {
 }
 
 /* --- activity --------------------------------------------------------------- */
-
-/*
- * Every card is padded by what it carries — the ficha by its own list, the
- * editor cards by `.dcta-editor-card` — and the activity card carries a
- * heading, a list and a comment box, none of which pads anything. Left alone
- * it printed all three flush against its edge.
- */
-
-.dcta-actividad {
-	padding: 22px 24px;
-}
-
-.dcta-actividad > .dcta-h2:first-child {
-	margin-top: 0;
-}
 
 .dcta-actividad-lista {
 	list-style: none;
@@ -1892,10 +1893,6 @@ body.documentate-app .documentate-loading-modal__content {
 	.dcta-tabs-fila {
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
-	}
-
-	.dcta-cifras {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
 	.dcta-editor .documentate-sections .form-table,

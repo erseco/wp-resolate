@@ -40,20 +40,16 @@ class Documentate_App_Edit {
 	/**
 	 * URL of the edit view of a document.
 	 *
-	 * @param int    $doc_id Document post ID.
-	 * @param string $tray   Tray the visitor came from, so the back link knows.
+	 * @param int $doc_id Document post ID.
 	 * @return string
 	 */
-	public static function url( $doc_id, $tray = '' ) {
-		$args = array(
-			'doc' => $doc_id,
-			'vista' => 'editar',
+	public static function url( $doc_id ) {
+		return Documentate_App_Shell::page_url(
+			array(
+				'doc' => $doc_id,
+				'vista' => 'editar',
+			)
 		);
-		if ( '' !== $tray && 'mis' !== $tray ) {
-			$args['bandeja'] = $tray;
-		}
-
-		return Documentate_App_Shell::page_url( $args );
 	}
 
 	/**
@@ -83,7 +79,12 @@ class Documentate_App_Edit {
 					. '<span>Este documento está bloqueado en su estado actual y no se puede editar.' . $link . '</span></div>';
 			}
 
-			return Documentate_App_Shell::open( 'lista', Documentate_Document_Data::short_name( $post ), '' )
+			return Documentate_App_Shell::open(
+				'lista',
+				Documentate_Document_Data::short_name( $post ),
+				'',
+				Documentate_App_Shell::document_tab( $post )
+			)
 				. $notice
 				. Documentate_App_Shell::close();
 		}
@@ -92,9 +93,10 @@ class Documentate_App_Edit {
 		$type_name = $type ? $type->name : '—';
 
 		$html = Documentate_App_Shell::open(
-			Documentate_App_Shell::section_for_tray( Documentate_App_List::current_tray() ),
+			'lista',
 			Documentate_Document_Data::short_name( $post ),
-			$type_name . ' · completa los datos y guarda; envíalo cuando esté listo.'
+			$type_name . ' · completa los datos y guarda; envíalo cuando esté listo.',
+			Documentate_App_Shell::document_tab( $post )
 		);
 
 		$owner = Documentate_App_Lock::owner( $post->ID );
@@ -112,7 +114,6 @@ class Documentate_App_Edit {
 			<?php wp_nonce_field( 'documentate_app_guardar_' . $post->ID, 'documentate_app_nonce' ); ?>
 			<input type="hidden" name="documentate_app_accion" value="guardar_documento" />
 			<input type="hidden" name="documentate_app_doc" value="<?php echo esc_attr( (string) $post->ID ); ?>" />
-			<input type="hidden" name="documentate_app_bandeja" value="<?php echo esc_attr( Documentate_App_List::current_tray() ); ?>" />
 
 			<div class="dcta-editor-cuerpo">
 				<?php

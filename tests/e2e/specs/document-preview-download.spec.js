@@ -5,16 +5,38 @@
  * following WordPress/Gutenberg E2E best practices.
  */
 const { test, expect, getDownloadUrlViaAjax } = require( '../fixtures' );
+const { createFixture, removeFixture } = require( '../fixtures/site' );
 
 test.describe( 'Document Preview and Download', () => {
 	/**
-	 * Seeded demo document types, matched by the format of the office
-	 * template behind them. The editable download offers that format and no
-	 * other, so a test that cares about formats has to name its type instead
-	 * of taking whichever one happens to sort first.
+	 * The document types this spec picks between, matched by the format of
+	 * the office template behind them. The editable download offers that
+	 * format and no other, so a test that cares about formats has to name its
+	 * type instead of taking whichever one happens to sort first.
+	 *
+	 * The ODT one is seeded with the demo data; the site ships no DOCX
+	 * example any more, so this spec builds one of its own from the bundled
+	 * DOCX fixture.
 	 */
 	const ODT_TYPE = /\(ODT\)/;
-	const DOCX_TYPE = /\(DOCX\)/;
+	const DOCX_TYPE_NAME = `Plantilla DOCX ${ Date.now() }`;
+	const DOCX_TYPE = new RegExp( DOCX_TYPE_NAME );
+	let docxTypeId = 0;
+
+	test.beforeAll( () => {
+		docxTypeId = createFixture( {
+			types: {
+				docx: {
+					name: DOCX_TYPE_NAME,
+					template: 'demo-wp-documentate.docx',
+				},
+			},
+		} ).types.docx;
+	} );
+
+	test.afterAll( () => {
+		removeFixture( { types: [ docxTypeId ] } );
+	} );
 
 	/**
 	 * Create and publish a document of one of the seeded demo types.

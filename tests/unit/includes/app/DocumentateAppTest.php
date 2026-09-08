@@ -280,6 +280,9 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$outside = $this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->editor_id );
+		// The list opens on the chip of the rol; "todos" is how a test asks
+		// for every status at once.
+		$_GET['estado'] = 'todos';
 		$html = $this->app->render();
 
 		$this->assertStringContainsString( 'Documento dentro', $html );
@@ -309,6 +312,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->create_document( 'Documento fuera', $this->cat_other );
 
 		wp_set_current_user( $this->admin_id );
+		$_GET['estado'] = 'todos';
 		$html = $this->app->render();
 
 		$this->assertStringContainsString( 'Documento dentro', $html );
@@ -349,6 +353,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$approved = $this->create_document( 'Aprobado ver', $this->cat_scope, 'publish' );
 
 		wp_set_current_user( $this->editor_id );
+		$_GET['estado'] = 'todos';
 		$html = $this->app->render();
 
 		$this->assertStringContainsString( 'doc=' . $draft . '&#038;vista=editar', $html );
@@ -934,7 +939,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The document a notification linked to is where the visitor lands, not the tray.
+	 * The document a notification linked to is where the visitor lands, not
+	 * the list.
 	 */
 	public function test_the_login_detour_keeps_the_view_of_the_request() {
 		$doc_id = $this->create_document( 'Documento enlazado', $this->cat_scope );
@@ -944,7 +950,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 				array(
 					'doc' => $doc_id,
 					'vista' => 'editar',
-					'bandeja' => 'revisar',
+					'estado' => 'en_gestion',
 				)
 			)
 		);
@@ -954,7 +960,7 @@ class DocumentateAppTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'doc=' . $doc_id, $back );
 		$this->assertStringContainsString( 'vista=editar', $back );
-		$this->assertStringContainsString( 'bandeja=revisar', $back );
+		$this->assertStringContainsString( 'estado=en_gestion', $back );
 	}
 
 	/**

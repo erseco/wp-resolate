@@ -42,9 +42,10 @@ class Documentate_App_Detail {
 		}
 
 		$html = Documentate_App_Shell::open(
-			Documentate_App_Shell::section_for_tray( Documentate_App_List::current_tray() ),
+			'lista',
 			Documentate_Document_Data::short_name( $post ),
-			self::subtitle( $post )
+			self::subtitle( $post ),
+			Documentate_App_Shell::document_tab( $post )
 		);
 
 		$html .= self::render_notices( $post );
@@ -157,7 +158,7 @@ class Documentate_App_Detail {
 		$messages = array(
 			'enviado' => self::sent_text( $post ),
 			'devuelto' => 'Documento devuelto con el motivo indicado.',
-			'aprobado' => 'Documento aprobado y publicado.',
+			'aprobado' => 'Documento aprobado.',
 			'comentado' => 'Comentario añadido.',
 			'guardado' => 'Cambios guardados.',
 		);
@@ -519,7 +520,6 @@ class Documentate_App_Detail {
 			. '<input type="hidden" name="documentate_app_accion" value="comentar" />'
 			. '<input type="hidden" name="documentate_app_doc" value="' . esc_attr( (string) $post->ID ) . '" />'
 			. '<input type="hidden" name="documentate_app_redirect_to" value="' . esc_attr( $target ) . '" />'
-			. '<input type="hidden" name="documentate_app_bandeja" value="' . esc_attr( Documentate_App_List::current_tray() ) . '" />'
 			. '</form>';
 	}
 
@@ -547,10 +547,7 @@ class Documentate_App_Detail {
 		$html .= '<div class="dcta-card"><h2 class="dcta-h2">Acciones</h2>';
 
 		if ( Documentate_App_Edit::can_edit( $post ) ) {
-			// The tray travels with the link: the editor lights up the tab the
-			// visitor came from and its back link points at a tray that really
-			// holds this document.
-			$edit_url = Documentate_App_Edit::url( $post->ID, Documentate_App_List::current_tray() );
+			$edit_url = Documentate_App_Edit::url( $post->ID );
 			$html .= '<a class="dcta-btn dcta-btn-pri" href="' . esc_url( $edit_url ) . '">Editar</a>';
 		} else {
 			$html .= self::render_edit_disabled( $post );
@@ -607,7 +604,6 @@ class Documentate_App_Detail {
 			. wp_nonce_field( 'documentate_app_transicion_' . $post->ID, 'documentate_app_nonce', true, false )
 			. '<input type="hidden" name="documentate_app_accion" value="transicion" />'
 			. '<input type="hidden" name="documentate_app_doc" value="' . esc_attr( (string) $post->ID ) . '" />'
-			. '<input type="hidden" name="documentate_app_bandeja" value="' . esc_attr( Documentate_App_List::current_tray() ) . '" />'
 			. $buttons
 			. '</form>';
 	}
@@ -669,13 +665,13 @@ class Documentate_App_Detail {
 				'label' => 'En aprobación',
 				'current' => 'Pendiente de aprobar',
 				'done' => 'aprobado el ',
-				'event' => 'aprobó y publicó',
+				'event' => 'aprobó',
 			),
 			'publish' => array(
 				'label' => 'Aprobado',
 				'current' => 'Aprobado',
 				'done' => 'aprobado el ',
-				'event' => 'aprobó y publicó',
+				'event' => 'aprobó',
 			),
 		);
 

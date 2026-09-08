@@ -95,8 +95,9 @@ the command fail instead of presenting an incomplete journey as successful.
   - **LibreOffice WASM** in the browser (experimental, client-side)
 - Per-user scope filtering (hierarchical categories) for document visibility,
   the same tree for every role
-- Front-end application under `/documentate/` (bandejas per role, detail, edit,
-  attachments, export, signed-in header) alongside full wp-admin parity
+- Front-end application under `/documentate/` (one list with status chips,
+  detail, edit, attachments, export, signed-in header) alongside full wp-admin
+  parity
 - Revisions, attachments and native WordPress editing locks with explicit takeover
 - Multisite compatible
 

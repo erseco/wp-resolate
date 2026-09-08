@@ -47,9 +47,6 @@ function row( page, name ) {
 /**
  * The labels of the tab bar, whitespace-normalised.
  *
- * The badge of the actionable tab is part of the tab, so a tab that carries
- * one reads "Para revisar 4".
- *
  * @param {import('@playwright/test').Page} page Page showing the application.
  * @return {Promise<string[]>} Tab labels in order.
  */
@@ -159,7 +156,7 @@ test.describe( 'Documentate app · roles', () => {
 		} );
 	} );
 
-	test( 'the area gets two tabs with no badge and does not see the official data', async ( {
+	test( 'the area gets two tabs and does not see the official data', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -171,8 +168,11 @@ test.describe( 'Documentate app · roles', () => {
 				'Mis documentos',
 				'Nuevo documento',
 			] );
-			// Nothing is ever waiting for the área: no tab carries a badge.
-			await expect( page.locator( '.dcta-tab-n' ) ).toHaveCount( 0 );
+			// What waits for a rol is a chip of the list, not a tab: the área
+			// opens on what it has still to send.
+			await expect( page.locator( '.dcta-fchip-on' ) ).toContainText(
+				'Por enviar'
+			);
 			await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Área' );
 			await expect( page.locator( '.dcta-yo-ambito' ) ).toHaveText(
 				`Área ${ RUN }`
@@ -217,7 +217,7 @@ test.describe( 'Documentate app · roles', () => {
 		const { context, page } = await loginAs( browser, baseURL, MANAGEMENT_LOGIN );
 
 		try {
-			await page.goto( `${ APP_PATH }?bandeja=revisar&estado=todos` );
+			await page.goto( `${ APP_PATH }?estado=todos` );
 
 			const rows = page.locator( '.dcta-fila:not(.dcta-fila-cab)' );
 			const box = page.locator( '.dcta-busqueda-campo' );
@@ -233,7 +233,7 @@ test.describe( 'Documentate app · roles', () => {
 			const footer = page.locator( '[data-dcta-pie]' );
 			await expect( footer ).toHaveAttribute( 'role', 'status' );
 
-			// The tray is capped at one page: what it really holds travels in
+			// The list is capped at one page: what it really holds travels in
 			// the footer, and the counts have to keep saying so.
 			const inTray = parseInt(
 				await footer.getAttribute( 'data-dcta-pie-total' ),
@@ -258,9 +258,9 @@ test.describe( 'Documentate app · roles', () => {
 			await expect( emptyRow ).toBeVisible();
 			if ( inTray > total ) {
 				// The other rows were never looked at: "nothing matches" would
-				// be a lie for the rest of the tray.
+				// be a lie for the rest of the list.
 				await expect( emptyRow ).toContainText(
-					`la bandeja tiene ${ inTray }`
+					`la lista tiene ${ inTray }`
 				);
 			}
 
@@ -280,7 +280,7 @@ test.describe( 'Documentate app · roles', () => {
 		try {
 			await page.setViewportSize( { width: 1280, height: 900 } );
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar&bandeja=revisar`
+				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar`
 			);
 
 			await page.locator( 'button[data-motivo]' ).first().click();
@@ -310,7 +310,7 @@ test.describe( 'Documentate app · roles', () => {
 		try {
 			await page.setViewportSize( { width: 390, height: 780 } );
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar&bandeja=revisar`
+				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar`
 			);
 
 			const status = page.locator( '.dcta-editor-lado .dcta-card' ).first();
@@ -339,7 +339,7 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'management gets three tabs, a badge on «Para revisar» and sees the official data', async ( {
+	test( 'management gets two tabs, opens on «En revisión» and sees the official data', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -352,10 +352,7 @@ test.describe( 'Documentate app · roles', () => {
 		try {
 			await page.goto( APP_PATH );
 			const tabs = await tabLabels( page );
-			expect( tabs ).toHaveLength( 3 );
-			expect( tabs[ 0 ] ).toBe( 'Documentos' );
-			expect( tabs[ 1 ] ).toMatch( /^Para revisar \d+$/ );
-			expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
+			expect( tabs ).toEqual( [ 'Documentos', 'Nuevo documento' ] );
 			await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Revisión' );
 			await expect( page.locator( '.dcta-yo-ambito' ) ).toHaveText(
 				`Servicio ${ RUN }`
@@ -365,12 +362,15 @@ test.describe( 'Documentate app · roles', () => {
 				page.locator( '.dcta-tab-nuevo svg.dcta-icono-plus' )
 			).toHaveCount( 1 );
 
-			// The badge counts every document waiting in revisión, ours included.
-			const badge = await page.locator( '.dcta-tab-n' ).innerText();
-			expect( parseInt( badge, 10 ) ).toBeGreaterThanOrEqual( 1 );
+			// The list opens on what waits for review, and the chip counts it.
+			const chip = page.locator( '.dcta-fchip-on' );
+			await expect( chip ).toContainText( 'En revisión' );
+			expect(
+				parseInt( await chip.locator( '.dcta-fchip-n' ).innerText(), 10 )
+			).toBeGreaterThanOrEqual( 1 );
 
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar&bandeja=revisar`
+				`${ APP_PATH }?doc=${ docs.otherInManagement }&vista=editar`
 			);
 			const managementFields = page.locator( 'tr.documentate-campo-gestion' );
 			expect( await managementFields.count() ).toBeGreaterThan( 0 );
@@ -399,23 +399,18 @@ test.describe( 'Documentate app · roles', () => {
 		);
 
 		try {
-			// The review tray holds every área of the scope, but only from the
-			// moment a document leaves its own: a draft is not there to review.
-			await page.goto( `${ APP_PATH }?bandeja=revisar&estado=todos` );
-			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
-				'Para revisar'
-			);
-			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
-			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
-			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 0 );
-			await expect( row( page, NAMES.own ) ).toHaveCount( 0 );
-			await expect( row( page, NAMES.foreign ) ).toHaveCount( 0 );
-
-			// "Documentos" is the whole scope, drafts of both áreas included.
+			// The chip of the rol holds what waits for review, and nothing else.
 			await page.goto( APP_PATH );
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Documentos' );
+			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 0 );
+			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 0 );
+
+			// "Todos" is the whole scope, drafts of both áreas included.
+			await page.goto( `${ APP_PATH }?estado=todos` );
 			await expect( row( page, NAMES.own ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.foreign ) ).toHaveCount( 0 );
 
@@ -440,7 +435,7 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'the head of service approves from «Para aprobar» without being an administrator', async ( {
+	test( 'the head of service approves from «En aprobación» without being an administrator', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -448,18 +443,20 @@ test.describe( 'Documentate app · roles', () => {
 
 		try {
 			await page.goto( APP_PATH );
-			const tabs = await tabLabels( page );
-			expect( tabs[ 0 ] ).toBe( 'Documentos' );
-			expect( tabs[ 1 ] ).toMatch( /^Para aprobar \d+$/ );
-			expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
+			expect( await tabLabels( page ) ).toEqual( [
+				'Documentos',
+				'Nuevo documento',
+			] );
 			await expect( page.locator( '.dcta-rol' ) ).toHaveText(
 				'Jefatura de servicio'
 			);
 			// Not an administrator: no toolbar, no wp-admin shortcut.
 			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
 
-			await page.goto( `${ APP_PATH }?bandeja=revision` );
-			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Para aprobar' );
+			// The list opens on what waits for their approval.
+			await expect( page.locator( '.dcta-fchip-on' ) ).toContainText(
+				'En aprobación'
+			);
 			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 0 );
 
@@ -470,10 +467,10 @@ test.describe( 'Documentate app · roles', () => {
 
 			// What waits for approval is: the editor offers the approval.
 			await page.goto(
-				`${ APP_PATH }?doc=${ docs.otherPending }&vista=editar&bandeja=revision`
+				`${ APP_PATH }?doc=${ docs.otherPending }&vista=editar`
 			);
 			await expect(
-				page.getByRole( 'button', { name: 'Aprobar y publicar' } )
+				page.getByRole( 'button', { name: 'Aprobar' } )
 			).toBeVisible();
 			await expect(
 				page.getByRole( 'button', { name: 'Devolver…' } )
@@ -483,54 +480,43 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'administration gets three tabs, counters, chips and the area filter', async ( {
+	test( 'administration gets two tabs, chips with counts and the area filter', async ( {
 		page,
 	} ) => {
-		await page.goto( APP_PATH );
+		await page.goto( `${ APP_PATH }?estado=todos` );
 
-		// The same three tabs the head of service has, in the same order:
-		// moving between the two roles must not move the tabs around. Document types live in
-		// wp-admin, so no tab leaves the application.
-		const tabs = await tabLabels( page );
-		expect( tabs ).toHaveLength( 3 );
-		expect( tabs[ 0 ] ).toBe( 'Todos los documentos' );
-		expect( tabs[ 1 ] ).toMatch( /^Para aprobar \d+$/ );
-		expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
+		// The same two tabs the head of service has, in the same order:
+		// moving between the two roles must not move the tabs around.
+		// Document types live in wp-admin, so no tab leaves the application.
+		expect( await tabLabels( page ) ).toEqual( [
+			'Todos los documentos',
+			'Nuevo documento',
+		] );
 		await expect( page.locator( '.dcta-rol' ) ).toHaveText(
 			'Administración'
 		);
-
-		// Counters of the "todos" tray, the one administración approves from first.
-		const labels = await page.locator( '.dcta-cifra span' ).allInnerTexts();
-		expect( labels.map( ( t ) => t.trim() ) ).toEqual( [
-			'En aprobación',
-			'En revisión',
-			'Aprobados',
-			'Devueltos',
-		] );
-		const inReview = parseInt(
-			await page.locator( '.dcta-cifra' ).first().locator( 'b' ).innerText(),
-			10
-		);
-		expect( inReview ).toBeGreaterThanOrEqual( 1 );
 
 		// Administración sees every área at once.
 		await expect( row( page, NAMES.own ) ).toHaveCount( 1 );
 		await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 1 );
 
-		// The chips are the status filters that would find something.
+		// The chips are the status filters that would find something, each
+		// with what it holds; the one of the rol is marked.
 		const chips = ( await page.locator( '.dcta-fchip' ).allInnerTexts() ).map(
-			( texto ) => texto.trim()
+			( texto ) => texto.replace( /\s+/g, ' ' ).trim()
 		);
-		expect( chips[ 0 ] ).toBe( 'Todos' );
-		expect( chips ).toContain( 'Por enviar' );
-		expect( chips ).toContain( 'En revisión' );
+		expect( chips[ 0 ] ).toMatch( /^Todos \d+$/ );
+		expect( chips.some( ( c ) => /^Por enviar \d+$/.test( c ) ) ).toBe( true );
+		expect( chips.some( ( c ) => /^En revisión \d+$/.test( c ) ) ).toBe( true );
+		await expect( page.locator( '.dcta-fchip-mio' ) ).toContainText(
+			'En aprobación'
+		);
 
+		// The count is part of the chip, so the chip is located by where it
+		// leads rather than by its accessible name.
 		await Promise.all( [
 			page.waitForURL( /estado=en_gestion/ ),
-			page
-				.getByRole( 'link', { name: 'En revisión', exact: true } )
-				.click(),
+			page.locator( 'a.dcta-fchip[href*="estado=en_gestion"]' ).click(),
 		] );
 		const statuses = (
 			await page.locator( '.dcta-fila .dcta-estado' ).allInnerTexts()
@@ -539,12 +525,15 @@ test.describe( 'Documentate app · roles', () => {
 		expect( [ ...new Set( statuses ) ] ).toEqual( [ 'En revisión' ] );
 		await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
 
-		// The área filter narrows every tray to one category.
-		await page.goto( APP_PATH );
-		await page.selectOption( '#dcta-area', String( otherCatId ) );
+		// The área filter narrows the list to one category, and picking one is
+		// the whole interaction: the script submits, the button stays hidden.
+		await page.goto( `${ APP_PATH }?estado=todos` );
+		await expect(
+			page.getByRole( 'button', { name: 'Filtrar' } )
+		).toBeHidden();
 		await Promise.all( [
 			page.waitForURL( new RegExp( `area=${ otherCatId }` ) ),
-			page.getByRole( 'button', { name: 'Filtrar' } ).click(),
+			page.selectOption( '#dcta-area', String( otherCatId ) ),
 		] );
 		await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 1 );
 		await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );

@@ -77,9 +77,10 @@ revisión en el circuito de ese tipo).
   `suministros`, `expertos`…) son `rol='gestion'`; los datos que redacta el
   área (título, curso, objeto, destinatarios…) se quedan sin marcar.
 - `fixtures/resolucion.odt`: `numero_resolucion`, `fecha_resolucion`,
-  `expediente`, `organo_firmante` y el cuerpo de la resolución
-  (`antecedentes`, `fundamentos`, `resuelvo`) son `rol='gestion'` — son los
-  datos que asigna revisión al formalizar la resolución.
+  `expediente` y `organo_firmante` son `rol='gestion'` — son los datos que
+  asigna revisión al formalizar la resolución. El cuerpo (`antecedentes`,
+  `fundamentos`, `resuelvo`) se queda sin marcar: lo que se resuelve lo
+  redacta el área, y revisión solo pone la numeración y el órgano que firma.
 
 ## Al tocar una plantilla
 

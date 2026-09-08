@@ -534,7 +534,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	public function flag_data() {
 		return array(
 			'sent' => array( 'enviado', '1', 'dcta-aviso-ok', 'Documento enviado a la jefatura de servicio' ),
-			'approved' => array( 'aprobado', '1', 'dcta-aviso-ok', 'Documento aprobado y publicado.' ),
+			'approved' => array( 'aprobado', '1', 'dcta-aviso-ok', 'Documento aprobado.' ),
 			'commented' => array( 'comentado', '1', 'dcta-aviso-ok', 'Comentario añadido.' ),
 			'reason error' => array( 'error', 'motivo', 'dcta-aviso-mal', 'hay que decir por qué' ),
 			'attachment error' => array( 'error', 'adjunto', 'dcta-aviso-mal', 'solo PDF, ODT o DOCX' ),

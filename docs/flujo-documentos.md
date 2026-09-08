@@ -18,8 +18,9 @@ perfil), no de su rol: todas las personas de un área ven los documentos de su
 área; revisión y jefatura ven todos los de su ámbito porque su categoría está
 más arriba en el árbol (el servicio, del que cuelgan las áreas). Nadie ve nada
 fuera de su rama, salvo administración. Quien tiene varias áreas a su cargo
-—revisión, jefatura y administración— puede acotar sus bandejas a una de
-ellas con el selector **Área**; el selector solo ofrece las de su ámbito.
+—revisión, jefatura y administración— puede acotar la lista a una de ellas
+con el selector **Área** que va al final de la fila de filtros; se filtra al
+elegir y el selector solo ofrece las áreas de su ámbito.
 
 Una misma persona puede ser revisión y, a la vez, área para su propio ámbito
 (así es `editor1` en la demo: revisa los documentos de todas las áreas de la
@@ -74,17 +75,19 @@ no coinciden, manda esa tabla — y hay que corregir aquí, no allí.
 Todo el mundo entra por la misma dirección, `/documentate/`. Quien llega sin
 sesión pasa por el acceso corporativo (CAS) y vuelve exactamente a donde iba:
 si el enlace era el de un aviso por correo, aterriza en ese documento y no en
-la bandeja.
+la lista.
 
 ## Dónde se hace cada cosa
 
 - **Aplicación** (`/documentate/`): pensada para el trabajo diario de las
   tres personas. La cabecera muestra quién ha entrado (nombre, rol y ámbito,
-  con «Salir»). Bandejas según el rol ("Mis documentos" para el área;
-  "Documentos" y "Para revisar" para revisión; "Documentos" y "Para aprobar"
-  para la jefatura), ficha del documento con el histórico de actividad,
-  edición con los campos agrupados por rol, adjuntar el fichero fuente,
-  previsualizar y descargar.
+  con «Salir»). Una sola lista por persona ("Mis documentos" para el área,
+  "Documentos" para revisión y jefatura, "Todos los documentos" para
+  administración) con un chip por estado: cada uno lleva cuántos documentos
+  hay detrás, y la lista abre por el del propio rol — «Por enviar» para el
+  área, «En revisión» para revisión, «En aprobación» para la jefatura. Además,
+  ficha del documento con el histórico de actividad, edición con los campos
+  agrupados por rol, adjuntar el fichero fuente, previsualizar y descargar.
 - **wp-admin**: mismas acciones disponibles desde la pantalla clásica de
   entradas, para quien prefiere ese flujo o necesita archivar/desarchivar
   (esas dos acciones solo están en wp-admin).
