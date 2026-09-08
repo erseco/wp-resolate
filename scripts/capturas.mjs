@@ -1,7 +1,7 @@
 /**
  * Screenshot script for the full life cycle of a document.
  *
- * Walks the application with Playwright at two screen sizes and leaves an HTML
+ * Walks the application with Playwright on desktop and leaves an HTML
  * report with the annotated screenshots: it verifies that the cycle works end
  * to end after every change, and doubles as the basis of the user manual.
  *
@@ -14,8 +14,8 @@
  * returns to the área for correction. Demo data is reseeded before each screen
  * size; the new documents are identified by their creation redirects.
  *
- * Usage:  make capturas                      (everything)
- *         make capturas SOLO=movil           (mobile only)
+ * Usage:  make capturas                      (desktop)
+ *         make capturas SOLO=movil           (opt-in mobile pass)
  *         DOCUMENTATE_SIN_SEMBRAR=1 …        (do not reseed; use existing data)
  *
  * Never at the same time as the E2E suite: both write to the development site.
@@ -29,7 +29,7 @@ import path from 'node:path';
 
 const BASE = process.env.DOCUMENTATE_URL || 'http://localhost:8989';
 const OUT = process.env.DOCUMENTATE_CAPTURAS || 'capturas';
-const SOLO = process.env.SOLO || '';
+const SOLO = process.env.SOLO || 'escritorio';
 
 const USERS = {
 	area: { user: 'author1', pass: 'password', label: 'Área · Departamento de Proyectos' },

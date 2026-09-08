@@ -8,13 +8,15 @@ function escape( value ) {
 	} )[ character ] );
 }
 
-/** Render desktop and mobile screenshots, with explicit failures and commit provenance. */
+/** Render captured screen sizes, with explicit failures and commit provenance. */
 function gallery( shots, { base, sha, run } ) {
 	const scenes = new Map();
 	for ( const shot of shots ) {
 		if ( ! scenes.has( shot.title ) ) scenes.set( shot.title, [] );
 		scenes.get( shot.title ).push( shot );
 	}
+	const screens = [ 'escritorio', 'movil' ].filter( ( screen ) => shots.some( ( shot ) => shot.screenId === screen ) );
+	const labels = { escritorio: 'Ordenador', movil: 'Móvil' };
 	const failures = shots.filter( ( shot ) => ! shot.ok ).length;
 	const lines = [
 		MARKER,
@@ -26,8 +28,8 @@ function gallery( shots, { base, sha, run } ) {
 	];
 	for ( const [ title, group ] of scenes ) {
 		lines.push( `<details><summary>${ group.every( ( shot ) => shot.ok ) ? '✓' : '✗' } ${ escape( title ) }</summary>`, '',
-			escape( group[ 0 ].text ), '', '| Perfil | Ordenador | Móvil |', '|---|---|---|' );
-		const images = [ 'escritorio', 'movil' ].map( ( screen ) => {
+			escape( group[ 0 ].text ), '', `| Perfil | ${ screens.map( ( screen ) => labels[ screen ] ).join( ' | ' ) } |`, `|---|${ screens.map( () => '---|' ).join( '' ) }` );
+		const images = screens.map( ( screen ) => {
 			const shot = group.find( ( item ) => item.screenId === screen );
 			if ( ! shot ) return 'Sin captura';
 			if ( ! /^img\/[a-z0-9-]+\.png$/.test( shot.img ) ) throw new Error( 'Invalid screenshot path' );

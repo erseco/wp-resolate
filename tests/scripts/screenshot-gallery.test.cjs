@@ -2,6 +2,15 @@ const { test } = require( 'node:test' );
 const assert = require( 'node:assert/strict' );
 const { gallery, MARKER } = require( '../../scripts/screenshot-gallery.cjs' );
 
+test( 'desktop-only gallery omits the mobile column and missing-image placeholders', () => {
+	const body = gallery( [ { title: 'Crear documento', text: 'Crear y guardar', as: 'Área', img: 'img/01-escritorio-crear.png', screenId: 'escritorio', ok: true } ], {
+		base: 'https://raw.githubusercontent.com/owner/repo/commit/', sha: '1234567', run: 'https://github.com/owner/repo/actions/runs/1',
+	} );
+	assert.match( body, /\| Perfil \| Ordenador \|\n\|---\|---\|/ );
+	assert.equal( ( body.match( /<img /g ) || [] ).length, 1 );
+	assert.doesNotMatch( body, /Móvil|movil|Sin captura/ );
+} );
+
 test( 'gallery pairs screens, identifies failures, and preserves commit provenance', () => {
 	const scene = { title: 'Crear <documento> | revisar', text: 'Texto de la escena', as: 'Área', img: 'img/01-escritorio-crear.png', screenId: 'escritorio', ok: true };
 	const body = gallery( [ scene, { ...scene, screenId: 'movil', img: 'img/01-movil-crear.png', ok: false, error: '<error> | detalle' } ], {
