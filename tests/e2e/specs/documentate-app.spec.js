@@ -117,6 +117,10 @@ test.describe( 'Documentate app', () => {
 		await page.waitForURL( /\/documentate\/?(\?.*)?$/ );
 		await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Todos los documentos' );
 		await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Administración' );
+
+		const logo = page.getByRole( 'img', { name: 'Gobierno de Canarias', exact: true } );
+		await expect( logo ).toBeVisible();
+		await expect.poll( () => logo.evaluate( ( image ) => image.naturalWidth ) ).toBeGreaterThan( 0 );
 	} );
 
 	test( 'administrator creates a document, saves the fields and sends it for review', async ( { page } ) => {

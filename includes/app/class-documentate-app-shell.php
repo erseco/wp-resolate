@@ -545,7 +545,7 @@ class Documentate_App_Shell {
 		?>
 		<div class="dcta-top">
 			<div class="dcta-top-fila">
-				<span class="dcta-escudo" role="img" aria-label="Gobierno de Canarias"></span>
+				<img class="dcta-escudo" src="<?php echo esc_url( plugins_url( 'assets/images/canary-islands-government.png', DOCUMENTATE_PLUGIN_FILE ) ); ?>" alt="Gobierno de Canarias" width="104" height="60" />
 				<span class="dcta-marca">
 					<small>Consejería de Educación, Formación Profesional, Actividad Física y Deportes</small>
 				</span>
