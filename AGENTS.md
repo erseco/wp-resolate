@@ -418,7 +418,7 @@ Read `ARCHITECTURE.md` for details on:
 - Native PDF rendering (`includes/pdf/`, layouts in `templates/pdf/`)
 - Conversion engines (Collabora, LibreOffice WASM in the browser)
 - Access control and scope filtering
-- Roles, statuses and the approval workflow (área → gestión documental → administración)
+- Roles, statuses and the approval workflow (área → revisión → jefatura de servicio)
 - Fields by role in templates and the document data model
 - The front-end application under `/documentate/`
 

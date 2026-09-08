@@ -23,11 +23,25 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental user ID.
+	 * Revisión user ID.
 	 *
 	 * @var int
 	 */
 	private $management_id;
+
+	/**
+	 * Jefatura de servicio user ID (editor).
+	 *
+	 * @var int
+	 */
+	private $head_id;
+
+	/**
+	 * Category of the service, parent of both departments.
+	 *
+	 * @var int
+	 */
+	private $cat_service;
 
 	/**
 	 * Área user ID.
@@ -51,7 +65,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	private $cat_b;
 
 	/**
-	 * Document type that goes through gestión documental.
+	 * Document type that goes through revisión.
 	 *
 	 * @var int
 	 */
@@ -76,10 +90,13 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
-		// Gestión documental is appointed account by account: the plugin keeps
-		// the capability in a role of its own and never grants it to the stock
-		// editor role, so the account is given it here the way a site would.
+		// Revisión and jefatura are appointed account by account: the plugin
+		// keeps the capabilities in roles of their own and never grants them
+		// to the stock editor role, so the accounts are given them here the
+		// way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		$this->head_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		( new WP_User( $this->head_id ) )->add_cap( Documentate_Roles::CAP_HEAD );
 		$this->area_id = self::factory()->user->create(
 			array(
 				'role' => 'author',
@@ -87,11 +104,16 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 			)
 		);
 
-		$a = wp_insert_term( 'Departamento de Proyectos ' . uniqid(), 'category' );
-		$b = wp_insert_term( 'Subdirección ' . uniqid(), 'category' );
+		// The scope is a tree: the área sits on its department, whoever
+		// reviews and approves on the service above both departments.
+		$service = wp_insert_term( 'Servicio ' . uniqid(), 'category' );
+		$this->cat_service = (int) $service['term_id'];
+		$a = wp_insert_term( 'Departamento de Proyectos ' . uniqid(), 'category', array( 'parent' => $this->cat_service ) );
+		$b = wp_insert_term( 'Subdirección ' . uniqid(), 'category', array( 'parent' => $this->cat_service ) );
 		$this->cat_a = (int) $a['term_id'];
 		$this->cat_b = (int) $b['term_id'];
-		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_a );
+		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_service );
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_service );
 		update_user_meta( $this->area_id, 'documentate_scope_term_id', $this->cat_a );
 
 		$this->type_id = $this->create_type();
@@ -229,13 +251,20 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertSame( 'mis', Documentate_App_List::current_tray() );
 
 		wp_set_current_user( $this->management_id );
-		$this->assertSame( 'mis', Documentate_App_List::current_tray() );
+		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Revisión lands on every document of its scope.' );
+
+		wp_set_current_user( $this->head_id );
+		$this->assertSame( 'todos', Documentate_App_List::current_tray() );
 
 		wp_set_current_user( $this->admin_id );
 		$this->assertSame( 'todos', Documentate_App_List::current_tray() );
 
 		$_GET['bandeja'] = 'revisar';
-		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Administración has no gestión tray.' );
+		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Administración has no revisión tray.' );
+		wp_set_current_user( $this->head_id );
+		$this->assertSame( 'todos', Documentate_App_List::current_tray(), 'Neither has the head of service.' );
+		wp_set_current_user( $this->area_id );
+		$this->assertSame( 'mis', Documentate_App_List::current_tray(), 'The área has no review tray at all.' );
 	}
 
 	/**
@@ -250,11 +279,26 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		wp_set_current_user( $this->management_id );
 		$sections = Documentate_App_Shell::sections();
 		$this->assertSame( array( 'lista', 'revisar', 'nuevo' ), array_keys( $sections ) );
-		$this->assertSame( 1, $sections['revisar']['n'], 'One document waits in gestión.' );
+		$this->assertSame( 'Documentos', $sections['lista']['tab'] );
+		$this->assertSame( 'Para revisar', $sections['revisar']['tab'] );
+		$this->assertSame( 1, $sections['revisar']['n'], 'One document waits in revisión.' );
+
+		wp_set_current_user( $this->head_id );
+		$sections = Documentate_App_Shell::sections();
+		// Same shape as revisión: the whole list first, then the tray of what waits.
+		$this->assertSame( array( 'lista', 'revision', 'nuevo' ), array_keys( $sections ) );
+		$this->assertSame( 'Documentos', $sections['lista']['tab'] );
+		$this->assertSame( 'Para aprobar', $sections['revision']['tab'] );
+		$this->assertSame( 1, $sections['revision']['n'], 'One document waits for approval.' );
+
+		// A head of service whose scope holds nothing pending has no badge.
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_b );
+		Documentate_App_Shell::open( 'lista', '' );
+		$this->assertSame( 0, Documentate_App_Shell::sections()['revision']['n'], 'The badge counts the scope, not the site.' );
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_service );
 
 		wp_set_current_user( $this->admin_id );
 		$sections = Documentate_App_Shell::sections();
-		// Same shape as gestión: the whole list first, then the review tray.
 		$this->assertSame( array( 'lista', 'revision', 'nuevo' ), array_keys( $sections ) );
 		$this->assertSame( 1, $sections['revision']['n'], 'One document waits for approval.' );
 		$this->assertSame( 'Todos los documentos', $sections['lista']['tab'] );
@@ -284,7 +328,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'dcta-estado-devuelto', $html );
 		$this->assertStringContainsString( 'dcta-fila-devuelta', $html );
-		$this->assertStringContainsString( 'Devuelto por gestión documental', $html );
+		$this->assertStringContainsString( 'Devuelto por revisión', $html );
 		$this->assertStringContainsString( 'Falta el anexo firmado por la dirección', $html );
 		$this->assertStringContainsString( 'Editar', $html );
 		$this->assertStringContainsString( ' (1 devuelto)', $html );
@@ -308,7 +352,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Gestión reviews every área, and the tray pre-selects "En gestión".
+	 * Revisión reviews every área of its scope, and the tray pre-selects "En revisión".
 	 */
 	public function test_the_management_tray_shows_every_area() {
 		$html = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
@@ -318,6 +362,36 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Listado piloto' ) );
 		$this->assertStringContainsString( 'Ana Área', $html, 'The review trays name the área and the person.' );
 		$this->assertStringContainsString( '1 documento', $html );
+	}
+
+	/**
+	 * A reviewer whose scope is one department only sees that department.
+	 */
+	public function test_the_review_tray_stops_at_the_scope() {
+		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_a );
+
+		$html = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
+		$this->assertStringNotContainsString( 'Listado piloto', $html, 'Another department is out of scope, pipeline or not.' );
+
+		$html = $this->render( $this->management_id );
+		$this->assertStringContainsString( 'RES · Jornadas digitales', $html );
+		$this->assertStringNotContainsString( 'Bases piloto', $html );
+	}
+
+	/**
+	 * The head of service opens what waits for approval, and edits it.
+	 */
+	public function test_the_head_tray_shows_what_waits_for_approval() {
+		$html = $this->render( $this->head_id, array( 'bandeja' => 'revision' ) );
+
+		$this->assertStringContainsString( 'Para aprobar', $html );
+		$this->assertStringContainsString( 'RES · Formación profesorado', $html );
+		$this->assertSame( 'Editar', $this->row_action( $html, 'RES · Formación profesorado' ) );
+		$this->assertStringNotContainsString( 'Listado piloto', $html, 'What is still in revisión is not theirs yet.' );
+
+		$html = $this->render( $this->head_id );
+		$this->assertStringContainsString( '<h1 class="dcta-h1">Documentos</h1>', $html );
+		$this->assertSame( 'Ver', $this->row_action( $html, 'RES · Listado piloto' ), 'Revisión has not finished with it.' );
 	}
 
 	/**
@@ -449,17 +523,62 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	public function test_each_review_tray_accents_its_own_figure() {
 		$management = $this->render( $this->management_id, array( 'bandeja' => 'revisar' ) );
 		$this->assertMatchesRegularExpression(
-			'/dcta-cifra-acento"><b>[^<]*<\/b><span>En gestión<\/span>/',
+			'/dcta-cifra-acento"><b>[^<]*<\/b><span>En revisión<\/span>/',
 			$management,
-			'Gestión is there for what is in gestión.'
+			'Revisión is there for what is in revisión.'
 		);
 
 		$admin = $this->render( $this->admin_id, array( 'bandeja' => 'revision' ) );
 		$this->assertMatchesRegularExpression(
-			'/dcta-cifra-acento"><b>[^<]*<\/b><span>En revisión<\/span>/',
+			'/dcta-cifra-acento"><b>[^<]*<\/b><span>En aprobación<\/span>/',
 			$admin,
-			'Administración is there for what waits for approval.'
+			'The head of service is there for what waits for approval.'
 		);
+	}
+
+	/**
+	 * Revisión and jefatura narrow their trays by área, inside their ámbito.
+	 */
+	public function test_the_reviewing_roles_filter_by_area() {
+		foreach ( array( $this->management_id, $this->head_id ) as $user_id ) {
+			$html = $this->render( $user_id, array( 'area' => (string) $this->cat_b, 'estado' => 'todos' ) );
+
+			$this->assertStringContainsString( 'RES · Bases piloto', $html, 'Área B is in their ámbito.' );
+			$this->assertStringNotContainsString( 'RES · Jornadas digitales', $html, 'Área A is filtered out.' );
+			$this->assertStringContainsString( 'id="dcta-area"', $html );
+		}
+
+		// The área has a single category: there is nothing to narrow.
+		$this->assertStringNotContainsString( 'id="dcta-area"', $this->render( $this->area_id ) );
+	}
+
+	/**
+	 * A category outside the ámbito is ignored, not obeyed.
+	 */
+	public function test_the_area_filter_never_reaches_past_the_scope() {
+		$outside = wp_insert_term( 'Otro servicio ' . uniqid(), 'category' );
+		$outside_id = (int) $outside['term_id'];
+		$foreign = $this->create_document( 'De otro servicio', 'Otro servicio doc', $outside_id, 'en_gestion' );
+
+		$_GET = array( 'area' => (string) $outside_id );
+		wp_set_current_user( $this->management_id );
+		$this->assertSame( 0, Documentate_App_Tray::current_area(), 'A term outside the ámbito is no filter at all.' );
+
+		$args = Documentate_App_List::query_args( 'todos', '', $outside_id );
+		$this->assertSame(
+			array( $this->cat_service, $this->cat_a, $this->cat_b ),
+			$args['tax_query'][0]['terms'],
+			'The scope stands.'
+		);
+
+		$html = $this->render( $this->management_id, array( 'area' => (string) $outside_id, 'estado' => 'todos' ) );
+		$this->assertStringNotContainsString( 'Otro servicio doc', $html );
+		$this->assertStringContainsString( 'RES · Jornadas digitales', $html );
+		wp_delete_post( $foreign, true );
+
+		// Administración is unrestricted: every category filters.
+		wp_set_current_user( $this->admin_id );
+		$this->assertSame( $outside_id, Documentate_App_Tray::current_area() );
 	}
 
 	/**
@@ -581,7 +700,11 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 
 		$to_review = Documentate_App_List::query_args( 'revisar', '', 0 );
 		$this->assertNotContains( 'draft', $to_review['post_status'] );
-		$this->assertArrayNotHasKey( 'tax_query', $to_review, 'The review tray covers every área.' );
+		$this->assertSame( array( $this->cat_service, $this->cat_a, $this->cat_b ), $to_review['tax_query'][0]['terms'], 'The review tray covers every área of the scope.' );
+
+		wp_set_current_user( $this->admin_id );
+		$this->assertArrayNotHasKey( 'tax_query', Documentate_App_List::query_args( 'revision', '', 0 ), 'Administración is unrestricted.' );
+		wp_set_current_user( $this->management_id );
 
 		$returned = Documentate_App_List::query_args( 'revisar', 'devuelto', 0 );
 		$this->assertSame( Documentate_Document_Data::META_RETURNED, $returned['meta_key'] );
@@ -606,6 +729,9 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '← Para revisar', Documentate_App_Shell::back_link() );
 
 		$_GET = array();
+		$this->assertStringContainsString( '← Documentos', Documentate_App_Shell::back_link() );
+
+		wp_set_current_user( $this->area_id );
 		$this->assertStringContainsString( '← Mis documentos', Documentate_App_Shell::back_link() );
 
 		wp_set_current_user( $this->admin_id );
@@ -692,7 +818,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A document returned to gestión documental keeps its "En gestión" chip,
+	 * A document returned to revisión keeps its "En revisión" chip,
 	 * so only the return line puts the word "Devuelto" within reach of the
 	 * filter — with the reason, which is on screen as well.
 	 */
@@ -714,7 +840,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		);
 
 		$this->assertMatchesRegularExpression(
-			'/data-dcta-texto="[^"]*En gestión Devuelto por administración[^"]*Falta la firma de la persona titular[^"]*"/u',
+			'/data-dcta-texto="[^"]*En revisión Devuelto por la jefatura de servicio[^"]*Falta la firma de la persona titular[^"]*"/u',
 			$html
 		);
 	}

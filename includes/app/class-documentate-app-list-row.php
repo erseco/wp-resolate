@@ -144,10 +144,11 @@ class Documentate_App_List_Row {
 	 * Whether the row's action takes this person to the editor.
 	 *
 	 * There are two of them, `Editar` and `Ver`, and this is the question that
-	 * tells them apart. It is narrower than "may they edit it": administración
-	 * may edit a document sitting in gestión, but it is not theirs to work on
-	 * yet — gestión has not finished with it — so their row says `Ver` and the
-	 * document opens read-only, as it does for everybody else waiting.
+	 * tells them apart. It is narrower than "may they edit it": jefatura de
+	 * servicio may edit a document sitting in revisión, but it is not theirs
+	 * to work on yet — revisión has not finished with it — so their row says
+	 * `Ver` and the document opens read-only, as it does for everybody else
+	 * waiting.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return bool
@@ -165,14 +166,14 @@ class Documentate_App_List_Row {
 	/**
 	 * Whether the document is waiting for this rol to review it.
 	 *
-	 * Administración may edit a document in gestión, but it is not theirs to
-	 * review yet: gestión has not finished with it.
+	 * Jefatura de servicio may edit a document in revisión, but it is not
+	 * theirs to review yet: revisión has not finished with it.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return bool
 	 */
 	private static function is_waiting_for( $post ) {
-		$expected = Documentate_Roles::is_administration() ? 'pending' : 'en_gestion';
+		$expected = Documentate_Roles::is_head() ? 'pending' : 'en_gestion';
 
 		return $expected === $post->post_status;
 	}

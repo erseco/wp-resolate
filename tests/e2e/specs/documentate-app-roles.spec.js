@@ -1,11 +1,13 @@
 /**
  * E2E tests for what each role sees in the application (/documentate/).
  *
- * The same site looks different to an área, to gestión documental and to
- * administración: different tabs, a badge only on the tray that is waiting for
- * them, different fields inside a document and different documents in the
- * lists. The gates for subscribers and visitors are covered by
- * documentate-app.spec.js and are not repeated here.
+ * The same site looks different to an área, to revisión, to the head of
+ * service and to administración: different tabs, a badge only on the tray that
+ * is waiting for them, different fields inside a document and different
+ * documents in the lists. Visibility follows the scope tree: the área sits on
+ * its own category, revisión and jefatura on the service above it. The gates
+ * for subscribers and visitors are covered by documentate-app.spec.js and are
+ * not repeated here.
  */
 const { test, expect } = require( '../fixtures' );
 const {
@@ -17,6 +19,7 @@ const {
 const RUN = `roles${ Date.now() }`;
 const AREA_LOGIN = `${ RUN }area`;
 const MANAGEMENT_LOGIN = `${ RUN }gestion`;
+const HEAD_LOGIN = `${ RUN }jefatura`;
 
 const APP_PATH = '/documentate/';
 
@@ -25,6 +28,7 @@ const NAMES = {
 	otherDraft: `Otro borrador ${ RUN }`,
 	otherInManagement: `Otro en gestión ${ RUN }`,
 	otherPending: `Otro pendiente ${ RUN }`,
+	foreign: `Ajeno ${ RUN }`,
 };
 
 /**
@@ -66,22 +70,32 @@ test.describe( 'Documentate app · roles', () => {
 		test.setTimeout( 300_000 );
 
 		fixture = createFixture( {
+			// The scope is a tree: both áreas hang from the service, which is
+			// where revisión and the head of service sit; a third área of
+			// another service is out of everybody's reach but administración's.
 			categories: {
-				area: `Área ${ RUN }`,
-				otra: `Otra área ${ RUN }`,
-				management: `Gestión ${ RUN }`,
+				management: `Servicio ${ RUN }`,
+				area: { name: `Área ${ RUN }`, parent: 'management' },
+				otra: { name: `Otra área ${ RUN }`, parent: 'management' },
+				ajena: `Área ajena ${ RUN }`,
 			},
 			// The seeded Resolución declares gestión fields in its schema, so
-			// it goes through gestión documental by itself: the spec reads
-			// that property instead of writing the shared term.
+			// it goes through revisión by itself: the spec reads that property
+			// instead of writing the shared term.
 			types: { res: { slug: 'resolucion-administrativa' } },
 			users: {
 				area: { login: AREA_LOGIN, role: 'author', scope: 'area' },
 				management: {
 					login: MANAGEMENT_LOGIN,
 					role: 'editor',
-					scope: 'gestion',
+					scope: 'management',
 					management: true,
+				},
+				head: {
+					login: HEAD_LOGIN,
+					role: 'editor',
+					scope: 'management',
+					head: true,
 				},
 			},
 			documents: {
@@ -112,6 +126,13 @@ test.describe( 'Documentate app · roles', () => {
 					status: 'pending',
 					name: NAMES.otherPending,
 				},
+				foreign: {
+					title: `En revisión de otro servicio ${ RUN }`,
+					category: 'ajena',
+					type: 'res',
+					status: 'en_gestion',
+					name: NAMES.foreign,
+				},
 			},
 		} );
 
@@ -133,7 +154,7 @@ test.describe( 'Documentate app · roles', () => {
 
 		removeFixture( {
 			documents: Object.values( fixture.documents ),
-			users: [ AREA_LOGIN, MANAGEMENT_LOGIN ],
+			users: [ AREA_LOGIN, MANAGEMENT_LOGIN, HEAD_LOGIN ],
 			categories: Object.values( fixture.categories ),
 		} );
 	} );
@@ -152,8 +173,9 @@ test.describe( 'Documentate app · roles', () => {
 			] );
 			// Nothing is ever waiting for the área: no tab carries a badge.
 			await expect( page.locator( '.dcta-tab-n' ) ).toHaveCount( 0 );
-			await expect( page.locator( '.dcta-rol' ) ).toHaveText(
-				`Área · Área ${ RUN }`
+			await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Área' );
+			await expect( page.locator( '.dcta-yo-ambito' ) ).toHaveText(
+				`Área ${ RUN }`
 			);
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
 				'Mis documentos'
@@ -331,14 +353,19 @@ test.describe( 'Documentate app · roles', () => {
 			await page.goto( APP_PATH );
 			const tabs = await tabLabels( page );
 			expect( tabs ).toHaveLength( 3 );
-			expect( tabs[ 0 ] ).toBe( 'Mis documentos' );
+			expect( tabs[ 0 ] ).toBe( 'Documentos' );
 			expect( tabs[ 1 ] ).toMatch( /^Para revisar \d+$/ );
 			expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
-			await expect( page.locator( '.dcta-rol' ) ).toHaveText(
-				'Gestión documental'
+			await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Revisión' );
+			await expect( page.locator( '.dcta-yo-ambito' ) ).toHaveText(
+				`Servicio ${ RUN }`
 			);
+			// "Nuevo documento" is the one tab that carries an icon: the plus.
+			await expect(
+				page.locator( '.dcta-tab-nuevo svg.dcta-icono-plus' )
+			).toHaveCount( 1 );
 
-			// The badge counts every document waiting in gestión, ours included.
+			// The badge counts every document waiting in revisión, ours included.
 			const badge = await page.locator( '.dcta-tab-n' ).innerText();
 			expect( parseInt( badge, 10 ) ).toBeGreaterThanOrEqual( 1 );
 
@@ -361,7 +388,7 @@ test.describe( 'Documentate app · roles', () => {
 		}
 	} );
 
-	test( 'management does not see another area draft but does see what already left it', async ( {
+	test( 'management sees every document of its scope and nothing of another service', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -372,8 +399,8 @@ test.describe( 'Documentate app · roles', () => {
 		);
 
 		try {
-			// The review tray holds every área, but only from the moment a
-			// document leaves its own: a draft still belongs to whoever wrote it.
+			// The review tray holds every área of the scope, but only from the
+			// moment a document leaves its own: a draft is not there to review.
 			await page.goto( `${ APP_PATH }?bandeja=revisar&estado=todos` );
 			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
 				'Para revisar'
@@ -382,22 +409,75 @@ test.describe( 'Documentate app · roles', () => {
 			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 0 );
 			await expect( row( page, NAMES.own ) ).toHaveCount( 0 );
+			await expect( row( page, NAMES.foreign ) ).toHaveCount( 0 );
 
-			// Same rule when the document is asked for by ID.
-			await page.goto( `${ APP_PATH }?doc=${ docs.otherDraft }` );
+			// "Documentos" is the whole scope, drafts of both áreas included.
+			await page.goto( APP_PATH );
+			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Documentos' );
+			await expect( row( page, NAMES.own ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.foreign ) ).toHaveCount( 0 );
+
+			// Another service is closed even by ID, pipeline or not.
+			await page.goto( `${ APP_PATH }?doc=${ docs.foreign }` );
 			await expect( page.locator( '.dcta-aviso' ) ).toContainText(
 				'fuera de tu ámbito'
 			);
 
-			await page.goto( `${ APP_PATH }?doc=${ docs.otherInManagement }` );
-			await expect( page.locator( '.dcta-h1' ) ).toContainText(
-				NAMES.otherInManagement
+			// A document that moved on to the head of service is locked for
+			// revisión: the notice says who has it, and Editar is greyed out.
+			await page.goto( `${ APP_PATH }?doc=${ docs.otherPending }` );
+			await expect( page.locator( '.dcta-aviso-bloqueo' ) ).toContainText(
+				'Lo tiene la jefatura de servicio'
 			);
+			await expect( page.locator( '.dcta-btn-off' ) ).toHaveText( /Editar/ );
+			await expect(
+				page.locator( 'a.dcta-btn-pri', { hasText: 'Editar' } )
+			).toHaveCount( 0 );
+		} finally {
+			await context.close();
+		}
+	} );
 
-			// "Mis documentos" stays inside the scope of gestión's own área.
+	test( 'the head of service approves from «Para aprobar» without being an administrator', async ( {
+		browser,
+		baseURL,
+	} ) => {
+		const { context, page } = await loginAs( browser, baseURL, HEAD_LOGIN );
+
+		try {
 			await page.goto( APP_PATH );
+			const tabs = await tabLabels( page );
+			expect( tabs[ 0 ] ).toBe( 'Documentos' );
+			expect( tabs[ 1 ] ).toMatch( /^Para aprobar \d+$/ );
+			expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
+			await expect( page.locator( '.dcta-rol' ) ).toHaveText(
+				'Jefatura de servicio'
+			);
+			// Not an administrator: no toolbar, no wp-admin shortcut.
+			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
+
+			await page.goto( `${ APP_PATH }?bandeja=revision` );
+			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Para aprobar' );
+			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 0 );
-			await expect( row( page, NAMES.own ) ).toHaveCount( 0 );
+
+			// What is still in revisión is not theirs yet.
+			await page.goto( `${ APP_PATH }?doc=${ docs.otherInManagement }` );
+			await expect( page.locator( '.dcta-aviso-bloqueo' ) ).toHaveCount( 0 );
+			await expect( page.locator( '.dcta-btn-off' ) ).toHaveCount( 0 );
+
+			// What waits for approval is: the editor offers the approval.
+			await page.goto(
+				`${ APP_PATH }?doc=${ docs.otherPending }&vista=editar&bandeja=revision`
+			);
+			await expect(
+				page.getByRole( 'button', { name: 'Aprobar y publicar' } )
+			).toBeVisible();
+			await expect(
+				page.getByRole( 'button', { name: 'Devolver…' } )
+			).toBeVisible();
 		} finally {
 			await context.close();
 		}
@@ -408,13 +488,13 @@ test.describe( 'Documentate app · roles', () => {
 	} ) => {
 		await page.goto( APP_PATH );
 
-		// The same three tabs gestión has, in the same order: moving between
-		// the two roles must not move the tabs around. Document types live in
+		// The same three tabs the head of service has, in the same order:
+		// moving between the two roles must not move the tabs around. Document types live in
 		// wp-admin, so no tab leaves the application.
 		const tabs = await tabLabels( page );
 		expect( tabs ).toHaveLength( 3 );
 		expect( tabs[ 0 ] ).toBe( 'Todos los documentos' );
-		expect( tabs[ 1 ] ).toMatch( /^Para revisar \d+$/ );
+		expect( tabs[ 1 ] ).toMatch( /^Para aprobar \d+$/ );
 		expect( tabs[ 2 ] ).toBe( 'Nuevo documento' );
 		await expect( page.locator( '.dcta-rol' ) ).toHaveText(
 			'Administración'
@@ -423,8 +503,8 @@ test.describe( 'Documentate app · roles', () => {
 		// Counters of the "todos" tray, the one administración approves from first.
 		const labels = await page.locator( '.dcta-cifra span' ).allInnerTexts();
 		expect( labels.map( ( t ) => t.trim() ) ).toEqual( [
+			'En aprobación',
 			'En revisión',
-			'En gestión',
 			'Aprobados',
 			'Devueltos',
 		] );
@@ -444,19 +524,19 @@ test.describe( 'Documentate app · roles', () => {
 		);
 		expect( chips[ 0 ] ).toBe( 'Todos' );
 		expect( chips ).toContain( 'Por enviar' );
-		expect( chips ).toContain( 'En gestión' );
+		expect( chips ).toContain( 'En revisión' );
 
 		await Promise.all( [
 			page.waitForURL( /estado=en_gestion/ ),
 			page
-				.getByRole( 'link', { name: 'En gestión', exact: true } )
+				.getByRole( 'link', { name: 'En revisión', exact: true } )
 				.click(),
 		] );
 		const statuses = (
 			await page.locator( '.dcta-fila .dcta-estado' ).allInnerTexts()
 		).map( ( texto ) => texto.trim() );
 		expect( statuses.length ).toBeGreaterThan( 0 );
-		expect( [ ...new Set( statuses ) ] ).toEqual( [ 'En gestión' ] );
+		expect( [ ...new Set( statuses ) ] ).toEqual( [ 'En revisión' ] );
 		await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
 
 		// The área filter narrows every tray to one category.

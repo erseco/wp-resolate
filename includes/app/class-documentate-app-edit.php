@@ -76,9 +76,15 @@ class Documentate_App_Edit {
 		}
 
 		if ( ! self::can_edit( $post ) ) {
+			$link = ' <a href="' . esc_url( Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) ) ) . '">Ver el documento</a>';
+			$notice = Documentate_App_Shell::lock_notice( $post, $link );
+			if ( '' === $notice ) {
+				$notice = '<div class="dcta-aviso dcta-aviso-bloqueo">' . Documentate_App_Shell::icon( 'lock' )
+					. '<span>Este documento está bloqueado en su estado actual y no se puede editar.' . $link . '</span></div>';
+			}
+
 			return Documentate_App_Shell::open( 'lista', Documentate_Document_Data::short_name( $post ), '' )
-				. '<div class="dcta-aviso">Este documento está bloqueado en su estado actual y no se puede editar.'
-				. ' <a href="' . esc_url( Documentate_App_Shell::page_url( array( 'doc' => $post->ID ) ) ) . '">Ver el documento</a></div>'
+				. $notice
 				. Documentate_App_Shell::close();
 		}
 
@@ -182,8 +188,8 @@ class Documentate_App_Edit {
 		}
 
 		$text = Documentate_Document_Data::has_management( $post )
-			? 'Este tipo de documento pasa por gestión documental. Cuando lo envíes, gestión completará los datos oficiales y ya no podrás modificarlo; si falta algo, te lo devolverán.'
-			: 'Este tipo de documento va directo a administración. Cuando lo envíes ya no podrás modificarlo; si falta algo, te lo devolverán.';
+			? 'Este tipo de documento pasa por revisión. Cuando lo envíes, revisión completará los datos oficiales y ya no podrás modificarlo; si falta algo, te lo devolverán.'
+			: 'Este tipo de documento va directo a la jefatura de servicio. Cuando lo envíes ya no podrás modificarlo; si falta algo, te lo devolverán.';
 
 		return '<div class="dcta-aviso dcta-aviso-info">' . esc_html( $text ) . '</div>';
 	}
@@ -291,7 +297,7 @@ class Documentate_App_Edit {
 
 		if ( '' !== $notes && ! self::has_management_fields( $post ) ) {
 			// No official fields to hang the notes on: they get their own section.
-			echo '<h3 class="documentate-seccion-rol">Datos oficiales · los completa gestión documental</h3>';
+			echo '<h3 class="documentate-seccion-rol">Datos oficiales · los completa revisión</h3>';
 			echo $notes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the builder.
 		}
 
@@ -328,12 +334,12 @@ class Documentate_App_Edit {
 			. '<textarea id="documentate-app-anotaciones" name="documentate_app_anotaciones" rows="3">'
 			. esc_textarea( Documentate_Document_Data::notes( $post ) )
 			. '</textarea>'
-			. '<p class="dcta-ayuda">Solo las ven gestión y administración; no salen en el documento.</p>'
+			. '<p class="dcta-ayuda">Solo las ven revisión y jefatura de servicio; no salen en el documento.</p>'
 			. '</div>';
 	}
 
 	/**
-	 * Whether the document type has fields gestión documental completes.
+	 * Whether the document type has fields revisión completes.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return bool

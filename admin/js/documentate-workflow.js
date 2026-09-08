@@ -98,7 +98,7 @@
 				self.submitWithStatus('draft');
 			});
 
-			// "Enviar a gestión" / "Enviar a revisión" button: the target
+			// "Enviar a revisión" / "Enviar a aprobación" button: the target
 			// status travels in data-estado (en_gestion or pending).
 			$('#documentate-send-review').on('click', function (e) {
 				e.preventDefault();
@@ -106,8 +106,8 @@
 				if (!self.config.isAdmin) {
 					var strings = self.config.strings || {};
 					var msg = status === 'en_gestion'
-						? (strings.confirmSendManagement || '¿Enviar el documento a gestión documental?')
-						: (strings.confirmSendReview || '¿Enviar el documento a revisión?');
+						? (strings.confirmSendManagement || '¿Enviar el documento a revisión?')
+						: (strings.confirmSendReview || '¿Enviar el documento a aprobación?');
 					if (!window.confirm(msg)) {
 						return;
 					}
@@ -115,11 +115,11 @@
 				self.submitWithStatus(status);
 			});
 
-			// "Pasar a administración" button (from en_gestion to pending).
+			// "Pasar a aprobación" button (from en_gestion to pending).
 			$('#documentate-pass-admin').on('click', function (e) {
 				e.preventDefault();
 				var strings = self.config.strings || {};
-				if (!window.confirm(strings.confirmPassAdmin || '¿Pasar el documento a administración?')) {
+				if (!window.confirm(strings.confirmPassAdmin || '¿Pasar el documento a aprobación?')) {
 					return;
 				}
 				self.submitWithStatus('pending');
@@ -143,13 +143,13 @@
 				self.submitReturn('draft');
 			});
 
-			// "Devolver a gestión" button (from pending back to en_gestion): needs a reason.
+			// "Devolver a revisión" button (from pending back to en_gestion): needs a reason.
 			$('#documentate-return-gestion').on('click', function (e) {
 				e.preventDefault();
 				self.submitReturn('en_gestion');
 			});
 
-			// "Devolver a revisión" button (from published back to pending).
+			// "Devolver a aprobación" button (from published back to pending).
 			$('#documentate-return-review').on('click', function (e) {
 				e.preventDefault();
 				self.submitWithStatus('pending');
@@ -344,14 +344,14 @@
 					message = self.config.strings && self.config.strings.archivedMessage
 						? self.config.strings.archivedMessage
 						: 'Este documento está archivado y no se puede editar.';
-				} else if (self.config.isPending && !self.config.isAdmin) {
+				} else if (self.config.isPending && self.config.isLocked) {
 					message = self.config.strings && self.config.strings.pendingMessage
 						? self.config.strings.pendingMessage
-						: 'Este documento está en revisión y no se puede editar.';
+						: 'Este documento está en aprobación y no se puede editar.';
 				} else if (self.config.isEnGestion && self.config.isLocked) {
 					message = self.config.strings && self.config.strings.managementMessage
 						? self.config.strings.managementMessage
-						: 'Este documento está en gestión documental y no se puede editar.';
+						: 'Este documento está en revisión y no se puede editar.';
 				} else {
 					message = self.config.strings && self.config.strings.lockedMessage
 						? self.config.strings.lockedMessage
@@ -381,7 +381,7 @@
 				message = this.config.isAdmin
 					? this.config.strings.adminUnarchive
 					: this.config.strings.archivedMessage;
-			} else if (this.config.isPending && !this.config.isAdmin) {
+			} else if (this.config.isPending && this.config.isLocked) {
 				message = this.config.strings.pendingMessage;
 			} else if (this.config.isEnGestion && this.config.isLocked) {
 				message = this.config.strings.managementMessage;

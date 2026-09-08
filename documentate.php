@@ -82,7 +82,7 @@ function documentate_activate_plugin() {
 	update_option( 'documentate_flush_rewrites', true );
 	update_option( 'documentate_version', DOCUMENTATE_VERSION );
 
-	// Grant the gestión documental capability to the roles that carry it.
+	// Create the workflow roles and grant their capabilities.
 	Documentate_Roles::ensure_caps( true );
 
 	// Only request demo seeding in non-production environments (and Playground).

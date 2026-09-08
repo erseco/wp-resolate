@@ -74,7 +74,7 @@ A task is **not done** until all relevant checks pass.
 - La interfaz está en español directamente en el código; no hay i18n ni
   ficheros de traducción.
 - `Documentate_Transitions::rules()` is the single source of truth for
-  document statuses/transitions (área → gestión documental → administración);
+  document statuses/transitions (área → revisión → jefatura de servicio);
   extend that table, never hard-code a status/transition elsewhere. See
   `ARCHITECTURE.md` §3.
 - Complexity budget (`phpmd.xml`): cyclomatic 15, NPath 500, method 150

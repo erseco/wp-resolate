@@ -4,8 +4,8 @@
  *
  * Shows what the document carries, where it stands in the workflow and what
  * can be done with it right now: edit it, move it on, export it or comment on
- * it. The fields gestión documental completes are only rendered for whoever
- * may see them.
+ * it. The fields revisión completes are only rendered for whoever may see
+ * them.
  *
  * @package Documentate
  * @subpackage App
@@ -123,6 +123,9 @@ class Documentate_App_Detail {
 	/**
 	 * The notices at the top: what just happened, and where the document is.
 	 *
+	 * A document in somebody else's hands gets the lock notice instead of the
+	 * plain status line, so it is clear at a glance that it cannot be edited.
+	 *
 	 * @param WP_Post $post Document.
 	 * @return string
 	 */
@@ -132,6 +135,11 @@ class Documentate_App_Detail {
 		$returned = Documentate_App_Shell::returned_notice( $post );
 		if ( '' !== $returned ) {
 			$html .= '<div class="dcta-aviso dcta-aviso-devuelto">' . esc_html( $returned ) . '</div>';
+		}
+
+		$lock = Documentate_App_Shell::lock_notice( $post );
+		if ( '' !== $lock ) {
+			return $html . $lock;
 		}
 
 		$status = self::status_text( $post );
@@ -225,9 +233,9 @@ class Documentate_App_Detail {
 	 */
 	private static function sent_text( $post ) {
 		$texts = array(
-			'enviar_gestion' => 'Documento enviado a gestión documental.',
-			'enviar_revision' => 'Documento enviado a revisión de administración.',
-			'pasar_admin' => 'Documento pasado a administración.',
+			'enviar_gestion' => 'Documento enviado a revisión.',
+			'enviar_revision' => 'Documento enviado a la jefatura de servicio para su aprobación.',
+			'pasar_admin' => 'Documento pasado a la jefatura de servicio para su aprobación.',
 		);
 
 		$key = self::flag( 'transicion' );
@@ -239,15 +247,17 @@ class Documentate_App_Detail {
 	}
 
 	/**
-	 * The standing notice of the status the document is in.
+	 * The standing notice of the status the document is in, for whoever holds it.
+	 *
+	 * Whoever does not hold it gets Documentate_App_Shell::lock_notice() instead.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return string
 	 */
 	private static function status_text( $post ) {
 		$texts = array(
-			'en_gestion' => 'En gestión documental: están completando los datos oficiales. Si falta algo te lo devolverán y podrás corregirlo.',
-			'pending' => 'En revisión: administración lo aprobará o lo devolverá.',
+			'en_gestion' => 'En revisión: completa los datos oficiales y pásalo a aprobación, o devuélvelo al área si falta algo.',
+			'pending' => 'En aprobación: apruébalo o devuélvelo con un motivo.',
 			'publish' => 'Aprobado el ' . get_the_modified_date( Documentate_App_Shell::DATE_FORMAT, $post ) . '. Puedes previsualizarlo y descargarlo.',
 			'archived' => 'Archivado.',
 		);
@@ -346,7 +356,7 @@ class Documentate_App_Detail {
 		$groups = Documentate_Field_Roles::group_by_role( $schema );
 
 		$cards = self::render_group( $groups['area'], $values, 'Datos del área' )
-			. self::render_group( $groups['gestion'], $values, 'Datos oficiales · los completa gestión' );
+			. self::render_group( $groups['gestion'], $values, 'Datos oficiales · los completa revisión' );
 
 		if ( ! $folded || '' === $cards ) {
 			return $cards;
@@ -477,7 +487,7 @@ class Documentate_App_Detail {
 			. '<label for="documentate-app-comentario">Comentario</label>'
 			. '<textarea id="documentate-app-comentario" name="documentate_app_comentario" form="' . esc_attr( $form ) . '" rows="3" placeholder="Escribe un comentario…"></textarea>'
 			. '<button type="submit" class="dcta-btn dcta-btn-ton" form="' . esc_attr( $form ) . '">Comentar</button>'
-			. '<p class="dcta-ayuda">Los comentarios quedan en la actividad, a la vista del área, gestión y administración.</p>'
+			. '<p class="dcta-ayuda">Los comentarios quedan en la actividad, a la vista del área, revisión y jefatura de servicio.</p>'
 			. '</div>';
 
 		return $html . '</div>';
@@ -535,6 +545,8 @@ class Documentate_App_Detail {
 			// holds this document.
 			$edit_url = Documentate_App_Edit::url( $post->ID, Documentate_App_List::current_tray() );
 			$html .= '<a class="dcta-btn dcta-btn-pri" href="' . esc_url( $edit_url ) . '">Editar</a>';
+		} else {
+			$html .= self::render_edit_disabled( $post );
 		}
 
 		$html .= self::render_actions_form( $post );
@@ -551,6 +563,25 @@ class Documentate_App_Detail {
 		}
 
 		return $html . '</div></div>';
+	}
+
+	/**
+	 * The greyed-out "Editar" of a document in somebody else's hands.
+	 *
+	 * Drawn where the real button would be, so the reader sees at once that
+	 * editing is not on offer and who holds the document instead.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string Empty when the status hands the document to nobody.
+	 */
+	private static function render_edit_disabled( $post ) {
+		$holder = Documentate_App_Shell::holder( $post );
+		if ( '' === $holder ) {
+			return '';
+		}
+
+		return '<span class="dcta-btn dcta-btn-off" aria-disabled="true">' . Documentate_App_Shell::icon( 'lock' ) . 'Editar</span>'
+			. '<p class="dcta-ayuda dcta-ayuda-bloqueo">' . esc_html( 'Lo tiene ' . $holder . '.' ) . '</p>';
 	}
 
 	/**
@@ -622,13 +653,13 @@ class Documentate_App_Detail {
 				'event' => 'envió el documento',
 			),
 			'en_gestion' => array(
-				'label' => 'En gestión',
+				'label' => 'En revisión',
 				'current' => 'Completando datos oficiales',
-				'done' => 'completado el ',
+				'done' => 'revisado el ',
 				'event' => 'pasó el documento',
 			),
 			'pending' => array(
-				'label' => 'En revisión',
+				'label' => 'En aprobación',
 				'current' => 'Pendiente de aprobar',
 				'done' => 'aprobado el ',
 				'event' => 'aprobó y publicó',
@@ -641,10 +672,10 @@ class Documentate_App_Detail {
 			),
 		);
 
-		// A type can stop going through gestión documental (its flag is
-		// unchecked, or its template loses the rol='gestion' fields) while a
-		// document of that type is already standing in en_gestion: the step it
-		// is on stays on the rail, or the stepper would say "Borrador".
+		// A type can stop going through revisión (its flag is unchecked, or
+		// its template loses the rol='gestion' fields) while a document of
+		// that type is already standing in en_gestion: the step it is on
+		// stays on the rail, or the stepper would say "Borrador".
 		if ( ! Documentate_Document_Data::has_management( $post ) && 'en_gestion' !== $post->post_status ) {
 			unset( $steps['en_gestion'] );
 		}

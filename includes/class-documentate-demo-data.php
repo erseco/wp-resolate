@@ -696,6 +696,9 @@ class Documentate_Demo_Data {
 			return;
 		}
 
+		// The scope is a tree: the reviewer and the head of service sit on the
+		// root ("Organización"), so every área below it is theirs to review and
+		// approve; the área accounts sit on their own department.
 		$users = array(
 			array(
 				'user_login' => 'editor1',
@@ -705,8 +708,19 @@ class Documentate_Demo_Data {
 				'display_name' => 'María García',
 				'first_name' => 'María',
 				'last_name' => 'García',
-				'scope' => 'Subdirección de Administración',
+				'scope' => 'Organización',
 				'gestion' => true,
+			),
+			array(
+				'user_login' => 'jefatura1',
+				'user_email' => 'jefatura1@example.com',
+				'user_pass' => 'password',
+				'role' => 'editor',
+				'display_name' => 'Lucía Hernández',
+				'first_name' => 'Lucía',
+				'last_name' => 'Hernández',
+				'scope' => 'Organización',
+				'jefatura' => true,
 			),
 			array(
 				'user_login' => 'author1',
@@ -733,40 +747,63 @@ class Documentate_Demo_Data {
 		foreach ( $users as $user_data ) {
 			$scope_name = $user_data['scope'];
 			$management = ! empty( $user_data['gestion'] );
-			unset( $user_data['scope'], $user_data['gestion'] );
+			$head = ! empty( $user_data['jefatura'] );
+			unset( $user_data['scope'], $user_data['gestion'], $user_data['jefatura'] );
 
-			// An account already there only has its gestión grant checked again.
-			$existing = (int) username_exists( $user_data['user_login'] );
-			if ( $existing > 0 ) {
-				self::grant_management( $existing, $management );
-				continue;
+			// An account already there has its scope and its role grants
+			// brought up to date: seeding again is how an environment created
+			// by an earlier version catches up without being recreated.
+			$user_id = (int) username_exists( $user_data['user_login'] );
+			if ( 0 === $user_id ) {
+				$user_id = wp_insert_user( $user_data );
+				if ( is_wp_error( $user_id ) ) {
+					continue;
+				}
 			}
 
-			$user_id = wp_insert_user( $user_data );
-			if ( is_wp_error( $user_id ) ) {
-				continue;
-			}
-
-			// Assign scope category.
-			$scope_term = get_term_by( 'name', $scope_name, 'category' );
-			if ( $scope_term instanceof WP_Term ) {
-				update_user_meta( $user_id, Documentate_User_Scope::META_KEY, $scope_term->term_id );
-			}
-
+			self::assign_scope( (int) $user_id, $scope_name );
 			self::grant_management( (int) $user_id, $management );
+			self::grant_head( (int) $user_id, $head );
 		}
 	}
 
 	/**
-	 * Appoint a demo account gestión documental, when it is one.
+	 * Put a demo account on its scope category.
+	 *
+	 * @param int    $user_id User ID.
+	 * @param string $name    Category name.
+	 * @return void
+	 */
+	private static function assign_scope( $user_id, $name ) {
+		$scope_term = get_term_by( 'name', $name, 'category' );
+		if ( $scope_term instanceof WP_Term ) {
+			update_user_meta( $user_id, Documentate_User_Scope::META_KEY, $scope_term->term_id );
+		}
+	}
+
+	/**
+	 * Appoint a demo account revisión, when it is one.
 	 *
 	 * @param int  $user_id    User ID.
-	 * @param bool $management Whether the account is gestión documental.
+	 * @param bool $management Whether the account is revisión.
 	 * @return void
 	 */
 	private static function grant_management( $user_id, $management ) {
 		if ( $management ) {
 			Documentate_Roles::grant_management( $user_id );
+		}
+	}
+
+	/**
+	 * Appoint a demo account jefatura de servicio, when it is one.
+	 *
+	 * @param int  $user_id User ID.
+	 * @param bool $head    Whether the account is jefatura de servicio.
+	 * @return void
+	 */
+	private static function grant_head( $user_id, $head ) {
+		if ( $head ) {
+			Documentate_Roles::grant_head( $user_id );
 		}
 	}
 

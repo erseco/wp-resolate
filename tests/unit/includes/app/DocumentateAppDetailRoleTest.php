@@ -2,7 +2,7 @@
 /**
  * The document view of the app shows each rol what it may see.
  *
- * The editor hides the fields gestión documental completes and the writer
+ * The editor hides the fields revisión completes and the writer
  * refuses to let the área write them; the read-only view must not hand them
  * over either.
  *
@@ -24,7 +24,7 @@ class DocumentateAppDetailRoleTest extends WP_UnitTestCase {
 	private $doc_id;
 
 	/**
-	 * Gestión documental (editor with the capability).
+	 * Revisión (editor with the capability).
 	 *
 	 * @var int
 	 */
@@ -46,7 +46,7 @@ class DocumentateAppDetailRoleTest extends WP_UnitTestCase {
 		( new Documentate_Workflow() )->register_custom_statuses();
 
 		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
-		// Gestión documental is appointed account by account: the plugin keeps
+		// Revisión is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
@@ -101,7 +101,7 @@ class DocumentateAppDetailRoleTest extends WP_UnitTestCase {
 		update_post_meta( $this->doc_id, 'documentate_field_objeto', 'Compra de material' );
 		update_post_meta( $this->doc_id, 'documentate_field_numero_resolucion', '118/2026' );
 
-		// The type goes through gestión documental, so this is where the área
+		// The type goes through revisión, so this is where the área
 		// waits while the official data is completed.
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
@@ -137,7 +137,7 @@ class DocumentateAppDetailRoleTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Gestión documental sees both.
+	 * Revisión sees both.
 	 */
 	public function test_management_sees_the_management_fields() {
 		wp_set_current_user( $this->management_id );

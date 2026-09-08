@@ -32,7 +32,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental user ID.
+	 * Revisión user ID.
 	 *
 	 * @var int
 	 */
@@ -53,7 +53,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	private $cat_id;
 
 	/**
-	 * Document type that goes through gestión documental.
+	 * Document type that goes through revisión.
 	 *
 	 * @var int
 	 */
@@ -80,7 +80,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
-		// Gestión documental is appointed account by account: the plugin keeps
+		// Revisión is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
@@ -256,8 +256,8 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	 */
 	public function status_notice_data() {
 		return array(
-			'in management' => array( 'en_gestion', 'están completando los datos oficiales' ),
-			'in review' => array( 'pending', 'administración lo aprobará o lo devolverá' ),
+			'in management' => array( 'en_gestion', 'Lo tiene revisión: está completando los datos oficiales' ),
+			'in review' => array( 'pending', 'Lo tiene la jefatura de servicio: lo aprobará o lo devolverá' ),
 			'approved' => array( 'publish', 'Puedes previsualizarlo y descargarlo' ),
 			'archived' => array( 'archived', 'Archivado.' ),
 		);
@@ -273,7 +273,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$html = $this->detail_view( $this->area_id, $doc_id );
 
 		$this->assertStringContainsString( 'dcta-aviso-devuelto', $html );
-		$this->assertStringContainsString( 'Devuelto por gestión documental', $html );
+		$this->assertStringContainsString( 'Devuelto por revisión', $html );
 		$this->assertStringContainsString( 'Falta el anexo firmado', $html );
 		// The reason and the instruction are two sentences, not one run-on line.
 		$this->assertStringContainsString( '». Corrige lo que haga falta y vuelve a enviarlo.', $html );
@@ -281,7 +281,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A return addressed to gestión documental is not shown to the área.
+	 * A return addressed to revisión is not shown to the área.
 	 *
 	 * Administración returning an en_gestion document writes a note to
 	 * gestión: the área cannot even open the document while it is there, so
@@ -296,7 +296,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'dcta-aviso-devuelto', $area );
 		$this->assertStringNotContainsString( 'Falta el número de expediente', $area );
 		$this->assertStringNotContainsString( 'Corrige lo que haga falta', $area );
-		$this->assertStringContainsString( 'En gestión documental: están completando los datos oficiales.', $area );
+		$this->assertStringContainsString( 'Lo tiene revisión: está completando los datos oficiales', $area );
 
 		$management = $this->detail_view( $this->management_id, $doc_id );
 		$this->assertStringContainsString( 'dcta-aviso-devuelto', $management );
@@ -320,7 +320,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	/**
 	 * The stepper keeps the step the document is standing on.
 	 *
-	 * A type stops going through gestión documental (its flag is unchecked, or
+	 * A type stops going through revisión (its flag is unchecked, or
 	 * its template loses the rol="gestion" fields) while a document of that
 	 * type is already in en_gestion: the rail must not answer "Borrador".
 	 */
@@ -389,7 +389,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'dcta-paso-actual', $html );
 		$this->assertStringContainsString( 'dcta-paso-futuro', $html );
 		$this->assertStringContainsString( 'Completando datos oficiales', $html );
-		$this->assertStringContainsString( 'En gestión', $html );
+		$this->assertStringContainsString( 'En revisión', $html );
 	}
 
 	/**
@@ -533,7 +533,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	 */
 	public function flag_data() {
 		return array(
-			'sent' => array( 'enviado', '1', 'dcta-aviso-ok', 'Documento enviado a revisión' ),
+			'sent' => array( 'enviado', '1', 'dcta-aviso-ok', 'Documento enviado a la jefatura de servicio' ),
 			'approved' => array( 'aprobado', '1', 'dcta-aviso-ok', 'Documento aprobado y publicado.' ),
 			'commented' => array( 'comentado', '1', 'dcta-aviso-ok', 'Comentario añadido.' ),
 			'reason error' => array( 'error', 'motivo', 'dcta-aviso-mal', 'hay que decir por qué' ),
@@ -585,10 +585,10 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	public function test_the_editor_explains_where_the_document_goes() {
 		$has_management = $this->edit_view( $this->area_id, $this->create_document( 'draft' ) );
 		$this->assertStringContainsString( 'dcta-aviso-info', $has_management );
-		$this->assertStringContainsString( 'pasa por gestión documental', $has_management );
+		$this->assertStringContainsString( 'pasa por revisión', $has_management );
 
 		$direct = $this->edit_view( $this->area_id, $this->create_document( 'draft', $this->direct_type_id ) );
-		$this->assertStringContainsString( 'va directo a administración', $direct );
+		$this->assertStringContainsString( 'va directo a la jefatura de servicio', $direct );
 	}
 
 	/**
@@ -660,7 +660,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'documentate_field_numero_resolucion', $html );
 		$this->assertStringContainsString( 'documentate_app_anotaciones', $html );
 		$this->assertStringContainsString( 'Pendiente de expediente', $html );
-		$this->assertStringContainsString( 'Solo las ven gestión y administración', $html );
+		$this->assertStringContainsString( 'Solo las ven revisión y jefatura de servicio', $html );
 	}
 
 	/**
@@ -672,10 +672,10 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$html = $this->edit_view( $this->management_id, $doc_id );
 
 		$this->assertStringContainsString( '<details class="dcta-seccion-area" open><summary>Datos del área</summary>', $html );
-		$this->assertStringContainsString( 'Datos oficiales · los completa gestión documental', $html );
+		$this->assertStringContainsString( 'Datos oficiales · los completa revisión', $html );
 
 		$foldable = strpos( $html, 'dcta-seccion-area' );
-		$official = strpos( $html, 'Datos oficiales · los completa gestión documental' );
+		$official = strpos( $html, 'Datos oficiales · los completa revisión' );
 		$notes = strpos( $html, 'documentate_app_anotaciones' );
 		$this->assertLessThan( $official, $foldable, 'The área rows come first.' );
 		$this->assertLessThan( $notes, $official, 'The notes belong to the official section.' );
@@ -718,7 +718,7 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<h2 class="dcta-h2">Acciones</h2>', $html );
 		$this->assertStringContainsString( 'name="documentate_app_estado" value="guardar" formnovalidate', $html );
 		$this->assertStringContainsString( 'value="enviar_gestion"', $html );
-		$this->assertStringContainsString( 'Enviar a gestión', $html );
+		$this->assertStringContainsString( 'Enviar a revisión', $html );
 		$this->assertStringContainsString( 'id="exportar"', $html );
 	}
 
@@ -754,7 +754,9 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	public function test_the_area_cannot_edit_a_document_in_management() {
 		$html = $this->edit_view( $this->area_id, $this->create_document( 'en_gestion' ) );
 
-		$this->assertStringContainsString( 'bloqueado', $html );
+		$this->assertStringContainsString( 'dcta-aviso-bloqueo', $html );
+		$this->assertStringContainsString( 'Lo tiene revisión', $html );
+		$this->assertStringContainsString( 'Ver el documento', $html );
 		$this->assertStringNotContainsString( 'documentate_sections_nonce', $html );
 	}
 

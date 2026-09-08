@@ -31,7 +31,7 @@ test('a takeover freezes the first editor and rejects its stale save', async ({ 
 		await page.locator('#documentate-app-titulo').fill('Cambios sin guardar');
 		const nonce = await page.locator('form.dcta-editor [name="documentate_app_nonce"]').inputValue();
 		await other.page.goto(url);
-		await expect(other.page.getByRole('heading', { name: 'Documento en edición' })).toBeVisible();
+		await expect(other.page.getByRole('heading', { name: 'Lo está editando otra persona' })).toBeVisible();
 		await expect(other.page.locator('form.dcta-editor')).toHaveCount(0);
 		const notice = await other.page.locator('#dcta-lock-dialog').boundingBox();
 		const footer = await other.page.locator('footer.dcta-pie').boundingBox();

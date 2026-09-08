@@ -4,11 +4,10 @@
  *
  * The list view asks this class three things, and prints none of them: which
  * tray the request means, which filters are active inside it, and which query
- * arguments — and counts — that combination stands for. "Mis documentos" keeps
- * the scope rules of the admin list (a scoped user sees the documents of their
- * category and its descendants), while the review trays of gestión documental
- * and administración show every área, because reviewing is precisely the job of
- * looking outside your own.
+ * arguments — and counts — that combination stands for. Every tray keeps the
+ * scope rules of the admin list: a scoped user sees the documents of their
+ * category and its descendants, and the people who review and approve for
+ * several áreas do so because their category sits above them in the tree.
  *
  * @package Documentate
  * @subpackage App
@@ -63,14 +62,18 @@ class Documentate_App_Tray {
 	/**
 	 * Trays this person may open, and the one they land on.
 	 *
+	 * Whoever reviews or approves lands on every document of their scope
+	 * ("todos"), with the tray of what waits for them beside it; the área
+	 * only has its own documents.
+	 *
 	 * @return string[] First element is the default tray.
 	 */
 	public static function trays() {
-		if ( Documentate_Roles::is_administration() ) {
+		if ( Documentate_Roles::is_head() ) {
 			return array( 'todos', 'revision' );
 		}
 
-		return Documentate_Roles::is_management() ? array( 'mis', 'revisar' ) : array( 'mis' );
+		return Documentate_Roles::is_management() ? array( 'todos', 'revisar' ) : array( 'mis' );
 	}
 
 	/**
@@ -123,65 +126,84 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * Área filter asked for by the request (administración only).
+	 * Área filter asked for by the request.
+	 *
+	 * Whoever looks after several áreas has one: revisión, jefatura de
+	 * servicio and administración. A term outside the user's own scope is
+	 * ignored, so the filter only ever narrows a tray — it can never reach
+	 * past the ámbito the tray already stands for.
 	 *
 	 * @return int Category term ID, 0 when there is no filter.
 	 */
 	public static function current_area() {
-		if ( ! Documentate_Roles::is_administration() ) {
+		if ( ! Documentate_Roles::is_management() ) {
 			return 0;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter.
-		return isset( $_GET['area'] ) ? absint( $_GET['area'] ) : 0;
+		$area = isset( $_GET['area'] ) ? absint( $_GET['area'] ) : 0;
+
+		return self::area_in_scope( $area ) ? $area : 0;
 	}
 
 	/**
-	 * Whether the tray cannot show anything because the user has no ámbito.
+	 * Whether a category is one the current user may narrow their trays to.
 	 *
-	 * Only "mis documentos" is scoped; a restricted account without a category
-	 * of its own has nothing to look at there, and the list says so instead of
-	 * drawing an empty table.
-	 *
-	 * @param string $tray Tray key.
+	 * @param int $area Category term ID.
 	 * @return bool
 	 */
-	public static function without_scope( $tray ) {
-		if ( 'mis' !== $tray ) {
+	private static function area_in_scope( $area ) {
+		if ( $area <= 0 ) {
 			return false;
 		}
 
-		$term_ids = self::scope_term_ids();
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
 
-		return is_array( $term_ids ) && empty( $term_ids );
+		return null === $term_ids || in_array( (int) $area, $term_ids, true );
 	}
 
 	/**
-	 * Scope term IDs of the current user.
+	 * The áreas the current user may narrow their trays to.
 	 *
-	 * Same contract as Documentate_Scope_Filter::get_scope_term_ids(), inlined
-	 * here because that class registers hooks on construction.
+	 * The categories of their ámbito, or every one of them for
+	 * administración. A single category is nothing to narrow: an área has
+	 * only its own, and the select would be a control that changes nothing.
 	 *
-	 * @return int[]|null Null for unrestricted users; empty array when the user
-	 *                    is restricted but has no scope assigned.
+	 * @return WP_Term[]
 	 */
-	private static function scope_term_ids() {
-		if ( current_user_can( 'manage_options' ) ) {
-			return null;
-		}
-
-		$scope_term = absint( get_user_meta( get_current_user_id(), 'documentate_scope_term_id', true ) );
-		if ( 0 === $scope_term ) {
+	public static function areas() {
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
+		if ( is_array( $term_ids ) && count( $term_ids ) < 2 ) {
 			return array();
 		}
 
-		$term_ids = array( $scope_term );
-		$children = get_term_children( $scope_term, 'category' );
-		if ( ! is_wp_error( $children ) && ! empty( $children ) ) {
-			$term_ids = array_merge( $term_ids, $children );
+		$args = array(
+			'taxonomy' => 'category',
+			'hide_empty' => false,
+			'orderby' => 'name',
+		);
+		if ( is_array( $term_ids ) ) {
+			$args['include'] = $term_ids;
 		}
 
-		return array_map( 'absint', $term_ids );
+		$terms = get_terms( $args );
+
+		return is_wp_error( $terms ) ? array() : $terms;
+	}
+
+	/**
+	 * Whether the trays cannot show anything because the user has no ámbito.
+	 *
+	 * Every tray is scoped; a restricted account without a category of its
+	 * own has nothing to look at, and the list says so instead of drawing an
+	 * empty table.
+	 *
+	 * @return bool
+	 */
+	public static function without_scope() {
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
+
+		return is_array( $term_ids ) && empty( $term_ids );
 	}
 
 	/**
@@ -232,9 +254,9 @@ class Documentate_App_Tray {
 			$args['post_status'] = $status;
 		}
 
-		$term_ids = 'mis' === $tray ? self::scope_term_ids() : null;
-		if ( $area > 0 ) {
-			$term_ids = array( $area );
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
+		if ( self::area_in_scope( $area ) ) {
+			$term_ids = array( (int) $area );
 		}
 
 		if ( is_array( $term_ids ) ) {

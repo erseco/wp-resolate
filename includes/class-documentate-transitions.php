@@ -2,10 +2,10 @@
 /**
  * Workflow transitions of a document, driven by one rule table.
  *
- * Every move between statuses (send to gestión, pass to administración,
- * return with a reason, approve, archive) is a row of the table: where it
- * starts, where it lands, who may do it, whether the type must go through
- * gestión and whether a reason is required. The application asks
+ * Every move between statuses (send to revisión, pass to jefatura de
+ * servicio, return with a reason, approve, archive) is a row of the table:
+ * where it starts, where it lands, who may do it, whether the type must go
+ * through revisión and whether a reason is required. The application asks
  * available() to draw its buttons and apply() to run one; wp-admin saves
  * are validated by allowed() from the workflow and recorded afterwards by
  * record_from_save().
@@ -78,10 +78,11 @@ class Documentate_Transitions {
 	/**
 	 * The rule table.
 	 *
-	 * The "quien" column: "area" = anyone who may edit the document;
-	 * "gestion" = gestión documental or administración; "admin" =
-	 * administración only. The "has_management" column: true/false = only for
-	 * types that do / do not go through gestión; null = any type.
+	 * The "who" column: "area" = anyone who may edit the document; "gestion" =
+	 * revisión, jefatura de servicio or administración; "jefatura" = jefatura
+	 * de servicio or administración; "admin" = site administrators only. The
+	 * "has_management" column: true/false = only for types that do / do not
+	 * go through revisión; null = any type.
 	 *
 	 * @return array<int,array<string,mixed>>
 	 */
@@ -94,9 +95,9 @@ class Documentate_Transitions {
 				'who' => 'area',
 				'has_management' => true,
 				'reason' => false,
-				'label' => 'Enviar a gestión',
-				'confirm' => '¿Enviar el documento a gestión documental? Ya no podrás modificarlo hasta que te lo devuelvan.',
-				'event' => 'envió el documento a gestión',
+				'label' => 'Enviar a revisión',
+				'confirm' => '¿Enviar el documento a revisión? Ya no podrás modificarlo hasta que te lo devuelvan.',
+				'event' => 'envió el documento a revisión',
 				'redirect' => 'detalle',
 				'flag' => 'enviado',
 			),
@@ -107,9 +108,9 @@ class Documentate_Transitions {
 				'who' => 'area',
 				'has_management' => false,
 				'reason' => false,
-				'label' => 'Enviar a revisión',
-				'confirm' => '¿Enviar el documento a revisión de administración? Ya no podrás modificarlo hasta que te lo devuelvan.',
-				'event' => 'envió el documento a revisión',
+				'label' => 'Enviar a aprobación',
+				'confirm' => '¿Enviar el documento a la jefatura de servicio para su aprobación? Ya no podrás modificarlo hasta que te lo devuelvan.',
+				'event' => 'envió el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => 'enviado',
 			),
@@ -120,9 +121,9 @@ class Documentate_Transitions {
 				'who' => 'gestion',
 				'has_management' => null,
 				'reason' => false,
-				'label' => 'Pasar a administración',
-				'confirm' => '¿Pasar el documento a administración? Gestión ya no podrá modificarlo hasta que lo devuelvan.',
-				'event' => 'pasó el documento a administración',
+				'label' => 'Pasar a aprobación',
+				'confirm' => '¿Pasar el documento a la jefatura de servicio para su aprobación? Revisión ya no podrá modificarlo hasta que lo devuelvan.',
+				'event' => 'pasó el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => 'enviado',
 			),
@@ -143,7 +144,7 @@ class Documentate_Transitions {
 				'key' => 'aprobar',
 				'from' => 'pending',
 				'target' => 'publish',
-				'who' => 'admin',
+				'who' => 'jefatura',
 				'has_management' => null,
 				'reason' => false,
 				'label' => 'Aprobar y publicar',
@@ -156,12 +157,12 @@ class Documentate_Transitions {
 				'key' => 'devolver_gestion',
 				'from' => 'pending',
 				'target' => 'en_gestion',
-				'who' => 'admin',
+				'who' => 'jefatura',
 				'has_management' => true,
 				'reason' => true,
-				'label' => 'Devolver a gestión',
+				'label' => 'Devolver a revisión',
 				'confirm' => '',
-				'event' => 'devolvió el documento a gestión',
+				'event' => 'devolvió el documento a revisión',
 				'redirect' => 'bandeja',
 				'flag' => 'devuelto',
 			),
@@ -169,7 +170,7 @@ class Documentate_Transitions {
 				'key' => 'devolver_area',
 				'from' => 'pending',
 				'target' => 'draft',
-				'who' => 'admin',
+				'who' => 'jefatura',
 				'has_management' => null,
 				'reason' => true,
 				'label' => 'Devolver al área',
@@ -185,9 +186,9 @@ class Documentate_Transitions {
 				'who' => 'admin',
 				'has_management' => null,
 				'reason' => false,
-				'label' => 'Devolver a revisión',
-				'confirm' => '¿Devolver el documento a revisión? Dejará de estar aprobado y volverá a la bandeja de revisión.',
-				'event' => 'devolvió el documento a revisión',
+				'label' => 'Devolver a aprobación',
+				'confirm' => '¿Devolver el documento a aprobación? Dejará de estar aprobado y volverá a la bandeja de la jefatura de servicio.',
+				'event' => 'devolvió el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => '',
 			),
@@ -244,7 +245,7 @@ class Documentate_Transitions {
 	 * @param array $rule           Rule row.
 	 * @param int   $post_id        Document ID.
 	 * @param int   $user_id        User ID.
-	 * @param bool  $has_management Whether the document type goes through gestión.
+	 * @param bool  $has_management Whether the document type goes through revisión.
 	 * @param bool  $require_edit   Also require edit_post on the document (UI checks);
 	 *                            saves coming through wp-admin already passed it.
 	 * @return bool
@@ -258,11 +259,26 @@ class Documentate_Transitions {
 			return false;
 		}
 
-		if ( 'admin' === $rule['who'] ) {
+		return self::who_applies( (string) $rule['who'], $user_id );
+	}
+
+	/**
+	 * Whether the user plays the role a rule names in its "who" column.
+	 *
+	 * @param string $who     Rule role: area, gestion, jefatura or admin.
+	 * @param int    $user_id User ID.
+	 * @return bool
+	 */
+	private static function who_applies( $who, $user_id ) {
+		if ( 'admin' === $who ) {
 			return Documentate_Roles::is_administration( $user_id );
 		}
 
-		if ( 'gestion' === $rule['who'] ) {
+		if ( 'jefatura' === $who ) {
+			return Documentate_Roles::is_head( $user_id );
+		}
+
+		if ( 'gestion' === $who ) {
 			return Documentate_Roles::is_management( $user_id );
 		}
 
@@ -341,7 +357,7 @@ class Documentate_Transitions {
 	 * @param string    $target         Requested status.
 	 * @param int       $user_id        User ID.
 	 * @param string    $reason         Reason posted with the change, when any.
-	 * @param bool|null $has_management Whether the type goes through gestión, when
+	 * @param bool|null $has_management Whether the type goes through revisión, when
 	 *                               the caller knows better than the stored
 	 *                               document (type posted with the save).
 	 * @return bool
@@ -410,7 +426,7 @@ class Documentate_Transitions {
 	 * @param int       $post_id        Document ID.
 	 * @param int       $user_id        User ID.
 	 * @param string    $reason         Reason posted with the change.
-	 * @param bool|null $has_management Whether the type goes through gestión; null reads the document.
+	 * @param bool|null $has_management Whether the type goes through revisión; null reads the document.
 	 * @return bool
 	 */
 	private static function any_rule_allows( array $rules, $post_id, $user_id, $reason, $has_management = null ) {

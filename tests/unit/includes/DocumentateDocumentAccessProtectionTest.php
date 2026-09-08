@@ -375,8 +375,9 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 			'A document nobody may edit hands over no activity.'
 		);
 
-		// Gestión documental may open every document that entered the pipeline
-		// (a document with no type never leaves draft, so it gets one first).
+		// Revisión reaches a document because its scope covers it, never
+		// because of the status the document is in (a document with no type
+		// never leaves draft, so it gets one first).
 		$type = wp_insert_term( 'Tipo comentarios ' . uniqid(), 'documentate_doc_type' );
 		wp_set_object_terms( $this->document_id, array( (int) $type['term_id'] ), 'documentate_doc_type' );
 		wp_set_current_user( $this->admin_user_id );
@@ -390,10 +391,17 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 		wp_set_current_user( $this->editor_user_id );
 
 		$this->assertSame( 'pending', get_post_status( $this->document_id ) );
+		$this->assertFalse( current_user_can( 'edit_post', $this->document_id ), 'Being in the pipeline opens nothing outside the scope.' );
+		$this->assertEmpty( get_comments( array( 'post_id' => $this->document_id ) ) );
+
+		$scope = wp_insert_term( 'Ámbito comentarios ' . uniqid(), 'category' );
+		wp_set_object_terms( $this->document_id, array( (int) $scope['term_id'] ), 'category' );
+		update_user_meta( $this->editor_user_id, Documentate_Scope_Filter::SCOPE_META_KEY, (int) $scope['term_id'] );
+
 		$this->assertTrue( current_user_can( 'edit_post', $this->document_id ) );
 
 		$comments = get_comments( array( 'post_id' => $this->document_id ) );
-		$this->assertNotEmpty( $comments, 'Gestión documental reads the activity of the document.' );
+		$this->assertNotEmpty( $comments, 'Revisión reads the activity of the documents of its scope.' );
 		$this->assertEquals( $comment_id, $comments[0]->comment_ID );
 	}
 

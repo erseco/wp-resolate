@@ -4,7 +4,7 @@ This document provides a high-level overview of the **Documentate** WordPress pl
 
 ## 1. High-Level Purpose
 
-**Documentate** is a WordPress plugin designed to generate official resolutions and structured documents, and to run them through a three-role approval workflow (área → gestión documental → administración, §3) before publication. It uses a custom post type (`documentate_document`) to store document data, which is categorized by a custom taxonomy (`documentate_doc_type`).
+**Documentate** is a WordPress plugin designed to generate official resolutions and structured documents, and to run them through an approval workflow (área → revisión → jefatura de servicio, §3) before publication. It uses a custom post type (`documentate_document`) to store document data, which is categorized by a custom taxonomy (`documentate_doc_type`).
 
 The core functionality involves taking structured data entered by users in WordPress and merging it into an `.odt` or `.docx` template using **OpenTBS**. The PDF is drawn natively on the server from an HTML layout; a site may instead select **Collabora Online** (server-side) or **LibreOffice WASM** in the browser (via [`@matbee/libreoffice-converter`](https://www.npmjs.com/package/@matbee/libreoffice-converter)) to produce the PDF by converting the template.
 
@@ -85,57 +85,83 @@ Footer page numbers sit on the outer edge: right on odd pages, left on even page
   - **Template Management:** Only Administrators can create or edit `documentate_doc_type` terms.
   - **Scope Filtering:** Documents are filtered based on a "Scope category" assigned to the user's profile.
     - Administrators see everything.
-    - Standard users only see documents assigned to their scope category or its subcategories.
-    - Gestión documental users additionally see (`edit_post`/`read_post` only, never `delete_post`) any
-      document that has already entered the pipeline (any status except `draft`/`auto-draft`),
-      regardless of scope — that is the whole point of the role (§3).
+    - Every other user — área, revisión and jefatura de servicio alike — sees only the documents
+      whose category is their scope category or one of its descendants, whatever the status. There
+      is no role-based bypass: revisión and jefatura reach several áreas because their scope is a
+      category higher up the tree (e.g. the service), not because of who they are.
+      `Documentate_Scope_Filter::get_scope_term_ids()` and `user_can_access_document()` are static
+      and are what every list, tray and notification asks.
   - **Frontend / REST Protection:** `Documentate_Document_Access_Protection` aggressively blocks frontend access (`template_redirect`), REST API access, and comments queries for the `documentate_document` CPT if the user lacks the `edit_posts` capability.
 
 ## 3. Roles, Statuses and the Approval Workflow
 
 Every document goes through a small approval workflow before it is final. Three
-roles share it, detected by capability rather than by a fixed role name
-(`includes/class-documentate-roles.php`, `Documentate_Roles`):
+roles share it — área, revisión and jefatura de servicio — detected by
+capability rather than by a fixed role name
+(`includes/class-documentate-roles.php`, `Documentate_Roles`), plus the site
+administrator standing outside it:
 
-- **Área** (`is_area()`): anyone with `edit_posts` who is neither gestión nor
-  administración. Creates documents and sees only their own scope.
-- **Gestión documental** (`is_management()`): the dedicated `documentate_gestion`
-  role, or any account carrying the `documentate_gestionar` capability
-  together with `edit_others_posts` (the capability alone does nothing —
-  gestión must also be able to open documents outside its own author scope,
-  which is what `edit_others_posts` gates). Completes the official fields on
-  documents from every área. Administrators count as gestión for capability
-  purposes but `role_label()` still labels them "Administración".
-- **Administración** (`is_administration()`): `manage_options`. Approves,
-  publishes, returns and archives.
+- **Área** (`is_area()`): anyone with `edit_posts` who is neither revisión nor
+  jefatura. Creates documents, edits its own drafts, and sees the documents of
+  its scope category and descendants.
+- **Revisión** (`is_management()`): the dedicated `documentate_gestion` role
+  (display name "Revisión"; the slug is a stored contract), or any account
+  carrying the `documentate_gestionar` capability together with
+  `edit_others_posts` (the capability alone does nothing — revisión must also
+  be able to open documents it did not author, which is what
+  `edit_others_posts` gates). The person next to the head of service who
+  reviews documents and completes their official fields (`rol='gestion'`).
+  Edits drafts and documents in `en_gestion`.
+- **Jefatura de servicio** (`is_head()`): the dedicated `documentate_jefatura`
+  role, or any account carrying `documentate_aprobar` plus `edit_others_posts`.
+  Approves and publishes, or returns with a reason (to revisión or to the
+  área). Edits drafts, `en_gestion` and `pending`. Counts as revisión too
+  (superset). Not a site administrator.
+- **Administración** (`is_administration()`): `manage_options`. Counts as
+  jefatura and revisión, unrestricted scope; the only role that archives,
+  unarchives and un-approves ("Devolver a aprobación") from wp-admin, or
+  creates a document in any status. `role_label()` still labels them
+  "Administración".
 
-`Documentate_Roles::ensure_caps()` creates the `documentate_gestion` role and
-grants the capability (hooked on `init`, and from plugin activation);
-`uninstall.php` removes both.
+`Documentate_Roles::ensure_caps()` (roles version 3, hooked on `init` and from
+plugin activation) creates both roles, renames the old one to "Revisión" and
+grants `documentate_gestionar` and `documentate_aprobar` to administrators;
+`grant_management( $user_id )` / `grant_head( $user_id )` appoint one account;
+`uninstall.php` removes both roles and capabilities.
+
+Edit rights follow the status (`Documentate_Workflow::user_can_modify_status()`):
+área edits drafts only; revisión drafts + `en_gestion`; jefatura drafts +
+`en_gestion` + `pending`; administración everything. A document in someone
+else's hands shows a lock notice ("Lo tiene revisión / la jefatura de
+servicio") and a greyed-out Editar in the app. Taking over an edit lock asks
+exactly the same question, so whoever holds the document in its status may
+take it from whoever has it open, and nobody else.
 
 ### Statuses
 
-`draft` (Borrador) → **`en_gestion`** (En gestión, custom status registered by
-`Documentate_Statuses`) → `pending` (En revisión) → `publish` (Aprobado) →
-`archived` (Archivado). A document type only visits `en_gestion` when it is
-"con gestión" — either the taxonomy term meta `documentate_type_con_gestion`
-is set, or its schema has any field with `rol='gestion'`
+`draft` (Borrador) → **`en_gestion`** (En revisión, custom status registered by
+`Documentate_Statuses`) → `pending` (En aprobación) → `publish` (Aprobado) →
+`archived` (Archivado). Stored keys are contracts; only the labels changed. A
+document type only visits `en_gestion` when it is "con revisión" — either the
+taxonomy term meta `documentate_type_con_gestion` is set (the wp-admin checkbox
+"Pasa por revisión"), or its schema has any field with `rol='gestion'`
 (`Documentate_Document_Data::has_management()` / `Documentate_Field_Roles::type_has_management()`).
-Types that are not con gestión skip straight from `draft` to `pending`.
+Types that are not con revisión skip straight from `draft` to `pending`.
 
 "Devuelto" (returned) is not a status, it is a mark: post meta
 `_documentate_devuelto` holds who returned it, when, why, and where from/to
 (`Documentate_Document_Data::mark_returned()` / `returned()`). It is set by every
 return and cleared by every forward transition, so a document can sit in, say,
-`en_gestion` while showing "Devuelto por administración: «…»" until it is
-resent.
+`en_gestion` while showing "Devuelto por la jefatura de servicio: «…»" until it
+is resent.
 
 ### `Documentate_Transitions` — the single source of truth
 
 `includes/class-documentate-transitions.php` holds one static rule table
 (`rules()`) that is the **only** place that says which move is legal from
-which status, for which role, for which kind of document type (con/sin
-gestión), and whether a reason is mandatory. Both the wp-admin metabox and the
+which status, for which role (`who`: `area`, `gestion`, `jefatura`, `admin`),
+for which kind of document type (con/sin revisión), and whether a reason is
+mandatory. Both the wp-admin metabox and the
 front-end app read `available( $post, $user_id )` to draw their buttons and
 call `apply( $post_id, $key, $reason )` to run one; `allowed()` is what
 `Documentate_Workflow`'s status-change filter uses to reject anything that
@@ -144,7 +170,9 @@ this table or hard-code a transition elsewhere — extend `rules()` instead.
 
 Every applied transition is recorded by `Documentate_Activity::record_event()`
 (see §4) and, where the table says so, triggers a notification
-(`includes/class-documentate-notifications.php`).
+(`includes/class-documentate-notifications.php`) to the reviewers or heads of
+service whose scope covers the document (heads and administrators get the
+"pending" mail).
 
 ## 4. Fields by Role and the Document Data Model
 
@@ -159,8 +187,8 @@ attribute through both repeater code paths; `Documentate_Field_Roles`
 (`includes/class-documentate-field-roles.php`) is what everything else asks:
 
 - `field_role( $field )` — the effective rol of a schema row.
-- `can_view( $row, $user_id )` — área sees only `area` rows; gestión and
-  administración see everything.
+- `can_view( $row, $user_id )` — área sees only `area` rows; revisión,
+  jefatura and administración see everything.
 - `type_has_management( $term_id )` — whether a document type has any `gestion`
   field (used to decide if it needs the `en_gestion` step at all).
 - `group_by_role( $schema_rows )` — splits a schema into `area`/`gestion` groups for
@@ -179,7 +207,7 @@ Post meta on `documentate_document`, read through
 | Meta key | Holds | Accessor |
 |---|---|---|
 | `_documentate_nombre_interno` | Short internal name (≤ 80 chars, stored without the type's prefix) | `internal_name()` / `short_name()` (prefix + name, e.g. "RES · Bases 2026") |
-| `_documentate_anotaciones` | Internal notes, gestión/admin only, never rendered into the document | `notes()` / `save_notes()` |
+| `_documentate_anotaciones` | Internal notes, revisión/jefatura/admin only, never rendered into the document | `notes()` / `save_notes()` |
 | `_documentate_devuelto` | JSON: who returned it, when, why, from/to (§3) | `mark_returned()` / `returned()` / `clear_returned()` |
 | `_documentate_attachments` | Attached source file (pre-existing) | `attachment()` returns the first attachment as a `WP_Post` |
 
@@ -192,7 +220,7 @@ Other helpers on the same class: `type()`, `type_prefix()`, `area()`,
 per-document log as WordPress comments of two types, so it reuses
 `wp_insert_comment`/`get_comments` rather than a new table:
 
-- `documentate_evento` — system events ("envió el documento a gestión",
+- `documentate_evento` — system events ("envió el documento a revisión",
   "devolvió el documento al área: «…»", …), written by
   `Documentate_Transitions::apply()`. These never trigger WordPress's
   comment-notification email (`Documentate_Disable_Comment_Notifications`
@@ -213,9 +241,10 @@ distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
 
 - `class-documentate-app.php` (`Documentate_App`) — shortcode, asset
   enqueueing, admin-bar entry, and wiring of the `template_redirect` handlers.
-- `class-documentate-app-shell.php` (`Documentate_App_Shell`) — header (role
-  chip via `Documentate_Roles::role_label()`), tabs per role (`sections()`),
-  sheet and dialogs shared by every view.
+- `class-documentate-app-shell.php` (`Documentate_App_Shell`) — header (who is
+  signed in: initials avatar, name, role via `Documentate_Roles::role_label()`
+  and ámbito via `scope_label()`, in a native `<details>` menu with "Salir"),
+  tabs per role (`sections()`), sheet and dialogs shared by every view.
 - `class-documentate-app-list.php`, `-detail.php`, `-edit.php` —
   bandejas/list, document detail (status stepper, actividad, export) and the
   edit screen (fields grouped by role, attachment dropzone, transition
@@ -236,10 +265,15 @@ distinguished by query args (`vista`, `doc`, `bandeja`, `estado`, `area`):
   and sideloads the single source-file attachment (PDF/ODT/DOCX, ≤ 20 MB) via
   `media_handle_sideload()`.
 
-Tabs differ per role: área gets "Mis documentos" / "Nuevo documento"; gestión
-adds "Para revisar" (documents in `en_gestion`); administración gets "Para
-revisar" (`pending`), "Todos los documentos" and a link out to the doc-types
-taxonomy screen in wp-admin. Only the actionable tab carries a badge.
+Tabs differ per role: área gets "Mis documentos" / "Nuevo documento"; revisión
+"Documentos" (every document of its scope) / "Para revisar" (`en_gestion`) /
+"Nuevo documento"; jefatura "Documentos" / "Para aprobar" (`pending`) / "Nuevo
+documento"; administración "Todos los documentos" / "Para aprobar" / "Nuevo
+documento". Every tray is scoped (§2.5); only the actionable tab carries a
+badge, and "Nuevo documento" a plus icon. Whoever looks after several áreas
+— revisión, jefatura and administración — also gets the área select, which
+offers the categories of their ámbito (every one of them for administración)
+and narrows a tray without ever reaching past it.
 
 Preview/export (PDF, ODT, DOCX) reuses the same admin metabox actions:
 `Documentate_Admin_Helper::render_actions_for_post()` /

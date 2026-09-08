@@ -65,7 +65,7 @@ class Documentate_Doc_Type_Workflow_Fields {
 		$this->render_prefix_control( $prefix );
 		echo '</td></tr>';
 		echo '<tr class="form-field">';
-		echo '<th scope="row">' . esc_html( 'Gestión documental' ) . '</th><td>';
+		echo '<th scope="row">' . esc_html( 'Revisión' ) . '</th><td>';
 		$this->render_management_control( $has_management );
 		echo '</td></tr>';
 	}
@@ -96,7 +96,7 @@ class Documentate_Doc_Type_Workflow_Fields {
 			. '<input type="checkbox" id="documentate_type_con_gestion" name="documentate_type_con_gestion" value="1"'
 			. checked( $has_management, true, false )
 			. ' /> '
-			. esc_html( 'Pasa por gestión documental' )
+			. esc_html( 'Pasa por revisión' )
 			. '</label>';
 		echo '<p class="description">'
 			. esc_html( "Cualquier campo con rol='gestion' en la plantilla activa este paso." )
@@ -187,7 +187,7 @@ class Documentate_Doc_Type_Workflow_Fields {
 		if ( Documentate_Field_Roles::ROLE_MANAGEMENT !== Documentate_Field_Roles::field_role( $entry ) ) {
 			return;
 		}
-		echo ' <span class="documentate-field-rol">' . esc_html( 'gestión' ) . '</span>';
+		echo ' <span class="documentate-field-rol">' . esc_html( 'revisión' ) . '</span>';
 	}
 }
 

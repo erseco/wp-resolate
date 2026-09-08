@@ -113,7 +113,7 @@
         pieces.push(' <span class="documentate-field-type">('+ _.escape(typeLabel) +')</span>');
       }
       if (normalized.rol === 'gestion'){
-        pieces.push(' <span class="documentate-field-rol">gestión</span>');
+        pieces.push(' <span class="documentate-field-rol">revisión</span>');
       }
       $list.append('<li>'+ pieces.join('') +'</li>');
     });

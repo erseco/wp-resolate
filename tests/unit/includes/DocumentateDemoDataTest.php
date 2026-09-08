@@ -199,11 +199,27 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 	public function test_maybe_seed_demo_users_creates_accounts_when_allowed() {
 		update_option( 'documentate_seed_demo_documents', true );
 
+		// The scope categories are what the accounts are put on.
+		Documentate_Demo_Data::maybe_seed_demo_categories();
 		Documentate_Demo_Data::maybe_seed_demo_users();
 
 		$this->assertNotEmpty( username_exists( 'editor1' ) );
+		$this->assertNotEmpty( username_exists( 'jefatura1' ) );
 		$this->assertNotEmpty( username_exists( 'author1' ) );
 		$this->assertNotEmpty( username_exists( 'subscriber1' ) );
+
+		// The demo scope is a tree: revisión and jefatura sit on the root, so
+		// every área below is theirs; the área sits on its own department.
+		$root = get_term_by( 'name', 'Organización', 'category' );
+		$this->assertInstanceOf( WP_Term::class, $root );
+		foreach ( array( 'editor1', 'jefatura1' ) as $login ) {
+			$user = get_user_by( 'login', $login );
+			$this->assertSame( (int) $root->term_id, (int) get_user_meta( $user->ID, Documentate_User_Scope::META_KEY, true ), $login );
+		}
+		$this->assertTrue( Documentate_Roles::is_management( (int) username_exists( 'editor1' ) ) );
+		$this->assertFalse( Documentate_Roles::is_head( (int) username_exists( 'editor1' ) ) );
+		$this->assertTrue( Documentate_Roles::is_head( (int) username_exists( 'jefatura1' ) ) );
+		$this->assertFalse( Documentate_Roles::is_administration( (int) username_exists( 'jefatura1' ) ) );
 
 		delete_option( 'documentate_seed_demo_documents' );
 	}

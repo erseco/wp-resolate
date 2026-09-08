@@ -144,7 +144,7 @@ class Documentate_Document_Meta_Boxes {
 		echo '<div class="documentate-sections">';
 		$known_meta_keys = array_merge(
 			$this->render_rows_by_role( $groups['area'], $context, '', $wrappers['area_open'], $wrappers['area_close'] ),
-			$this->render_rows_by_role( $groups['gestion'], $context, 'Datos oficiales · los completa gestión documental', '', $wrappers['management_close'] )
+			$this->render_rows_by_role( $groups['gestion'], $context, 'Datos oficiales · los completa revisión', '', $wrappers['management_close'] )
 		);
 
 		$unknown = $this->collect_unknown_dynamic_fields( $post->ID, $known_meta_keys );

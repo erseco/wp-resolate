@@ -113,7 +113,7 @@ class Documentate_Document_Admin_Extras {
 			<?php disabled( $locked ); ?>
 		><?php echo esc_textarea( Documentate_Document_Data::notes( $post ) ); ?></textarea>
 		<p class="description">
-			<?php echo esc_html( 'Solo las ven gestión y administración; no salen en el documento.' ); ?>
+			<?php echo esc_html( 'Solo las ven revisión y jefatura de servicio; no salen en el documento.' ); ?>
 		</p>
 		<?php
 	}

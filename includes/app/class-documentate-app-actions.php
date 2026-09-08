@@ -476,7 +476,7 @@ class Documentate_App_Actions {
 		}
 
 		if ( 'bandeja' === Documentate_Transitions::redirect( $key, $from ) ) {
-			$tray = Documentate_Roles::is_administration() ? 'revision' : 'revisar';
+			$tray = Documentate_Roles::is_head() ? 'revision' : 'revisar';
 
 			return array( Documentate_App_Shell::page_url( array( 'bandeja' => $tray ) ), $args );
 		}

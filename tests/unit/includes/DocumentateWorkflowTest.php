@@ -805,7 +805,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'notice-info', $output );
-		$this->assertStringContainsString( 'revisión', $output );
+		$this->assertStringContainsString( 'jefatura de servicio', $output );
 	}
 
 	/**
@@ -910,7 +910,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'documentate-stepper', $output );
 		$this->assertStringContainsString( 'Borrador', $output );
 		$this->assertStringContainsString( 'Guardar borrador', $output );
-		$this->assertStringContainsString( 'Enviar a revisión', $output );
+		$this->assertStringContainsString( 'Enviar a aprobación', $output );
 		$this->assertStringContainsString( 'data-estado="pending"', $output );
 		$this->assertStringContainsString( 'post_status', $output );
 		$this->assertStringContainsString( 'documentate_workflow_nonce', $output );
@@ -971,7 +971,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'En revisión', $output );
+		$this->assertStringContainsString( 'En aprobación', $output );
 		$this->assertStringContainsString( 'Aprobar y publicar', $output );
 		$this->assertStringContainsString( 'Devolver al área', $output );
 		$this->assertStringContainsString( 'documentate-save-pending', $output );
@@ -1016,7 +1016,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'en revisión', $output );
+		$this->assertStringContainsString( 'en aprobación', $output );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $output );
 		$this->assertStringNotContainsString( 'Aprobar y publicar', $output );
 		$this->assertStringNotContainsString( 'Guardar borrador', $output );
@@ -1057,7 +1057,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Aprobado', $output );
 		$this->assertStringContainsString( 'solo lectura', $output );
-		$this->assertStringContainsString( 'Devolver a revisión', $output );
+		$this->assertStringContainsString( 'Devolver a aprobación', $output );
 		$this->assertStringContainsString( 'Archivar', $output );
 	}
 
@@ -1118,10 +1118,10 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$this->workflow->render_document_management_metabox( $post );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Envía a revisión', $output );
+		$this->assertStringContainsString( 'Envía a aprobación', $output );
 		$this->assertStringContainsString( 'documentate-mgmt-message--draft', $output );
 		$this->assertStringContainsString( 'Guardar borrador', $output );
-		$this->assertStringContainsString( 'Enviar a revisión', $output );
+		$this->assertStringContainsString( 'Enviar a aprobación', $output );
 		// No Publish button — flow is always Draft → Review → Approved.
 		$this->assertStringNotContainsString( 'documentate-publish', $output );
 	}
@@ -1146,7 +1146,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'documentate-save-draft', $output );
-		$this->assertStringContainsString( 'Enviar a revisión', $output );
+		$this->assertStringContainsString( 'Enviar a aprobación', $output );
 		$this->assertStringNotContainsString( 'documentate-publish', $output );
 	}
 
@@ -1642,11 +1642,11 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Borrador', $output );
-		$this->assertStringContainsString( 'En revisión', $output );
+		$this->assertStringContainsString( 'En aprobación', $output );
 		$this->assertStringContainsString( 'Aprobado', $output );
-		// Neither the archived step nor "En gestión" (type without gestión) appear.
+		// Neither the archived step nor "En revisión" (type without revisión) appear.
 		$this->assertStringNotContainsString( 'is-status-archived', $output );
-		$this->assertStringNotContainsString( 'En gestión', $output );
+		$this->assertStringNotContainsString( 'En revisión', $output );
 	}
 
 	/**

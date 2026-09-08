@@ -1,9 +1,10 @@
 <?php
 /**
- * Tests for the gestión documental rules of Documentate_Scope_Filter.
+ * Tests for the tree scope of Documentate_Scope_Filter.
  *
- * Gestión reaches every document that entered the pipeline (anything but a
- * draft) whatever área it belongs to, on top of its own scope.
+ * Revisión and jefatura de servicio reach the documents of several áreas
+ * because their scope is a category above them, not because of any bypass:
+ * the same rule as an área, applied higher up the tree.
  *
  * @package Documentate
  */
@@ -28,25 +29,46 @@ class DocumentateScopeManagementTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental user ID (editor).
+	 * Revisión user ID (editor), scoped on the service.
 	 *
 	 * @var int
 	 */
 	private $management_id;
 
 	/**
-	 * Category of the gestión user's scope.
+	 * Jefatura de servicio user ID (editor), scoped on the service.
+	 *
+	 * @var int
+	 */
+	private $head_id;
+
+	/**
+	 * Category of the service, parent of áreas A and B.
+	 *
+	 * @var int
+	 */
+	private $cat_service;
+
+	/**
+	 * Category of área A.
 	 *
 	 * @var int
 	 */
 	private $cat_a;
 
 	/**
-	 * Category of another área.
+	 * Category of área B.
 	 *
 	 * @var int
 	 */
 	private $cat_b;
+
+	/**
+	 * Category of another service, outside the scope.
+	 *
+	 * @var int
+	 */
+	private $cat_other;
 
 	/**
 	 * Documents keyed by a short name.
@@ -67,29 +89,34 @@ class DocumentateScopeManagementTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
-		// Gestión documental is appointed account by account: the plugin keeps
-		// the capability in a role of its own and never grants it to the stock
-		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		$this->head_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		( new WP_User( $this->head_id ) )->add_cap( Documentate_Roles::CAP_HEAD );
 
-		$a = wp_insert_term( 'Área A', 'category' );
-		$b = wp_insert_term( 'Área B', 'category' );
+		$service = wp_insert_term( 'Servicio', 'category' );
+		$this->cat_service = (int) $service['term_id'];
+		$a = wp_insert_term( 'Área A', 'category', array( 'parent' => $this->cat_service ) );
+		$b = wp_insert_term( 'Área B', 'category', array( 'parent' => $this->cat_service ) );
+		$other = wp_insert_term( 'Otro servicio', 'category' );
 		$this->cat_a = (int) $a['term_id'];
 		$this->cat_b = (int) $b['term_id'];
-		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_a );
+		$this->cat_other = (int) $other['term_id'];
+		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_service );
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_service );
 
 		$type = wp_insert_term( 'Resolución S', 'documentate_doc_type' );
 		$type_id = (int) $type['term_id'];
 
 		$this->docs = array(
 			'draft_a' => $this->make_doc( 'draft', $this->cat_a, $type_id ),
-			'draft_b' => $this->make_doc( 'draft', $this->cat_b, $type_id ),
 			'gestion_b' => $this->make_doc( 'en_gestion', $this->cat_b, $type_id ),
-			'pending_none' => $this->make_doc( 'pending', 0, $type_id ),
-			'publish_b' => $this->make_doc( 'publish', $this->cat_b, $type_id ),
+			'pending_b' => $this->make_doc( 'pending', $this->cat_b, $type_id ),
+			'publish_a' => $this->make_doc( 'publish', $this->cat_a, $type_id ),
 			'archived_b' => $this->make_doc( 'archived', $this->cat_b, $type_id ),
 			'auto_draft_b' => $this->make_doc( 'auto-draft', $this->cat_b, $type_id ),
-			'trash_b' => $this->make_doc( 'trash', $this->cat_b, $type_id ),
+			'draft_other' => $this->make_doc( 'draft', $this->cat_other, $type_id ),
+			'gestion_other' => $this->make_doc( 'en_gestion', $this->cat_other, $type_id ),
+			'pending_none' => $this->make_doc( 'pending', 0, $type_id ),
 		);
 
 		set_current_screen( 'edit-documentate_document' );
@@ -155,169 +182,107 @@ class DocumentateScopeManagementTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Gestión opens everything in the pipeline; drafts and trash of other áreas stay closed.
+	 * Every document under the service, in every status; nothing of another service.
 	 */
-	public function test_user_can_access_document_bypass_for_pipeline() {
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['draft_a'], $this->management_id ) );
-		$this->assertFalse( $this->filter->user_can_access_document( $this->docs['draft_b'], $this->management_id ) );
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['gestion_b'], $this->management_id ) );
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['pending_none'], $this->management_id ) );
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['publish_b'], $this->management_id ) );
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['archived_b'], $this->management_id ) );
-		$this->assertFalse( $this->filter->user_can_access_document( $this->docs['trash_b'], $this->management_id ), 'Trash is outside the pipeline.' );
-		$this->assertFalse( user_can( $this->management_id, 'edit_post', $this->docs['trash_b'] ) );
-		// Auto-drafts are open to every scoped user by the stub rule (they have no category yet).
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['auto_draft_b'], $this->management_id ) );
-		$this->assertContains( 'auto-draft', Documentate_Scope_Filter::OUTSIDE_PIPELINE_STATUSES );
-
-		// Without the bypass the pure scope rule applies.
-		$this->assertFalse( $this->filter->user_can_access_document( $this->docs['gestion_b'], $this->management_id, false ) );
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['draft_a'], $this->management_id, false ) );
-
-		// The current user is used when no ID is given.
-		wp_set_current_user( $this->management_id );
-		$this->assertTrue( $this->filter->user_can_access_document( $this->docs['pending_none'] ) );
-	}
-
-	/**
-	 * Object caps: edit and read pass for pipeline documents, delete keeps the scope rule.
-	 */
-	public function test_map_meta_cap_bypass_covers_edit_and_read_only() {
-		$this->assertTrue( user_can( $this->management_id, 'edit_post', $this->docs['gestion_b'] ) );
-		$this->assertTrue( user_can( $this->management_id, 'read_post', $this->docs['gestion_b'] ) );
-		$this->assertFalse( user_can( $this->management_id, 'delete_post', $this->docs['gestion_b'] ) );
-
-		$this->assertTrue( user_can( $this->management_id, 'edit_post', $this->docs['pending_none'] ) );
-		$this->assertFalse( user_can( $this->management_id, 'delete_post', $this->docs['pending_none'] ) );
-
-		$this->assertFalse( user_can( $this->management_id, 'edit_post', $this->docs['draft_b'] ) );
-		$this->assertTrue( user_can( $this->management_id, 'edit_post', $this->docs['draft_a'] ) );
-		$this->assertTrue( user_can( $this->management_id, 'delete_post', $this->docs['draft_a'] ) );
-	}
-
-	/**
-	 * The admin list of a gestión user: own scope OR pipeline, drafts of others excluded.
-	 */
-	public function test_list_query_ors_scope_with_pipeline_statuses() {
-		wp_set_current_user( $this->management_id );
-
+	private function expected_in_scope() {
 		$expected = array(
 			$this->docs['draft_a'],
 			$this->docs['gestion_b'],
-			$this->docs['pending_none'],
-			$this->docs['publish_b'],
+			$this->docs['pending_b'],
+			$this->docs['publish_a'],
 			$this->docs['archived_b'],
 		);
 		sort( $expected );
 
-		$this->assertSame( $expected, $this->listed_ids() );
-		$this->assertFalse( has_filter( 'posts_where', array( $this->filter, 'management_posts_where' ) ), 'The clause is removed after the query.' );
+		return $expected;
 	}
 
 	/**
-	 * The restriction fails closed when its WHERE clause never runs.
+	 * A scope on the service covers both áreas, whatever the status; the rest is closed.
 	 *
-	 * The clause is the only thing keeping the drafts of other áreas out of a
-	 * gestión list, and a filter can always be skipped: another plugin
-	 * answering posts_pre_query, or replacing the query object on a later
-	 * pre_get_posts. The rows are filtered on the way out instead.
+	 * @dataProvider provider_reviewing_roles
+	 *
+	 * @param string $role management or head.
 	 */
-	public function test_the_management_list_drops_foreign_drafts_when_the_clause_is_skipped() {
-		wp_set_current_user( $this->management_id );
+	public function test_user_can_access_document_follows_the_tree( $role ) {
+		$user_id = 'head' === $role ? $this->head_id : $this->management_id;
 
-		$query = new WP_Query();
-		$query->set( 'post_type', 'documentate_document' );
-		$query->set( 'post_status', array( 'draft', 'en_gestion', 'pending', 'publish', 'archived' ) );
-		$query->set( 'posts_per_page', -1 );
-		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		$GLOBALS['wp_the_query'] = $query;
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['draft_a'], $user_id ), 'A draft of an área below is theirs to see.' );
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['gestion_b'], $user_id ) );
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['pending_b'], $user_id ) );
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['publish_a'], $user_id ) );
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['archived_b'], $user_id ) );
+		// Auto-drafts are open to every scoped user by the stub rule (they have no category yet).
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['auto_draft_b'], $user_id ) );
 
-		$this->filter->filter_documents_by_scope( $query );
+		$this->assertFalse( Documentate_Scope_Filter::user_can_access_document( $this->docs['draft_other'], $user_id ) );
+		$this->assertFalse( Documentate_Scope_Filter::user_can_access_document( $this->docs['gestion_other'], $user_id ), 'Being in the pipeline opens nothing outside the scope.' );
+		$this->assertFalse( Documentate_Scope_Filter::user_can_access_document( $this->docs['pending_none'], $user_id ), 'A document with no category is out of every scope.' );
 
-		// Somebody else answers the query, so posts_where never runs.
-		remove_filter( 'posts_where', array( $this->filter, 'management_posts_where' ), 10 );
-		$all = array_map( 'get_post', array_values( $this->docs ) );
-
-		$returned_count = apply_filters_ref_array( 'the_posts', array( $all, &$query ) );
-		$ids = array_map( static fn( $post ) => (int) $post->ID, $returned_count );
-
-		$this->assertContains( $this->docs['draft_a'], $ids, 'Their own área is still theirs.' );
-		$this->assertContains( $this->docs['gestion_b'], $ids, 'The pipeline is still open.' );
-		$this->assertNotContains( $this->docs['draft_b'], $ids, 'A draft of another área is not listed.' );
-		$this->assertFalse( has_filter( 'the_posts', array( $this->filter, 'management_the_posts' ) ), 'The guard is removed after the query.' );
+		// The current user is used when no ID is given.
+		wp_set_current_user( $user_id );
+		$this->assertTrue( Documentate_Scope_Filter::user_can_access_document( $this->docs['pending_b'] ) );
+		$this->assertFalse( Documentate_Scope_Filter::user_can_access_document( $this->docs['gestion_other'] ) );
 	}
 
 	/**
-	 * Gestión without a scope still sees the pipeline, and nothing in draft.
+	 * The two roles that look after several áreas.
+	 *
+	 * @return array<string,array{0:string}>
 	 */
-	public function test_list_query_for_management_without_scope() {
+	public function provider_reviewing_roles() {
+		return array(
+			'revisión' => array( 'management' ),
+			'jefatura de servicio' => array( 'head' ),
+		);
+	}
+
+	/**
+	 * Object caps follow the scope, and deletion also follows the workflow lock.
+	 */
+	public function test_map_meta_cap_follows_the_tree() {
+		$this->assertTrue( user_can( $this->management_id, 'edit_post', $this->docs['gestion_b'] ) );
+		$this->assertTrue( user_can( $this->management_id, 'read_post', $this->docs['gestion_b'] ) );
+		$this->assertTrue( user_can( $this->management_id, 'delete_post', $this->docs['gestion_b'] ), 'Revisión holds a document in revisión.' );
+		$this->assertFalse( user_can( $this->management_id, 'delete_post', $this->docs['pending_b'] ), 'Locked for revisión once it moved on.' );
+		$this->assertTrue( user_can( $this->head_id, 'delete_post', $this->docs['pending_b'] ), 'The head of service holds a document in aprobación.' );
+		$this->assertFalse( user_can( $this->head_id, 'delete_post', $this->docs['publish_a'] ) );
+
+		$this->assertTrue( user_can( $this->management_id, 'edit_post', $this->docs['draft_a'] ) );
+		$this->assertTrue( user_can( $this->management_id, 'delete_post', $this->docs['draft_a'] ) );
+
+		$this->assertFalse( user_can( $this->management_id, 'edit_post', $this->docs['gestion_other'] ) );
+		$this->assertFalse( user_can( $this->management_id, 'read_post', $this->docs['gestion_other'] ) );
+		$this->assertFalse( user_can( $this->head_id, 'edit_post', $this->docs['pending_none'] ) );
+		$this->assertFalse( user_can( $this->head_id, 'edit_post', $this->docs['draft_other'] ) );
+	}
+
+	/**
+	 * The admin list of a reviewing role is a plain scope query on its subtree.
+	 */
+	public function test_list_query_is_the_subtree() {
+		wp_set_current_user( $this->management_id );
+		$this->assertSame( $this->expected_in_scope(), $this->listed_ids() );
+
+		wp_set_current_user( $this->head_id );
+		$this->assertSame( $this->expected_in_scope(), $this->listed_ids() );
+	}
+
+	/**
+	 * A reviewer without a scope sees nothing at all: no bypass, no pipeline.
+	 */
+	public function test_list_query_without_scope_is_empty() {
 		delete_user_meta( $this->management_id, Documentate_Scope_Filter::SCOPE_META_KEY );
 		wp_set_current_user( $this->management_id );
 
-		$expected = array(
-			$this->docs['gestion_b'],
-			$this->docs['pending_none'],
-			$this->docs['publish_b'],
-			$this->docs['archived_b'],
-		);
-		sort( $expected );
-
-		$this->assertSame( $expected, $this->listed_ids() );
+		$this->assertSame( array(), $this->listed_ids() );
+		$this->assertFalse( Documentate_Scope_Filter::user_can_access_document( $this->docs['gestion_b'], $this->management_id ) );
 	}
 
 	/**
-	 * The clause only touches the query it was bound to, and survives until that query runs.
+	 * The view counters of a reviewer match the rows the list shows.
 	 */
-	public function test_management_posts_where_ignores_other_queries() {
-		wp_set_current_user( $this->management_id );
-		$query = new WP_Query();
-		$query->set( 'post_type', 'documentate_document' );
-		$query->set( 'post_status', array( 'draft', 'en_gestion', 'pending', 'publish', 'archived' ) );
-		$query->set( 'posts_per_page', -1 );
-		$query->set( 'fields', 'ids' );
-		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		$GLOBALS['wp_the_query'] = $query;
-		$this->filter->filter_documents_by_scope( $query );
-		$this->assertNotFalse( has_filter( 'posts_where', array( $this->filter, 'management_posts_where' ) ) );
-
-		// A foreign query in between (another post type, or a document query that is not the list) passes untouched.
-		$other = new WP_Query();
-		$other->set( 'post_type', 'post' );
-		$this->assertSame( ' AND 1=1', $this->filter->management_posts_where( ' AND 1=1', $other ) );
-		$this->assertNotFalse( has_filter( 'posts_where', array( $this->filter, 'management_posts_where' ) ), 'Still armed for the list query.' );
-
-		$drafts = new WP_Query(
-			array(
-				'post_type' => 'documentate_document',
-				'post_status' => 'draft',
-				'posts_per_page' => -1,
-				'fields' => 'ids',
-			)
-		);
-		$all = array_map( 'intval', $drafts->posts );
-		sort( $all );
-		$this->assertSame( array( $this->docs['draft_a'], $this->docs['draft_b'] ), $all, 'Not consumed by a query it was not bound to.' );
-		$this->assertNotFalse( has_filter( 'posts_where', array( $this->filter, 'management_posts_where' ) ) );
-
-		// The bound query still gets its clause, and the filter is gone afterwards.
-		$expected = array(
-			$this->docs['draft_a'],
-			$this->docs['gestion_b'],
-			$this->docs['pending_none'],
-			$this->docs['publish_b'],
-			$this->docs['archived_b'],
-		);
-		sort( $expected );
-		$ids = array_map( 'intval', (array) $query->get_posts() );
-		sort( $ids );
-		$this->assertSame( $expected, $ids );
-		$this->assertFalse( has_filter( 'posts_where', array( $this->filter, 'management_posts_where' ) ) );
-	}
-
-	/**
-	 * The view counters of a gestión user match the rows the list shows.
-	 */
-	public function test_view_counts_for_management() {
+	public function test_view_counts_follow_the_tree() {
 		wp_set_current_user( $this->management_id );
 
 		$views = array();
@@ -327,20 +292,20 @@ class DocumentateScopeManagementTest extends WP_UnitTestCase {
 
 		$result = $this->filter->filter_view_counts( $views );
 
-		$this->assertSame( 4, $this->count_of( $result['all'] ), 'draft A + en_gestion B + pending + publish B (archived has its own view).' );
+		$this->assertSame( 4, $this->count_of( $result['all'] ), 'draft A + en_gestion B + pending B + publish A (archived has its own view).' );
 		$this->assertSame( 1, $this->count_of( $result['draft'] ) );
 		$this->assertSame( 1, $this->count_of( $result['en_gestion'] ) );
 		$this->assertSame( 1, $this->count_of( $result['pending'] ) );
 		$this->assertSame( 1, $this->count_of( $result['publish'] ) );
 		$this->assertSame( 1, $this->count_of( $result['archived'] ) );
-		$this->assertArrayNotHasKey( 'mine', $result, 'The gestión user authored nothing.' );
+		$this->assertArrayNotHasKey( 'mine', $result, 'The reviewer authored nothing.' );
 		$this->assertArrayNotHasKey( 'trash', $result );
 	}
 
 	/**
-	 * Counters for gestión without a scope only carry the pipeline.
+	 * Counters of a reviewer without a scope are all zero.
 	 */
-	public function test_view_counts_for_management_without_scope() {
+	public function test_view_counts_without_scope_are_zero() {
 		delete_user_meta( $this->management_id, Documentate_Scope_Filter::SCOPE_META_KEY );
 		wp_set_current_user( $this->management_id );
 
@@ -352,9 +317,9 @@ class DocumentateScopeManagementTest extends WP_UnitTestCase {
 
 		$result = $this->filter->filter_view_counts( $views );
 
-		$this->assertSame( 3, $this->count_of( $result['all'] ) );
+		$this->assertSame( 0, $this->count_of( $result['all'] ) );
 		$this->assertArrayNotHasKey( 'draft', $result );
-		$this->assertSame( 1, $this->count_of( $result['archived'] ) );
+		$this->assertArrayNotHasKey( 'archived', $result );
 	}
 
 	/**

@@ -28,7 +28,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit();
 }
 
-// Remove the gestión documental capability from the roles and forget its version.
+// Remove the revisión capability from the roles and forget its version.
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-documentate-roles.php';
 Documentate_Roles::remove_caps();
 

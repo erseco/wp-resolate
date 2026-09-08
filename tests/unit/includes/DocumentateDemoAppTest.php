@@ -169,7 +169,7 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'publish', $map['Bases programa piloto innovación']->post_status );
 
-		// editor1 / Subdirección de Administración.
+		// editor1 / Subdirección de Administración (inside its «Organización» scope).
 		$this->assertSame( 'en_gestion', $map['Calendario de admisión 2027']->post_status );
 		$returned_res = Documentate_Document_Data::returned( $map['Calendario de admisión 2027'] );
 		$this->assertNotNull( $returned_res );
@@ -223,18 +223,18 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 			'adjuntó el fichero «' . Documentate_App_Attachments::name( $odt->ID ) . '»',
 			$events_final_list
 		);
-		$this->assertContains( 'envió el documento a gestión', $events_final_list );
+		$this->assertContains( 'envió el documento a revisión', $events_final_list );
 
 		$events_rules = $texts( $map['Bases programa piloto innovación'] );
-		$this->assertContains( 'envió el documento a gestión', $events_rules );
-		$this->assertContains( 'pasó el documento a administración', $events_rules );
+		$this->assertContains( 'envió el documento a revisión', $events_rules );
+		$this->assertContains( 'pasó el documento a aprobación', $events_rules );
 		$this->assertContains( 'aprobó y publicó el documento', $events_rules );
 
 		$events_hc = $texts( $map['Certificación tribunal materiales'] );
 		$this->assertContains( 'devolvió el documento al área: «Falta el anexo firmado por la dirección»', $events_hc );
 
 		$events_calendar = $texts( $map['Calendario de admisión 2027'] );
-		$this->assertContains( 'devolvió el documento a gestión: «Falta el número de expediente»', $events_calendar );
+		$this->assertContains( 'devolvió el documento a revisión: «Falta el número de expediente»', $events_calendar );
 
 		$events_licences = $texts( $map['Renovación licencias aulas virtuales'] );
 		$this->assertContains( 'devolvió el documento al área: «Revisar la partida presupuestaria»', $events_licences );
@@ -381,6 +381,7 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 
 		$this->assertInstanceOf( WP_User::class, get_user_by( 'login', 'author1' ) );
 		$this->assertInstanceOf( WP_User::class, get_user_by( 'login', 'editor1' ) );
+		$this->assertInstanceOf( WP_User::class, get_user_by( 'login', 'jefatura1' ) );
 		$this->assertInstanceOf( WP_Term::class, get_term_by( 'name', 'Departamento de Proyectos', 'category' ) );
 		$this->assertInstanceOf( WP_Term::class, get_term_by( 'slug', 'resolucion-administrativa', 'documentate_doc_type' ) );
 		$this->assertFalse( get_option( 'documentate_seed_demo_documents', false ), 'The option must be left exactly as it was found (unset).' );

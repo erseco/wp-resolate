@@ -61,6 +61,9 @@ class Documentate_App_Lock {
 	/**
 	 * Draw the takeover notice, also used when Heartbeat reports a lost lock.
 	 *
+	 * Same look as the lock notice of a document in another role's hands: a
+	 * lock, who has it and the two things this person can do about it.
+	 *
 	 * @param WP_Post $post  Document.
 	 * @param int     $owner Other editor ID, or zero when the editor is available.
 	 * @return string
@@ -72,10 +75,10 @@ class Documentate_App_Lock {
 		ob_start();
 		?>
 		<div id="dcta-edit-lock" data-post-id="<?php echo esc_attr( (string) $post->ID ); ?>" data-lock="<?php echo esc_attr( $lock ? implode( ':', $lock ) : '' ); ?>" data-release-nonce="<?php echo esc_attr( wp_create_nonce( 'update-post_' . $post->ID ) ); ?>">
-			<dialog id="dcta-lock-dialog" class="dcta-dialogo" aria-labelledby="dcta-lock-title" <?php echo $owner ? 'open' : ''; ?>>
-				<h2 id="dcta-lock-title" class="dcta-dialogo-titulo">Documento en edición</h2>
-				<p><strong id="dcta-lock-owner"><?php echo esc_html( $user ? $user->display_name : 'Otra persona' ); ?></strong> está editando este documento.</p>
-				<p>Si tomas posesión, la otra persona no podrá guardar. Se recargará el editor y se perderán tus cambios sin guardar.</p>
+			<dialog id="dcta-lock-dialog" class="dcta-dialogo dcta-dialogo-bloqueo" aria-labelledby="dcta-lock-title" <?php echo $owner ? 'open' : ''; ?>>
+				<h2 id="dcta-lock-title" class="dcta-dialogo-titulo"><?php echo Documentate_App_Shell::icon( 'lock' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG literal. ?> Lo está editando otra persona</h2>
+				<p class="dcta-dialogo-texto"><strong id="dcta-lock-owner"><?php echo esc_html( $user ? $user->display_name : 'Otra persona' ); ?></strong> tiene abierto este documento ahora mismo.</p>
+				<p class="dcta-dialogo-texto">Puedes consultarlo mientras termina, o tomar posesión para editarlo tú: la otra persona dejará de poder guardar y el editor se recargará.</p>
 				<form method="post" action="<?php echo esc_url( Documentate_App_Edit::url( $post->ID ) ); ?>">
 					<?php wp_nonce_field( 'documentate_app_tomar_control_' . $post->ID, 'documentate_app_nonce' ); ?>
 					<input type="hidden" name="documentate_app_accion" value="tomar_control" />

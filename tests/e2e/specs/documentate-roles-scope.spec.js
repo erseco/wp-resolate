@@ -3,7 +3,8 @@
  *
  * Verifies that:
  * - Administrator: Can see all documents.
- * - Editor: Can only see documents in their assigned category (and its children).
+ * - Editor (revisión): Can only see documents in their assigned category and
+ *   its children, whatever the status of the document.
  * - Author: Can only see their own created documents in their assigned category.
  * - Subscriber: Cannot access the documents list.
  * - Security (object-level + workflow locks):
@@ -139,9 +140,8 @@ test.describe( 'Roles and Scope Filtering', () => {
 					category: 'other',
 					type: 'propio',
 				},
-				// Out of scope but already published: gestión documental reviews
-				// every área, so a document that has left its own is theirs to
-				// look at.
+				// Out of scope and published: the status opens nothing, so it
+				// is as closed to the reviewer as the draft above.
 				adminOtherPublished: {
 					title: TITLES.adminOtherPublished,
 					category: 'other',
@@ -199,7 +199,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 		).toBeVisible();
 	} );
 
-	test( 'Editor sees their scope, and as management what has left its area', async ( {
+	test( 'Editor sees every document of their scope, and nothing outside it', async ( {
 		browser,
 		baseURL,
 	} ) => {
@@ -222,17 +222,15 @@ test.describe( 'Roles and Scope Filtering', () => {
 				rowByTitle( page, TITLES.authorParent )
 			).toBeVisible();
 
-			// Out of scope and still a draft: it belongs to its own área.
+			// Out of scope: the área it belongs to is not under theirs, and
+			// carrying the revisión capability changes nothing — a reviewer
+			// covers several áreas by being scoped above them, not by role.
 			await expect( rowByTitle( page, TITLES.adminOther ) ).toHaveCount(
 				0
 			);
-
-			// Out of scope but already in the pipeline: an editor carries the
-			// gestión documental capability, and reviewing means looking
-			// outside your own área.
 			await expect(
 				rowByTitle( page, TITLES.adminOtherPublished )
-			).toBeVisible();
+			).toHaveCount( 0 );
 		} finally {
 			await context.close();
 		}
@@ -269,7 +267,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 			await expect( rowByTitle( page, TITLES.adminOther ) ).toHaveCount(
 				0
 			);
-			// An author is not gestión: the bypass is not theirs.
+			// Another área, whatever its status.
 			await expect(
 				rowByTitle( page, TITLES.adminOtherPublished )
 			).toHaveCount( 0 );
@@ -397,16 +395,27 @@ test.describe( 'Roles and Scope Filtering', () => {
 				/Insufficient permissions|Permisos insuficientes|not allowed|no tienes permiso/i
 			);
 
-			// The same document once it has left its área is open to gestión.
+			// The same área published is refused too: the status opens nothing.
 			await page.goto(
 				`/wp-admin/post.php?post=${ docs.adminOtherPublished }&action=edit`,
+				{ waitUntil: 'domcontentloaded' }
+			);
+			await expect( page.locator( 'body' ) ).toContainText(
+				PERMISSION_DENIED_RE
+			);
+			await expect(
+				page.locator( '#documentate_title_textarea' )
+			).toHaveCount( 0 );
+
+			// A document of their own scope, published, does open: what tells
+			// the two apart is the ámbito, not the status.
+			await page.goto(
+				`/wp-admin/post.php?post=${ docs.adminChild }&action=edit`,
 				{ waitUntil: 'domcontentloaded' }
 			);
 			await expect( page.locator( 'body' ) ).not.toContainText(
 				PERMISSION_DENIED_RE
 			);
-			// A blank sheet or a redirect would also carry no denial, so the
-			// editor screen itself has to be there.
 			await expect(
 				page.locator( '#documentate_title_textarea' )
 			).toBeVisible();

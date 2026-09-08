@@ -2,10 +2,11 @@
 /**
  * Email notifications for Documentate document state changes.
  *
- * Sends concise emails to authors when their documents change state, and to
- * administrators when other users' documents move to the pending review state.
- * Per-user opt-out preferences are stored in user meta and exposed in the
- * standard WordPress profile screen.
+ * Sends concise emails to authors when their documents change state, to the
+ * heads of service of the document's scope when it waits for their approval,
+ * and to the reviewers of its scope when it reaches or leaves them. Per-user
+ * opt-out preferences are stored in user meta and exposed in the standard
+ * WordPress profile screen.
  *
  * @package    Documentate
  * @subpackage Documentate/includes
@@ -56,7 +57,9 @@ class Documentate_Notifications {
 	const KEY_AUTHOR_OTHER = 'author_other';
 
 	/**
-	 * Notification key: someone else's document moved to pending review (admins only).
+	 * Notification key: someone else's document waits for approval (jefatura and administrators).
+	 *
+	 * The key predates the jefatura de servicio role and is a stored contract.
 	 *
 	 * @var string
 	 */
@@ -107,12 +110,12 @@ class Documentate_Notifications {
 			$this->send_state_change_email( $post, $old_status, $new_status, $author_id, $actor_id );
 		}
 
-		// Notify administrators when someone else's document moves to pending review.
+		// Notify the heads of service when someone else's document waits for approval.
 		if ( 'pending' === $new_status ) {
-			$this->notify_admins_pending_review( $post, $author_id, $actor_id );
+			$this->notify_heads_pending_approval( $post, $author_id, $actor_id );
 		}
 
-		// Notify gestión documental about the documents that reach or leave them.
+		// Notify revisión about the documents that reach or leave them.
 		$this->notify_management( $post, $old_status, $new_status, $actor_id );
 	}
 
@@ -137,8 +140,8 @@ class Documentate_Notifications {
 			return self::KEY_AUTHOR_PUBLISH;
 		}
 
-		// Sending to gestión is the author's own act; a return from
-		// administración to gestión is gestión's business, not the author's.
+		// Sending to revisión is the author's own act; a return from jefatura
+		// de servicio to revisión is revisión's business, not the author's.
 		if ( 'en_gestion' === $new_status && ( $actor_is_author || 'pending' === $old_status ) ) {
 			return null;
 		}
@@ -175,45 +178,33 @@ class Documentate_Notifications {
 	}
 
 	/**
-	 * Notify all administrators (except the author) that a document is pending approval.
+	 * Notify the heads of service of the document's scope that it waits for approval.
+	 *
+	 * The author and the actor are skipped, and so is whoever opted out.
 	 *
 	 * @param WP_Post $post      Post object.
 	 * @param int     $author_id Author user ID.
 	 * @param int     $actor_id  ID of the user who triggered the change.
 	 * @return void
 	 */
-	private function notify_admins_pending_review( $post, $author_id, $actor_id ) {
-		$admins = get_users(
-			array(
-				'role__in' => array( 'administrator' ),
-				'fields' => array( 'ID', 'user_email', 'display_name' ),
-			)
-		);
+	private function notify_heads_pending_approval( $post, $author_id, $actor_id ) {
+		$subject = $this->build_subject( 'Pendiente de aprobar', $post );
+		$body = $this->build_body( $post, '', 'pending', $actor_id );
 
-		foreach ( $admins as $admin ) {
-			$admin_id = (int) $admin->ID;
-			if ( $admin_id === $author_id ) {
+		foreach ( $this->recipients( $post, Documentate_Roles::CAP_HEAD, array( $author_id, $actor_id ) ) as $user_id => $email ) {
+			if ( $this->user_disabled( $user_id, self::KEY_ADMIN_REVIEW ) ) {
 				continue;
 			}
-			if ( $this->user_disabled( $admin_id, self::KEY_ADMIN_REVIEW ) ) {
-				continue;
-			}
-			if ( empty( $admin->user_email ) ) {
-				continue;
-			}
-
-			$subject = $this->build_subject( 'Pendiente de aprobar', $post );
-			$body = $this->build_body( $post, '', 'pending', $actor_id );
-			wp_mail( $admin->user_email, $subject, $body );
+			wp_mail( $email, $subject, $body );
 		}
 	}
 
 	/**
-	 * Mail gestión documental about the transitions that concern them.
+	 * Mail revisión about the transitions that concern them.
 	 *
 	 * Draft to en_gestion: a new document waits for them. Pending to
-	 * en_gestion: administración returned one with a reason. Pending to
-	 * publish of a type that went through gestión: it was approved.
+	 * en_gestion: jefatura de servicio returned one with a reason. Pending to
+	 * publish of a type that went through revisión: it was approved.
 	 *
 	 * @param WP_Post $post       Post object.
 	 * @param string  $old_status Old post status.
@@ -224,8 +215,8 @@ class Documentate_Notifications {
 	private function notify_management( $post, $old_status, $new_status, $actor_id ) {
 		$transition = $old_status . '>' . $new_status;
 		$subjects = array(
-			'draft>en_gestion' => 'Nuevo documento en gestión',
-			'pending>en_gestion' => 'Devuelto por administración',
+			'draft>en_gestion' => 'Nuevo documento en revisión',
+			'pending>en_gestion' => 'Devuelto por la jefatura de servicio',
 			'pending>publish' => 'Documento aprobado',
 		);
 
@@ -240,25 +231,29 @@ class Documentate_Notifications {
 		$subject = $this->build_subject( $subjects[ $transition ], $post );
 		$body = $this->build_body( $post, $old_status, $new_status, $actor_id );
 
-		foreach ( $this->management_recipients( $actor_id ) as $email ) {
+		foreach ( $this->recipients( $post, Documentate_Roles::CAP_MANAGEMENT, array( $actor_id ) ) as $email ) {
 			wp_mail( $email, $subject, $body );
 		}
 	}
 
 	/**
-	 * Email addresses of every gestión documental user except the actor.
+	 * Email addresses, by user ID, of the people who play a role for a document.
 	 *
-	 * Selected by capability, not by role: the site owner may grant
-	 * CAP_MANAGEMENT to any role or user, and only those who also hold
-	 * edit_others_posts can actually open the documents.
+	 * Selected by capability, not by role: the site owner may grant the
+	 * capability to any role or user, and only those who also hold
+	 * edit_others_posts can actually open the documents. Only the people
+	 * whose scope covers the document are written to — a reviewer of another
+	 * service never hears about it — which for administrators means everyone.
 	 *
-	 * @param int $actor_id ID of the user who triggered the change.
-	 * @return string[]
+	 * @param WP_Post $post    Document.
+	 * @param string  $cap     CAP_HEAD or CAP_MANAGEMENT.
+	 * @param int[]   $skipped User IDs left out (the author, the actor).
+	 * @return array<int,string>
 	 */
-	private function management_recipients( $actor_id ) {
+	private function recipients( $post, $cap, array $skipped ) {
 		$users = get_users(
 			array(
-				'capability' => Documentate_Roles::CAP_MANAGEMENT,
+				'capability' => $cap,
 				'fields' => array( 'ID', 'user_email' ),
 			)
 		);
@@ -266,13 +261,16 @@ class Documentate_Notifications {
 		$emails = array();
 		foreach ( $users as $user ) {
 			$user_id = (int) $user->ID;
-			if ( $user_id === $actor_id || empty( $user->user_email ) ) {
+			if ( in_array( $user_id, $skipped, true ) || empty( $user->user_email ) ) {
 				continue;
 			}
-			if ( ! user_can( $user_id, Documentate_Roles::CAP_MANAGEMENT ) || ! user_can( $user_id, 'edit_others_posts' ) ) {
+			if ( ! user_can( $user_id, $cap ) || ! user_can( $user_id, 'edit_others_posts' ) ) {
 				continue;
 			}
-			$emails[] = (string) $user->user_email;
+			if ( ! Documentate_Scope_Filter::user_can_access_document( $post->ID, $user_id ) ) {
+				continue;
+			}
+			$emails[ $user_id ] = (string) $user->user_email;
 		}
 
 		return $emails;
@@ -302,9 +300,9 @@ class Documentate_Notifications {
 		}
 
 		$reasons = array(
-			'pending' => 'Documento enviado a revisión',
+			'pending' => 'Documento enviado a aprobación',
 			'publish' => 'Documento aprobado',
-			'en_gestion' => 'Documento enviado a gestión',
+			'en_gestion' => 'Documento enviado a revisión',
 			'draft' => 'Documento devuelto a borrador',
 			'archived' => 'Documento archivado',
 			'trash' => 'Documento enviado a la papelera',
@@ -427,10 +425,10 @@ class Documentate_Notifications {
 	 */
 	private function get_notification_options() {
 		return array(
-			self::KEY_AUTHOR_REVIEW => 'Cuando uno de mis documentos se envía a revisión.',
+			self::KEY_AUTHOR_REVIEW => 'Cuando uno de mis documentos se envía a aprobación.',
 			self::KEY_AUTHOR_PUBLISH => 'Cuando uno de mis documentos se publica.',
 			self::KEY_AUTHOR_OTHER => 'Otros cambios de estado de mis documentos (devueltos a borrador, archivados, etc.).',
-			self::KEY_ADMIN_REVIEW => 'Cuando un documento de otra persona pasa a revisión (solo administradores).',
+			self::KEY_ADMIN_REVIEW => 'Cuando un documento de otra persona de mi ámbito espera mi aprobación (solo jefatura de servicio).',
 		);
 	}
 
@@ -450,7 +448,7 @@ class Documentate_Notifications {
 			$disabled = array();
 		}
 
-		$is_admin_user = user_can( $user->ID, 'manage_options' );
+		$is_admin_user = Documentate_Roles::is_head( $user->ID );
 		$options = $this->get_notification_options();
 
 		wp_nonce_field( 'documentate_save_notifications_' . $user->ID, 'documentate_notifications_nonce' );

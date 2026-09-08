@@ -4,8 +4,10 @@
  *
  * Filters the documentate_document admin list so that non-admin users only see
  * documents assigned to their scope category (stored as user meta
- * `documentate_scope_term_id`) including all descendant terms. Admins see all
- * documents.
+ * `documentate_scope_term_id`) including all descendant terms. The scope is a
+ * tree: an área is given its own category, and the people who review and
+ * approve for several áreas are given a category higher up, whose descendants
+ * cover them all. Administrators see all documents.
  *
  * The same visibility rules are reused to recalculate the admin list "views"
  * counters (All, Mine, Published, Drafts, Pending, ...) so the counters always
@@ -57,57 +59,6 @@ class Documentate_Scope_Filter {
 	const ALL_LIST_STATUSES = array( 'publish', 'future', 'draft', 'pending', 'private', 'en_gestion' );
 
 	/**
-	 * Statuses of documents that entered the pipeline: gestión documental
-	 * reaches them whatever área they belong to.
-	 *
-	 * @var string[]
-	 */
-	const MANAGEMENT_STATUSES = array( 'en_gestion', 'pending', 'publish', 'archived' );
-
-	/**
-	 * Statuses outside the pipeline: gestión documental only reaches them
-	 * inside its own scope.
-	 *
-	 * @var string[]
-	 */
-	const OUTSIDE_PIPELINE_STATUSES = array( 'draft', 'auto-draft', 'trash' );
-
-	/**
-	 * Scope term IDs of the gestión user whose list query is being filtered.
-	 *
-	 * @var int[]|null
-	 */
-	private $management_term_ids = null;
-
-	/**
-	 * The list query management_posts_where() is bound to.
-	 *
-	 * @var WP_Query|null
-	 */
-	private $management_query = null;
-
-	/**
-	 * The same query, kept for the guard that runs after it.
-	 *
-	 * @var WP_Query|null
-	 */
-	private $management_guard_query = null;
-
-	/**
-	 * Scope terms of that query, kept for the guard that runs after it.
-	 *
-	 * @var int[]
-	 */
-	private $management_guard_terms = array();
-
-	/**
-	 * Whether the WHERE clause of that query actually ran.
-	 *
-	 * @var bool
-	 */
-	private $management_clause_ran = false;
-
-	/**
 	 * Register hooks.
 	 */
 	public function __construct() {
@@ -132,7 +83,7 @@ class Documentate_Scope_Filter {
 	 *                    restricted but has no scope assigned (sees nothing); or
 	 *                    null when the user is unrestricted (administrator).
 	 */
-	public function get_scope_term_ids( $user_id = null ) {
+	public static function get_scope_term_ids( $user_id = null ) {
 		$user_id = null === $user_id ? get_current_user_id() : absint( $user_id );
 
 		// Administrators (anyone who can manage options) are unrestricted.
@@ -159,19 +110,18 @@ class Documentate_Scope_Filter {
 	/**
 	 * Whether a user may access a document under the scope rules.
 	 *
-	 * Administrators always pass. Gestión documental passes for every
-	 * document that entered the pipeline (anything but a draft, an auto-draft
-	 * or a trashed document). Scoped users must share at least one category
-	 * term (including descendants of their assigned scope) with the document.
-	 * Documents with no category are out of every non-admin scope.
+	 * Administrators always pass. Everybody else must share at least one
+	 * category term (including descendants of their assigned scope) with the
+	 * document, whatever its status and whatever their role: revisión and
+	 * jefatura de servicio reach the documents of several áreas because their
+	 * scope is a category above them, not because of a bypass. Documents with
+	 * no category are out of every non-admin scope.
 	 *
-	 * @param int      $post_id        Document post ID.
-	 * @param int|null $user_id        Optional user ID. Defaults to the current user.
-	 * @param bool     $has_management Whether the gestión bypass applies (edit/read);
-	 *                               deletion keeps the pure scope rule.
+	 * @param int      $post_id Document post ID.
+	 * @param int|null $user_id Optional user ID. Defaults to the current user.
 	 * @return bool
 	 */
-	public function user_can_access_document( $post_id, $user_id = null, $has_management = true ) {
+	public static function user_can_access_document( $post_id, $user_id = null ) {
 		$post_id = absint( $post_id );
 		if ( $post_id <= 0 ) {
 			return false;
@@ -189,11 +139,7 @@ class Documentate_Scope_Filter {
 			return true;
 		}
 
-		if ( $has_management && ! in_array( $post->post_status, self::OUTSIDE_PIPELINE_STATUSES, true ) && Documentate_Roles::is_management( $user_id ) ) {
-			return true;
-		}
-
-		return $this->document_in_user_scope( $post_id, $user_id );
+		return self::document_in_user_scope( $post_id, $user_id );
 	}
 
 	/**
@@ -203,8 +149,8 @@ class Documentate_Scope_Filter {
 	 * @param int|null $user_id Optional user ID. Defaults to the current user.
 	 * @return bool
 	 */
-	private function document_in_user_scope( $post_id, $user_id ) {
-		$term_ids = $this->get_scope_term_ids( $user_id );
+	private static function document_in_user_scope( $post_id, $user_id ) {
+		$term_ids = self::get_scope_term_ids( $user_id );
 		if ( null === $term_ids ) {
 			return true;
 		}
@@ -227,7 +173,7 @@ class Documentate_Scope_Filter {
 	 * List filtering alone is not enough: editors with `edit_others_posts` could
 	 * otherwise open or export any document by guessing its post ID. Deletion
 	 * is also denied while the workflow locks the document for the user
-	 * (área on en_gestion, gestión on pending, anyone but administración on
+	 * (área on en_gestion, revisión on pending, anyone but administración on
 	 * publish/archived): the row action and post.php?action=trash both key
 	 * off delete_post.
 	 *
@@ -255,7 +201,7 @@ class Documentate_Scope_Filter {
 		$locked = 'delete_post' === $cap
 			&& ! Documentate_Workflow::user_can_modify_status( (string) $post->post_status, (int) $user_id );
 
-		if ( $locked || ! $this->user_can_access_document( $post_id, $user_id, 'delete_post' !== $cap ) ) {
+		if ( $locked || ! self::user_can_access_document( $post_id, $user_id ) ) {
 			$caps[] = 'do_not_allow';
 		}
 
@@ -320,12 +266,6 @@ class Documentate_Scope_Filter {
 			return;
 		}
 
-		// Gestión documental: own scope OR every document in the pipeline.
-		if ( Documentate_Roles::is_management() ) {
-			$this->bind_management_query( $query, (array) $term_ids );
-			return;
-		}
-
 		// Restricted user without a scope assigned: show nothing.
 		if ( empty( $term_ids ) ) {
 			$query->set( 'post__in', array( 0 ) );
@@ -355,146 +295,6 @@ class Documentate_Scope_Filter {
 		}
 
 		$query->set( 'tax_query', $tax_query );
-	}
-
-	/**
-	 * Restrict one list query to a gestión user's scope plus the pipeline.
-	 *
-	 * The restriction is a WHERE clause because it is an OR between a status
-	 * and a taxonomy match, which no query var can express; the guard bound
-	 * next to it drops the rows the clause should have left out when it never
-	 * runs (another plugin answering posts_pre_query, or replacing the query
-	 * object on a later pre_get_posts).
-	 *
-	 * @param WP_Query $query    Query being built.
-	 * @param int[]    $term_ids Scope terms of the gestión user.
-	 * @return void
-	 */
-	private function bind_management_query( $query, array $term_ids ) {
-		$this->management_term_ids = $term_ids;
-		$this->management_query = $query;
-		$this->management_guard_query = $query;
-		$this->management_guard_terms = $term_ids;
-		$this->management_clause_ran = false;
-
-		add_filter( 'posts_where', array( $this, 'management_posts_where' ), 10, 2 );
-		add_filter( 'the_posts', array( $this, 'management_the_posts' ), 10, 2 );
-	}
-
-	/**
-	 * WHERE clause for a gestión user's list: scope term match OR pipeline status.
-	 *
-	 * Bound to the query instance filter_documents_by_scope() saw: any other
-	 * query built in between passes untouched, and the clause is removed once
-	 * its query runs so it never leaks into the rest of the request.
-	 *
-	 * @param string   $where SQL WHERE clause.
-	 * @param WP_Query $query Query being built.
-	 * @return string
-	 */
-	public function management_posts_where( $where, $query ) {
-		if ( $query !== $this->management_query ) {
-			return $where;
-		}
-
-		remove_filter( 'posts_where', array( $this, 'management_posts_where' ), 10 );
-		$this->management_clause_ran = true;
-
-		global $wpdb;
-
-		$term_ids = is_array( $this->management_term_ids ) ? $this->management_term_ids : array();
-		$this->management_term_ids = null;
-		$this->management_query = null;
-
-		$statuses = implode( ', ', array_fill( 0, count( self::MANAGEMENT_STATUSES ), '%s' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only table names and %s placeholders are interpolated; values are bound via wpdb::prepare() below.
-		$sql = " AND ( {$wpdb->posts}.post_status IN ($statuses)";
-		$params = self::MANAGEMENT_STATUSES;
-
-		if ( ! empty( $term_ids ) ) {
-			$terms = implode( ', ', array_fill( 0, count( $term_ids ), '%d' ) );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only table names and %d placeholders are interpolated; values are bound via wpdb::prepare() below.
-			$sql .= " OR {$wpdb->posts}.ID IN (
-				SELECT tr.object_id FROM {$wpdb->term_relationships} tr
-				INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
-				WHERE tt.taxonomy = %s AND tt.term_id IN ($terms)
-			)";
-			$params = array_merge( $params, array( self::SCOPE_TAXONOMY ), $term_ids );
-		}
-
-		$sql .= ' )';
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above with bound values.
-		return $where . $wpdb->prepare( $sql, $params );
-	}
-
-	/**
-	 * Last line of defence for a gestión list whose WHERE clause never ran.
-	 *
-	 * The management_posts_where() clause is the only thing keeping the drafts of
-	 * other áreas out of a gestión user's list, and a filter can always be skipped:
-	 * another plugin answering posts_pre_query, or replacing the query object
-	 * on a later pre_get_posts. When that happens the rows are filtered here
-	 * instead of being handed over, so the restriction fails closed.
-	 *
-	 * @param WP_Post[] $posts Posts the query found.
-	 * @param WP_Query  $query Query that found them.
-	 * @return WP_Post[]
-	 */
-	public function management_the_posts( $posts, $query ) {
-		if ( $query !== $this->management_guard_query ) {
-			return $posts;
-		}
-
-		remove_filter( 'the_posts', array( $this, 'management_the_posts' ), 10 );
-
-		$clause_ran = $this->management_clause_ran;
-		$term_ids = $this->management_guard_terms;
-
-		$this->management_guard_query = null;
-		$this->management_guard_terms = array();
-		$this->management_clause_ran = false;
-		$this->management_term_ids = null;
-		$this->management_query = null;
-		remove_filter( 'posts_where', array( $this, 'management_posts_where' ), 10 );
-
-		if ( $clause_ran || ! is_array( $posts ) ) {
-			return $posts;
-		}
-
-		return array_values(
-			array_filter(
-				$posts,
-				function ( $post ) use ( $term_ids ) {
-					return $this->management_can_list( $post, $term_ids );
-				}
-			)
-		);
-	}
-
-	/**
-	 * Whether one row belongs in a gestión user's list.
-	 *
-	 * @param mixed $post     Row the query returned.
-	 * @param int[] $term_ids Scope terms of the gestión user.
-	 * @return bool
-	 */
-	private function management_can_list( $post, array $term_ids ) {
-		if ( ! $post instanceof WP_Post ) {
-			return true;
-		}
-
-		if ( in_array( $post->post_status, self::MANAGEMENT_STATUSES, true ) ) {
-			return true;
-		}
-
-		if ( empty( $term_ids ) ) {
-			return false;
-		}
-
-		$post_terms = wp_get_post_terms( $post->ID, self::SCOPE_TAXONOMY, array( 'fields' => 'ids' ) );
-
-		return ! is_wp_error( $post_terms ) && (bool) array_intersect( array_map( 'absint', $post_terms ), $term_ids );
 	}
 
 	/**
@@ -608,8 +408,7 @@ class Documentate_Scope_Filter {
 	 *
 	 * Runs a single grouped query that mirrors the scope restriction applied by
 	 * count_visible_documents(): documents in any of the user's scope terms,
-	 * de-duplicated across terms. Replaces the previous one-WP_Query-per-view
-	 * pattern (up to nine queries) with a single database round-trip.
+	 * de-duplicated across terms, in one database round-trip.
 	 *
 	 * @return array{any: array<string, int>, mine: array<string, int>} Counts
 	 *               keyed by post status: 'any' across all authors and 'mine'
@@ -624,16 +423,14 @@ class Documentate_Scope_Filter {
 		);
 
 		$term_ids = $this->get_scope_term_ids();
-		$is_management = null !== $term_ids && Documentate_Roles::is_management();
 
-		// Unrestricted (null) or restricted-without-scope (empty): count nothing,
-		// unless gestión documental, who still counts the pipeline.
-		if ( empty( $term_ids ) && ! $is_management ) {
+		// Unrestricted (null) or restricted-without-scope (empty): count nothing.
+		if ( empty( $term_ids ) ) {
 			return $empty;
 		}
 
 		$current_user = get_current_user_id();
-		list( $sql, $params ) = $this->scoped_status_counts_query( (array) $term_ids, $is_management );
+		list( $sql, $params ) = $this->scoped_status_counts_query( $term_ids );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Aggregated admin counters via a prepared statement, executed once per list render.
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
@@ -662,38 +459,24 @@ class Documentate_Scope_Filter {
 	/**
 	 * SQL and bound values of the grouped status count for a scope.
 	 *
-	 * Scoped users count the documents in their terms; gestión documental
-	 * also counts every document in the pipeline (LEFT JOIN + OR).
-	 *
-	 * @param int[] $term_ids      Scope term IDs (may be empty for gestión).
-	 * @param bool  $is_management Whether the current user is gestión documental.
+	 * @param int[] $term_ids Scope term IDs.
 	 * @return array{0:string,1:array} SQL with placeholders and its values.
 	 */
-	private function scoped_status_counts_query( array $term_ids, $is_management ) {
+	private function scoped_status_counts_query( array $term_ids ) {
 		global $wpdb;
 
-		$terms = implode( ', ', array_fill( 0, max( 1, count( $term_ids ) ), '%d' ) );
-		$statuses = implode( ', ', array_fill( 0, count( self::MANAGEMENT_STATUSES ), '%s' ) );
-		$term_values = empty( $term_ids ) ? array( 0 ) : $term_ids;
+		$terms = implode( ', ', array_fill( 0, count( $term_ids ), '%d' ) );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only table names and placeholders are interpolated; values are bound via wpdb::prepare() by the caller.
 		$sql = "SELECT p.post_status AS status, p.post_author AS author, COUNT(DISTINCT p.ID) AS num
 			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
-			LEFT JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+			INNER JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
+			INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
 				AND tt.taxonomy = %s AND tt.term_id IN ($terms)
 			WHERE p.post_type = %s
-			AND ( tt.term_taxonomy_id IS NOT NULL";
-		if ( $is_management ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only %s placeholders are interpolated; values are bound via wpdb::prepare() by the caller.
-			$sql .= " OR p.post_status IN ($statuses)";
-		}
-		$sql .= ' ) GROUP BY p.post_status, p.post_author';
+			GROUP BY p.post_status, p.post_author";
 
-		$params = array_merge( array( self::SCOPE_TAXONOMY ), $term_values, array( self::POST_TYPE ) );
-		if ( $is_management ) {
-			$params = array_merge( $params, self::MANAGEMENT_STATUSES );
-		}
+		$params = array_merge( array( self::SCOPE_TAXONOMY ), $term_ids, array( self::POST_TYPE ) );
 
 		return array( $sql, $params );
 	}

@@ -150,7 +150,7 @@ class DocumentateDemoResetTest extends WP_UnitTestCase {
 
 		Documentate_Demo_Reset::run();
 
-		foreach ( array( 'editor1', 'author1', 'subscriber1' ) as $login ) {
+		foreach ( array( 'editor1', 'jefatura1', 'author1', 'subscriber1' ) as $login ) {
 			$this->assertInstanceOf( WP_User::class, get_user_by( 'login', $login ), $login . ' is demo content.' );
 		}
 	}
