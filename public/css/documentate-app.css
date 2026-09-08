@@ -166,23 +166,11 @@ body.documentate-app .wp-block-post-content {
 }
 
 .dcta-escudo {
-	width: 30px;
-	height: 38px;
-	border-radius: 3px 3px 12px 12px;
-	background: var(--dcta-pri);
-	position: relative;
+	display: block;
+	width: 104px;
+	height: 60px;
+	object-fit: contain;
 	flex: 0 0 auto;
-}
-
-.dcta-escudo::after {
-	content: '';
-	position: absolute;
-	left: 5px;
-	right: 5px;
-	top: 6px;
-	height: 9px;
-	border-radius: 2px;
-	background: rgba(255, 255, 255, .72);
 }
 
 .dcta-marca small {
@@ -1671,6 +1659,11 @@ body.documentate-app .documentate-loading-modal__content {
 
 	.dcta-editor-lado {
 		position: static;
+	}
+
+	.dcta-escudo {
+		width: 78px;
+		height: 45px;
 	}
 
 	.dcta-marca small {

@@ -1,0 +1,125 @@
+---
+name: Capturas
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: capturas-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      ready: ${{ steps.report.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd
+          tools: composer:v2
+          coverage: none
+      - name: Install dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          npm ci
+      - name: Check gallery generation
+        run: node --test tests/scripts/screenshot-gallery.test.cjs
+      - name: Start WordPress
+        run: npx wp-env start --config=.wp-env.docker.json
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture both document workflows
+        run: make capturas
+      - name: Check for the scene index
+        id: report
+        if: ${{ !cancelled() && hashFiles('capturas/indice.json') != '' }}
+        run: echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - name: Keep the report, including failed scenes
+        if: ${{ !cancelled() && hashFiles('capturas/indice.json') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: capturas
+          path: capturas/
+          retention-days: 30
+
+  # Forks can run the script and download the artifact, but cannot publish.
+  publish:
+    needs: capture
+    if: >-
+      !cancelled() && needs.capture.outputs.ready == 'true' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: capturas
+          path: capturas
+      - name: Publish screenshots
+        id: images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          BRANCH="feature/pr-${PR_NUMBER}-screenshots"
+          DEST="${RUNNER_TEMP}/screenshots"
+          git init -q -b "${BRANCH}" "${DEST}"
+          git -C "${DEST}" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          gh auth setup-git
+          PREVIOUS=$(git -C "${DEST}" ls-remote origin "refs/heads/${BRANCH}" | cut -f1)
+          cp -R capturas/. "${DEST}/"
+          git -C "${DEST}" add .
+          git -C "${DEST}" -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "Screenshots for PR #${PR_NUMBER} at ${HEAD_SHA}"
+          # This dedicated output branch keeps only the current gallery.
+          git -C "${DEST}" push --force-with-lease="refs/heads/${BRANCH}:${PREVIOUS}" \
+            origin "HEAD:refs/heads/${BRANCH}"
+          echo "sha=$(git -C "${DEST}" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Update the PR gallery
+        uses: actions/github-script@v9
+        env:
+          SCREENSHOTS_SHA: ${{ steps.images.outputs.sha }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { gallery, MARKER } = require('./scripts/screenshot-gallery.cjs');
+            const pr = context.payload.pull_request;
+            const shots = JSON.parse(fs.readFileSync('capturas/indice.json', 'utf8'));
+            const base = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/${process.env.SCREENSHOTS_SHA}/`;
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = gallery(shots, { base, sha: pr.head.sha, run });
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number: pr.number, per_page: 100,
+            });
+            const previous = comments.find(c => c.user.login === 'github-actions[bot]' && c.body.includes(MARKER));
+            if (previous) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: previous.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: pr.number, body });
+            }
