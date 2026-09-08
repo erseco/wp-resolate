@@ -126,17 +126,69 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * Área filter asked for by the request (administración only).
+	 * Área filter asked for by the request.
+	 *
+	 * Whoever looks after several áreas has one: revisión, jefatura de
+	 * servicio and administración. A term outside the user's own scope is
+	 * ignored, so the filter only ever narrows a tray — it can never reach
+	 * past the ámbito the tray already stands for.
 	 *
 	 * @return int Category term ID, 0 when there is no filter.
 	 */
 	public static function current_area() {
-		if ( ! Documentate_Roles::is_administration() ) {
+		if ( ! Documentate_Roles::is_management() ) {
 			return 0;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter.
-		return isset( $_GET['area'] ) ? absint( $_GET['area'] ) : 0;
+		$area = isset( $_GET['area'] ) ? absint( $_GET['area'] ) : 0;
+
+		return self::area_in_scope( $area ) ? $area : 0;
+	}
+
+	/**
+	 * Whether a category is one the current user may narrow their trays to.
+	 *
+	 * @param int $area Category term ID.
+	 * @return bool
+	 */
+	private static function area_in_scope( $area ) {
+		if ( $area <= 0 ) {
+			return false;
+		}
+
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
+
+		return null === $term_ids || in_array( (int) $area, $term_ids, true );
+	}
+
+	/**
+	 * The áreas the current user may narrow their trays to.
+	 *
+	 * The categories of their ámbito, or every one of them for
+	 * administración. A single category is nothing to narrow: an área has
+	 * only its own, and the select would be a control that changes nothing.
+	 *
+	 * @return WP_Term[]
+	 */
+	public static function areas() {
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
+		if ( is_array( $term_ids ) && count( $term_ids ) < 2 ) {
+			return array();
+		}
+
+		$args = array(
+			'taxonomy' => 'category',
+			'hide_empty' => false,
+			'orderby' => 'name',
+		);
+		if ( is_array( $term_ids ) ) {
+			$args['include'] = $term_ids;
+		}
+
+		$terms = get_terms( $args );
+
+		return is_wp_error( $terms ) ? array() : $terms;
 	}
 
 	/**
@@ -203,8 +255,8 @@ class Documentate_App_Tray {
 		}
 
 		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
-		if ( $area > 0 ) {
-			$term_ids = array( $area );
+		if ( self::area_in_scope( $area ) ) {
+			$term_ids = array( (int) $area );
 		}
 
 		if ( is_array( $term_ids ) ) {

@@ -17,7 +17,9 @@ Lo que cada persona ve depende de su **ámbito** (la categoría asignada en su
 perfil), no de su rol: todas las personas de un área ven los documentos de su
 área; revisión y jefatura ven todos los de su ámbito porque su categoría está
 más arriba en el árbol (el servicio, del que cuelgan las áreas). Nadie ve nada
-fuera de su rama, salvo administración.
+fuera de su rama, salvo administración. Quien tiene varias áreas a su cargo
+—revisión, jefatura y administración— puede acotar sus bandejas a una de
+ellas con el selector **Área**; el selector solo ofrece las de su ámbito.
 
 Una misma persona puede ser revisión y, a la vez, área para su propio ámbito
 (así es `editor1` en la demo: revisa los documentos de todas las áreas de la

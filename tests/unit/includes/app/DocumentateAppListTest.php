@@ -537,6 +537,51 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Revisión and jefatura narrow their trays by área, inside their ámbito.
+	 */
+	public function test_the_reviewing_roles_filter_by_area() {
+		foreach ( array( $this->management_id, $this->head_id ) as $user_id ) {
+			$html = $this->render( $user_id, array( 'area' => (string) $this->cat_b, 'estado' => 'todos' ) );
+
+			$this->assertStringContainsString( 'RES · Bases piloto', $html, 'Área B is in their ámbito.' );
+			$this->assertStringNotContainsString( 'RES · Jornadas digitales', $html, 'Área A is filtered out.' );
+			$this->assertStringContainsString( 'id="dcta-area"', $html );
+		}
+
+		// The área has a single category: there is nothing to narrow.
+		$this->assertStringNotContainsString( 'id="dcta-area"', $this->render( $this->area_id ) );
+	}
+
+	/**
+	 * A category outside the ámbito is ignored, not obeyed.
+	 */
+	public function test_the_area_filter_never_reaches_past_the_scope() {
+		$outside = wp_insert_term( 'Otro servicio ' . uniqid(), 'category' );
+		$outside_id = (int) $outside['term_id'];
+		$foreign = $this->create_document( 'De otro servicio', 'Otro servicio doc', $outside_id, 'en_gestion' );
+
+		$_GET = array( 'area' => (string) $outside_id );
+		wp_set_current_user( $this->management_id );
+		$this->assertSame( 0, Documentate_App_Tray::current_area(), 'A term outside the ámbito is no filter at all.' );
+
+		$args = Documentate_App_List::query_args( 'todos', '', $outside_id );
+		$this->assertSame(
+			array( $this->cat_service, $this->cat_a, $this->cat_b ),
+			$args['tax_query'][0]['terms'],
+			'The scope stands.'
+		);
+
+		$html = $this->render( $this->management_id, array( 'area' => (string) $outside_id, 'estado' => 'todos' ) );
+		$this->assertStringNotContainsString( 'Otro servicio doc', $html );
+		$this->assertStringContainsString( 'RES · Jornadas digitales', $html );
+		wp_delete_post( $foreign, true );
+
+		// Administración is unrestricted: every category filters.
+		wp_set_current_user( $this->admin_id );
+		$this->assertSame( $outside_id, Documentate_App_Tray::current_area() );
+	}
+
+	/**
 	 * Administración narrows the trays by área.
 	 */
 	public function test_administration_filters_by_area() {

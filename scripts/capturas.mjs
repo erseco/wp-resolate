@@ -103,7 +103,7 @@ const SCENES = [
 	{
 		chapter: 'Entrada',
 		title: 'La misma puerta, para administración',
-		text: 'Administración aterriza en todos los documentos de todas las áreas; como los ve todos, tiene un selector de área —aquí acotado al Departamento de Proyectos— y un acceso directo a los tipos y plantillas de wp-admin. El aviso de la pestaña «Para aprobar» cuenta todo lo que espera aprobación; los contadores de debajo obedecen al filtro.',
+		text: 'Administración aterriza en todos los documentos de todas las áreas del sitio, con el mismo selector de área que revisión y jefatura —aquí acotado al Departamento de Proyectos—. El aviso de la pestaña «Para aprobar» cuenta todo lo que espera aprobación; los contadores de debajo obedecen al filtro.',
 		as: 'admin',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/documentate/' ) ) ) return false;
@@ -312,10 +312,14 @@ const SCENES = [
 	{
 		chapter: 'De revisión a la jefatura de servicio',
 		title: 'La bandeja de aprobación',
-		text: 'La jefatura de servicio tiene su propia bandeja, «Para aprobar», con lo que espera su firma —de cualquier área de su ámbito— y los mismos chips de estado.',
+		text: 'La jefatura de servicio tiene su propia bandeja, «Para aprobar», con lo que espera su firma —de cualquier área de su ámbito—, los mismos chips de estado y un selector para acotar a un área cuando hay muchas: aquí, el Departamento de Proyectos.',
 		as: 'jefatura',
 		run: async ( p ) => {
-			return await goTo( p, '/documentate/?bandeja=revision' );
+			if ( ! ( await goTo( p, '/documentate/?bandeja=revision&estado=todos' ) ) ) return false;
+			const select = p.locator( '#dcta-area' );
+			if ( ! ( await select.count() ) ) return false;
+			await select.selectOption( { label: 'Departamento de Proyectos' } );
+			return await click( p, p.locator( '.dcta-areas button[type="submit"]' ) );
 		},
 	},
 	{

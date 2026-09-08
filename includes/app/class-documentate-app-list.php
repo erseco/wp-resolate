@@ -292,7 +292,11 @@ class Documentate_App_List {
 	}
 
 	/**
-	 * The área select administración narrows the trays with.
+	 * The área select whoever looks after several áreas narrows the trays with.
+	 *
+	 * Revisión and jefatura de servicio get the categories of their ámbito,
+	 * administración every one of them; an área, with a single category, gets
+	 * no select at all.
 	 *
 	 * @param string $tray   Tray key.
 	 * @param string $status Active status filter.
@@ -300,17 +304,12 @@ class Documentate_App_List {
 	 * @return string
 	 */
 	private static function render_area_select( $tray, $status, $area ) {
-		if ( ! Documentate_Roles::is_administration() ) {
+		if ( ! Documentate_Roles::is_management() ) {
 			return '';
 		}
 
-		$areas = get_terms(
-			array(
-				'taxonomy' => 'category',
-				'hide_empty' => false,
-			)
-		);
-		if ( is_wp_error( $areas ) || empty( $areas ) ) {
+		$areas = Documentate_App_Tray::areas();
+		if ( empty( $areas ) ) {
 			return '';
 		}
 

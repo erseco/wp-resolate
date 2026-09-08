@@ -266,6 +266,12 @@ foreach ( (array) $plan['users'] as $key => $u ) {
 	$id = is_wp_error( $id ) ? 0 : (int) $id;
 	$out['users'][ $key ] = $id;
 	if ( $id && isset( $u['scope'] ) ) {
+		// A plan naming a category the categories block never created would
+		// silently leave the account with no ámbito at all, and every
+		// assertion about what it sees would then be about nothing.
+		if ( ! isset( $out['categories'][ $u['scope'] ] ) ) {
+			throw new Exception( 'Unknown scope category: ' . $u['scope'] );
+		}
 		update_user_meta( $id, 'documentate_scope_term_id', (int) $out['categories'][ $u['scope'] ] );
 	}
 	if ( $id && ! empty( $u['management'] ) && class_exists( 'Documentate_Roles' ) ) {

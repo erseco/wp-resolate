@@ -143,16 +143,16 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 				management: `Servicio ${ RUN }`,
 				area: { name: `Área ${ RUN }`, parent: 'management' },
 			},
-			// The seeded Resolución declares gestión fields in its schema, so
-			// it is a "goes through revisión" type by itself: the
-			// spec reads that property instead of writing the shared term.
+			// The seeded Resolución declares rol='gestion' fields in its
+			// schema, so it goes through revisión by itself: the spec reads
+			// that property instead of writing the shared term.
 			types: { res: { slug: 'resolucion-administrativa' } },
 			users: {
 				area: { login: AREA_LOGIN, role: 'author', scope: 'area' },
 				management: {
 					login: MANAGEMENT_LOGIN,
 					role: 'editor',
-					scope: 'gestion',
+					scope: 'management',
 					management: true,
 				},
 			},
@@ -293,10 +293,11 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			'En revisión'
 		);
 
-		// The área can no longer touch it: the document is with gestión.
+		// The área can no longer touch it: the document is with revisión, and
+		// the notice says so instead of a bare "está bloqueado".
 		await area.goto( `${ APP_PATH }?doc=${ docId }&vista=editar` );
-		await expect( area.locator( '.dcta-aviso' ) ).toContainText(
-			'bloqueado en su estado actual'
+		await expect( area.locator( '.dcta-aviso-bloqueo' ) ).toContainText(
+			'Lo tiene revisión'
 		);
 	} );
 

@@ -181,4 +181,120 @@ class DocumentateAppLockTest extends WP_UnitTestCase {
 		$this->expectException( WPDieException::class );
 		Documentate_App_Actions::handle_takeover();
 	}
+
+	/**
+	 * Taking over is exactly "may this person edit the document right now".
+	 *
+	 * Whoever holds a document in its status can take it from whoever has it
+	 * open — an área over a draft of its own ámbito, revisión over one in
+	 * revisión, any of the heads of service over one in aprobación — and
+	 * whoever the status has already left behind cannot.
+	 *
+	 * @dataProvider takeover_matrix
+	 *
+	 * @param string $status  Document status.
+	 * @param string $role    area, gestion, jefatura or admin.
+	 * @param bool   $allowed Whether the takeover must go through.
+	 */
+	public function test_takeover_follows_the_edit_rule_of_the_status( $status, $role, $allowed ) {
+		$scope = wp_insert_term( 'Servicio ' . uniqid(), 'category' );
+		$service = (int) $scope['term_id'];
+		$area_term = wp_insert_term( 'Área ' . uniqid(), 'category', array( 'parent' => $service ) );
+		$area_id = (int) $area_term['term_id'];
+
+		$users = array(
+			'area' => self::factory()->user->create( array( 'role' => 'author' ) ),
+			'gestion' => self::factory()->user->create( array( 'role' => 'editor' ) ),
+			'jefatura' => self::factory()->user->create( array( 'role' => 'editor' ) ),
+			'admin' => self::factory()->user->create( array( 'role' => 'administrator' ) ),
+		);
+		Documentate_Roles::grant_management( $users['gestion'] );
+		Documentate_Roles::grant_head( $users['jefatura'] );
+		update_user_meta( $users['area'], 'documentate_scope_term_id', $area_id );
+		update_user_meta( $users['gestion'], 'documentate_scope_term_id', $service );
+		update_user_meta( $users['jefatura'], 'documentate_scope_term_id', $service );
+
+		// A document with no type never leaves draft, so the type comes first;
+		// the área account authors it, which is what its role lets it edit.
+		$type = wp_insert_term( 'Tipo bloqueo ' . uniqid(), 'documentate_doc_type' );
+		$type_id = (int) $type['term_id'];
+
+		wp_set_current_user( $this->first );
+		$doc = self::factory()->post->create(
+			array(
+				'post_type' => 'documentate_document',
+				'post_status' => $status,
+				'post_title' => 'Original',
+				'post_author' => $users['area'],
+				'tax_input' => array( 'documentate_doc_type' => array( $type_id ) ),
+			)
+		);
+		update_post_meta( $doc, 'documentate_locked_doc_type', $type_id );
+		wp_set_object_terms( $doc, array( $area_id ), 'category' );
+		$this->assertSame( $status, get_post_status( $doc ), 'The fixture really stands in that status.' );
+		wp_set_post_lock( $doc );
+
+		wp_set_current_user( $users[ $role ] );
+		$_POST = array(
+			'documentate_app_accion' => 'tomar_control',
+			'documentate_app_doc' => $doc,
+			'documentate_app_nonce' => wp_create_nonce( 'documentate_app_tomar_control_' . $doc ),
+		);
+
+		$interceptor = static function ( $url ) {
+			throw new Documentate_Exit_Exception( $url );
+		};
+		add_filter( 'wp_redirect', $interceptor );
+		try {
+			Documentate_App_Actions::handle_takeover();
+			$this->fail( 'The handler always ends in a redirect or a wp_die().' );
+		} catch ( Documentate_Exit_Exception $error ) {
+			$this->assertTrue( $allowed, 'The takeover went through.' );
+			$this->assertSame( $users[ $role ], $this->lock_owner( $doc ) );
+		} catch ( WPDieException $error ) {
+			$this->assertFalse( $allowed, 'The takeover was refused.' );
+			$this->assertSame( $this->first, $this->lock_owner( $doc ) );
+		} finally {
+			remove_filter( 'wp_redirect', $interceptor );
+		}
+	}
+
+	/**
+	 * Who holds the lock, read from the meta.
+	 *
+	 * wp_check_post_lock() answers "somebody else", so it says false to
+	 * whoever just took the document over, which is exactly the case to
+	 * assert here.
+	 *
+	 * @param int $post_id Document ID.
+	 * @return int User ID, 0 when the document carries no lock.
+	 */
+	private function lock_owner( $post_id ) {
+		$parts = explode( ':', (string) get_post_meta( $post_id, '_edit_lock', true ) );
+
+		return isset( $parts[1] ) ? (int) $parts[1] : 0;
+	}
+
+	/**
+	 * Who may take a document over in each status.
+	 *
+	 * @return array<string,array{0:string,1:string,2:bool}>
+	 */
+	public static function takeover_matrix() {
+		$rules = array(
+			'draft' => array( 'area' => true, 'gestion' => true, 'jefatura' => true, 'admin' => true ),
+			'en_gestion' => array( 'area' => false, 'gestion' => true, 'jefatura' => true, 'admin' => true ),
+			'pending' => array( 'area' => false, 'gestion' => false, 'jefatura' => true, 'admin' => true ),
+			'publish' => array( 'area' => false, 'gestion' => false, 'jefatura' => false, 'admin' => true ),
+		);
+
+		$cases = array();
+		foreach ( $rules as $status => $roles ) {
+			foreach ( $roles as $role => $allowed ) {
+				$cases[ $status . ' · ' . $role ] = array( $status, $role, $allowed );
+			}
+		}
+
+		return $cases;
+	}
 }

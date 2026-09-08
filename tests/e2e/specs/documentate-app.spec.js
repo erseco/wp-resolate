@@ -239,7 +239,7 @@ test.describe( 'Documentate app', () => {
 			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /fuera de tu ámbito/ );
 
 			await page.goto( `${ APP_PATH }?doc=${ docs.pending }&vista=editar` );
-			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /bloqueado/ );
+			await expect( page.locator( '.dcta-aviso' ) ).toHaveText( /Lo tiene la jefatura de servicio/ );
 
 			await page.goto( `${ APP_PATH }?doc=${ docs.inScope }&vista=editar` );
 			const renamed = `${ TITLES.inScope } editado`;

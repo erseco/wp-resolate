@@ -133,7 +133,9 @@ Edit rights follow the status (`Documentate_Workflow::user_can_modify_status()`)
 área edits drafts only; revisión drafts + `en_gestion`; jefatura drafts +
 `en_gestion` + `pending`; administración everything. A document in someone
 else's hands shows a lock notice ("Lo tiene revisión / la jefatura de
-servicio") and a greyed-out Editar in the app.
+servicio") and a greyed-out Editar in the app. Taking over an edit lock asks
+exactly the same question, so whoever holds the document in its status may
+take it from whoever has it open, and nobody else.
 
 ### Statuses
 
@@ -268,7 +270,10 @@ Tabs differ per role: área gets "Mis documentos" / "Nuevo documento"; revisión
 "Nuevo documento"; jefatura "Documentos" / "Para aprobar" (`pending`) / "Nuevo
 documento"; administración "Todos los documentos" / "Para aprobar" / "Nuevo
 documento". Every tray is scoped (§2.5); only the actionable tab carries a
-badge, and "Nuevo documento" a plus icon.
+badge, and "Nuevo documento" a plus icon. Whoever looks after several áreas
+— revisión, jefatura and administración — also gets the área select, which
+offers the categories of their ámbito (every one of them for administración)
+and narrows a tray without ever reaching past it.
 
 Preview/export (PDF, ODT, DOCX) reuses the same admin metabox actions:
 `Documentate_Admin_Helper::render_actions_for_post()` /
