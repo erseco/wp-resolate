@@ -351,6 +351,7 @@ const SCENES = [
 	{
 		chapter: 'El documento terminado',
 		title: 'Previsualizar y descargar',
+		viewportOnly: true,
 		text: 'El documento 0 aprobado muestra el PDF dentro de la ficha. Se comprueba que el visor recibe un PDF válido y que la descarga editable corresponde a la plantilla ODT.',
 		as: 'area',
 		run: async ( p ) => {
@@ -438,6 +439,7 @@ const SCENES = [
 	{
 		chapter: 'Segundo documento: resolución administrativa',
 		title: 'Consultar el PDF y descargar la resolución',
+		viewportOnly: true,
 		text: 'El área consulta la resolución aprobada. Se comprueban el PDF y la descarga ODT de esta segunda plantilla.',
 		as: 'area',
 		run: async ( p ) => {
@@ -772,7 +774,10 @@ async function checkExports( p ) {
 	expect( await download.failure() ).toBeNull();
 	expect( download.suggestedFilename() ).toMatch( /\.odt$/ );
 	await expect( p.locator( '#documentate-loading-modal' ) ).toBeHidden();
-	await p.evaluate( () => window.scrollTo( 0, 0 ) );
+	await frame.scrollIntoViewIfNeeded();
+	// ponytail: native PDF painting has no page-DOM ready event; wait one
+	// second after scrolling, replace with a viewer-ready signal if exposed.
+	await p.waitForTimeout( 1000 );
 	return true;
 }
 
