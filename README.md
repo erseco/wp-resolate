@@ -48,8 +48,25 @@ the local wp-env site; both come from the dev-only mu-plugin
 release ZIP.
 
 `make capturas` walks the whole cycle (both desktop and mobile) with a real
-browser and writes an illustrated report to `capturas/informe.html` — useful
-to see every screen and role without clicking through them by hand.
+browser and writes an illustrated report to `capturas/informe.html`, plus
+`capturas/indice.json`. It creates document 0 (the expenditure proposal) and
+an administrative resolution through the UI, follows editing, review and
+approval, returns the proposal for correction, and checks PDF/ODT exports.
+It also shows the proposal's nested providers and calculated totals.
+
+The **Capturas** workflow runs on PR code changes and can be started manually.
+For same-repository PRs it updates one comment with the desktop/mobile gallery,
+the tested commit and any failed scenes. Images live on a dedicated
+`feature/pr-<number>-screenshots` output branch and use public, commit-pinned
+URLs; they are not added to the source branch or release ZIP. The HTML report
+is downloadable as the `capturas` Actions artifact (30-day retention).
+Fork and Dependabot PRs keep the artifact without publishing a comment.
+Manual runs also produce only the artifact.
+
+`make capturas SOLO=escritorio` or `SOLO=movil` runs just one screen size.
+The script reseeds local demo data, so do not run it alongside E2E tests or
+against a production site. A failed scene is captured and reported, and makes
+the command fail instead of presenting an incomplete journey as successful.
 
 ## Features
 

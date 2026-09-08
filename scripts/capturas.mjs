@@ -9,11 +9,10 @@
  * they go, what they do and what is being shown; adding a step to the manual
  * means adding a scene, not touching the engine.
  *
- * The document that walks the cycle is the demo one, «PG · Material aulas
- * digitales»: the área completes and sends it, gestión documental fills in the
- * official data and returns it, the área corrects it, gestión passes it to
- * administración and administración approves it. The demo is seeded again
- * before each screen size, so both passes start from the same state.
+ * Creates a proposal (document 0) and an administrative resolution through
+ * the UI, then follows their edits, review and approval. The proposal also
+ * returns to the área for correction. Demo data is reseeded before each screen
+ * size; the new documents are identified by their creation redirects.
  *
  * Usage:  make capturas                      (everything)
  *         make capturas SOLO=movil           (mobile only)
@@ -22,7 +21,8 @@
  * Never at the same time as the E2E suite: both write to the development site.
  */
 
-import { chromium, devices } from '@playwright/test';
+import { chromium, devices, expect } from '@playwright/test';
+import fixtures from '../tests/e2e/fixtures/index.js';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -42,8 +42,9 @@ const SCREENS = [
 	{ id: 'movil', label: 'Móvil', ...devices[ 'iPhone 13' ], deviceScaleFactor: 2 },
 ];
 
-/** Demo document that walks the whole cycle. */
-const CYCLE = 'Material aulas digitales';
+/** Proposal created through the UI for the full cycle. */
+const CYCLE = 'Documento 0 · Material aulas digitales';
+const RESOLUTION = 'Ayudas al transporte escolar';
 
 /** Demo document with providers and computed totals ("document 0"). */
 const PROVIDERS = 'Renovación licencias aulas virtuales';
@@ -123,16 +124,16 @@ const SCENES = [
 	},
 	{
 		chapter: 'El área prepara el documento',
-		title: 'Nuevo documento',
+		title: 'Documento 0: crear una propuesta de gasto',
 		text: 'Crear un documento son tres decisiones: el tipo (que ya no se cambia), un nombre corto para las listas y el título oficial que saldrá en el papel. Al elegir el tipo, la ayuda dice si pasa por gestión documental y aparece el prefijo delante del nombre.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/documentate/?vista=nuevo' ) ) ) return false;
-			await p.selectOption( '#documentate-app-tipo', { label: 'Resolución Administrativa' } );
-			await p.fill( '#documentate-app-nombre', 'Ayudas al transporte escolar' );
+			await p.selectOption( '#documentate-app-tipo', { label: 'Propuesta de gasto' } );
+			await p.fill( '#documentate-app-nombre', CYCLE );
 			await p.fill(
 				'#documentate-app-titulo',
-				'Resolución por la que se convocan las ayudas al transporte escolar del curso 2026-2027'
+				'Propuesta de gasto para material didáctico de las aulas digitales del curso 2026-2027'
 			);
 			await p.locator( '#documentate-app-tipo-nota' ).waitFor();
 			return true;
@@ -144,7 +145,10 @@ const SCENES = [
 		text: 'El editor del área tiene los datos básicos, los campos de la plantilla y el fichero del documento: se arrastra al recuadro o se elige a mano, y se sube al guardar. Los campos que solo rellena gestión documental no están aquí.',
 		as: 'area',
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
+			if ( ! ( await click( p, p.getByRole( 'button', { name: 'Crear borrador' } ) ) ) ) return false;
+			DOC_CYCLE = Number( new URL( p.url() ).searchParams.get( 'doc' ) );
+			expect( DOC_CYCLE ).toBeGreaterThan( 0 );
+			await fixtures.fillRequiredAppFields( p, 'Material didáctico para las aulas digitales del curso 2026-2027.' );
 			// The decree letter is a single letter: the demo value does not
 			// qualify and the browser would refuse to submit the form.
 			await fillField( p, '#documentate_field_letra_decreto', 'B' );
@@ -220,11 +224,14 @@ const SCENES = [
 	{
 		chapter: 'Gestión documental completa',
 		title: 'Proveedores y totales que se calculan solos',
-		text: 'En la propuesta de gasto cada proveedor lleva sus conceptos: cantidad por precio da el total de la línea, la suma de líneas el bruto, y con el IGIC y el IRPF sale el total del proveedor. El resumen de la propuesta y el importe en cifra se escriben solos.',
+		text: 'En otra propuesta con proveedores anidados, se cambia la cantidad del primer servicio de uno a dos y se comprueba que el total de la línea pasa a 3.600 euros. El resumen de la propuesta se recalcula en pantalla.',
 		as: 'gestion',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, PROVIDERS ) ) ) return false;
 			await focusManagement( p );
+			const quantity = p.locator( '[name="tpl_fields[servicios][0][conceptos][0][cantidad]"]' );
+			await quantity.fill( '2' );
+			await expect( p.locator( '[name="tpl_fields[servicios][0][conceptos][0][total]"]' ) ).toHaveValue( '3600.00' );
 			const summary = p.locator( '.dcta-resumen' );
 			if ( ! ( await summary.count() ) ) return false;
 			await summary.first().waitFor();
@@ -273,7 +280,9 @@ const SCENES = [
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
-			return ( await p.locator( '.dcta-aviso-devuelto' ).count() ) > 0;
+			await expect( p.locator( '.dcta-aviso-devuelto' ) ).toContainText( REASON );
+			await p.fill( '#documentate-app-titulo', 'Propuesta de gasto corregida: material didáctico y licencias para las aulas digitales' );
+			return await save( p );
 		},
 	},
 	{
@@ -342,11 +351,11 @@ const SCENES = [
 	{
 		chapter: 'El documento terminado',
 		title: 'Previsualizar y descargar',
-		text: 'El documento aprobado se genera desde su plantilla: vista previa en PDF y descarga en PDF, ODT o DOCX. Los formatos que necesitan conversor aparecen desactivados y con el motivo en el título cuando el entorno no lo tiene.',
+		text: 'El documento 0 aprobado muestra el PDF dentro de la ficha. Se comprueba que el visor recibe un PDF válido y que la descarga editable corresponde a la plantilla ODT.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goToDetail( p, CYCLE ) ) ) return false;
-			return ( await p.locator( '#exportar' ).count() ) > 0;
+			return await checkExports( p );
 		},
 	},
 	{
@@ -358,9 +367,82 @@ const SCENES = [
 			if ( ! ( await goToDetail( p, CYCLE, 'revisar' ) ) ) return false;
 			await p.fill(
 				'#documentate-app-comentario',
-				'Publicado y comunicado al centro; el original firmado queda en el expediente.'
+				'Documento de demostración aprobado; PDF y descarga editable comprobados.'
 			);
 			return await click( p, p.locator( 'button[form="dcta-app-comentario"]' ) );
+		},
+	},
+
+	{
+		chapter: 'Segundo documento: resolución administrativa',
+		title: 'Crear y guardar una resolución',
+		text: 'El área crea otro documento, esta vez una resolución administrativa, y guarda el objeto de la convocatoria. Se utiliza la plantilla real de resolución.',
+		as: 'area',
+		run: async ( p ) => {
+			await goTo( p, '/documentate/?vista=nuevo' );
+			await p.selectOption( '#documentate-app-tipo', { label: 'Resolución Administrativa' } );
+			await p.fill( '#documentate-app-nombre', RESOLUTION );
+			await p.fill( '#documentate-app-titulo', 'Resolución por la que se convocan ayudas al transporte escolar 2026-2027' );
+			if ( ! ( await click( p, p.getByRole( 'button', { name: 'Crear borrador' } ) ) ) ) return false;
+			DOC_RESOLUTION = Number( new URL( p.url() ).searchParams.get( 'doc' ) );
+			expect( DOC_RESOLUTION ).toBeGreaterThan( 0 );
+			await fixtures.fillRequiredAppFields( p, 'Convocatoria de ayudas al transporte escolar para facilitar el acceso del alumnado a su centro.' );
+			return await save( p );
+		},
+	},
+	{
+		chapter: 'Segundo documento: resolución administrativa',
+		title: 'La resolución entra en gestión',
+		text: 'El área envía la resolución y comprueba que su estado pasa a «En gestión».',
+		as: 'area',
+		run: async ( p ) => {
+			await goToEdit( p, RESOLUTION );
+			return await transition( p, 'enviar_gestion', 'En gestión' );
+		},
+	},
+	{
+		chapter: 'Segundo documento: resolución administrativa',
+		title: 'Completar y guardar los datos oficiales de la resolución',
+		text: 'Gestión asigna el número de resolución y deja una anotación interna. Tras guardar se comprueba que el número permanece en el formulario.',
+		as: 'gestion',
+		run: async ( p ) => {
+			await goToEdit( p, RESOLUTION, 'revisar' );
+			await fixtures.fillRequiredAppFields( p, 'Examinada la propuesta y comprobados los requisitos de la convocatoria.' );
+			await p.fill( '#documentate_field_numero_resolucion', '118/2026' );
+			await p.fill( '#documentate-app-anotaciones', 'Datos oficiales revisados para la convocatoria de transporte escolar.' );
+			if ( ! ( await save( p ) ) ) return false;
+			await expect( p.locator( '#documentate_field_numero_resolucion' ) ).toHaveValue( '118/2026' );
+			await focusManagement( p );
+		},
+	},
+	{
+		chapter: 'Segundo documento: resolución administrativa',
+		title: 'La resolución pasa a revisión',
+		text: 'Gestión entrega la resolución a administración. El estado «En revisión» confirma el cambio.',
+		as: 'gestion',
+		run: async ( p ) => {
+			await goToEdit( p, RESOLUTION, 'revisar' );
+			return await transition( p, 'pasar_admin', 'En revisión' );
+		},
+	},
+	{
+		chapter: 'Segundo documento: resolución administrativa',
+		title: 'Administración aprueba la resolución',
+		text: 'Administración aprueba y publica la resolución, que queda disponible para consulta y descarga.',
+		as: 'admin',
+		run: async ( p ) => {
+			await goToEdit( p, RESOLUTION, 'revision' );
+			return await transition( p, 'aprobar', 'Aprobado' );
+		},
+	},
+	{
+		chapter: 'Segundo documento: resolución administrativa',
+		title: 'Consultar el PDF y descargar la resolución',
+		text: 'El área consulta la resolución aprobada. Se comprueban el PDF y la descarga ODT de esta segunda plantilla.',
+		as: 'area',
+		run: async ( p ) => {
+			await goToDetail( p, RESOLUTION );
+			return await checkExports( p );
 		},
 	},
 
@@ -419,8 +501,9 @@ const SCENES = [
 
 // ─── Engine ───────────────────────────────────────────────────────────────────
 
-/** ID of the cycle document in the current pass; resolved only once. */
+/** IDs returned by the create forms in the current pass. */
 let DOC_CYCLE = 0;
+let DOC_RESOLUTION = 0;
 
 /**
  * Puts the demo documents back the way they were before starting.
@@ -516,7 +599,7 @@ async function click( p, button ) {
 	// Every handler of the application redirects with its feedback flag: no
 	// new address means the form never went through (a blocked required
 	// field, a button that does nothing), and the scene has to say so.
-	return navigated;
+	return navigated && ! new URL( p.url() ).searchParams.has( 'error' );
 }
 
 /**
@@ -531,28 +614,6 @@ function rowOf( p, name ) {
 }
 
 /**
- * Resolves the ID of the document that walks the cycle, reading it from the
- * área list once per pass (seeding changes the IDs).
- *
- * @param {import('@playwright/test').Page} p Page of any role with access.
- * @return {Promise<number>} 0 if it does not show up.
- */
-async function cycleId( p ) {
-	if ( DOC_CYCLE ) return DOC_CYCLE;
-
-	for ( const path of [ '/documentate/', '/documentate/?bandeja=revisar', '/documentate/?estado=todos' ] ) {
-		await goTo( p, path );
-		const link = rowOf( p, CYCLE ).locator( '.dcta-doc-nombre a' ).first();
-		if ( ! ( await link.count() ) ) continue;
-		const href = await link.getAttribute( 'href' );
-		DOC_CYCLE = Number( new URL( href, BASE ).searchParams.get( 'doc' ) ) || 0;
-		if ( DOC_CYCLE ) return DOC_CYCLE;
-	}
-
-	return 0;
-}
-
-/**
  * Opens the editor of a document, finding it by name in the lists.
  *
  * @param {import('@playwright/test').Page} p       Page.
@@ -561,7 +622,7 @@ async function cycleId( p ) {
  * @return {Promise<boolean>} false if the document is missing or not editable.
  */
 async function goToEdit( p, name, tray = '' ) {
-	const id = CYCLE === name ? await cycleId( p ) : await idOf( p, name, tray );
+	const id = CYCLE === name ? DOC_CYCLE : RESOLUTION === name ? DOC_RESOLUTION : await idOf( p, name, tray );
 	if ( ! id ) return false;
 
 	const queue = '' !== tray ? '&bandeja=' + tray : '';
@@ -579,7 +640,7 @@ async function goToEdit( p, name, tray = '' ) {
  * @return {Promise<boolean>} false if the document does not show up.
  */
 async function goToDetail( p, name, tray = '' ) {
-	const id = CYCLE === name ? await cycleId( p ) : await idOf( p, name, tray );
+	const id = CYCLE === name ? DOC_CYCLE : RESOLUTION === name ? DOC_RESOLUTION : await idOf( p, name, tray );
 	if ( ! id ) return false;
 
 	const queue = '' !== tray ? '&bandeja=' + tray : '';
@@ -675,6 +736,43 @@ async function openConfirmation( p, key ) {
 		return false;
 	}
 
+	return true;
+}
+
+/**
+ * Applies a transition and checks the resulting visible status.
+ *
+ * @param {import('@playwright/test').Page} p Page.
+ * @param {string} key Transition key.
+ * @param {string} status Expected visible status.
+ * @return {Promise<boolean>} Whether the transition completed.
+ */
+async function transition( p, key, status ) {
+	if ( ! ( await openConfirmation( p, key ) ) ) return false;
+	if ( ! ( await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) ) ) ) return false;
+	await expect( p.locator( '.dcta-lado .dcta-estado' ) ).toHaveText( status );
+	return true;
+}
+
+/**
+ * Checks the embedded PDF and downloads the editable document through its button.
+ *
+ * @param {import('@playwright/test').Page} p Page of an approved document.
+ * @return {Promise<boolean>} Whether both exports are valid.
+ */
+async function checkExports( p ) {
+	const frame = p.locator( 'iframe.dcta-pdf-visor' );
+	await expect( frame ).toBeVisible();
+	const response = await p.request.get( await frame.getAttribute( 'src' ) );
+	expect( response.ok() ).toBe( true );
+	expect( ( await response.body() ).subarray( 0, 5 ).toString() ).toBe( '%PDF-' );
+	const downloadPromise = p.waitForEvent( 'download' );
+	await p.locator( '#exportar [data-documentate-action="download"][data-documentate-format="odt"]' ).click();
+	const download = await downloadPromise;
+	expect( await download.failure() ).toBeNull();
+	expect( download.suggestedFilename() ).toMatch( /\.odt$/ );
+	await expect( p.locator( '#documentate-loading-modal' ) ).toBeHidden();
+	await p.evaluate( () => window.scrollTo( 0, 0 ) );
 	return true;
 }
 
@@ -802,7 +900,7 @@ async function logIn( context, who ) {
  * @return {Promise<void>}
  */
 async function main() {
-	const browser = await chromium.launch();
+	const browser = await chromium.launch( { channel: 'chromium' } );
 	await rm( OUT, { recursive: true, force: true } );
 	await mkdir( path.join( OUT, 'img' ), { recursive: true } );
 
@@ -818,6 +916,7 @@ async function main() {
 		console.log( `\n▸ ${ label }` );
 		reseedData();
 		DOC_CYCLE = 0;
+		DOC_RESOLUTION = 0;
 
 		// One session per role and screen: switching user mid-script would
 		// force a fresh login on every scene.
@@ -856,14 +955,22 @@ async function main() {
 				url: page.url().replace( BASE, '' ),
 				ok,
 				error,
+				who: scene.who || USERS[ scene.as ].label,
 			} );
 			console.log( `  ${ ok ? '✓' : '✗' } ${ scene.chapter } — ${ scene.title }${ error ? ` (${ error })` : '' }` );
 		}
 
 		for ( const s of Object.values( sessions ) ) await s.context.close();
+		// Only remove the documents this pass created, never another user's data.
+		const created = [ DOC_CYCLE, DOC_RESOLUTION ].filter( ( doc ) => Number.isInteger( doc ) && doc > 0 );
+		if ( created.length ) {
+			execFileSync( 'npx', [ '@wordpress/env', 'run', 'cli', '--config=.wp-env.docker.json',
+				'wp', 'post', 'delete', ...created.map( String ), '--force' ], { stdio: 'ignore' } );
+		}
 	}
 
 	await browser.close();
+	await writeFile( path.join( OUT, 'indice.json' ), JSON.stringify( done, null, 2 ), 'utf8' );
 	await writeFile( path.join( OUT, 'informe.html' ), report( done ), 'utf8' );
 
 	const failures = done.filter( ( c ) => ! c.ok );
