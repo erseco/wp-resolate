@@ -3,7 +3,7 @@
  * Front-end application of Documentate, served under /documentate/.
  *
  * One WordPress page carries the [documentate_app] shortcode; the views are
- * resolved from query arguments (vista, doc, bandeja, estado, area) so the
+ * resolved from query arguments (vista, doc, estado, area) so the
  * whole application lives under a single URL. Access is capability-gated: the
  * app is for logged-in users who can edit documents.
  *
@@ -108,7 +108,7 @@ class Documentate_App {
 	 */
 	private static function current_view_url() {
 		$args = array();
-		foreach ( array( 'vista', 'bandeja', 'estado' ) as $key ) {
+		foreach ( array( 'vista', 'estado' ) as $key ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
 			$value = isset( $_GET[ $key ] ) ? sanitize_key( wp_unslash( $_GET[ $key ] ) ) : '';
 			if ( '' !== $value ) {

@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Renders one document row of a tray.
+ * Renders one document row of the list.
  */
 class Documentate_App_List_Row {
 
@@ -24,22 +24,21 @@ class Documentate_App_List_Row {
 	 * Render one document row.
 	 *
 	 * @param WP_Post $post Document.
-	 * @param string  $tray Tray key.
 	 * @return string
 	 */
-	public static function render( $post, $tray ) {
+	public static function render( $post ) {
 		$chip = Documentate_App_Shell::chip( $post );
 		$returned = Documentate_App_Shell::returned_text( $post );
 		$type = Documentate_Document_Data::type( $post );
-		$action = self::action( $post, $tray );
-		$detail_url = self::detail_url( $post->ID, $tray );
+		$action = self::action( $post );
+		$detail_url = self::detail_url( $post->ID );
 
 		$html = '<div class="dcta-fila' . ( '' !== $returned ? ' dcta-fila-devuelta' : '' ) . '"'
-			. ' data-dcta-texto="' . esc_attr( self::searchable_text( $post, $type, $chip['text'], $returned, $tray ) ) . '">';
+			. ' data-dcta-texto="' . esc_attr( self::searchable_text( $post, $type, $chip['text'], $returned ) ) . '">';
 		$html .= '<div class="dcta-doc-nombre">'
 			. '<a href="' . esc_url( $detail_url ) . '">' . esc_html( Documentate_Document_Data::short_name( $post ) ) . '</a>'
 			. self::attachment_icon( $post )
-			. self::sublines( $post, $tray )
+			. self::sublines( $post )
 			. ( '' !== $returned ? '<small class="dcta-doc-motivo">' . esc_html( $returned ) . '</small>' : '' )
 			. '</div>';
 		$html .= '<span class="dcta-doc-tipo">' . esc_html( $type ? $type->name : '—' ) . '</span>';
@@ -55,30 +54,29 @@ class Documentate_App_List_Row {
 	 *
 	 * Whatever the row shows, so typing "gasto", "RES" or a status all narrow
 	 * the list. The status chip alone is not enough for "devuelto": a document
-	 * returned to gestión documental stays in `en_gestion` and its chip says so,
-	 * while the row does carry the "Devuelto por …" line — which is added here
-	 * with its reason. The área and the person are only drawn outside "mis
-	 * documentos", and only there do they join the text.
+	 * returned to revisión stays in `en_gestion` and its chip says so, while
+	 * the row does carry the "Devuelto por …" line — which is added here with
+	 * its reason. The área is only drawn for whoever looks after several of
+	 * them, and only there does it join the text.
 	 *
 	 * @param WP_Post      $post     Document.
 	 * @param WP_Term|null $type     Document type.
 	 * @param string       $status   Status label.
 	 * @param string       $returned The "Devuelto por … : «…»" line, empty when there is none.
-	 * @param string       $tray     Tray key.
 	 * @return string
 	 */
-	private static function searchable_text( $post, $type, $status, $returned = '', $tray = 'mis' ) {
+	private static function searchable_text( $post, $type, $status, $returned = '' ) {
 		$parts = array(
 			Documentate_Document_Data::short_name( $post ),
 			wp_strip_all_tags( (string) $post->post_title ),
 			$type ? $type->name : '',
 			$status,
 			$returned,
+			Documentate_Document_Data::person( $post ),
 		);
 
-		if ( 'mis' !== $tray ) {
+		if ( Documentate_Roles::is_management() ) {
 			$parts[] = Documentate_Document_Data::area( $post );
-			$parts[] = Documentate_Document_Data::person( $post );
 		}
 
 		return trim( implode( ' ', array_filter( $parts ) ) );
@@ -101,22 +99,25 @@ class Documentate_App_List_Row {
 	/**
 	 * The lines under the name: the official title, and who it belongs to.
 	 *
+	 * The área is drawn for whoever looks after several of them; for an área,
+	 * where every row carries the same one, only the person is.
+	 *
 	 * @param WP_Post $post Document.
-	 * @param string  $tray Tray key.
 	 * @return string
 	 */
-	private static function sublines( $post, $tray ) {
+	private static function sublines( $post ) {
 		$title = trim( wp_strip_all_tags( (string) $post->post_title ) );
 		if ( mb_strlen( $title ) > 90 ) {
 			$title = mb_substr( $title, 0, 89 ) . '…';
 		}
 
 		$html = '' !== $title ? '<small class="dcta-doc-sub">' . esc_html( $title ) . '</small>' : '';
-		if ( 'mis' === $tray ) {
-			return $html;
-		}
 
-		$who = array_filter( array( Documentate_Document_Data::area( $post ), Documentate_Document_Data::person( $post ) ) );
+		$who = array( Documentate_Document_Data::person( $post ) );
+		if ( Documentate_Roles::is_management() ) {
+			array_unshift( $who, Documentate_Document_Data::area( $post ) );
+		}
+		$who = array_filter( $who );
 
 		return '' === implode( '', $who )
 			? $html
@@ -127,17 +128,16 @@ class Documentate_App_List_Row {
 	 * Label and destination of the row action.
 	 *
 	 * @param WP_Post $post Document.
-	 * @param string  $tray Tray key.
 	 * @return array{0:string,1:string}
 	 */
-	private static function action( $post, $tray ) {
+	private static function action( $post ) {
 		if ( self::opens_the_editor( $post ) ) {
-			return array( 'Editar', Documentate_App_Edit::url( $post->ID, $tray ) );
+			return array( 'Editar', Documentate_App_Edit::url( $post->ID ) );
 		}
 
 		// No anchor: the document view opens with the PDF itself where this
 		// site draws it, so jumping to the export block would scroll past it.
-		return array( 'Ver', self::detail_url( $post->ID, $tray ) );
+		return array( 'Ver', self::detail_url( $post->ID ) );
 	}
 
 	/**
@@ -179,18 +179,12 @@ class Documentate_App_List_Row {
 	}
 
 	/**
-	 * URL of the document view, remembering which tray it was opened from.
+	 * URL of the document view.
 	 *
-	 * @param int    $doc_id Document ID.
-	 * @param string $tray   Tray key.
+	 * @param int $doc_id Document ID.
 	 * @return string
 	 */
-	private static function detail_url( $doc_id, $tray ) {
-		$args = array( 'doc' => $doc_id );
-		if ( 'mis' !== $tray ) {
-			$args['bandeja'] = $tray;
-		}
-
-		return Documentate_App_Shell::page_url( $args );
+	private static function detail_url( $doc_id ) {
+		return Documentate_App_Shell::page_url( array( 'doc' => $doc_id ) );
 	}
 }

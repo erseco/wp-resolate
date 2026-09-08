@@ -362,7 +362,7 @@
 		emptyRow.className = 'dcta-vacio';
 		emptyRow.hidden = true;
 		emptyRow.textContent = truncated
-			? 'Ningún documento de los ' + total + ' que hay en pantalla coincide con el filtro · la bandeja tiene ' + found + ', afina con los filtros.'
+			? 'Ningún documento de los ' + total + ' que hay en pantalla coincide con el filtro · la lista tiene ' + found + ', afina con los filtros.'
 			: 'Ningún documento de la lista coincide con el filtro.';
 		if (footer) {
 			table.insertBefore(emptyRow, footer);
@@ -400,11 +400,35 @@
 		filter();
 	}
 
+	/**
+	 * Filter by área as soon as one is chosen.
+	 *
+	 * The button beside the select is what does it without this script, and
+	 * it steps aside as soon as the change alone is enough.
+	 */
+	function initAreaFilter() {
+		var form = document.querySelector('[data-dcta-areas]');
+		var select = form ? form.querySelector('select') : null;
+		if (!form || !select || !mark(form)) {
+			return;
+		}
+
+		var button = form.querySelector('.dcta-areas-ok');
+		if (button) {
+			button.hidden = true;
+		}
+
+		select.addEventListener('change', function () {
+			form.submit();
+		});
+	}
+
 	function init() {
 		initDialogs();
 		initAttachment();
 		initTypeHint();
 		initSearch();
+		initAreaFilter();
 	}
 
 	window.documentateApp = { init: init, initSearch: initSearch };

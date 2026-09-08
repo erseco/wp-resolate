@@ -136,7 +136,7 @@ class DocumentateActivityTest extends WP_UnitTestCase {
 	 * mail the author: only the recipients filter empties the list.
 	 */
 	public function test_events_never_mail() {
-		$id = Documentate_Activity::record_event( $this->doc_id, 'aprobó y publicó el documento' );
+		$id = Documentate_Activity::record_event( $this->doc_id, 'aprobó el documento' );
 
 		$this->assertSame( array(), apply_filters( 'comment_notification_recipients', array( 'eva@example.com' ), $id ) );
 		$this->assertFalse( wp_notify_postauthor( $id ), 'No recipients for the author notification.' );

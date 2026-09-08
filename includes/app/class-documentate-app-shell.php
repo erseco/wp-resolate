@@ -47,6 +47,16 @@ class Documentate_App_Shell {
 	const FORM_COMMENT_ID = 'dcta-app-comentario';
 
 	/**
+	 * Longest a document tab gets before it is trimmed.
+	 *
+	 * A tab bar is read at a glance, and the internal name of a document can
+	 * be eighty characters long.
+	 *
+	 * @var int
+	 */
+	const TAB_MAX = 34;
+
+	/**
 	 * How the application writes a date.
 	 *
 	 * The site options are whatever the installation left them at (WordPress
@@ -84,7 +94,7 @@ class Documentate_App_Shell {
 	 * for the tabs twice (the tab bar and the back link), so they are built
 	 * once per page: open() empties the cache as a page starts rendering.
 	 *
-	 * @var array<int,array<string,array{tab:string,url:string,n:int}>>
+	 * @var array<int,array<string,array{tab:string,url:string}>>
 	 */
 	private static $sections = array();
 
@@ -287,7 +297,7 @@ class Documentate_App_Shell {
 	 * Only the actionable tab carries a badge: the documents waiting for this
 	 * role to do something with them.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int}>
+	 * @return array<string,array{tab:string,url:string}>
 	 */
 	public static function sections() {
 		$user = get_current_user_id();
@@ -301,13 +311,9 @@ class Documentate_App_Shell {
 	/**
 	 * Build the tabs of the current person.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int}>
+	 * @return array<string,array{tab:string,url:string}>
 	 */
 	private static function build_sections() {
-		if ( Documentate_Roles::is_head() ) {
-			return self::admin_sections();
-		}
-
 		if ( Documentate_Roles::is_management() ) {
 			return self::management_sections();
 		}
@@ -319,41 +325,18 @@ class Documentate_App_Shell {
 	}
 
 	/**
-	 * Tabs of jefatura de servicio and administración: everything first, then
-	 * what waits for their approval.
+	 * Tabs of whoever looks after several áreas: the list and the new document.
 	 *
-	 * Same shape as revisión — the whole list, then the tray of what waits —
-	 * so moving between roles does not move the tabs around. Administración
-	 * sees every área of the site, the rest their ámbito. Document types and
-	 * their templates are not here: that is wp-admin work.
+	 * What waits for each rol is not a tab: it is the status chip the list
+	 * opens on, and the chips carry their own numbers. Administración sees
+	 * every área of the site, the rest their ámbito. Document types and their
+	 * templates are not here: that is wp-admin work.
 	 *
-	 * @return array<string,array{tab:string,url:string,n:int}>
-	 */
-	private static function admin_sections() {
-		return array(
-			'lista' => self::section( Documentate_Roles::is_administration() ? 'Todos los documentos' : 'Documentos', self::page_url() ),
-			'revision' => self::section(
-				'Para aprobar',
-				self::page_url( array( 'bandeja' => 'revision' ) ),
-				Documentate_App_List::count_documents( Documentate_App_Tray::query_args( 'revision', 'pending' ) )
-			),
-			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
-		);
-	}
-
-	/**
-	 * Tabs of revisión: every document of their ámbito, and the ones to complete.
-	 *
-	 * @return array<string,array{tab:string,url:string,n:int}>
+	 * @return array<string,array{tab:string,url:string}>
 	 */
 	private static function management_sections() {
 		return array(
-			'lista' => self::section( 'Documentos', self::page_url() ),
-			'revisar' => self::section(
-				'Para revisar',
-				self::page_url( array( 'bandeja' => 'revisar' ) ),
-				Documentate_App_List::count_documents( Documentate_App_Tray::query_args( 'revisar', 'en_gestion' ) )
-			),
+			'lista' => self::section( Documentate_Roles::is_administration() ? 'Todos los documentos' : 'Documentos', self::page_url() ),
 			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
 	}
@@ -361,51 +344,58 @@ class Documentate_App_Shell {
 	/**
 	 * One tab row.
 	 *
-	 * @param string $tab   Tab label.
-	 * @param string $url   Destination.
-	 * @param int    $count Badge count (0 hides the badge).
-	 * @return array{tab:string,url:string,n:int}
+	 * @param string $tab Tab label.
+	 * @param string $url Destination.
+	 * @return array{tab:string,url:string}
 	 */
-	private static function section( $tab, $url, $count = 0 ) {
+	private static function section( $tab, $url ) {
 		return array(
 			'tab' => $tab,
 			'url' => $url,
-			'n' => (int) $count,
 		);
 	}
 
 	/**
-	 * Section key a tray belongs to, so the right tab lights up.
+	 * The tab of the document being read or edited.
 	 *
-	 * @param string $tray Tray key (mis, revisar, revision, todos).
-	 * @return string
-	 */
-	public static function section_for_tray( $tray ) {
-		$map = array(
-			'revisar' => 'revisar',
-			'revision' => 'revision',
-		);
-
-		return isset( $map[ $tray ] ) ? $map[ $tray ] : 'lista';
-	}
-
-	/**
-	 * Link back to the tray the visitor came from, named after its tab.
+	 * A document is not the tray it was opened from, and lighting "Mis
+	 * documentos" while the editor is on screen says it is. It gets a tab of
+	 * its own instead, next to the tray it came from, and the tray stops
+	 * being the current one.
 	 *
-	 * @param string $tray Tray key; empty reads it from the request.
-	 * @return string
+	 * @param WP_Post $post Document.
+	 * @return array{tab:string,url:string}
 	 */
-	public static function back_link( $tray = '' ) {
-		if ( '' === $tray ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-			$tray = isset( $_GET['bandeja'] ) ? sanitize_key( wp_unslash( $_GET['bandeja'] ) ) : '';
+	public static function document_tab( $post ) {
+		$name = Documentate_Document_Data::short_name( $post );
+		if ( mb_strlen( $name ) > self::TAB_MAX ) {
+			$name = mb_substr( $name, 0, self::TAB_MAX - 1 ) . '…';
 		}
 
+		return array(
+			'tab' => $name,
+			'url' => self::page_url( self::detail_args( $post->ID ) ),
+		);
+	}
+
+	/**
+	 * View arguments of a document.
+	 *
+	 * @param int $doc_id Document ID.
+	 * @return array<string,string|int>
+	 */
+	private static function detail_args( $doc_id ) {
+		return array( 'doc' => (int) $doc_id );
+	}
+
+	/**
+	 * Link back to the list, named after its tab.
+	 *
+	 * @return string
+	 */
+	public static function back_link() {
 		$sections = self::sections();
-		$key = self::section_for_tray( $tray );
-		if ( ! isset( $sections[ $key ] ) ) {
-			$key = 'lista';
-		}
+		$key = 'lista';
 
 		if ( ! isset( $sections[ $key ] ) ) {
 			return '';
@@ -631,14 +621,21 @@ class Documentate_App_Shell {
 	/**
 	 * Open the page: header, tabs and the sheet the content goes in.
 	 *
-	 * @param string $section Active section key.
-	 * @param string $title   Page heading.
-	 * @param string $sub     One line under the heading.
+	 * @param string                       $section  Active section key.
+	 * @param string                       $title    Page heading.
+	 * @param string                       $sub      One line under the heading.
+	 * @param array{tab:string,url:string} $document Tab of the document on
+	 *                                     screen, from document_tab().
 	 * @return string
 	 */
-	public static function open( $section, $title, $sub = '' ) {
+	public static function open( $section, $title, $sub = '', array $document = array() ) {
 		self::$sections = array();
 		$sections = self::sections();
+
+		if ( ! empty( $document['tab'] ) ) {
+			$sections = self::with_document_tab( $sections, $document, $section );
+			$section = 'documento';
+		}
 		$user = wp_get_current_user();
 		$home_url = self::page_url();
 		$home_url = '' !== $home_url ? $home_url : home_url( '/' );
@@ -673,11 +670,7 @@ class Documentate_App_Shell {
 				<?php foreach ( $sections as $key => $s ) : ?>
 					<a class="dcta-tab dcta-tab-<?php echo esc_attr( $key ); ?><?php echo $key === $section ? ' dcta-tab-on' : ''; ?>"
 						<?php echo $key === $section ? ' aria-current="page"' : ''; ?>
-						href="<?php echo esc_url( $s['url'] ); ?>"><?php echo 'nuevo' === $key ? self::icon( 'plus' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG literal. ?><?php echo esc_html( $s['tab'] ); ?>
-						<?php if ( $s['n'] > 0 ) : ?>
-							<span class="dcta-tab-n"><?php echo esc_html( (string) $s['n'] ); ?></span>
-						<?php endif; ?>
-					</a>
+						href="<?php echo esc_url( $s['url'] ); ?>"><?php echo 'nuevo' === $key ? self::icon( 'plus' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG literal. ?><?php echo esc_html( $s['tab'] ); ?></a>
 				<?php endforeach; ?>
 			</div>
 		</nav>
@@ -691,6 +684,33 @@ class Documentate_App_Shell {
 			<?php endif; ?>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The tabs with the document's own one, right after the tray it came from.
+	 *
+	 * @param array<string,array{tab:string,url:string}> $sections Tabs of the role.
+	 * @param array{tab:string,url:string}               $document Document tab.
+	 * @param string                                     $after    Tab the document was opened from.
+	 * @return array<string,array{tab:string,url:string}>
+	 */
+	private static function with_document_tab( array $sections, array $document, $after ) {
+		$row = self::section( $document['tab'], isset( $document['url'] ) ? $document['url'] : '' );
+		if ( ! isset( $sections[ $after ] ) ) {
+			$sections['documento'] = $row;
+
+			return $sections;
+		}
+
+		$with = array();
+		foreach ( $sections as $key => $section ) {
+			$with[ $key ] = $section;
+			if ( $key === $after ) {
+				$with['documento'] = $row;
+			}
+		}
+
+		return $with;
 	}
 
 	/**

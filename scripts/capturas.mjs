@@ -94,7 +94,7 @@ const SCENES = [
 	{
 		chapter: 'Entrada',
 		title: 'La misma puerta, para revisión',
-		text: 'Revisión entra por la misma URL y ve, además de «Documentos» —todos los de su ámbito— y de «Nuevo documento», la bandeja «Para revisar», con el número de los que esperan a que complete los datos oficiales.',
+		text: 'Revisión entra por la misma URL y su lista abre por «En revisión», el chip que reúne los documentos de su ámbito que esperan a que complete los datos oficiales. Cada chip lleva su número, y el del propio rol va marcado.',
 		as: 'gestion',
 		run: async ( p ) => {
 			return await goTo( p, '/documentate/' );
@@ -103,21 +103,21 @@ const SCENES = [
 	{
 		chapter: 'Entrada',
 		title: 'La misma puerta, para administración',
-		text: 'Administración aterriza en todos los documentos de todas las áreas del sitio, con el mismo selector de área que revisión y jefatura —aquí acotado al Departamento de Proyectos—. El aviso de la pestaña «Para aprobar» cuenta todo lo que espera aprobación; los contadores de debajo obedecen al filtro.',
+		text: 'Administración aterriza en todos los documentos de todas las áreas del sitio, con el mismo selector de área que revisión y jefatura —aquí acotado al Departamento de Proyectos—. El chip «En aprobación» cuenta lo que espera firma; los demás números obedecen también al área elegida.',
 		as: 'admin',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/documentate/' ) ) ) return false;
 			const select = p.locator( '#dcta-area' );
 			if ( ! ( await select.count() ) ) return false;
 			await select.selectOption( { label: 'Departamento de Proyectos' } );
-			return await click( p, p.locator( '.dcta-areas button[type="submit"]' ) );
+			return await p.waitForURL( /area=/ ).then( () => true, () => false );
 		},
 	},
 
 	{
 		chapter: 'El área prepara el documento',
-		title: 'Mis documentos: contadores y filtros',
-		text: 'Los contadores dicen qué hay por enviar, qué está en revisión, qué espera aprobación y qué se aprobó ya; los chips filtran la lista sin salir de la página. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.',
+		title: 'Mis documentos: los chips y sus números',
+		text: 'Cada chip dice cuántos documentos hay en ese estado y filtra la lista sin salir de la página; el área abre por «Por enviar», que es lo que le toca. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.',
 		as: 'area',
 		run: async ( p ) => {
 			return await goTo( p, '/documentate/?estado=draft' );
@@ -130,7 +130,7 @@ const SCENES = [
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/documentate/?vista=nuevo' ) ) ) return false;
-			await p.selectOption( '#documentate-app-tipo', { label: 'Propuesta de gasto' } );
+			await p.selectOption( '#documentate-app-tipo', { label: 'Propuesta de gasto (Documento 0)' } );
 			await p.fill( '#documentate-app-nombre', CYCLE );
 			await p.fill(
 				'#documentate-app-titulo',
@@ -191,11 +191,11 @@ const SCENES = [
 
 	{
 		chapter: 'Revisión completa los datos oficiales',
-		title: 'La bandeja de revisión',
-		text: 'La bandeja «Para revisar» reúne los documentos de su ámbito —aquí, toda la organización— que ya salieron de su borrador y esperan los datos oficiales. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.',
+		title: 'La lista de revisión',
+		text: 'El chip «En revisión» reúne los documentos de su ámbito —aquí, toda la organización— que ya salieron de su borrador y esperan los datos oficiales. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.',
 		as: 'gestion',
 		run: async ( p ) => {
-			return await goTo( p, '/documentate/?bandeja=revisar' );
+			return await goTo( p, '/documentate/' );
 		},
 	},
 	{
@@ -204,7 +204,7 @@ const SCENES = [
 		text: 'Revisión abre el mismo editor con una sección más: los campos marcados como de revisión en la plantilla —el gasto en letra y en cifra, la partida presupuestaria— y unas anotaciones internas que no salen en el documento. Los datos del área quedan plegados, a la vista pero fuera del camino.',
 		as: 'gestion',
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
 			await pickField( p, '#documentate_field_partida', '18.03.322B.229.0100' );
 			await fillField( p, '#documentate_field_gasto_numero', '1875' );
 			await fillField(
@@ -245,7 +245,7 @@ const SCENES = [
 		as: 'gestion',
 		viewportOnly: true,
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
 			await focusManagement( p );
 			return await openReasonDialog( p, 'devolver_area', REASON );
 		},
@@ -253,10 +253,10 @@ const SCENES = [
 	{
 		chapter: 'Revisión completa los datos oficiales',
 		title: 'Devuelto',
-		text: 'Tras devolverlo, revisión vuelve a su bandeja con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.',
+		text: 'Tras devolverlo, revisión vuelve a su lista con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.',
 		as: 'gestion',
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
 			if ( ! ( await openReasonDialog( p, 'devolver_area', REASON ) ) ) return false;
 			return await click( p, p.locator( '#dcta-dialogo-motivo-ok' ) );
 		},
@@ -304,22 +304,22 @@ const SCENES = [
 		text: 'Cuando los datos oficiales están completos, revisión lo pasa a la jefatura de servicio —también con su confirmación, como al enviarlo—. Hecho eso, revisión tampoco puede modificarlo: la ficha avisa de que lo tiene la jefatura y el estado ya dice «En aprobación».',
 		as: 'gestion',
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
 			if ( ! ( await openConfirmation( p, 'pasar_admin' ) ) ) return false;
 			return await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
 		},
 	},
 	{
 		chapter: 'De revisión a la jefatura de servicio',
-		title: 'La bandeja de aprobación',
-		text: 'La jefatura de servicio tiene su propia bandeja, «Para aprobar», con lo que espera su firma —de cualquier área de su ámbito—, los mismos chips de estado y un selector para acotar a un área cuando hay muchas: aquí, el Departamento de Proyectos.',
+		title: 'La lista de aprobación',
+		text: 'La jefatura de servicio abre por «En aprobación», con lo que espera su firma —de cualquier área de su ámbito—, los mismos chips de estado con sus números y un selector para acotar a un área cuando hay muchas: aquí, el Departamento de Proyectos.',
 		as: 'jefatura',
 		run: async ( p ) => {
-			if ( ! ( await goTo( p, '/documentate/?bandeja=revision&estado=todos' ) ) ) return false;
+			if ( ! ( await goTo( p, '/documentate/?estado=todos' ) ) ) return false;
 			const select = p.locator( '#dcta-area' );
 			if ( ! ( await select.count() ) ) return false;
 			await select.selectOption( { label: 'Departamento de Proyectos' } );
-			return await click( p, p.locator( '.dcta-areas button[type="submit"]' ) );
+			return await p.waitForURL( /area=/ ).then( () => true, () => false );
 		},
 	},
 	{
@@ -329,7 +329,7 @@ const SCENES = [
 		as: 'jefatura',
 		viewportOnly: true,
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, PENDING, 'revision' ) ) ) return false;
+			if ( ! ( await goToEdit( p, PENDING ) ) ) return false;
 			if ( ! ( await openReasonDialog( p, 'devolver_area', 'Falta el desglose por partidas del capítulo II.' ) ) ) {
 				return false;
 			}
@@ -339,11 +339,11 @@ const SCENES = [
 	},
 	{
 		chapter: 'De revisión a la jefatura de servicio',
-		title: 'Aprobar y publicar',
+		title: 'Aprobar',
 		text: 'La jefatura de servicio aprueba, y eso publica el documento y lo cierra: a partir de ahí solo se consulta y se descarga. La ficha lo dice arriba y el indicador de estado llega al final del recorrido.',
 		as: 'jefatura',
 		run: async ( p ) => {
-			if ( ! ( await goToEdit( p, CYCLE, 'revision' ) ) ) return false;
+			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
 			if ( ! ( await openConfirmation( p, 'aprobar' ) ) ) return false;
 			return await click( p, p.locator( '#dcta-dialogo-confirmar-ok' ) );
 		},
@@ -366,7 +366,7 @@ const SCENES = [
 		text: 'Todo lo que le pasó al documento queda escrito: quién creó el borrador, quién adjuntó el fichero, quién lo envió, quién lo devolvió y con qué motivo, quién lo aprobó. Debajo, cualquiera de los roles puede dejar un comentario.',
 		as: 'gestion',
 		run: async ( p ) => {
-			if ( ! ( await goToDetail( p, CYCLE, 'revisar' ) ) ) return false;
+			if ( ! ( await goToDetail( p, CYCLE ) ) ) return false;
 			await p.fill(
 				'#documentate-app-comentario',
 				'Documento de demostración aprobado; PDF y descarga editable comprobados.'
@@ -408,7 +408,7 @@ const SCENES = [
 		text: 'Revisión asigna el número de resolución y deja una anotación interna. Tras guardar se comprueba que el número permanece en el formulario.',
 		as: 'gestion',
 		run: async ( p ) => {
-			await goToEdit( p, RESOLUTION, 'revisar' );
+			await goToEdit( p, RESOLUTION );
 			await fixtures.fillRequiredAppFields( p, 'Examinada la propuesta y comprobados los requisitos de la convocatoria.' );
 			await p.fill( '#documentate_field_numero_resolucion', '118/2026' );
 			await p.fill( '#documentate-app-anotaciones', 'Datos oficiales revisados para la convocatoria de transporte escolar.' );
@@ -423,7 +423,7 @@ const SCENES = [
 		text: 'Revisión entrega la resolución a la jefatura de servicio. El estado «En aprobación» confirma el cambio.',
 		as: 'gestion',
 		run: async ( p ) => {
-			await goToEdit( p, RESOLUTION, 'revisar' );
+			await goToEdit( p, RESOLUTION );
 			return await transition( p, 'pasar_admin', 'En aprobación' );
 		},
 	},
@@ -433,7 +433,7 @@ const SCENES = [
 		text: 'La jefatura de servicio aprueba y publica la resolución, que queda disponible para consulta y descarga.',
 		as: 'jefatura',
 		run: async ( p ) => {
-			await goToEdit( p, RESOLUTION, 'revision' );
+			await goToEdit( p, RESOLUTION );
 			return await transition( p, 'aprobar', 'Aprobado' );
 		},
 	},
@@ -565,7 +565,7 @@ let DOC_RESOLUTION = 0;
  *
  * Each screen size walks the whole cycle, and the cycle changes state: what
  * the desktop pass approves is no longer pending for the mobile one. Without
- * this reset the second pass photographs empty trays.
+ * this reset the second pass photographs an empty list.
  *
  * @return {void}
  */
@@ -669,53 +669,48 @@ function rowOf( p, name ) {
 }
 
 /**
- * Opens the editor of a document, finding it by name in the lists.
+ * Opens the editor of a document, finding it by name in the list.
  *
- * @param {import('@playwright/test').Page} p       Page.
- * @param {string}                          name    Fragment of the internal name.
- * @param {string}                          tray    Tray the visit comes from.
+ * @param {import('@playwright/test').Page} p    Page.
+ * @param {string}                          name Fragment of the internal name.
  * @return {Promise<boolean>} false if the document is missing or not editable.
  */
-async function goToEdit( p, name, tray = '' ) {
-	const id = CYCLE === name ? DOC_CYCLE : RESOLUTION === name ? DOC_RESOLUTION : await idOf( p, name, tray );
+async function goToEdit( p, name ) {
+	const id = CYCLE === name ? DOC_CYCLE : RESOLUTION === name ? DOC_RESOLUTION : await idOf( p, name );
 	if ( ! id ) return false;
 
-	const queue = '' !== tray ? '&bandeja=' + tray : '';
-	await goTo( p, '/documentate/?doc=' + id + '&vista=editar' + queue );
+	await goTo( p, '/documentate/?doc=' + id + '&vista=editar' );
 
 	return ( await p.locator( 'form.dcta-editor' ).count() ) > 0;
 }
 
 /**
- * Opens the detail view of a document, finding it by name in the lists.
+ * Opens the detail view of a document, finding it by name in the list.
  *
- * @param {import('@playwright/test').Page} p       Page.
- * @param {string}                          name    Fragment of the internal name.
- * @param {string}                          tray    Tray the visit comes from.
+ * @param {import('@playwright/test').Page} p    Page.
+ * @param {string}                          name Fragment of the internal name.
  * @return {Promise<boolean>} false if the document does not show up.
  */
-async function goToDetail( p, name, tray = '' ) {
-	const id = CYCLE === name ? DOC_CYCLE : RESOLUTION === name ? DOC_RESOLUTION : await idOf( p, name, tray );
+async function goToDetail( p, name ) {
+	const id = CYCLE === name ? DOC_CYCLE : RESOLUTION === name ? DOC_RESOLUTION : await idOf( p, name );
 	if ( ! id ) return false;
 
-	const queue = '' !== tray ? '&bandeja=' + tray : '';
-	await goTo( p, '/documentate/?doc=' + id + queue );
+	await goTo( p, '/documentate/?doc=' + id );
 
 	return ( await p.locator( '.dcta-detalle' ).count() ) > 0;
 }
 
 /**
- * ID of any document, looking for it in the given tray.
+ * ID of any document, looking for it in the list.
  *
- * @param {import('@playwright/test').Page} p       Page.
- * @param {string}                          name    Fragment of the internal name.
- * @param {string}                          tray    Tray to look in.
+ * @param {import('@playwright/test').Page} p    Page.
+ * @param {string}                          name Fragment of the internal name.
  * @return {Promise<number>} 0 if it does not show up.
  */
-async function idOf( p, name, tray ) {
-	const paths = '' !== tray
-		? [ '/documentate/?bandeja=' + tray + '&estado=todos', '/documentate/' ]
-		: [ '/documentate/', '/documentate/?estado=todos' ];
+async function idOf( p, name ) {
+	// Every status at once first: the list opens on the chip of the rol, and
+	// what is being looked for is rarely the one that waits for it.
+	const paths = [ '/documentate/?estado=todos', '/documentate/' ];
 
 	for ( const path of paths ) {
 		await goTo( p, path );

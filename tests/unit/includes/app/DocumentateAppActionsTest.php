@@ -421,7 +421,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 		);
 		$target = $this->capture( array( 'Documentate_App_Actions', 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'bandeja=revisar', $target );
+		$this->assertStringNotContainsString( 'doc=', $target, 'A return lands on the list, not on a document that is somebody else\'s again.' );
 		$this->assertStringContainsString( 'devuelto=1', $target );
 		$this->assertSame( 'draft', get_post_status( $doc_id ) );
 
@@ -432,9 +432,9 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Administración returns a document and lands back in its own tray.
+	 * Administración returns a document and lands back on the list.
 	 */
-	public function test_administration_returns_from_its_tray() {
+	public function test_administration_returns_to_the_list() {
 		$doc_id = $this->create_document( 'En revisión devuelto', $this->management_type_id, 'pending' );
 
 		wp_set_current_user( $this->admin_id );
@@ -447,7 +447,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 		);
 		$target = $this->capture( array( 'Documentate_App_Actions', 'handle_transition' ) );
 
-		$this->assertStringContainsString( 'bandeja=revision', $target );
+		$this->assertStringNotContainsString( 'doc=', $target );
 		$this->assertStringContainsString( 'devuelto=1', $target );
 		$this->assertSame( 'en_gestion', get_post_status( $doc_id ) );
 		$this->assertSame( 'administracion', Documentate_Document_Data::returned( $doc_id )['desde'] );
@@ -470,7 +470,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'aprobado=1', $target );
 		$this->assertSame( 'publish', get_post_status( $doc_id ) );
-		$this->assertContains( 'aprobó y publicó el documento', $this->events( $doc_id ) );
+		$this->assertContains( 'aprobó el documento', $this->events( $doc_id ) );
 	}
 
 	/**
@@ -663,30 +663,17 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The tray the document was opened from survives a save.
+	 * A save comes back to the document it saved.
 	 */
-	public function test_save_comes_back_to_the_tray_it_came_from() {
-		$doc_id = $this->create_document( 'En gestión desde la bandeja', $this->management_type_id, 'en_gestion' );
+	public function test_save_comes_back_to_the_document() {
+		$doc_id = $this->create_document( 'En gestión guardado', $this->management_type_id, 'en_gestion' );
 
 		wp_set_current_user( $this->management_id );
-		$this->post_save( $doc_id, array( 'documentate_app_bandeja' => 'revisar' ) );
+		$this->post_save( $doc_id );
 		$target = $this->capture( array( 'Documentate_App_Actions', 'handle_save_document' ) );
 
-		$this->assertStringContainsString( 'bandeja=revisar', $target );
+		$this->assertStringContainsString( 'doc=' . $doc_id, $target );
 		$this->assertStringContainsString( 'guardado=1', $target );
-	}
-
-	/**
-	 * A tray this person cannot open is not carried over.
-	 */
-	public function test_save_ignores_a_tray_that_is_not_theirs() {
-		$doc_id = $this->create_document( 'Borrador del área', $this->management_type_id );
-
-		wp_set_current_user( $this->area_id );
-		$this->post_save( $doc_id, array( 'documentate_app_bandeja' => 'revision' ) );
-		$target = $this->capture( array( 'Documentate_App_Actions', 'handle_save_document' ) );
-
-		$this->assertStringNotContainsString( 'bandeja=', $target );
 	}
 
 	/**

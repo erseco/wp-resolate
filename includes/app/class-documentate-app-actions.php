@@ -122,33 +122,13 @@ class Documentate_App_Actions {
 	}
 
 	/**
-	 * The tray the form came from, when this person can open it.
+	 * View arguments of a document.
 	 *
-	 * The lists, the document view and the editor all carry it so the back
-	 * link and the highlighted tab survive a save, a comment or a transition.
-	 *
-	 * @return string Tray key, empty when none was posted or it is not theirs.
-	 */
-	private static function posted_tray() {
-		$tray = sanitize_key( self::posted_text( 'documentate_app_bandeja' ) );
-
-		return in_array( $tray, Documentate_App_List::trays(), true ) ? $tray : '';
-	}
-
-	/**
-	 * View arguments of a document, remembering the tray it was opened from.
-	 *
-	 * @param int    $doc_id Document ID.
-	 * @param string $tray   Tray key.
+	 * @param int $doc_id Document ID.
 	 * @return array<string,string|int>
 	 */
-	private static function detail_args( $doc_id, $tray ) {
-		$args = array( 'doc' => $doc_id );
-		if ( '' !== $tray && 'mis' !== $tray ) {
-			$args['bandeja'] = $tray;
-		}
-
-		return $args;
+	private static function detail_args( $doc_id ) {
+		return array( 'doc' => $doc_id );
 	}
 
 	/**
@@ -289,8 +269,7 @@ class Documentate_App_Actions {
 			self::deny();
 		}
 
-		$tray = self::posted_tray();
-		$edit_url = Documentate_App_Edit::url( $post->ID, $tray );
+		$edit_url = Documentate_App_Edit::url( $post->ID );
 
 		if ( ! Documentate_App_Edit::can_edit( $post ) ) {
 			self::redirect_to( $edit_url, array( 'error' => 'bloqueado' ) );
@@ -331,7 +310,7 @@ class Documentate_App_Actions {
 			self::redirect_to( $edit_url, array( 'error' => $attachment_error ) );
 		}
 
-		self::apply_transition( $post, $edit_url, $tray );
+		self::apply_transition( $post, $edit_url );
 
 		self::redirect_to( $edit_url, array( 'guardado' => '1' ) );
 	}
@@ -354,11 +333,10 @@ class Documentate_App_Actions {
 			self::deny();
 		}
 
-		$tray = self::posted_tray();
-		$detail_url = Documentate_App_Shell::page_url( self::detail_args( $post->ID, $tray ) );
+		$detail_url = Documentate_App_Shell::page_url( self::detail_args( $post->ID ) );
 
 		Documentate_App_Lock::require_available( $post->ID );
-		self::apply_transition( $post, $detail_url, $tray );
+		self::apply_transition( $post, $detail_url );
 
 		self::redirect_to( $detail_url, array( 'error' => 'transicion' ) );
 	}
@@ -401,10 +379,9 @@ class Documentate_App_Actions {
 			self::deny();
 		}
 
-		$tray = self::posted_tray();
 		$target = 'editar' === self::posted_text( 'documentate_app_redirect_to' )
-			? Documentate_App_Edit::url( $post->ID, $tray )
-			: Documentate_App_Shell::page_url( self::detail_args( $post->ID, $tray ) );
+			? Documentate_App_Edit::url( $post->ID )
+			: Documentate_App_Shell::page_url( self::detail_args( $post->ID ) );
 
 		$result = Documentate_Activity::add_comment( $post->ID, self::posted_text( 'documentate_app_comentario', true ) );
 
@@ -422,10 +399,9 @@ class Documentate_App_Actions {
 	 *
 	 * @param WP_Post $post      Document.
 	 * @param string  $error_url Where to come back to when the transition fails.
-	 * @param string  $tray      Tray the form came from, so the document view keeps it.
 	 * @return void
 	 */
-	private static function apply_transition( $post, $error_url, $tray = '' ) {
+	private static function apply_transition( $post, $error_url ) {
 		$key = sanitize_key( self::posted_text( 'documentate_app_transicion' ) );
 		if ( '' === $key ) {
 			return;
@@ -450,7 +426,7 @@ class Documentate_App_Actions {
 		}
 
 		Documentate_App_Lock::release( $post->ID );
-		$target = self::transition_target( $post->ID, $key, $tray, $from );
+		$target = self::transition_target( $post->ID, $key, $from );
 		self::redirect_to( $target[0], $target[1] );
 	}
 
@@ -459,12 +435,11 @@ class Documentate_App_Actions {
 	 *
 	 * @param int    $post_id Document ID.
 	 * @param string $key     Transition key.
-	 * @param string $tray    Tray the form came from.
 	 * @param string $from    Status the document was in before the transition,
 	 *                        which is what tells two rules sharing a key apart.
 	 * @return array{0:string,1:array<string,string>}
 	 */
-	private static function transition_target( $post_id, $key, $tray = '', $from = '' ) {
+	private static function transition_target( $post_id, $key, $from = '' ) {
 		$flag = Documentate_Transitions::flag( $key, $from );
 		$args = '' !== $flag ? array( $flag => '1' ) : array();
 
@@ -475,13 +450,13 @@ class Documentate_App_Actions {
 			$args['transicion'] = $key;
 		}
 
-		if ( 'bandeja' === Documentate_Transitions::redirect( $key, $from ) ) {
-			$tray = Documentate_Roles::is_head() ? 'revision' : 'revisar';
-
-			return array( Documentate_App_Shell::page_url( array( 'bandeja' => $tray ) ), $args );
+		// A return lands on the list, where the chip of this rol says what is
+		// waiting now that this document is somebody else's again.
+		if ( 'lista' === Documentate_Transitions::redirect( $key, $from ) ) {
+			return array( Documentate_App_Shell::page_url(), $args );
 		}
 
-		return array( Documentate_App_Shell::page_url( self::detail_args( $post_id, $tray ) ), $args );
+		return array( Documentate_App_Shell::page_url( self::detail_args( $post_id ) ), $args );
 	}
 
 	/**

@@ -39,8 +39,13 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
             $resolution_schema,
             array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante' )
         );
+        // The official data is filled in later; the body of the resolution is
+        // what the área writes, so it is the área's.
         $this->assertSchemaFieldMatches( $resolution_schema, 'numero_resolucion', array( 'type' => 'text', 'rol' => 'gestion' ) );
-        $this->assertSchemaFieldMatches( $resolution_schema, 'antecedentes', array( 'type' => 'html', 'rol' => 'gestion' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'expediente', array( 'rol' => 'gestion' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'antecedentes', array( 'type' => 'html', 'rol' => '' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'fundamentos', array( 'type' => 'html', 'rol' => '' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'resuelvo', array( 'type' => 'html', 'rol' => '' ) );
         $this->assertSchemaFieldMatches( $resolution_schema, 'objeto', array( 'rol' => '' ) );
 
         // Prefixes and the gestión flag of the seeded types.
@@ -116,12 +121,10 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
         );
         $this->assertRepeaterHasFields( $advanced_odt_schema, 'items', array_keys( $fixture_repeaters['items'] ) );
 
-        $advanced_docx = get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' );
-        $this->assertInstanceOf( WP_Term::class, $advanced_docx );
-        $advanced_docx_schema = $storage->get_schema( $advanced_docx->term_id );
-        $this->assertIsArray( $advanced_docx_schema );
-        $this->assertSame( 2, $advanced_docx_schema['version'], 'Advanced DOCX schema must be version 2.' );
-        $this->assertRepeaterHasFields( $advanced_docx_schema, 'items', array_keys( $fixture_repeaters['items'] ) );
+        $this->assertFalse(
+            get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' ),
+            'The DOCX twin of the advanced example is no longer one of the examples.'
+        );
 
         $converted_schema = Documentate_Documents::get_term_schema( $advanced_odt->term_id );
         $this->assertIsArray( $converted_schema, 'CPT must be able to read the stored schema.' );
@@ -132,8 +135,62 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $this->assertSame( $resolution->term_id, $resolution_after->term_id );
         $advanced_odt_after = get_term_by( 'slug', 'documentate-demo-wp-documentate-odt', 'documentate_doc_type' );
         $this->assertSame( $advanced_odt->term_id, $advanced_odt_after->term_id );
-        $advanced_docx_after = get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' );
-        $this->assertSame( $advanced_docx->term_id, $advanced_docx_after->term_id );
+    }
+
+    /**
+     * A site seeded by an earlier version loses the DOCX example, unless a
+     * document of that type would go with it.
+     */
+    public function test_the_docx_example_is_retired_from_a_site_that_has_it() {
+        update_option( 'documentate_seed_demo_documents', true );
+        $legacy = static function () {
+            $term = wp_insert_term( 'Tipo de documento de prueba avanzado (DOCX)', 'documentate_doc_type', array( 'slug' => 'documentate-demo-wp-documentate-docx' ) );
+            update_term_meta( (int) $term['term_id'], '_documentate_fixture', 'documentate-demo-wp-documentate-docx' );
+
+            return (int) $term['term_id'];
+        };
+
+        $term_id = $legacy();
+        Documentate_Demo_Data::maybe_seed_default_doc_types();
+        $this->assertFalse( get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' ) );
+
+        // With a document of that type it stays: the document would be left
+        // pointing at a type that is not there any more.
+        $term_id = $legacy();
+        $doc = self::factory()->post->create(
+            array(
+                'post_type' => 'documentate_document',
+                'post_status' => 'draft',
+                'tax_input' => array( 'documentate_doc_type' => array( $term_id ) ),
+            )
+        );
+        wp_set_object_terms( $doc, array( $term_id ), 'documentate_doc_type' );
+
+        Documentate_Demo_Data::maybe_seed_default_doc_types();
+
+        $this->assertInstanceOf( WP_Term::class, get_term_by( 'slug', 'documentate-demo-wp-documentate-docx', 'documentate_doc_type' ) );
+    }
+
+    /**
+     * Seeding again brings the name of an example up to date, and leaves a
+     * name somebody edited alone.
+     */
+    public function test_seeding_again_renames_its_own_examples_only() {
+        update_option( 'documentate_seed_demo_documents', true );
+        Documentate_Demo_Data::ensure_default_media();
+        Documentate_Demo_Data::maybe_seed_default_doc_types();
+
+        $expense = get_term_by( 'slug', 'propuesta-gasto', 'documentate_doc_type' );
+        $this->assertSame( 'Propuesta de gasto (Documento 0)', $expense->name );
+
+        wp_update_term( $expense->term_id, 'documentate_doc_type', array( 'name' => 'Propuesta de gasto del servicio' ) );
+        Documentate_Demo_Data::maybe_seed_default_doc_types();
+
+        $this->assertSame(
+            'Propuesta de gasto del servicio',
+            get_term( $expense->term_id, 'documentate_doc_type' )->name,
+            'A name of their own is not overwritten by the seeder.'
+        );
     }
 
     /**

@@ -400,7 +400,11 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The resolución declares its official data and bodies as gestión fields.
+	 * The resolución declares its official data as gestión fields, and its
+	 * body as the área's.
+	 *
+	 * Antecedentes, fundamentos and resuelvo are what the área is resolving;
+	 * revisión completes the numbering and the signing body around them.
 	 */
 	public function test_resolucion_official_fields_are_management() {
 		$extractor = new SchemaExtractor();
@@ -414,11 +418,12 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		);
 
 		$fields = $this->index_fields( $schema['fields'] );
-		foreach ( array( 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante', 'antecedentes', 'fundamentos', 'resuelvo' ) as $slug ) {
+		foreach ( array( 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante' ) as $slug ) {
 			$this->assertSame( 'gestion', $fields[ $slug ]['rol'], $slug );
 		}
-		$this->assertSame( '', $fields['post_title']['rol'] );
-		$this->assertSame( '', $fields['objeto']['rol'] );
+		foreach ( array( 'post_title', 'objeto', 'antecedentes', 'fundamentos', 'resuelvo' ) as $slug ) {
+			$this->assertSame( '', $fields[ $slug ]['rol'], $slug );
+		}
 
 		$this->assertSame( 'text', $fields['numero_resolucion']['type'] );
 		$this->assertSame( 'Nº de resolución', $fields['numero_resolucion']['title'] );

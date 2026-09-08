@@ -301,16 +301,18 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		);
 	} );
 
-	test( 'management finds the document in «Para revisar» and sees the area data', async ( {
+	test( 'management finds the document in «En revisión» and sees the area data', async ( {
 		browser,
 		baseURL,
 	} ) => {
 		const management = await managementPage( browser, baseURL );
 
-		await management.goto( `${ APP_PATH }?bandeja=revisar` );
-		await expect( management.locator( '.dcta-h1' ) ).toHaveText(
-			'Para revisar'
-		);
+		// No query string: the list opens on the chip of the rol, which for
+		// revisión is what waits for review.
+		await management.goto( APP_PATH );
+		await expect(
+			management.locator( '.dcta-fchip-on' )
+		).toContainText( 'En revisión' );
 		await expect( management.locator( '.dcta-rol' ) ).toHaveText(
 			'Revisión'
 		);
@@ -360,7 +362,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		const management = await managementPage( browser, baseURL );
 
 		await management.goto(
-			`${ APP_PATH }?doc=${ docWithoutReason }&vista=editar&bandeja=revisar`
+			`${ APP_PATH }?doc=${ docWithoutReason }&vista=editar`
 		);
 		await expect( management.locator( 'form.dcta-editor' ) ).toHaveCount( 1 );
 
@@ -395,7 +397,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		const management = await managementPage( browser, baseURL );
 
 		await management.goto(
-			`${ APP_PATH }?doc=${ docId }&vista=editar&bandeja=revisar`
+			`${ APP_PATH }?doc=${ docId }&vista=editar`
 		);
 		await management
 			.locator( '#documentate_field_numero_resolucion' )
@@ -418,9 +420,9 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 				.click(),
 		] );
 
-		// A return lands on the tray, not on the document: the reviewer moves on.
+		// A return lands on the list, not on the document: the reviewer moves on.
 		await expect( management.locator( '.dcta-h1' ) ).toHaveText(
-			'Para revisar'
+			'Documentos'
 		);
 		await expect( management.locator( '.dcta-aviso-ok' ) ).toHaveText(
 			'Documento devuelto con el motivo indicado.'
@@ -491,7 +493,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 	} ) => {
 		const management = await managementPage( browser, baseURL );
 
-		await management.goto( `${ APP_PATH }?bandeja=revisar` );
+		await management.goto( APP_PATH );
 		await Promise.all( [
 			management.waitForURL( /vista=editar/ ),
 			row( management, NAME )
@@ -524,11 +526,11 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			'En aprobación'
 		);
 
-		// Passing it on does not hide it: the tray keeps every document that
-		// has left its área, whatever its status.
-		await management.goto( `${ APP_PATH }?bandeja=revisar&estado=pending` );
+		// Passing it on does not hide it: the list keeps every document of the
+		// ámbito, and the chips are how a status is picked.
+		await management.goto( `${ APP_PATH }?estado=pending` );
 		await expect( row( management, NAME ) ).toHaveCount( 1 );
-		await management.goto( `${ APP_PATH }?bandeja=revisar&estado=todos` );
+		await management.goto( `${ APP_PATH }?estado=todos` );
 		await expect( row( management, NAME ) ).toHaveCount( 1 );
 	} );
 
@@ -537,7 +539,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		browser,
 		baseURL,
 	} ) => {
-		await page.goto( `${ APP_PATH }?bandeja=revision` );
+		await page.goto( APP_PATH );
 		await expect( page.locator( '.dcta-rol' ) ).toHaveText(
 			'Administración'
 		);
@@ -548,7 +550,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		] );
 
 		await page
-			.getByRole( 'button', { name: 'Aprobar y publicar' } )
+			.getByRole( 'button', { name: 'Aprobar' } )
 			.click();
 		const confirmDialog = page.getByRole( 'dialog' );
 		await expect( confirmDialog ).toContainText(
@@ -558,11 +560,11 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await Promise.all( [
 			page.waitForURL( /aprobado=1/ ),
 			confirmDialog
-				.getByRole( 'button', { name: 'Aprobar y publicar' } )
+				.getByRole( 'button', { name: 'Aprobar' } )
 				.click(),
 		] );
 		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText(
-			'Documento aprobado y publicado.'
+			'Documento aprobado.'
 		);
 		await expect( page.locator( '.dcta-lado .dcta-estado' ) ).toHaveText(
 			'Aprobado'
@@ -575,7 +577,9 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		).toContainText( RESOLUTION_NUMBER );
 
 		const area = await areaPage( browser, baseURL );
-		await area.goto( APP_PATH );
+		// The área's list opens on what it has still to send, so an approved
+		// document is behind the "Todos" chip.
+		await area.goto( `${ APP_PATH }?estado=todos` );
 		const ours = row( area, NAME );
 		await expect( ours.locator( '.dcta-estado' ) ).toHaveText(
 			'Aprobado'
@@ -602,7 +606,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		 */
 		async function returnDocument( doc, target ) {
 			await page.goto(
-				`${ APP_PATH }?doc=${ doc }&vista=editar&bandeja=revision`
+				`${ APP_PATH }?doc=${ doc }&vista=editar`
 			);
 			await page.getByRole( 'button', { name: 'Devolver…' } ).click();
 
@@ -660,7 +664,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		// The list is newest first. Only steps separated by a navigation are
 		// compared: listar() orders by comment_date_gmt with no tiebreaker, so
 		// two events written inside the same second may come back either way.
-		expect( events[ 0 ] ).toContain( 'aprobó y publicó el documento' );
+		expect( events[ 0 ] ).toContain( 'aprobó el documento' );
 		expect( index( 'creó el borrador' ) ).toBeGreaterThan(
 			index( 'envió el documento a revisión' )
 		);

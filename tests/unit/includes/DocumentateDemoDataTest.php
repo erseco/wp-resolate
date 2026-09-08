@@ -255,7 +255,6 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 			'modelo-informe'                       => 'modelo_informe',
 			'respuesta-escrito'                    => 'respuesta_escrito',
 			'documentate-demo-wp-documentate-odt'  => 'generic',
-			'documentate-demo-wp-documentate-docx' => 'generic',
 		);
 
 		foreach ( $expected as $slug => $layout ) {

@@ -972,7 +972,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'En aprobación', $output );
-		$this->assertStringContainsString( 'Aprobar y publicar', $output );
+		$this->assertStringContainsString( 'Aprobar', $output );
 		$this->assertStringContainsString( 'Devolver al área', $output );
 		$this->assertStringContainsString( 'documentate-save-pending', $output );
 		$this->assertStringContainsString( 'id="documentate-return-draft-motivo"', $output );
@@ -1018,7 +1018,7 @@ class DocumentateWorkflowTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'en aprobación', $output );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $output );
-		$this->assertStringNotContainsString( 'Aprobar y publicar', $output );
+		$this->assertStringNotContainsString( 'Aprobar', $output );
 		$this->assertStringNotContainsString( 'Guardar borrador', $output );
 	}
 
