@@ -20,7 +20,7 @@ official resolutions and structured administrative documents. It uses:
   (`@matbee/libreoffice-converter`) for optional format conversion
 - PHPUnit for unit tests, Playwright for E2E tests
 - PHPCS with WordPress Coding Standards for PHP linting and formatting
-  (canonical); Mago remains available only as optional secondary tooling
+  (canonical)
 - `wp-env` (Docker) for local WordPress and test environments
 
 Read `ARCHITECTURE.md` before implementing new features or significant changes.
@@ -63,8 +63,6 @@ make check       # Runs: lint -> phpmd -> check-plugin -> test
 | `make fix`               | Auto-fix PHP with PHPCBF / WPCS                         |
 | `make lint`              | Lint PHP with PHPCS / WPCS — **always required**         |
 | `make phpmd`             | Complexity budget vs. `phpmd-baseline.xml` — **always required** |
-| `make mago-format`       | Optional secondary Mago formatter (may be removed)       |
-| `make mago-lint`         | Optional secondary Mago lint (may be removed)            |
 | `make check-plugin`      | Run WordPress plugin-check — **always required**         |
 | `make test`              | Run PHPUnit unit tests — **always required**             |
 | `make test-generation`   | PHPUnit generation suite only (OpenTBS/templates)        |
@@ -439,17 +437,9 @@ The canonical PHP linter/formatter is **PHPCS with WordPress Coding Standards**
 (`.phpcs.xml.dist`), installed via Composer:
 
 ```bash
-composer install          # installs PHPCS, WPCS, PHPUnit, optional Mago, …
+composer install          # installs PHPCS, WPCS, PHPUnit, …
 composer phpcs            # same as: make lint
 composer phpcbf           # same as: make fix
-```
-
-**Mago** is optional secondary tooling only (not used by CI, `make lint`,
-`make fix`, or `make check`). It may be removed later:
-
-```bash
-composer mago:lint        # same as: make mago-lint
-composer mago:format      # same as: make mago-format
 ```
 
 Always inspect the `Makefile` to understand exactly what each `make` target runs.

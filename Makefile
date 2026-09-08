@@ -287,20 +287,6 @@ fix: require-phpcs
 fix-no-tty: fix
 lint-no-tty: lint
 
-# Optional secondary Mago tooling. Not part of default checks or CI.
-# May be removed if it does not provide enough additional value.
-require-mago:
-	@if [ ! -x "./vendor/bin/mago" ]; then \
-		echo "Error: Mago is not installed."; \
-		echo "Run: composer install --prefer-dist"; \
-		exit 1; \
-	fi
-
-mago-lint: require-mago
-	composer mago:lint
-
-mago-format: require-mago
-	composer mago:format
 # Run PHP Mess Detector against the complexity budget in phpmd.xml, only
 # failing on violations outside phpmd-baseline.xml (the debt inherited from
 # the OpenTBS conversion code). See phpmd.xml and the "Complexity budget"
@@ -398,8 +384,6 @@ help:
 	@echo "  lint               - Check PHP with PHPCS and WordPress Coding Standards"
 	@echo "  fix-no-tty         - Alias for fix (for git hooks)"
 	@echo "  lint-no-tty        - Alias for lint (for git hooks)"
-	@echo "  mago-lint          - Optional secondary Mago lint"
-	@echo "  mago-format        - Optional secondary Mago formatter"
 	@echo "  phpmd              - Check complexity budget (phpmd.xml) against phpmd-baseline.xml"
 	@echo "  check-plugin       - Run WordPress plugin-check (Docker)"
 	@echo "  check              - Run lint, phpmd, plugin-check, and tests"

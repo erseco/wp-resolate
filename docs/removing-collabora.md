@@ -314,14 +314,6 @@ Commit the regenerated `admin/js/documentate-autofirma.js` and
 - **`.gitattributes`** — delete `/cloudflare-worker export-ignore` (line 22).
 - **`.github/dependabot.yml`** — delete the npm ecosystem entry for
   `/cloudflare-worker`, lines 39-47, comment header included.
-- **`linter-baseline.toml`** — delete **two** `[[issues]]` blocks, not one: the
-  `str-contains` entry naming `includes/class-documentate-collabora-converter.php`
-  (line 28) and the `no-sprintf-concat` entry naming
-  `includes/class-documentate-conversion-manager.php` (line 34). Leave the
-  `no-nested-ternary` entry for `includes/class-documentate-admin-helper.php`
-  alone unless
-  your edits happen to remove that ternary, in which case the baseline count must
-  come down too or Mago will complain about an unmatched baseline entry.
 - **`.github/workflows/release.yml`** — the comment at line 45 explains why Node
   is set up. Node is still needed for `build:autofirma`, so keep the step and
   reword the comment.

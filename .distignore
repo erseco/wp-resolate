@@ -43,8 +43,6 @@
 /codecov.yml
 /composer.json
 /composer.lock
-/linter-baseline.toml
-/mago.toml
 /Makefile
 /package.json
 /package-lock.json
