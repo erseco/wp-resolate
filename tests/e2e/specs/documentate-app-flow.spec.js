@@ -1,7 +1,7 @@
 /**
  * E2E tests for the full document cycle of the application (/documentate/).
  *
- * One document of a type that goes through gestión documental (Resolución)
+ * One document of a type that goes through revisión (Resolución)
  * travels the whole pipeline: the área creates it, attaches a file, fills its
  * fields and sends it; gestión completes the official data and returns it with
  * a reason; the área corrects it and sends it again; gestión passes it to
@@ -118,7 +118,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 	}
 
 	/**
-	 * The gestión documental session, opened once and reused by every step.
+	 * The revisión session, opened once and reused by every step.
 	 *
 	 * @param {import('@playwright/test').Browser} browser Playwright browser.
 	 * @param {string}                             baseURL Site base URL.
@@ -138,12 +138,13 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		test.setTimeout( 300_000 );
 
 		fixture = createFixture( {
+			// The scope is a tree: revisión sits on the service, the área below it.
 			categories: {
-				area: `Área ${ RUN }`,
-				management: `Gestión ${ RUN }`,
+				management: `Servicio ${ RUN }`,
+				area: { name: `Área ${ RUN }`, parent: 'management' },
 			},
 			// The seeded Resolución declares gestión fields in its schema, so
-			// it is a "goes through gestión documental" type by itself: the
+			// it is a "goes through revisión" type by itself: the
 			// spec reads that property instead of writing the shared term.
 			types: { res: { slug: 'resolucion-administrativa' } },
 			users: {
@@ -230,7 +231,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await area.selectOption( '#documentate-app-tipo', String( docTypeId ) );
 		// The hint under the select is written by documentate-app.js.
 		await expect( area.locator( '#documentate-app-tipo-nota' ) ).toHaveText(
-			'Pasa por gestión documental.'
+			'Pasa por revisión.'
 		);
 		await area.fill( '#documentate-app-nombre', NAME );
 		await area.fill( '#documentate-app-titulo', TITLE );
@@ -247,7 +248,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		// The banner tells the área where this type of document is going.
 		await expect( area.locator( '.dcta-aviso-info' ) ).toContainText(
-			'pasa por gestión documental'
+			'pasa por revisión'
 		);
 
 		await area
@@ -272,7 +273,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		// Sending asks for confirmation first.
 		await area
-			.getByRole( 'button', { name: 'Enviar a gestión' } )
+			.getByRole( 'button', { name: 'Enviar a revisión' } )
 			.click();
 		const confirmDialog = area.getByRole( 'dialog' );
 		await expect( confirmDialog ).toContainText(
@@ -282,14 +283,14 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await Promise.all( [
 			area.waitForURL( /enviado=1/ ),
 			confirmDialog
-				.getByRole( 'button', { name: 'Enviar a gestión' } )
+				.getByRole( 'button', { name: 'Enviar a revisión' } )
 				.click(),
 		] );
 		await expect( area.locator( '.dcta-aviso-ok' ) ).toHaveText(
-			'Documento enviado a gestión documental.'
+			'Documento enviado a revisión.'
 		);
 		await expect( area.locator( '.dcta-lado .dcta-estado' ) ).toHaveText(
-			'En gestión'
+			'En revisión'
 		);
 
 		// The área can no longer touch it: the document is with gestión.
@@ -310,7 +311,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			'Para revisar'
 		);
 		await expect( management.locator( '.dcta-rol' ) ).toHaveText(
-			'Gestión documental'
+			'Revisión'
 		);
 
 		const ours = row( management, NAME );
@@ -321,7 +322,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		// The paper clip marks the document that carries a file.
 		await expect( ours.locator( '.dcta-doc-adjunto' ) ).toHaveCount( 1 );
 		await expect( ours.locator( '.dcta-estado' ) ).toHaveText(
-			'En gestión'
+			'En revisión'
 		);
 
 		await Promise.all( [
@@ -442,7 +443,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			REASON
 		);
 		await expect( ours.locator( '.dcta-doc-motivo' ) ).toContainText(
-			'Devuelto por gestión documental'
+			'Devuelto por revisión'
 		);
 
 		await Promise.all( [
@@ -468,16 +469,16 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			.locator( '#documentate_field_objeto' )
 			.fill( `Área corregida ${ RUN }` );
 
-		await area.getByRole( 'button', { name: 'Enviar a gestión' } ).click();
+		await area.getByRole( 'button', { name: 'Enviar a revisión' } ).click();
 		await Promise.all( [
 			area.waitForURL( /enviado=1/ ),
 			area
 				.getByRole( 'dialog' )
-				.getByRole( 'button', { name: 'Enviar a gestión' } )
+				.getByRole( 'button', { name: 'Enviar a revisión' } )
 				.click(),
 		] );
 		await expect( area.locator( '.dcta-lado .dcta-estado' ) ).toHaveText(
-			'En gestión'
+			'En revisión'
 		);
 		// The mark is cleared by the forward move: no stale "Devuelto" line.
 		await expect( area.locator( '.dcta-aviso-devuelto' ) ).toHaveCount( 0 );
@@ -502,24 +503,24 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		).toHaveValue( `Área corregida ${ RUN }` );
 
 		await management
-			.getByRole( 'button', { name: 'Pasar a administración' } )
+			.getByRole( 'button', { name: 'Pasar a aprobación' } )
 			.click();
 		const confirmDialog = management.getByRole( 'dialog' );
 		await expect( confirmDialog ).toContainText(
-			'Gestión ya no podrá modificarlo hasta que lo devuelvan.'
+			'Revisión ya no podrá modificarlo hasta que lo devuelvan.'
 		);
 
 		await Promise.all( [
 			management.waitForURL( /enviado=1/ ),
 			confirmDialog
-				.getByRole( 'button', { name: 'Pasar a administración' } )
+				.getByRole( 'button', { name: 'Pasar a aprobación' } )
 				.click(),
 		] );
 		await expect( management.locator( '.dcta-aviso-ok' ) ).toHaveText(
-			'Documento pasado a administración.'
+			'Documento pasado a la jefatura de servicio para su aprobación.'
 		);
 		await expect( management.locator( '.dcta-lado .dcta-estado' ) ).toHaveText(
-			'En revisión'
+			'En aprobación'
 		);
 
 		// Passing it on does not hide it: the tray keeps every document that
@@ -595,7 +596,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		 * this also proves that exactly one destination travels with the post.
 		 *
 		 * @param {number} doc    Document ID.
-		 * @param {string} target Radio label ("Al área" / "Gestión documental").
+		 * @param {string} target Radio label ("Al área" / "A revisión").
 		 * @return {Promise<void>}
 		 */
 		async function returnDocument( doc, target ) {
@@ -607,7 +608,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			const dialog = page.getByRole( 'dialog' );
 			await expect( dialog ).toContainText( 'Devolver a:' );
 			await expect(
-				dialog.getByRole( 'radio', { name: 'Gestión documental' } )
+				dialog.getByRole( 'radio', { name: 'A revisión' } )
 			).toBeVisible();
 			await expect(
 				dialog.getByRole( 'radio', { name: 'Al área' } )
@@ -634,7 +635,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		await returnDocument(
 			fixture.documents.devolverGestion,
-			'Gestión documental'
+			'A revisión'
 		);
 		expect( statusOf( fixture.documents.devolverGestion ) ).toBe(
 			'en_gestion'
@@ -660,21 +661,21 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		// two events written inside the same second may come back either way.
 		expect( events[ 0 ] ).toContain( 'aprobó y publicó el documento' );
 		expect( index( 'creó el borrador' ) ).toBeGreaterThan(
-			index( 'envió el documento a gestión' )
+			index( 'envió el documento a revisión' )
 		);
 
-		expect( index( 'pasó el documento a administración' ) ).toBeGreaterThan(
+		expect( index( 'pasó el documento a aprobación' ) ).toBeGreaterThan(
 			0
 		);
 		expect( index( 'devolvió el documento al área' ) ).toBeGreaterThan(
-			index( 'pasó el documento a administración' )
+			index( 'pasó el documento a aprobación' )
 		);
 		expect( index( `adjuntó el fichero «${ FILE_NAME }»` ) ).toBeGreaterThan(
 			index( 'devolvió el documento al área' )
 		);
 		expect(
 			events.filter( ( entry ) =>
-				entry.includes( 'envió el documento a gestión' )
+				entry.includes( 'envió el documento a revisión' )
 			)
 		).toHaveLength( 2 );
 	} );

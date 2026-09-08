@@ -41,15 +41,15 @@ class DocumentateStatusesTest extends WP_UnitTestCase {
 		$status = get_post_status_object( 'en_gestion' );
 
 		$this->assertNotNull( $status );
-		$this->assertSame( 'En gestión', $status->label );
+		$this->assertSame( 'En revisión', $status->label );
 		$this->assertFalse( $status->public );
 		$this->assertTrue( $status->protected );
 		$this->assertFalse( $status->exclude_from_search, 'Like pending: "any" queries must still find it.' );
 		$this->assertTrue( $status->show_in_admin_all_list );
 		$this->assertTrue( $status->show_in_admin_status_list );
-		$this->assertSame( 'En gestión <span class="count">(%s)</span>', $status->label_count['singular'] );
-		$this->assertSame( 'En gestión <span class="count">(%s)</span>', $status->label_count['plural'] );
-		$this->assertSame( 'En gestión <span class="count">(%s)</span>', $status->label_count[0] );
+		$this->assertSame( 'En revisión <span class="count">(%s)</span>', $status->label_count['singular'] );
+		$this->assertSame( 'En revisión <span class="count">(%s)</span>', $status->label_count['plural'] );
+		$this->assertSame( 'En revisión <span class="count">(%s)</span>', $status->label_count[0] );
 		$this->assertNull( $status->label_count['context'] );
 		$this->assertNull( $status->label_count['domain'] );
 		$this->assertStringContainsString( '(3)', sprintf( translate_nooped_plural( $status->label_count, 3 ), 3 ) );
@@ -78,7 +78,8 @@ class DocumentateStatusesTest extends WP_UnitTestCase {
 			array( 'draft', 'en_gestion', 'pending', 'publish', 'archived' ),
 			array_keys( Documentate_Statuses::labels() )
 		);
-		$this->assertSame( 'En revisión', Documentate_Statuses::labels()['pending'] );
+		$this->assertSame( 'En aprobación', Documentate_Statuses::labels()['pending'] );
+		$this->assertSame( 'En revisión', Documentate_Statuses::labels()['en_gestion'] );
 	}
 
 	/**
@@ -86,7 +87,7 @@ class DocumentateStatusesTest extends WP_UnitTestCase {
 	 */
 	public function test_display_post_states() {
 		$doc = $this->document_in( 'en_gestion' );
-		$this->assertSame( array( 'en_gestion' => 'En gestión' ), Documentate_Statuses::display_post_states( array(), $doc ) );
+		$this->assertSame( array( 'en_gestion' => 'En revisión' ), Documentate_Statuses::display_post_states( array(), $doc ) );
 
 		$draft = $this->document_in( 'draft' );
 		$this->assertSame( array( 'x' => 'y' ), Documentate_Statuses::display_post_states( array( 'x' => 'y' ), $draft ) );
@@ -105,17 +106,18 @@ class DocumentateStatusesTest extends WP_UnitTestCase {
 			array( 'success', 'lock', 'El documento está bloqueado. Contacta con administración.' ),
 			Documentate_Statuses::metabox_message( 'publish', false, false, false )
 		);
-		$this->assertStringContainsString( 'Devuélvelo a revisión', Documentate_Statuses::metabox_message( 'publish', true, false, true )[2] );
+		$this->assertStringContainsString( 'Devuélvelo a aprobación', Documentate_Statuses::metabox_message( 'publish', true, false, true )[2] );
 		$this->assertSame( 'archive', Documentate_Statuses::metabox_message( 'archived', true, false, true )[1] );
 		$this->assertStringContainsString( 'Desarchívalo', Documentate_Statuses::metabox_message( 'archived', true, false, true )[2] );
 		$this->assertStringContainsString( 'Contacta con administración', Documentate_Statuses::metabox_message( 'archived', false, false, false )[2] );
 		$this->assertSame( 'pending', Documentate_Statuses::metabox_message( 'pending', true, true, true )[0] );
 		$this->assertStringContainsString( 'Apruébalo o devuélvelo', Documentate_Statuses::metabox_message( 'pending', true, true, true )[2] );
-		$this->assertStringContainsString( 'Administración lo aprobará', Documentate_Statuses::metabox_message( 'pending', false, true, false )[2] );
+		$this->assertStringContainsString( 'La jefatura de servicio lo aprobará', Documentate_Statuses::metabox_message( 'pending', false, true, false )[2] );
+		$this->assertStringContainsString( 'Apruébalo o devuélvelo', Documentate_Statuses::metabox_message( 'pending', false, true, true )[2], 'The head of service is not admin, but holds the document.' );
 		$this->assertStringContainsString( 'Completa los datos oficiales', Documentate_Statuses::metabox_message( 'en_gestion', false, true, true )[2] );
 		$this->assertStringContainsString( 'Ya no puedes modificarlo', Documentate_Statuses::metabox_message( 'en_gestion', false, true, false )[2] );
-		$this->assertStringContainsString( 'Envía a gestión documental', Documentate_Statuses::metabox_message( 'draft', false, true, true )[2] );
-		$this->assertStringContainsString( 'Envía a revisión', Documentate_Statuses::metabox_message( 'draft', false, false, true )[2] );
+		$this->assertStringContainsString( 'Envía a revisión cuando esté listo', Documentate_Statuses::metabox_message( 'draft', false, true, true )[2] );
+		$this->assertStringContainsString( 'Envía a aprobación', Documentate_Statuses::metabox_message( 'draft', false, false, true )[2] );
 		$this->assertNull( Documentate_Statuses::metabox_message( 'trash', true, true, true ) );
 	}
 

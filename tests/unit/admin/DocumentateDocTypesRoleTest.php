@@ -203,7 +203,7 @@ class DocumentateDocTypesRoleTest extends Documentate_Test_Base {
 		$this->assertStringContainsString( 'name="documentate_type_prefijo" value="CONV" maxlength="6"', $html );
 		$this->assertStringContainsString( 'Prefijo', $html );
 		$this->assertMatchesRegularExpression( '/name="documentate_type_con_gestion" value="1" checked=\'checked\'/', $html );
-		$this->assertStringContainsString( 'Pasa por gestión documental', $html );
+		$this->assertStringContainsString( 'Pasa por revisión', $html );
 		$this->assertStringContainsString( 'Cualquier campo con rol=&#039;gestion&#039; en la plantilla activa este paso.', $html );
 	}
 
@@ -218,11 +218,11 @@ class DocumentateDocTypesRoleTest extends Documentate_Test_Base {
 		$this->assertStringContainsString( 'name="documentate_type_prefijo" value="" maxlength="6"', $html );
 		$this->assertStringContainsString( 'name="documentate_type_con_gestion" value="1" />', $html );
 		$this->assertStringNotContainsString( "checked='checked'", $html );
-		$this->assertStringContainsString( 'Pasa por gestión documental', $html );
+		$this->assertStringContainsString( 'Pasa por revisión', $html );
 	}
 
 	/**
-	 * The schema preview marks the entries gestión documental fills in.
+	 * The schema preview marks the entries revisión fills in.
 	 */
 	public function test_schema_preview_shows_the_role_badge() {
 		$schema = array(
@@ -267,8 +267,8 @@ class DocumentateDocTypesRoleTest extends Documentate_Test_Base {
 		$method->invoke( $this->admin, $schema );
 		$html = ob_get_clean();
 
-		$this->assertSame( 3, substr_count( $html, '<span class="documentate-field-rol">gestión</span>' ), 'Field, block and block field carry the badge.' );
+		$this->assertSame( 3, substr_count( $html, '<span class="documentate-field-rol">revisión</span>' ), 'Field, block and block field carry the badge.' );
 		$this->assertMatchesRegularExpression( '/<li>Objeto <span class="documentate-field-type">\(single\)<\/span><\/li>/', $html, 'Área entries carry no badge.' );
-		$this->assertMatchesRegularExpression( '/Nº de resolución <span class="documentate-field-type">\(single\)<\/span> <span class="documentate-field-rol">gestión<\/span>/', $html );
+		$this->assertMatchesRegularExpression( '/Nº de resolución <span class="documentate-field-type">\(single\)<\/span> <span class="documentate-field-rol">revisión<\/span>/', $html );
 	}
 }

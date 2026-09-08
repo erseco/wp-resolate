@@ -45,8 +45,8 @@ class Documentate_Statuses {
 	public static function labels() {
 		return array(
 			'draft' => 'Borrador',
-			'en_gestion' => 'En gestión',
-			'pending' => 'En revisión',
+			'en_gestion' => 'En revisión',
+			'pending' => 'En aprobación',
 			'publish' => 'Aprobado',
 			'archived' => 'Archivado',
 		);
@@ -59,8 +59,8 @@ class Documentate_Statuses {
 	 * (index 0 when the flag is off, 1 when it is on).
 	 *
 	 * @param string $key            Status key (draft, en_gestion, pending, publish, archived).
-	 * @param bool   $is_admin       Whether current user is admin.
-	 * @param bool   $has_management Whether the type goes through gestión documental.
+	 * @param bool   $is_admin       Whether current user is a site administrator.
+	 * @param bool   $has_management Whether the type goes through revisión.
 	 * @param bool   $can_modify     Whether the current user may modify the document.
 	 * @return array{0:string,1:string,2:string}|null Modifier, dashicon and text; null for other statuses.
 	 */
@@ -72,7 +72,7 @@ class Documentate_Statuses {
 				$is_admin,
 				array(
 					'El documento está bloqueado. Contacta con administración.',
-					'El documento es de solo lectura. Devuélvelo a revisión para habilitar la edición.',
+					'El documento es de solo lectura. Devuélvelo a aprobación para habilitar la edición.',
 				),
 			),
 			'archived' => array(
@@ -87,10 +87,10 @@ class Documentate_Statuses {
 			'pending' => array(
 				'pending',
 				'clock',
-				$is_admin,
+				$can_modify,
 				array(
-					'El documento está en revisión. Administración lo aprobará o lo devolverá.',
-					'El documento está en revisión. Apruébalo o devuélvelo.',
+					'El documento está en aprobación. La jefatura de servicio lo aprobará o lo devolverá.',
+					'El documento está en aprobación. Apruébalo o devuélvelo.',
 				),
 			),
 			'en_gestion' => array(
@@ -98,8 +98,8 @@ class Documentate_Statuses {
 				'clipboard',
 				$can_modify,
 				array(
-					'El documento está en gestión documental. Ya no puedes modificarlo; si falta algo, te lo devolverán.',
-					'El documento está en gestión documental. Completa los datos oficiales y pásalo a administración, o devuélvelo al área si falta algo.',
+					'El documento está en revisión. Ya no puedes modificarlo; si falta algo, te lo devolverán.',
+					'El documento está en revisión. Completa los datos oficiales y pásalo a aprobación, o devuélvelo al área si falta algo.',
 				),
 			),
 			'draft' => array(
@@ -107,8 +107,8 @@ class Documentate_Statuses {
 				'info-outline',
 				$has_management,
 				array(
-					'Envía a revisión cuando esté listo. Administración lo aprobará.',
-					'Envía a gestión documental cuando esté listo. Gestión completará los datos oficiales y administración lo aprobará.',
+					'Envía a aprobación cuando esté listo. La jefatura de servicio lo aprobará.',
+					'Envía a revisión cuando esté listo. Revisión completará los datos oficiales y la jefatura de servicio lo aprobará.',
 				),
 			),
 		);
@@ -131,12 +131,12 @@ class Documentate_Statuses {
 		register_post_status(
 			'en_gestion',
 			array(
-				'label' => 'En gestión',
+				'label' => 'En revisión',
 				'public' => false,
 				'protected' => true,
 				'show_in_admin_all_list' => true,
 				'show_in_admin_status_list' => true,
-				'label_count' => self::label_count( 'En gestión' ),
+				'label_count' => self::label_count( 'En revisión' ),
 			)
 		);
 
@@ -185,7 +185,7 @@ class Documentate_Statuses {
 		}
 
 		if ( 'en_gestion' === $post->post_status ) {
-			$states['en_gestion'] = 'En gestión';
+			$states['en_gestion'] = 'En revisión';
 		}
 
 		return $states;

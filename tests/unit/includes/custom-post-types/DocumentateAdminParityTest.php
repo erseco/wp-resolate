@@ -262,7 +262,7 @@ class DocumentateAdminParityTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'name="documentate_anotaciones"', $html );
 		$this->assertStringContainsString( 'Pendiente de revisar el anexo', $html );
-		$this->assertStringContainsString( 'Solo las ven gestión y administración', $html );
+		$this->assertStringContainsString( 'Solo las ven revisión y jefatura de servicio', $html );
 	}
 
 	/**

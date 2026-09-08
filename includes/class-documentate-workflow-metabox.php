@@ -126,6 +126,7 @@ class Documentate_Workflow_Metabox {
 				'postId' => $post_id,
 				'postStatus' => $post_status,
 				'isAdmin' => $is_admin,
+				'isHead' => Documentate_Roles::is_head(),
 				'isManagement' => Documentate_Roles::is_management(),
 				'hasDocType' => $has_doc_type,
 				'hasManagement' => $post_id > 0 && Documentate_Document_Data::has_management( $post_id ),
@@ -147,14 +148,14 @@ class Documentate_Workflow_Metabox {
 	private static function get_js_strings() {
 		return array(
 			'lockedTitle' => 'Documento bloqueado',
-			'lockedMessage' => 'Este documento está aprobado y es de solo lectura. Solo administración puede desbloquearlo devolviéndolo a revisión.',
+			'lockedMessage' => 'Este documento está aprobado y es de solo lectura. Solo administración puede desbloquearlo devolviéndolo a aprobación.',
 			'archivedMessage' => 'Este documento está archivado y es de solo lectura. Solo administración puede desarchivarlo.',
-			'pendingMessage' => 'Este documento está en revisión y es de solo lectura. Administración lo revisará.',
-			'managementMessage' => 'Este documento está en gestión documental y es de solo lectura. Si falta algo, gestión te lo devolverá.',
-			'adminUnlock' => 'Devuélvelo a revisión o al área para habilitar la edición.',
+			'pendingMessage' => 'Este documento está en aprobación y es de solo lectura. La jefatura de servicio lo aprobará o lo devolverá.',
+			'managementMessage' => 'Este documento está en revisión y es de solo lectura. Si falta algo, te lo devolverán.',
+			'adminUnlock' => 'Devuélvelo a aprobación o al área para habilitar la edición.',
 			'adminUnarchive' => 'Desarchívalo para habilitar la edición.',
 			'needsDocType' => 'Selecciona un tipo de documento antes de enviarlo.',
-			'editorRestriction' => 'Solo administración puede aprobar y publicar.',
+			'editorRestriction' => 'Solo la jefatura de servicio puede aprobar y publicar.',
 			'confirmSendReview' => Documentate_Transitions::confirmation( 'enviar_revision' ),
 			'confirmSendManagement' => Documentate_Transitions::confirmation( 'enviar_gestion' ),
 			'confirmPassAdmin' => Documentate_Transitions::confirmation( 'pasar_admin' ),
@@ -188,7 +189,7 @@ class Documentate_Workflow_Metabox {
 	 * Check if the given status should lock the document for this user.
 	 *
 	 * @param string $status   Post status.
-	 * @param bool   $is_admin Whether current user is admin.
+	 * @param bool   $is_admin Whether current user is a site administrator.
 	 * @return bool True if document should be locked.
 	 */
 	private function is_status_locked( $status, $is_admin ) {
@@ -324,17 +325,17 @@ class Documentate_Workflow_Metabox {
 	/**
 	 * Render the visual stepper showing workflow progress.
 	 *
-	 * Steps: Borrador -> [En gestión] -> En revisión -> Aprobado
+	 * Steps: Borrador -> [En revisión] -> En aprobación -> Aprobado
 	 *
 	 * @param string $status         Current post status.
-	 * @param bool   $has_management Whether the type goes through gestión documental.
+	 * @param bool   $has_management Whether the type goes through revisión.
 	 */
 	private function render_stepper( $status, $has_management ) {
 		$steps = Documentate_Statuses::labels();
 		unset( $steps['archived'] );
 		// The step the document is standing on always stays: a type can stop
-		// going through gestión documental while a document of that type is
-		// already in en_gestion, and the stepper must not answer "Borrador".
+		// going through revisión while a document of that type is already in
+		// en_gestion, and the stepper must not answer "Borrador".
 		if ( ! $has_management && 'en_gestion' !== $status ) {
 			unset( $steps['en_gestion'] );
 		}
@@ -372,9 +373,9 @@ class Documentate_Workflow_Metabox {
 	 * Render status messages based on current state.
 	 *
 	 * @param string $status         Current post status.
-	 * @param bool   $is_admin       Whether current user is admin.
+	 * @param bool   $is_admin       Whether current user is a site administrator.
 	 * @param bool   $has_doc_type   Whether post has a document type.
-	 * @param bool   $has_management Whether the type goes through gestión documental.
+	 * @param bool   $has_management Whether the type goes through revisión.
 	 * @param bool   $can_modify     Whether the current user may modify the document.
 	 */
 	private function render_status_messages( $status, $is_admin, $has_doc_type, $has_management, $can_modify ) {
@@ -412,8 +413,8 @@ class Documentate_Workflow_Metabox {
 	 *
 	 * @param WP_Post $post           Current post object.
 	 * @param string  $status         Current post status.
-	 * @param bool    $is_admin       Whether current user is admin.
-	 * @param bool    $has_management Whether the type goes through gestión documental.
+	 * @param bool    $is_admin       Whether current user is a site administrator.
+	 * @param bool    $has_management Whether the type goes through revisión.
 	 * @param bool    $can_modify     Whether the current user may modify the document.
 	 */
 	private function render_action_buttons( $post, $status, $is_admin, $has_management, $can_modify ) {
@@ -424,7 +425,7 @@ class Documentate_Workflow_Metabox {
 		} elseif ( 'en_gestion' === $status ) {
 			$this->render_management_buttons( $can_modify );
 		} elseif ( 'pending' === $status ) {
-			$this->render_pending_buttons( $is_admin, $has_management );
+			$this->render_pending_buttons( $can_modify, $has_management );
 		} elseif ( 'publish' === $status ) {
 			$this->render_published_buttons( $post, $is_admin );
 		} elseif ( 'archived' === $status ) {
@@ -488,7 +489,7 @@ class Documentate_Workflow_Metabox {
 	 * cannot be sent until it has been saved at least once.
 	 *
 	 * @param string $status         Current post status (auto-draft or draft).
-	 * @param bool   $has_management Whether the type goes through gestión documental.
+	 * @param bool   $has_management Whether the type goes through revisión.
 	 */
 	private function render_draft_buttons( $status, $has_management ) {
 		$this->render_button( 'documentate-save-draft', 'danger', 'cloud-saved', 'Guardar borrador' );
@@ -507,11 +508,11 @@ class Documentate_Workflow_Metabox {
 	/**
 	 * Render buttons for the en_gestion status.
 	 *
-	 * @param bool $can_modify Whether the current user (gestión/admin) may act.
+	 * @param bool $can_modify Whether the current user (revisión, jefatura or admin) may act.
 	 */
 	private function render_management_buttons( $can_modify ) {
 		if ( ! $can_modify ) {
-			$this->render_locked_notice( 'El documento está en gestión documental. No hay acciones disponibles.' );
+			$this->render_locked_notice( 'El documento está en revisión. No hay acciones disponibles.' );
 			return;
 		}
 
@@ -524,12 +525,12 @@ class Documentate_Workflow_Metabox {
 	/**
 	 * Render buttons for pending status.
 	 *
-	 * @param bool $is_admin       Whether current user is admin.
-	 * @param bool $has_management Whether the type goes through gestión documental.
+	 * @param bool $can_modify     Whether the current user (jefatura or admin) may act.
+	 * @param bool $has_management Whether the type goes through revisión.
 	 */
-	private function render_pending_buttons( $is_admin, $has_management ) {
-		if ( ! $is_admin ) {
-			$this->render_locked_notice( 'El documento está en revisión. No hay acciones disponibles.' );
+	private function render_pending_buttons( $can_modify, $has_management ) {
+		if ( ! $can_modify ) {
+			$this->render_locked_notice( 'El documento está en aprobación. No hay acciones disponibles.' );
 			return;
 		}
 
@@ -546,7 +547,7 @@ class Documentate_Workflow_Metabox {
 	 * Render buttons for published status.
 	 *
 	 * @param WP_Post $post     Current post object.
-	 * @param bool    $is_admin Whether current user is admin.
+	 * @param bool    $is_admin Whether current user is a site administrator.
 	 */
 	private function render_published_buttons( $post, $is_admin ) {
 		if ( ! $is_admin ) {
@@ -566,7 +567,7 @@ class Documentate_Workflow_Metabox {
 	 * Render buttons for archived status.
 	 *
 	 * @param WP_Post $post     Current post object.
-	 * @param bool    $is_admin Whether current user is admin.
+	 * @param bool    $is_admin Whether current user is a site administrator.
 	 */
 	private function render_archived_buttons( $post, $is_admin ) {
 		if ( ! $is_admin ) {

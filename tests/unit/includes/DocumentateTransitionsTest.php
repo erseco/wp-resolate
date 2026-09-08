@@ -21,11 +21,18 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental user ID (editor).
+	 * Revisión user ID (editor).
 	 *
 	 * @var int
 	 */
 	private $management_id;
+
+	/**
+	 * Jefatura de servicio user ID (editor).
+	 *
+	 * @var int
+	 */
+	private $head_id;
 
 	/**
 	 * Área user ID (author).
@@ -70,12 +77,15 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		$this->head_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		( new WP_User( $this->head_id ) )->add_cap( Documentate_Roles::CAP_HEAD );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$cat = wp_insert_term( 'Ámbito Transiciones', 'category' );
 		$this->cat_id = (int) $cat['term_id'];
 		update_user_meta( $this->area_id, 'documentate_scope_term_id', $this->cat_id );
 		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_id );
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_id );
 
 		$management = wp_insert_term( 'Resolución T', 'documentate_doc_type' );
 		$this->management_type_id = (int) $management['term_id'];
@@ -122,13 +132,14 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 	/**
 	 * User ID for a role name.
 	 *
-	 * @param string $role area, gestion or admin.
+	 * @param string $role area, gestion, jefatura or admin.
 	 * @return int
 	 */
 	private function user_for( $role ) {
 		$ids = array(
 			'area' => $this->area_id,
 			'gestion' => $this->management_id,
+			'jefatura' => $this->head_id,
 			'admin' => $this->admin_id,
 		);
 
@@ -138,18 +149,22 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 	/**
 	 * Every rule × role × has_management, with whether it must be allowed.
 	 *
+	 * The roles nest: whatever the área may do, revisión may; whatever
+	 * revisión may, the head of service may; and administración everything.
+	 *
 	 * @return array<string,array>
 	 */
 	public function provider_rules() {
 		$ranges = array(
 			'area' => 0,
 			'gestion' => 1,
-			'admin' => 2,
+			'jefatura' => 2,
+			'admin' => 3,
 		);
 		$cases = array();
 
 		foreach ( Documentate_Transitions::rules() as $rule ) {
-			foreach ( array( 'area', 'gestion', 'admin' ) as $role ) {
+			foreach ( array( 'area', 'gestion', 'jefatura', 'admin' ) as $role ) {
 				foreach ( array( true, false ) as $has_management ) {
 					$role_ok = $ranges[ $role ] >= $ranges[ $rule['who'] ];
 					$type_ok = null === $rule['has_management'] || $rule['has_management'] === $has_management;
@@ -263,7 +278,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'pending', get_post_status( $doc ) );
 		$this->assertSame(
-			array( 'devolvió el documento a revisión' ),
+			array( 'devolvió el documento a aprobación' ),
 			wp_list_pluck( Documentate_Activity::entries( $doc ), 'text' )
 		);
 		$this->assertFalse( Documentate_Transitions::allowed( $doc, 'publish', 'pending', $this->management_id ) );
@@ -449,7 +464,8 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 	 * rule() finds a row by key, disambiguated by the starting status.
 	 */
 	public function test_rule_lookup() {
-		$this->assertSame( 'admin', Documentate_Transitions::rule( 'devolver_area', 'pending' )['who'] );
+		$this->assertSame( 'jefatura', Documentate_Transitions::rule( 'devolver_area', 'pending' )['who'] );
+		$this->assertSame( 'admin', Documentate_Transitions::rule( 'archivar' )['who'], 'Archiving stays with administración.' );
 		$this->assertSame( 'gestion', Documentate_Transitions::rule( 'devolver_area', 'en_gestion' )['who'] );
 		$this->assertSame( 'en_gestion', Documentate_Transitions::rule( 'devolver_area' )['from'] );
 		$this->assertSame( 'Aprobar y publicar', Documentate_Transitions::rule( 'aprobar' )['label'] );
@@ -484,7 +500,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 
 		$events = Documentate_Activity::entries( $doc );
 		$this->assertCount( 1, $events );
-		$this->assertSame( 'devolvió el documento a gestión: «Falta el número de expediente»', $events[0]['text'] );
+		$this->assertSame( 'devolvió el documento a revisión: «Falta el número de expediente»', $events[0]['text'] );
 	}
 
 	/**
@@ -524,7 +540,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertSame( 'en_gestion', get_post_status( $doc ) );
-		$this->assertSame( 'envió el documento a gestión', Documentate_Activity::entries( $doc )[0]['text'] );
+		$this->assertSame( 'envió el documento a revisión', Documentate_Activity::entries( $doc )[0]['text'] );
 		$this->assertCount( 2, Documentate_Activity::entries( $doc ) );
 
 		// Straight from auto-draft into gestión: the send is recorded, not a creation.
@@ -539,7 +555,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 		$this->assertSame( 'en_gestion', get_post_status( $direct ) );
 		$events = Documentate_Activity::entries( $direct );
 		$this->assertCount( 1, $events );
-		$this->assertSame( 'envió el documento a gestión', $events[0]['text'] );
+		$this->assertSame( 'envió el documento a revisión', $events[0]['text'] );
 		$this->assertSame( '', Documentate_Activity::event_date( $direct, 'creó' ) );
 
 		// Programmatic creation (new → draft) stays silent: seeders write their own history.
@@ -565,7 +581,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 		$this->assertNull( Documentate_Document_Data::returned( $doc ) );
 		$events = Documentate_Activity::entries( $doc );
 		$this->assertCount( 1, $events );
-		$this->assertSame( 'envió el documento a revisión', $events[0]['text'] );
+		$this->assertSame( 'envió el documento a aprobación', $events[0]['text'] );
 
 		// Saving again without changing the status records nothing else.
 		wp_update_post(
@@ -634,7 +650,7 @@ class DocumentateTransitionsTest extends WP_UnitTestCase {
 	public function test_block_trash_follows_the_lock() {
 		$doc = $this->create_document( 'en_gestion', $this->management_type_id );
 		wp_set_current_user( $this->area_id );
-		$event = Documentate_Activity::record_event( $doc, 'envió el documento a gestión' );
+		$event = Documentate_Activity::record_event( $doc, 'envió el documento a revisión' );
 
 		$this->assertFalse( wp_trash_post( $doc ) );
 		$this->assertSame( 'en_gestion', get_post_status( $doc ) );

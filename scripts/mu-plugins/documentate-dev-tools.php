@@ -48,12 +48,17 @@ if ( ! function_exists( 'documentate_dev_demo_accounts' ) ) {
 			array(
 				'login' => 'admin',
 				'pass'  => 'password',
-				'label' => 'Administración (aprueba y publica)',
+				'label' => 'Administración (todo el sitio)',
+			),
+			array(
+				'login' => 'jefatura1',
+				'pass'  => 'password',
+				'label' => 'Jefatura de servicio · Organización (aprueba y publica)',
 			),
 			array(
 				'login' => 'editor1',
 				'pass'  => 'password',
-				'label' => 'Gestión documental · Subdirección de Administración (revisa y completa)',
+				'label' => 'Revisión · Organización (revisa y completa)',
 			),
 			array(
 				'login' => 'author1',

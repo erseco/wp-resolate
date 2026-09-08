@@ -141,7 +141,7 @@ class DocumentateMetaBoxRoleTest extends WP_UnitTestCase {
 		wp_set_current_user( $this->management_id );
 		$html = $this->render();
 
-		$this->assertStringContainsString( '<h3 class="documentate-seccion-rol">Datos oficiales · los completa gestión documental</h3>', $html );
+		$this->assertStringContainsString( '<h3 class="documentate-seccion-rol">Datos oficiales · los completa revisión</h3>', $html );
 		$this->assertStringContainsString( 'SECRETO-118/2026', $html );
 		$this->assertStringContainsString( 'name="documentate_field_numero_resolucion"', $html );
 

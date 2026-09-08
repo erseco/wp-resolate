@@ -3,7 +3,7 @@
  *
  * The script normalises the schema the server prints in
  * #documentate_type_schema_preview (data-schema-v2) and renders one list item
- * per field. P2 added the rol key: the entries gestión documental fills in
+ * per field. P2 added the rol key: the entries revisión fills in
  * carry a badge, the área ones do not.
  */
 const jQuery = require( 'jquery' );
@@ -95,7 +95,7 @@ describe( 'schema preview', () => {
 		expect( items ).toHaveLength( 2 );
 		expect( items[ 0 ].querySelector( '.documentate-field-rol' ) ).toBeNull();
 		expect( items[ 1 ].querySelector( '.documentate-field-rol' ).textContent ).toBe(
-			'gestión'
+			'revisión'
 		);
 	} );
 

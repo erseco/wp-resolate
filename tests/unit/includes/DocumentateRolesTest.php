@@ -18,11 +18,18 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Editor user ID (gestión documental).
+	 * Editor user ID (revisión).
 	 *
 	 * @var int
 	 */
 	private $editor_id;
+
+	/**
+	 * Editor user ID (jefatura de servicio).
+	 *
+	 * @var int
+	 */
+	private $head_id;
 
 	/**
 	 * Author user ID (área).
@@ -58,6 +65,8 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 		// Gestión documental is appointed account by account; the stock editor
 		// role never carries the capability (see test_a_plain_editor_is_not_management).
 		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		$this->head_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		( new WP_User( $this->head_id ) )->add_cap( Documentate_Roles::CAP_HEAD );
 		$this->author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$this->subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
@@ -80,15 +89,55 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	public function test_caps_granted_to_the_management_role_and_administrators() {
 		$management = get_role( Documentate_Roles::ROLE_MANAGEMENT );
 
-		$this->assertNotNull( $management, 'ensure_caps() creates the gestión documental role.' );
+		$this->assertNotNull( $management, 'ensure_caps() creates the revisión role.' );
 		$this->assertTrue( $management->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
 		$this->assertTrue( $management->has_cap( 'edit_others_posts' ), 'Without it the capability does nothing.' );
 		$this->assertTrue( $management->has_cap( 'upload_files' ) );
-		$this->assertFalse( $management->has_cap( 'publish_posts' ), 'Gestión never publishes.' );
+		$this->assertFalse( $management->has_cap( 'publish_posts' ), 'Revisión never publishes.' );
+		$this->assertFalse( $management->has_cap( Documentate_Roles::CAP_HEAD ) );
+		$this->assertSame( 'Revisión', wp_roles()->role_names[ Documentate_Roles::ROLE_MANAGEMENT ] );
 
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
 		$this->assertFalse( get_role( 'author' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
 		$this->assertFalse( get_role( 'subscriber' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
+		$this->assertSame( Documentate_Roles::VERSION, get_option( Documentate_Roles::OPTION_VERSION ) );
+	}
+
+	/**
+	 * The head of service has a role of its own, which publishes but never deletes.
+	 */
+	public function test_caps_granted_to_the_head_role_and_administrators() {
+		$head = get_role( Documentate_Roles::ROLE_HEAD );
+
+		$this->assertNotNull( $head, 'ensure_caps() creates the jefatura de servicio role.' );
+		$this->assertSame( 'Jefatura de servicio', wp_roles()->role_names[ Documentate_Roles::ROLE_HEAD ] );
+		$this->assertTrue( $head->has_cap( Documentate_Roles::CAP_HEAD ) );
+		$this->assertTrue( $head->has_cap( 'edit_others_posts' ), 'Without it the capability does nothing.' );
+		$this->assertTrue( $head->has_cap( 'publish_posts' ), 'Approving from wp-admin is publishing.' );
+		$this->assertFalse( $head->has_cap( 'delete_posts' ) );
+		$this->assertFalse( $head->has_cap( 'manage_options' ), 'The head of service is not a site administrator.' );
+		$this->assertFalse( $head->has_cap( Documentate_Roles::CAP_MANAGEMENT ), 'is_management() already says yes to heads.' );
+
+		$this->assertTrue( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_HEAD ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_HEAD ) );
+		$this->assertFalse( get_role( 'author' )->has_cap( Documentate_Roles::CAP_HEAD ) );
+		$this->assertSame( array( Documentate_Roles::ROLE_HEAD, 'administrator' ), Documentate_Roles::head_roles() );
+	}
+
+	/**
+	 * Version 3 renames the reviewers' role a version 2 site created as "Gestión documental".
+	 */
+	public function test_ensure_caps_renames_the_reviewers_role() {
+		$wp_roles = wp_roles();
+		$wp_roles->roles[ Documentate_Roles::ROLE_MANAGEMENT ]['name'] = 'Gestión documental';
+		$wp_roles->role_names[ Documentate_Roles::ROLE_MANAGEMENT ] = 'Gestión documental';
+		update_option( $wp_roles->role_key, $wp_roles->roles );
+		update_option( Documentate_Roles::OPTION_VERSION, '2' );
+
+		Documentate_Roles::ensure_caps();
+
+		$this->assertSame( 'Revisión', wp_roles()->role_names[ Documentate_Roles::ROLE_MANAGEMENT ] );
+		$this->assertSame( 'Revisión', get_option( wp_roles()->role_key )[ Documentate_Roles::ROLE_MANAGEMENT ]['name'], 'Persisted, not only in memory.' );
 		$this->assertSame( Documentate_Roles::VERSION, get_option( Documentate_Roles::OPTION_VERSION ) );
 	}
 
@@ -110,7 +159,7 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 		$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$this->assertFalse( user_can( $editor, Documentate_Roles::CAP_MANAGEMENT ) );
 		$this->assertFalse( Documentate_Roles::is_management( $editor ) );
-		$this->assertSame( 'Edición', Documentate_Roles::role_label( $editor ) );
+		$this->assertSame( 'Área', Documentate_Roles::role_label( $editor ) );
 	}
 
 	/**
@@ -188,8 +237,10 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 		Documentate_Roles::remove_caps();
 
 		$this->assertNull( get_role( Documentate_Roles::ROLE_MANAGEMENT ) );
+		$this->assertNull( get_role( Documentate_Roles::ROLE_HEAD ) );
 		$this->assertFalse( get_role( 'editor' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ), 'A site that moved the capability to the editor role is cleaned up too.' );
 		$this->assertFalse( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_MANAGEMENT ) );
+		$this->assertFalse( get_role( 'administrator' )->has_cap( Documentate_Roles::CAP_HEAD ) );
 		$this->assertFalse( get_option( Documentate_Roles::OPTION_VERSION ) );
 	}
 
@@ -202,13 +253,17 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	 */
 	public function test_remove_caps_gives_the_role_members_somewhere_to_land() {
 		$member = self::factory()->user->create( array( 'role' => Documentate_Roles::ROLE_MANAGEMENT ) );
+		$head = self::factory()->user->create( array( 'role' => Documentate_Roles::ROLE_HEAD ) );
 
 		Documentate_Roles::remove_caps();
 
-		$user = get_userdata( $member );
-		$this->assertNotContains( Documentate_Roles::ROLE_MANAGEMENT, $user->roles );
-		$this->assertSame( array( get_option( 'default_role', 'subscriber' ) ), $user->roles );
-		$this->assertTrue( $user->has_cap( 'read' ), 'A member of the removed role can still use the site.' );
+		foreach ( array( $member, $head ) as $user_id ) {
+			$user = get_userdata( $user_id );
+			$this->assertNotContains( Documentate_Roles::ROLE_MANAGEMENT, $user->roles );
+			$this->assertNotContains( Documentate_Roles::ROLE_HEAD, $user->roles );
+			$this->assertSame( array( get_option( 'default_role', 'subscriber' ) ), $user->roles );
+			$this->assertTrue( $user->has_cap( 'read' ), 'A member of the removed role can still use the site.' );
+		}
 	}
 
 	/**
@@ -216,10 +271,17 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 	 */
 	public function test_role_detection_by_user_id() {
 		$this->assertTrue( Documentate_Roles::is_administration( $this->admin_id ) );
-		$this->assertTrue( Documentate_Roles::is_management( $this->admin_id ), 'Admins count as gestión for capability purposes.' );
+		$this->assertTrue( Documentate_Roles::is_head( $this->admin_id ), 'Admins count as jefatura for capability purposes.' );
+		$this->assertTrue( Documentate_Roles::is_management( $this->admin_id ), 'Admins count as revisión for capability purposes.' );
 		$this->assertFalse( Documentate_Roles::is_area( $this->admin_id ) );
 
+		$this->assertFalse( Documentate_Roles::is_administration( $this->head_id ) );
+		$this->assertTrue( Documentate_Roles::is_head( $this->head_id ) );
+		$this->assertTrue( Documentate_Roles::is_management( $this->head_id ), 'The head of service may do everything revisión does.' );
+		$this->assertFalse( Documentate_Roles::is_area( $this->head_id ) );
+
 		$this->assertFalse( Documentate_Roles::is_administration( $this->editor_id ) );
+		$this->assertFalse( Documentate_Roles::is_head( $this->editor_id ) );
 		$this->assertTrue( Documentate_Roles::is_management( $this->editor_id ) );
 		$this->assertFalse( Documentate_Roles::is_area( $this->editor_id ) );
 
@@ -227,9 +289,11 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 		$this->assertFalse( Documentate_Roles::is_management( $this->author_id ) );
 		$this->assertTrue( Documentate_Roles::is_area( $this->author_id ) );
 
+		$this->assertFalse( Documentate_Roles::is_head( $this->author_id ) );
 		$this->assertFalse( Documentate_Roles::is_management( $this->subscriber_id ) );
 		$this->assertFalse( Documentate_Roles::is_area( $this->subscriber_id ) );
 		$this->assertFalse( Documentate_Roles::is_area( 0 ) );
+		$this->assertFalse( Documentate_Roles::is_head( 0 ) );
 	}
 
 	/**
@@ -241,7 +305,11 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 
 		wp_set_current_user( $this->editor_id );
 		$this->assertTrue( Documentate_Roles::is_management() );
+		$this->assertFalse( Documentate_Roles::is_head() );
 		$this->assertFalse( Documentate_Roles::is_administration() );
+
+		wp_set_current_user( $this->head_id );
+		$this->assertTrue( Documentate_Roles::is_head() );
 
 		wp_set_current_user( $this->author_id );
 		$this->assertTrue( Documentate_Roles::is_area() );
@@ -258,34 +326,65 @@ class DocumentateRolesTest extends WP_UnitTestCase {
 		$this->assertFalse( Documentate_Roles::is_management( $this->author_id ) );
 		$this->assertTrue( Documentate_Roles::is_area( $this->author_id ) );
 
-		// And an account denied the capability stops being gestión.
+		// And an account denied the capability stops being revisión.
 		( new WP_User( $this->editor_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT, false );
 		$this->assertFalse( Documentate_Roles::is_management( $this->editor_id ) );
 		$this->assertTrue( Documentate_Roles::is_area( $this->editor_id ) );
 	}
 
 	/**
-	 * The role label per role and scope.
+	 * CAP_HEAD alone is not enough either, and grant_head() hands it to one account.
+	 */
+	public function test_head_requires_edit_others_posts() {
+		$this->assertTrue( Documentate_Roles::grant_head( $this->author_id ) );
+		$this->assertTrue( user_can( $this->author_id, Documentate_Roles::CAP_HEAD ) );
+		$this->assertFalse( Documentate_Roles::is_head( $this->author_id ), 'An author cannot open the documents of others.' );
+		$this->assertTrue( Documentate_Roles::is_area( $this->author_id ) );
+
+		$this->assertTrue( Documentate_Roles::grant_head( $this->editor_id ) );
+		$this->assertTrue( Documentate_Roles::is_head( $this->editor_id ) );
+		$this->assertTrue( Documentate_Roles::grant_head( $this->editor_id ), 'Granting twice is harmless.' );
+
+		$this->assertFalse( Documentate_Roles::grant_head( 999999 ) );
+		$this->assertFalse( Documentate_Roles::grant_management( 999999 ) );
+	}
+
+	/**
+	 * The role label per role.
 	 */
 	public function test_role_label() {
 		$this->assertSame( 'Administración', Documentate_Roles::role_label( $this->admin_id ) );
-		$this->assertSame( 'Gestión documental', Documentate_Roles::role_label( $this->editor_id ) );
-		$this->assertSame( 'Edición', Documentate_Roles::role_label( $this->author_id ) );
+		$this->assertSame( 'Jefatura de servicio', Documentate_Roles::role_label( $this->head_id ) );
+		$this->assertSame( 'Revisión', Documentate_Roles::role_label( $this->editor_id ) );
+		$this->assertSame( 'Área', Documentate_Roles::role_label( $this->author_id ) );
 
+		// The scope never changes the role label.
 		update_user_meta( $this->author_id, 'documentate_scope_term_id', $this->cat_id );
-		$this->assertSame( 'Área · Departamento de Proyectos', Documentate_Roles::role_label( $this->author_id ) );
-
-		// A scope pointing at a deleted term falls back to the generic label.
-		update_user_meta( $this->author_id, 'documentate_scope_term_id', 999999 );
-		$this->assertSame( 'Edición', Documentate_Roles::role_label( $this->author_id ) );
-
-		// Gestión keeps its label even with a scope.
+		$this->assertSame( 'Área', Documentate_Roles::role_label( $this->author_id ) );
 		update_user_meta( $this->editor_id, 'documentate_scope_term_id', $this->cat_id );
-		$this->assertSame( 'Gestión documental', Documentate_Roles::role_label( $this->editor_id ) );
+		$this->assertSame( 'Revisión', Documentate_Roles::role_label( $this->editor_id ) );
 
 		// Defaults to the current user.
+		wp_set_current_user( $this->head_id );
+		$this->assertSame( 'Jefatura de servicio', Documentate_Roles::role_label() );
+	}
+
+	/**
+	 * The ámbito label per scope.
+	 */
+	public function test_scope_label() {
+		$this->assertSame( 'Todos los ámbitos', Documentate_Roles::scope_label( $this->admin_id ) );
+		$this->assertSame( 'Sin ámbito asignado', Documentate_Roles::scope_label( $this->author_id ) );
+
 		update_user_meta( $this->author_id, 'documentate_scope_term_id', $this->cat_id );
+		$this->assertSame( 'Departamento de Proyectos', Documentate_Roles::scope_label( $this->author_id ) );
+
+		// A scope pointing at a deleted term falls back to the generic label.
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', 999999 );
+		$this->assertSame( 'Sin ámbito asignado', Documentate_Roles::scope_label( $this->head_id ) );
+
+		// Defaults to the current user.
 		wp_set_current_user( $this->author_id );
-		$this->assertSame( 'Área · Departamento de Proyectos', Documentate_Roles::role_label() );
+		$this->assertSame( 'Departamento de Proyectos', Documentate_Roles::scope_label() );
 	}
 }

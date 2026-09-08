@@ -37,7 +37,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental user ID.
+	 * Revisión user ID.
 	 *
 	 * @var int
 	 */
@@ -58,7 +58,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 	private $cat_id;
 
 	/**
-	 * Document type that goes through gestión documental.
+	 * Document type that goes through revisión.
 	 *
 	 * @var int
 	 */
@@ -85,7 +85,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
-		// Gestión documental is appointed account by account: the plugin keeps
+		// Revisión is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
@@ -352,7 +352,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Sending a document of a type with gestión lands it in "En gestión".
+	 * Sending a document of a type with a revisión step lands it in "En revisión".
 	 */
 	public function test_save_with_transition_sends_to_management() {
 		$doc_id = $this->create_document( 'Borrador para gestión', $this->management_type_id );
@@ -366,7 +366,7 @@ class DocumentateAppActionsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'enviado=1', $target );
 		$this->assertStringNotContainsString( 'vista=editar', $target );
 		$this->assertSame( 'en_gestion', get_post_status( $doc_id ) );
-		$this->assertContains( 'envió el documento a gestión', $this->events( $doc_id ) );
+		$this->assertContains( 'envió el documento a revisión', $this->events( $doc_id ) );
 		$this->assertSame( '', get_post_meta( $doc_id, '_edit_lock', true ) );
 	}
 

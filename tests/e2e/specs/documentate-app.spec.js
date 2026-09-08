@@ -49,7 +49,7 @@ test.describe( 'Documentate app', () => {
 				other: `App Other ${ RUN }`,
 			},
 			// The seeded Resolución declares gestión fields in its schema, so
-			// it goes through gestión documental by itself. The shared term is
+			// it goes through revisión by itself. The shared term is
 			// never written here: parallel workers read the same type.
 			types: { res: { slug: 'resolucion-administrativa' } },
 			users: {
@@ -142,7 +142,7 @@ test.describe( 'Documentate app', () => {
 
 		try {
 			await page.goto( APP_PATH );
-			await expect( page.locator( '.dcta-rol' ) ).toContainText( 'Gestión documental' );
+			await expect( page.locator( '.dcta-rol' ) ).toContainText( 'Revisión' );
 			await expect( page.locator( '#wpadminbar' ) ).toBeVisible();
 			const back = page.locator( '#wp-admin-bar-documentate-dev-switch-back > a' );
 			await expect( back ).toBeVisible();
@@ -199,23 +199,23 @@ test.describe( 'Documentate app', () => {
 		}
 
 		// Sending asks for confirmation in a native dialog first.
-		await page.getByRole( 'button', { name: 'Enviar a gestión' } ).click();
+		await page.getByRole( 'button', { name: 'Enviar a revisión' } ).click();
 		const confirmDialog = page.getByRole( 'dialog' );
 		await expect( confirmDialog ).toBeVisible();
 		await expect( confirmDialog ).toContainText( /Ya no podrás modificarlo/ );
 
 		await Promise.all( [
 			page.waitForURL( /enviado=1/ ),
-			confirmDialog.getByRole( 'button', { name: 'Enviar a gestión' } ).click(),
+			confirmDialog.getByRole( 'button', { name: 'Enviar a revisión' } ).click(),
 		] );
-		// The type goes through gestión documental, so it stops there before
-		// reaching administración.
-		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Documento enviado a gestión documental/ );
-		await expect( page.locator( '.dcta-lado .dcta-estado' ) ).toHaveText( /En gestión/ );
+		// The type goes through revisión, so it stops there before reaching
+		// the head of service.
+		await expect( page.locator( '.dcta-aviso-ok' ) ).toHaveText( /Documento enviado a revisión/ );
+		await expect( page.locator( '.dcta-lado .dcta-estado' ) ).toHaveText( /En revisión/ );
 		await expect( page.locator( '.dcta-h1' ) ).toContainText( NAMES.created );
 
-		// Gestión documental completes it: the área can no longer edit it, and
-		// the document is waiting in the review tray.
+		// Revisión completes it: the área can no longer edit it, and the
+		// document is waiting in the review tray.
 		await page.goto( `${ APP_PATH }?bandeja=revisar&estado=en_gestion` );
 		await expect(
 			page.locator( '.dcta-doc-nombre', { hasText: NAMES.created } )
@@ -230,7 +230,7 @@ test.describe( 'Documentate app', () => {
 			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
 			await page.goto( `${ APP_PATH }?user_switched=true` );
 			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
-			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Mis documentos' );
+			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Documentos' );
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.inScope } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.pending } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.outOfScope } ) ).toHaveCount( 0 );

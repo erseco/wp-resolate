@@ -214,7 +214,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		$mail = $this->find_email_to( 'author@example.com' );
 		$this->assertNotNull( $mail, 'Author should be notified.' );
 		$this->assertStringStartsWith( 'Documentate · ', $mail['subject'] );
-		$this->assertStringContainsString( 'revisión', $mail['subject'] );
+		$this->assertStringContainsString( 'aprobación', $mail['subject'] );
 		$this->assertStringContainsString( 'My Doc', $mail['subject'] );
 	}
 
@@ -351,7 +351,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Create a gestión documental user (editor) with an email.
+	 * Create a revisión user (editor) with an email.
 	 *
 	 * @return int
 	 */
@@ -365,7 +365,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 				'display_name' => 'Gestión User',
 			)
 		);
-		// Gestión documental is appointed account by account: the plugin keeps
+		// Revisión is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
@@ -417,8 +417,8 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 
 		$mail = $this->find_email_to( 'gestion@example.com' );
 		$this->assertNotNull( $mail );
-		$this->assertSame( 'Documentate · Nuevo documento en gestión: Listado piloto', $mail['subject'] );
-		$this->assertStringContainsString( 'Borrador → En gestión', $mail['message'] );
+		$this->assertSame( 'Documentate · Nuevo documento en revisión: Listado piloto', $mail['subject'] );
+		$this->assertStringContainsString( 'Borrador → En revisión', $mail['message'] );
 		$this->assertStringContainsString( 'Realizado por: Author User', $mail['message'] );
 		$this->assertNull( $this->find_email_to( 'author@example.com' ), 'The author did it: no mail.' );
 		unset( $management_id );
@@ -438,8 +438,9 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		$user = get_user_by( 'id', $capable );
 		$user->add_cap( Documentate_Roles::CAP_MANAGEMENT );
 		$user->add_cap( 'edit_others_posts' );
+		update_user_meta( $capable, Documentate_Scope_Filter::SCOPE_META_KEY, $this->cat_id );
 
-		// The capability alone (without edit_others_posts) is not gestión.
+		// The capability alone (without edit_others_posts) is not revisión.
 		$half_filled = $this->factory->user->create(
 			array(
 				'role'       => 'subscriber',
@@ -455,7 +456,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 
 		$mail = $this->find_email_to( 'capacitado@example.com' );
 		$this->assertNotNull( $mail );
-		$this->assertSame( 'Documentate · Nuevo documento en gestión: Por capacidad', $mail['subject'] );
+		$this->assertSame( 'Documentate · Nuevo documento en revisión: Por capacidad', $mail['subject'] );
 		$this->assertNull( $this->find_email_to( 'a-medias@example.com' ) );
 	}
 
@@ -472,7 +473,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		$this->assertNull( $this->find_email_to( 'gestion@example.com' ), 'The actor is not mailed.' );
 		$author = $this->find_email_to( 'author@example.com' );
 		$this->assertNotNull( $author );
-		$this->assertSame( 'Documentate · Documento enviado a gestión: Enviado por gestión', $author['subject'] );
+		$this->assertSame( 'Documentate · Documento enviado a revisión: Enviado por gestión', $author['subject'] );
 	}
 
 	/**
@@ -490,7 +491,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		$this->assertSame( 'Documentate · Documento devuelto: Bases plan', $mail['subject'] );
 		$this->assertStringContainsString( 'Motivo: «Falta el anexo firmado»', $mail['message'] );
 		$this->assertStringContainsString( 'vista=editar', $mail['message'] );
-		$this->assertStringContainsString( 'En revisión → Borrador', $mail['message'] );
+		$this->assertStringContainsString( 'En aprobación → Borrador', $mail['message'] );
 	}
 
 	/**
@@ -505,7 +506,7 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 
 		$mail = $this->find_email_to( 'gestion@example.com' );
 		$this->assertNotNull( $mail );
-		$this->assertSame( 'Documentate · Devuelto por administración: Calendario admisión', $mail['subject'] );
+		$this->assertSame( 'Documentate · Devuelto por la jefatura de servicio: Calendario admisión', $mail['subject'] );
 		$this->assertStringContainsString( 'Motivo: «Falta el número de expediente»', $mail['message'] );
 		$this->assertNull( $this->find_email_to( 'author@example.com' ) );
 		unset( $management_id );
@@ -545,8 +546,70 @@ class DocumentateNotificationsTest extends WP_UnitTestCase {
 		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'pasar_admin' ) );
 
 		$this->assertSame( 'Documentate · Pendiente de aprobar: Pasado a admin', $this->find_email_to( 'admin@example.com' )['subject'] );
-		$this->assertSame( 'Documentate · Documento enviado a revisión: Pasado a admin', $this->find_email_to( 'author@example.com' )['subject'] );
-		$this->assertStringContainsString( 'En gestión → En revisión', $this->find_email_to( 'author@example.com' )['message'] );
+		$this->assertSame( 'Documentate · Documento enviado a aprobación: Pasado a admin', $this->find_email_to( 'author@example.com' )['subject'] );
+		$this->assertStringContainsString( 'En revisión → En aprobación', $this->find_email_to( 'author@example.com' )['message'] );
+	}
+
+	/**
+	 * The heads of service of the scope are told; those of another scope are not.
+	 */
+	public function test_pending_mails_the_heads_of_the_scope_only() {
+		Documentate_Roles::ensure_caps( true );
+		$head = $this->factory->user->create(
+			array(
+				'role' => 'editor',
+				'user_email' => 'jefatura@example.com',
+			)
+		);
+		Documentate_Roles::grant_head( $head );
+		update_user_meta( $head, Documentate_Scope_Filter::SCOPE_META_KEY, $this->cat_id );
+
+		$elsewhere = wp_insert_term( 'Otro servicio', 'category' );
+		$other_head = $this->factory->user->create(
+			array(
+				'role' => 'editor',
+				'user_email' => 'otra-jefatura@example.com',
+			)
+		);
+		Documentate_Roles::grant_head( $other_head );
+		update_user_meta( $other_head, Documentate_Scope_Filter::SCOPE_META_KEY, (int) $elsewhere['term_id'] );
+
+		$opted_out = $this->factory->user->create(
+			array(
+				'role' => 'editor',
+				'user_email' => 'sin-avisos@example.com',
+			)
+		);
+		Documentate_Roles::grant_head( $opted_out );
+		update_user_meta( $opted_out, Documentate_Scope_Filter::SCOPE_META_KEY, $this->cat_id );
+		update_user_meta( $opted_out, Documentate_Notifications::META_KEY, array( Documentate_Notifications::KEY_ADMIN_REVIEW ) );
+
+		$management_id = $this->create_management_user();
+		wp_set_current_user( $management_id );
+		$post_id = $this->create_document_with_management( 'en_gestion', 'Para la jefatura' );
+
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'pasar_admin' ) );
+
+		$this->assertSame( 'Documentate · Pendiente de aprobar: Para la jefatura', $this->find_email_to( 'jefatura@example.com' )['subject'] );
+		$this->assertSame( 'Documentate · Pendiente de aprobar: Para la jefatura', $this->find_email_to( 'admin@example.com' )['subject'], 'Administración sees every scope.' );
+		$this->assertNull( $this->find_email_to( 'otra-jefatura@example.com' ), 'Another service is not theirs.' );
+		$this->assertNull( $this->find_email_to( 'sin-avisos@example.com' ), 'Opted out.' );
+	}
+
+	/**
+	 * A reviewer of another scope never hears about a document.
+	 */
+	public function test_send_to_management_skips_reviewers_of_other_scopes() {
+		$management_id = $this->create_management_user();
+		$elsewhere = wp_insert_term( 'Otro servicio', 'category' );
+		update_user_meta( $management_id, Documentate_Scope_Filter::SCOPE_META_KEY, (int) $elsewhere['term_id'] );
+
+		wp_set_current_user( $this->author_id );
+		$post_id = $this->create_document_with_management( 'draft', 'Fuera de ámbito' );
+
+		$this->assertTrue( Documentate_Transitions::apply( $post_id, 'enviar_gestion' ) );
+
+		$this->assertNull( $this->find_email_to( 'gestion@example.com' ) );
 	}
 
 	/**

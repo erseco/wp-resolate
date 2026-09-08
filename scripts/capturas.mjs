@@ -33,7 +33,8 @@ const SOLO = process.env.SOLO || 'escritorio';
 
 const USERS = {
 	area: { user: 'author1', pass: 'password', label: 'Área · Departamento de Proyectos' },
-	gestion: { user: 'editor1', pass: 'password', label: 'Gestión documental' },
+	gestion: { user: 'editor1', pass: 'password', label: 'Revisión' },
+	jefatura: { user: 'jefatura1', pass: 'password', label: 'Jefatura de servicio' },
 	admin: { user: 'admin', pass: 'password', label: 'Administración' },
 };
 
@@ -49,13 +50,13 @@ const RESOLUTION = 'Ayudas al transporte escolar';
 /** Demo document with providers and computed totals ("document 0"). */
 const PROVIDERS = 'Renovación licencias aulas virtuales';
 
-/** Demo document still in gestión by the time wp-admin is reached. */
+/** Demo document still in revisión by the time wp-admin is reached. */
 const IN_MANAGEMENT = 'Listado definitivo piloto innovación';
 
-/** Reason gestión documental gives when returning the cycle document. */
+/** Reason revisión gives when returning the cycle document. */
 const REASON = 'Falta el desglose por proveedores y la partida presupuestaria.';
 
-/** Pending document that administración returns, picking a target. */
+/** Pending document that the jefatura de servicio returns, picking a target. */
 const PENDING = 'Formación profesorado metodologías';
 
 /**
@@ -84,7 +85,7 @@ const SCENES = [
 	{
 		chapter: 'Entrada',
 		title: 'Una sola dirección para todo el mundo',
-		text: 'Todo el mundo entra por /documentate/. El área aparece directamente en sus documentos, con el rol y el ámbito escritos en la cabecera; no hay que acordarse de qué pantalla tocaba.',
+		text: 'Todo el mundo entra por /documentate/. El área aparece directamente en sus documentos, con su nombre, el rol y el ámbito escritos en la cabecera; no hay que acordarse de qué pantalla tocaba.',
 		as: 'area',
 		run: async ( p ) => {
 			return await goTo( p, '/documentate/' );
@@ -92,8 +93,8 @@ const SCENES = [
 	},
 	{
 		chapter: 'Entrada',
-		title: 'La misma puerta, para gestión documental',
-		text: 'Gestión documental entra por la misma URL y ve, además de sus propios documentos y de «Nuevo documento», la bandeja «Para revisar», con el número de los que esperan a que complete los datos oficiales.',
+		title: 'La misma puerta, para revisión',
+		text: 'Revisión entra por la misma URL y ve, además de «Documentos» —todos los de su ámbito— y de «Nuevo documento», la bandeja «Para revisar», con el número de los que esperan a que complete los datos oficiales.',
 		as: 'gestion',
 		run: async ( p ) => {
 			return await goTo( p, '/documentate/' );
@@ -102,7 +103,7 @@ const SCENES = [
 	{
 		chapter: 'Entrada',
 		title: 'La misma puerta, para administración',
-		text: 'Administración aterriza en todos los documentos de todas las áreas; como los ve todos, tiene un selector de área —aquí acotado al Departamento de Proyectos— y un acceso directo a los tipos y plantillas de wp-admin. El aviso de la pestaña cuenta todo lo que espera revisión; los contadores de debajo obedecen al filtro.',
+		text: 'Administración aterriza en todos los documentos de todas las áreas; como los ve todos, tiene un selector de área —aquí acotado al Departamento de Proyectos— y un acceso directo a los tipos y plantillas de wp-admin. El aviso de la pestaña «Para aprobar» cuenta todo lo que espera aprobación; los contadores de debajo obedecen al filtro.',
 		as: 'admin',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/documentate/' ) ) ) return false;
@@ -116,7 +117,7 @@ const SCENES = [
 	{
 		chapter: 'El área prepara el documento',
 		title: 'Mis documentos: contadores y filtros',
-		text: 'Los contadores dicen qué hay por enviar, qué está en gestión, qué espera aprobación y qué se aprobó ya; los chips filtran la lista sin salir de la página. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.',
+		text: 'Los contadores dicen qué hay por enviar, qué está en revisión, qué espera aprobación y qué se aprobó ya; los chips filtran la lista sin salir de la página. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.',
 		as: 'area',
 		run: async ( p ) => {
 			return await goTo( p, '/documentate/?estado=draft' );
@@ -125,7 +126,7 @@ const SCENES = [
 	{
 		chapter: 'El área prepara el documento',
 		title: 'Documento 0: crear una propuesta de gasto',
-		text: 'Crear un documento son tres decisiones: el tipo (que ya no se cambia), un nombre corto para las listas y el título oficial que saldrá en el papel. Al elegir el tipo, la ayuda dice si pasa por gestión documental y aparece el prefijo delante del nombre.',
+		text: 'Crear un documento son tres decisiones: el tipo (que ya no se cambia), un nombre corto para las listas y el título oficial que saldrá en el papel. Al elegir el tipo, la ayuda dice si pasa por revisión y aparece el prefijo delante del nombre.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/documentate/?vista=nuevo' ) ) ) return false;
@@ -142,7 +143,7 @@ const SCENES = [
 	{
 		chapter: 'El área prepara el documento',
 		title: 'Completar el borrador y adjuntar el fichero',
-		text: 'El editor del área tiene los datos básicos, los campos de la plantilla y el fichero del documento: se arrastra al recuadro o se elige a mano, y se sube al guardar. Los campos que solo rellena gestión documental no están aquí.',
+		text: 'El editor del área tiene los datos básicos, los campos de la plantilla y el fichero del documento: se arrastra al recuadro o se elige a mano, y se sube al guardar. Los campos que solo rellena revisión no están aquí.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await click( p, p.getByRole( 'button', { name: 'Crear borrador' } ) ) ) ) return false;
@@ -167,8 +168,8 @@ const SCENES = [
 	},
 	{
 		chapter: 'El área prepara el documento',
-		title: 'Enviar a gestión, con confirmación',
-		text: 'Enviar es la decisión que cierra el documento para el área, así que se pregunta antes. La ventana dice exactamente qué va a pasar: lo completará gestión documental y ya no se podrá modificar hasta que lo devuelvan.',
+		title: 'Enviar a revisión, con confirmación',
+		text: 'Enviar es la decisión que cierra el documento para el área, así que se pregunta antes. La ventana dice exactamente qué va a pasar: pasa a revisión y ya no se podrá modificar hasta que lo devuelvan.',
 		as: 'area',
 		viewportOnly: true,
 		run: async ( p ) => {
@@ -178,8 +179,8 @@ const SCENES = [
 	},
 	{
 		chapter: 'El área prepara el documento',
-		title: 'El documento queda en gestión documental',
-		text: 'Confirmado, el documento sale del área. La ficha lo dice arriba y el indicador de estado marca en qué punto del recorrido está: borrador, en gestión, en revisión, aprobado.',
+		title: 'El documento queda en revisión',
+		text: 'Confirmado, el documento sale del área. La ficha avisa arriba de que lo tiene revisión, «Editar» queda apagado y el indicador de estado marca en qué punto del recorrido está: borrador, en revisión, en aprobación, aprobado.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
@@ -189,18 +190,18 @@ const SCENES = [
 	},
 
 	{
-		chapter: 'Gestión documental completa',
-		title: 'La bandeja de gestión',
-		text: 'La bandeja «Para revisar» reúne los documentos de todas las áreas que ya salieron de su borrador. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.',
+		chapter: 'Revisión completa los datos oficiales',
+		title: 'La bandeja de revisión',
+		text: 'La bandeja «Para revisar» reúne los documentos de su ámbito —aquí, toda la organización— que ya salieron de su borrador y esperan los datos oficiales. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.',
 		as: 'gestion',
 		run: async ( p ) => {
 			return await goTo( p, '/documentate/?bandeja=revisar' );
 		},
 	},
 	{
-		chapter: 'Gestión documental completa',
-		title: 'Los datos oficiales, que solo ve gestión',
-		text: 'Gestión abre el mismo editor con una sección más: los campos marcados como de gestión en la plantilla —el gasto en letra y en cifra, la partida presupuestaria— y unas anotaciones internas que no salen en el documento. Los datos del área quedan plegados, a la vista pero fuera del camino.',
+		chapter: 'Revisión completa los datos oficiales',
+		title: 'Los datos oficiales, que solo ve revisión',
+		text: 'Revisión abre el mismo editor con una sección más: los campos marcados como de revisión en la plantilla —el gasto en letra y en cifra, la partida presupuestaria— y unas anotaciones internas que no salen en el documento. Los datos del área quedan plegados, a la vista pero fuera del camino.',
 		as: 'gestion',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
@@ -214,7 +215,7 @@ const SCENES = [
 			await fillField(
 				p,
 				'#documentate-app-anotaciones',
-				'Comprobado con intervención: falta el desglose por proveedores antes de pasarlo a administración.'
+				'Comprobado con intervención: falta el desglose por proveedores antes de pasarlo a aprobación.'
 			);
 			if ( ! ( await save( p ) ) ) return false;
 			await focusManagement( p );
@@ -222,7 +223,7 @@ const SCENES = [
 		},
 	},
 	{
-		chapter: 'Gestión documental completa',
+		chapter: 'Revisión completa los datos oficiales',
 		title: 'Proveedores y totales que se calculan solos',
 		text: 'En otra propuesta con proveedores anidados, se cambia la cantidad del primer servicio de uno a dos y se comprueba que el total de la línea pasa a 3.600 euros. El resumen de la propuesta se recalcula en pantalla.',
 		as: 'gestion',
@@ -238,7 +239,7 @@ const SCENES = [
 		},
 	},
 	{
-		chapter: 'Gestión documental completa',
+		chapter: 'Revisión completa los datos oficiales',
 		title: 'Devolver al área, diciendo por qué',
 		text: 'Si falta algo, el documento vuelve al área. El motivo es obligatorio: se manda por correo, queda en la actividad y es lo primero que ve quien lo escribió.',
 		as: 'gestion',
@@ -250,9 +251,9 @@ const SCENES = [
 		},
 	},
 	{
-		chapter: 'Gestión documental completa',
+		chapter: 'Revisión completa los datos oficiales',
 		title: 'Devuelto',
-		text: 'Tras devolverlo, gestión vuelve a su bandeja con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.',
+		text: 'Tras devolverlo, revisión vuelve a su bandeja con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.',
 		as: 'gestion',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
@@ -276,7 +277,7 @@ const SCENES = [
 	{
 		chapter: 'El área corrige',
 		title: 'Corregir lo que falta',
-		text: 'El editor vuelve a abrirse con el motivo arriba del todo y los campos otra vez editables. Los datos oficiales que rellenó gestión siguen ahí, pero el área no los ve ni los puede tocar.',
+		text: 'El editor vuelve a abrirse con el motivo arriba del todo y los campos otra vez editables. Los datos oficiales que rellenó revisión siguen ahí, pero el área no los ve ni los puede tocar.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
@@ -287,8 +288,8 @@ const SCENES = [
 	},
 	{
 		chapter: 'El área corrige',
-		title: 'Reenviado a gestión',
-		text: 'Corregido, se vuelve a enviar por el mismo camino y con la misma confirmación. La marca de devuelto desaparece: el documento está otra vez en gestión documental.',
+		title: 'Reenviado a revisión',
+		text: 'Corregido, se vuelve a enviar por el mismo camino y con la misma confirmación. La marca de devuelto desaparece: el documento está otra vez en revisión.',
 		as: 'area',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE ) ) ) return false;
@@ -298,9 +299,9 @@ const SCENES = [
 	},
 
 	{
-		chapter: 'De gestión a administración',
-		title: 'Pasar a administración',
-		text: 'Cuando los datos oficiales están completos, gestión lo pasa a administración —también con su confirmación, como al enviarlo—. Hecho eso, gestión tampoco puede modificarlo: la ficha ya dice «En revisión».',
+		chapter: 'De revisión a la jefatura de servicio',
+		title: 'Pasar a aprobación',
+		text: 'Cuando los datos oficiales están completos, revisión lo pasa a la jefatura de servicio —también con su confirmación, como al enviarlo—. Hecho eso, revisión tampoco puede modificarlo: la ficha avisa de que lo tiene la jefatura y el estado ya dice «En aprobación».',
 		as: 'gestion',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE, 'revisar' ) ) ) return false;
@@ -309,23 +310,19 @@ const SCENES = [
 		},
 	},
 	{
-		chapter: 'De gestión a administración',
-		title: 'La bandeja de revisión',
-		text: 'Administración tiene su propia bandeja con lo que espera aprobación, los mismos chips de estado y un selector de área para acotar cuando hay muchos: aquí, el Departamento de Proyectos.',
-		as: 'admin',
+		chapter: 'De revisión a la jefatura de servicio',
+		title: 'La bandeja de aprobación',
+		text: 'La jefatura de servicio tiene su propia bandeja, «Para aprobar», con lo que espera su firma —de cualquier área de su ámbito— y los mismos chips de estado.',
+		as: 'jefatura',
 		run: async ( p ) => {
-			if ( ! ( await goTo( p, '/documentate/?bandeja=revision' ) ) ) return false;
-			const select = p.locator( '#dcta-area' );
-			if ( ! ( await select.count() ) ) return false;
-			await select.selectOption( { label: 'Departamento de Proyectos' } );
-			return await click( p, p.locator( '.dcta-areas button[type="submit"]' ) );
+			return await goTo( p, '/documentate/?bandeja=revision' );
 		},
 	},
 	{
-		chapter: 'De gestión a administración',
+		chapter: 'De revisión a la jefatura de servicio',
 		title: 'Devolver, eligiendo a quién',
-		text: 'Administración es la única que puede devolver a dos sitios: a gestión documental, para que rehaga los datos oficiales, o directamente al área. Una sola ventana pregunta a quién y por qué; el motivo sigue siendo obligatorio.',
-		as: 'admin',
+		text: 'La jefatura de servicio es la única que puede devolver a dos sitios: a revisión, para que rehaga los datos oficiales, o directamente al área. Una sola ventana pregunta a quién y por qué; el motivo sigue siendo obligatorio.',
+		as: 'jefatura',
 		viewportOnly: true,
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, PENDING, 'revision' ) ) ) return false;
@@ -337,10 +334,10 @@ const SCENES = [
 		},
 	},
 	{
-		chapter: 'De gestión a administración',
+		chapter: 'De revisión a la jefatura de servicio',
 		title: 'Aprobar y publicar',
-		text: 'Aprobar publica el documento y lo cierra: a partir de ahí solo se consulta y se descarga. La ficha lo dice arriba y el indicador de estado llega al final del recorrido.',
-		as: 'admin',
+		text: 'La jefatura de servicio aprueba, y eso publica el documento y lo cierra: a partir de ahí solo se consulta y se descarga. La ficha lo dice arriba y el indicador de estado llega al final del recorrido.',
+		as: 'jefatura',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, CYCLE, 'revision' ) ) ) return false;
 			if ( ! ( await openConfirmation( p, 'aprobar' ) ) ) return false;
@@ -362,7 +359,7 @@ const SCENES = [
 	{
 		chapter: 'El documento terminado',
 		title: 'La actividad del documento',
-		text: 'Todo lo que le pasó al documento queda escrito: quién creó el borrador, quién adjuntó el fichero, quién lo envió, quién lo devolvió y con qué motivo, quién lo aprobó. Debajo, cualquiera de los tres roles puede dejar un comentario.',
+		text: 'Todo lo que le pasó al documento queda escrito: quién creó el borrador, quién adjuntó el fichero, quién lo envió, quién lo devolvió y con qué motivo, quién lo aprobó. Debajo, cualquiera de los roles puede dejar un comentario.',
 		as: 'gestion',
 		run: async ( p ) => {
 			if ( ! ( await goToDetail( p, CYCLE, 'revisar' ) ) ) return false;
@@ -393,18 +390,18 @@ const SCENES = [
 	},
 	{
 		chapter: 'Segundo documento: resolución administrativa',
-		title: 'La resolución entra en gestión',
-		text: 'El área envía la resolución y comprueba que su estado pasa a «En gestión».',
+		title: 'La resolución entra en revisión',
+		text: 'El área envía la resolución y comprueba que su estado pasa a «En revisión».',
 		as: 'area',
 		run: async ( p ) => {
 			await goToEdit( p, RESOLUTION );
-			return await transition( p, 'enviar_gestion', 'En gestión' );
+			return await transition( p, 'enviar_gestion', 'En revisión' );
 		},
 	},
 	{
 		chapter: 'Segundo documento: resolución administrativa',
 		title: 'Completar y guardar los datos oficiales de la resolución',
-		text: 'Gestión asigna el número de resolución y deja una anotación interna. Tras guardar se comprueba que el número permanece en el formulario.',
+		text: 'Revisión asigna el número de resolución y deja una anotación interna. Tras guardar se comprueba que el número permanece en el formulario.',
 		as: 'gestion',
 		run: async ( p ) => {
 			await goToEdit( p, RESOLUTION, 'revisar' );
@@ -418,19 +415,19 @@ const SCENES = [
 	},
 	{
 		chapter: 'Segundo documento: resolución administrativa',
-		title: 'La resolución pasa a revisión',
-		text: 'Gestión entrega la resolución a administración. El estado «En revisión» confirma el cambio.',
+		title: 'La resolución pasa a aprobación',
+		text: 'Revisión entrega la resolución a la jefatura de servicio. El estado «En aprobación» confirma el cambio.',
 		as: 'gestion',
 		run: async ( p ) => {
 			await goToEdit( p, RESOLUTION, 'revisar' );
-			return await transition( p, 'pasar_admin', 'En revisión' );
+			return await transition( p, 'pasar_admin', 'En aprobación' );
 		},
 	},
 	{
 		chapter: 'Segundo documento: resolución administrativa',
-		title: 'Administración aprueba la resolución',
-		text: 'Administración aprueba y publica la resolución, que queda disponible para consulta y descarga.',
-		as: 'admin',
+		title: 'La jefatura de servicio aprueba la resolución',
+		text: 'La jefatura de servicio aprueba y publica la resolución, que queda disponible para consulta y descarga.',
+		as: 'jefatura',
 		run: async ( p ) => {
 			await goToEdit( p, RESOLUTION, 'revision' );
 			return await transition( p, 'aprobar', 'Aprobado' );
@@ -459,8 +456,8 @@ const SCENES = [
 	},
 	{
 		chapter: 'La otra cara: wp-admin',
-		title: 'El tipo de documento: prefijo y gestión',
-		text: 'Cada tipo lleva su plantilla, un prefijo de hasta seis letras para las listas y la marca de si pasa por gestión documental. Debajo, los campos que la plantilla declara, con la etiqueta «gestión» en los que solo completa gestión documental.',
+		title: 'El tipo de documento: prefijo y revisión',
+		text: 'Cada tipo lleva su plantilla, un prefijo de hasta seis letras para las listas y la marca «Pasa por revisión». Debajo, los campos que la plantilla declara, con la etiqueta «revisión» en los que solo completa revisión.',
 		as: 'admin',
 		run: async ( p ) => {
 			if ( ! ( await goTo( p, '/wp-admin/edit-tags.php?taxonomy=documentate_doc_type&post_type=documentate_document' ) ) ) {
@@ -489,7 +486,7 @@ const SCENES = [
 	{
 		chapter: 'Bloqueo de edición',
 		title: 'La primera persona obtiene el bloqueo de edición',
-		text: 'Gestión documental abre el documento 0 y obtiene el bloqueo de WordPress. Mientras lo edita, otra persona tendrá que esperar o tomar posesión explícitamente.',
+		text: 'Revisión abre el documento 0 y obtiene el bloqueo de WordPress. Mientras lo edita, otra persona tendrá que esperar o tomar posesión explícitamente.',
 		as: 'gestion',
 		run: async ( p ) => {
 			if ( ! ( await goToEdit( p, PROVIDERS ) ) ) return false;
@@ -501,7 +498,7 @@ const SCENES = [
 	{
 		chapter: 'Bloqueo de edición',
 		title: 'La segunda persona encuentra el documento bloqueado',
-		text: 'Administración intenta editar el mismo documento y ve quién tiene el bloqueo. El formulario de edición no se muestra y la opción «Tomar posesión» explica sus consecuencias.',
+		text: 'Administración intenta editar el mismo documento y se encuentra el aviso «Lo está editando otra persona», con quién lo tiene abierto. El formulario de edición no se muestra y la opción «Tomar posesión» explica sus consecuencias.',
 		as: 'admin',
 		viewportOnly: true,
 		run: async ( p, sessions ) => {
@@ -514,7 +511,7 @@ const SCENES = [
 	{
 		chapter: 'Bloqueo de edición',
 		title: 'Tomar posesión permite editar a la nueva persona',
-		text: 'Administración toma posesión mediante una petición protegida. El editor carga los últimos datos guardados del documento, sin sobrescribirlos con los cambios pendientes de gestión.',
+		text: 'Administración toma posesión mediante una petición protegida. El editor carga los últimos datos guardados del documento, sin sobrescribirlos con los cambios pendientes de revisión.',
 		as: 'admin',
 		run: async ( p ) => {
 			await p.getByRole( 'button', { name: 'Tomar posesión' } ).click();
@@ -540,7 +537,7 @@ const SCENES = [
 	{
 		chapter: 'Herramientas de desarrollo',
 		title: 'El selector de perfiles',
-		text: 'Solo en wp-env y en Playground: la pantalla de acceso lista las cuentas de prueba de los tres roles y las rellena con un clic. Su pareja es el menú «Probar como…» de la barra de administración —a la vista en las capturas de wp-admin—, que cambia de cuenta sin cerrar sesión y devuelve a la aplicación. Nada de esto se despliega: /scripts no entra en el ZIP.',
+		text: 'Solo en wp-env y en Playground: la pantalla de acceso lista las cuentas de prueba y las rellena con un clic. Su pareja es el menú «Probar como…» de la barra de administración —a la vista en las capturas de wp-admin—, que cambia de cuenta sin cerrar sesión y devuelve a la aplicación. Nada de esto se despliega: /scripts no entra en el ZIP.',
 		as: 'admin',
 		who: 'Sin sesión',
 		run: async ( p ) => {
@@ -858,7 +855,7 @@ async function openReasonDialog( p, key, reason ) {
 }
 
 /**
- * Brings the gestión documental half of the editor into view.
+ * Brings the revisión half of the editor into view.
  *
  * Expands the provider cards and folds «Datos del área» away, which is how the
  * work is done when the official data is what has to be filled in: unfolded,
@@ -1124,7 +1121,7 @@ figcaption code { font-family:inherit; }
 @media print { body { background:#fff } figure { break-inside:avoid } }
 </style></head><body><div class="wrap">
 <h1>Documentate</h1>
-<p class="sub">El ciclo completo de un documento: el área lo prepara, gestión documental completa los datos oficiales y administración lo aprueba.</p>
+<p class="sub">El ciclo completo de un documento: el área lo prepara, revisión completa los datos oficiales y la jefatura de servicio lo aprueba.</p>
 <p class="meta">${ esc( date ) } · ${ esc( BASE ) } · ${ shots.length } capturas${
 		failures ? ` · <span class="ko">${ failures } por revisar</span>` : ''
 	}</p>

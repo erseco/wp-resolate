@@ -3,9 +3,10 @@
  * Chrome shared by every page of the Documentate front-end application.
  *
  * Same shell pattern as the Registro de Visitas application: a header with the
- * institutional mark, a tab bar with what this person can do, the sheet the
- * content goes in and the institutional footer. The theme chrome is hidden by the
- * stylesheet under `body.documentate-app`, so the app owns the whole page.
+ * institutional mark and who is signed in (name, role and ámbito), a tab bar
+ * with what this person can do, the sheet the content goes in and the
+ * institutional footer. The theme chrome is hidden by the stylesheet under
+ * `body.documentate-app`, so the app owns the whole page.
  *
  * @package Documentate
  * @subpackage App
@@ -185,12 +186,99 @@ class Documentate_App_Shell {
 	}
 
 	/**
-	 * Label of the role, for the chip in the header.
+	 * Label of the role, for the header.
 	 *
 	 * @return string
 	 */
 	public static function role() {
 		return Documentate_Roles::role_label();
+	}
+
+	/**
+	 * Label of the ámbito, for the header.
+	 *
+	 * @return string
+	 */
+	public static function scope() {
+		return Documentate_Roles::scope_label();
+	}
+
+	/**
+	 * Initials of a display name, for the avatar of the header.
+	 *
+	 * @param string $name Display name.
+	 * @return string Up to two upper-case letters.
+	 */
+	public static function initials( $name ) {
+		$parts = preg_split( '/\s+/u', trim( (string) $name ) );
+		$letters = '';
+		foreach ( array_slice( is_array( $parts ) ? $parts : array(), 0, 2 ) as $part ) {
+			$letters .= mb_strtoupper( mb_substr( $part, 0, 1 ) );
+		}
+
+		return $letters;
+	}
+
+	/**
+	 * One of the inline icons of the shell.
+	 *
+	 * @param string $name plus, lock or chevron.
+	 * @return string SVG markup, empty for an unknown name.
+	 */
+	public static function icon( $name ) {
+		$paths = array(
+			'plus' => 'M12 4a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5a1 1 0 0 1 1-1Z',
+			'lock' => 'M7 10V8a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V8a3 3 0 0 0-6 0v2Z',
+			'chevron' => 'M6.7 9.3a1 1 0 0 1 1.4 0l3.9 3.9 3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0L6.7 10.7a1 1 0 0 1 0-1.4Z',
+		);
+
+		if ( ! isset( $paths[ $name ] ) ) {
+			return '';
+		}
+
+		return '<svg class="dcta-icono dcta-icono-' . esc_attr( $name ) . '" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
+			. '<path fill="currentColor" d="' . esc_attr( $paths[ $name ] ) . '"/></svg>';
+	}
+
+	/**
+	 * Who holds a document this person cannot edit right now.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string "revisión", "la jefatura de servicio", or empty when the
+	 *                status hands the document to nobody in particular.
+	 */
+	public static function holder( $post ) {
+		$holders = array(
+			'en_gestion' => 'revisión',
+			'pending' => 'la jefatura de servicio',
+		);
+
+		return isset( $holders[ $post->post_status ] ) ? $holders[ $post->post_status ] : '';
+	}
+
+	/**
+	 * The notice of a document that is locked for this person.
+	 *
+	 * The same block whoever finds a document in somebody else's hands sees,
+	 * in the document view, in the editor and beside the row action: a lock,
+	 * who has it and what that means for them.
+	 *
+	 * @param WP_Post $post  Document.
+	 * @param string  $extra Escaped markup appended after the sentence (a link).
+	 * @return string Empty when the document is not locked for this person.
+	 */
+	public static function lock_notice( $post, $extra = '' ) {
+		$holder = self::holder( $post );
+		if ( '' === $holder || Documentate_App_Edit::can_edit( $post ) ) {
+			return '';
+		}
+
+		$text = 'en_gestion' === $post->post_status
+			? 'Lo tiene revisión: está completando los datos oficiales y solo revisión puede modificarlo ahora. Si falta algo, te lo devolverán.'
+			: 'Lo tiene la jefatura de servicio: lo aprobará o lo devolverá. Nadie más puede modificarlo mientras tanto.';
+
+		return '<div class="dcta-aviso dcta-aviso-bloqueo">' . self::icon( 'lock' )
+			. '<span>' . esc_html( $text ) . $extra . '</span></div>';
 	}
 
 	/**
@@ -216,7 +304,7 @@ class Documentate_App_Shell {
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	private static function build_sections() {
-		if ( Documentate_Roles::is_administration() ) {
+		if ( Documentate_Roles::is_head() ) {
 			return self::admin_sections();
 		}
 
@@ -231,38 +319,40 @@ class Documentate_App_Shell {
 	}
 
 	/**
-	 * Tabs of administración: everything first, then what waits for them.
+	 * Tabs of jefatura de servicio and administración: everything first, then
+	 * what waits for their approval.
 	 *
-	 * Same shape as gestión documental — the whole list, then the review tray —
-	 * so moving between the two roles does not move the tabs around. Document
-	 * types and their templates are not here: that is wp-admin work.
+	 * Same shape as revisión — the whole list, then the tray of what waits —
+	 * so moving between roles does not move the tabs around. Administración
+	 * sees every área of the site, the rest their ámbito. Document types and
+	 * their templates are not here: that is wp-admin work.
 	 *
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	private static function admin_sections() {
 		return array(
-			'lista' => self::section( 'Todos los documentos', self::page_url() ),
+			'lista' => self::section( Documentate_Roles::is_administration() ? 'Todos los documentos' : 'Documentos', self::page_url() ),
 			'revision' => self::section(
-				'Para revisar',
+				'Para aprobar',
 				self::page_url( array( 'bandeja' => 'revision' ) ),
-				Documentate_App_List::count_documents( array( 'post_status' => 'pending' ) )
+				Documentate_App_List::count_documents( Documentate_App_Tray::query_args( 'revision', 'pending' ) )
 			),
 			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
 	}
 
 	/**
-	 * Tabs of gestión documental: their own área, and the documents to complete.
+	 * Tabs of revisión: every document of their ámbito, and the ones to complete.
 	 *
 	 * @return array<string,array{tab:string,url:string,n:int}>
 	 */
 	private static function management_sections() {
 		return array(
-			'lista' => self::section( 'Mis documentos', self::page_url() ),
+			'lista' => self::section( 'Documentos', self::page_url() ),
 			'revisar' => self::section(
 				'Para revisar',
 				self::page_url( array( 'bandeja' => 'revisar' ) ),
-				Documentate_App_List::count_documents( array( 'post_status' => 'en_gestion' ) )
+				Documentate_App_List::count_documents( Documentate_App_Tray::query_args( 'revisar', 'en_gestion' ) )
 			),
 			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
@@ -335,8 +425,8 @@ class Documentate_App_Shell {
 		$statuses = array(
 			'draft' => array( 'borrador', 'Borrador' ),
 			'auto-draft' => array( 'borrador', 'Borrador' ),
-			'en_gestion' => array( 'gestion', 'En gestión' ),
-			'pending' => array( 'pendiente', 'En revisión' ),
+			'en_gestion' => array( 'gestion', 'En revisión' ),
+			'pending' => array( 'pendiente', 'En aprobación' ),
 			'publish' => array( 'aprobado', 'Aprobado' ),
 			'archived' => array( 'archivado', 'Archivado' ),
 		);
@@ -352,8 +442,8 @@ class Documentate_App_Shell {
 	/**
 	 * Chip of a document: the status, or "Devuelto" when it came back to the área.
 	 *
-	 * A document returned to gestión documental keeps the "En gestión" chip;
-	 * the returned line under the name is what tells gestión to correct it.
+	 * A document returned to revisión keeps the "En revisión" chip; the
+	 * returned line under the name is what tells revisión to correct it.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return array{class:string,text:string}
@@ -372,9 +462,9 @@ class Documentate_App_Shell {
 	/**
 	 * The "Devuelto por … el … : «…»" line of a returned document.
 	 *
-	 * Only for the side the return was addressed to. Administración returning
-	 * a document to gestión documental writes a note to gestión: the área,
-	 * which cannot open the document while it is in gestión, is neither told
+	 * Only for the side the return was addressed to. Jefatura de servicio
+	 * returning a document to revisión writes a note to revisión: the área,
+	 * which cannot open the document while it is in revisión, is neither told
 	 * to correct anything nor shown what was said.
 	 *
 	 * @param WP_Post $post Document.
@@ -387,7 +477,7 @@ class Documentate_App_Shell {
 			return '';
 		}
 
-		$who = 'administracion' === $returned['desde'] ? 'administración' : 'gestión documental';
+		$who = 'administracion' === $returned['desde'] ? 'la jefatura de servicio' : 'revisión';
 		$timestamp = strtotime( $returned['fecha'] );
 		$date = false === $timestamp ? '' : ' el ' . date_i18n( 'j M', $timestamp );
 
@@ -398,9 +488,9 @@ class Documentate_App_Shell {
 	 * The returned notice of the document view and the editor.
 	 *
 	 * The call to action is only added for whoever can actually act on it:
-	 * a document sitting in gestión documental is read-only for its área, so
-	 * telling them to correct it and send it again is an instruction they
-	 * cannot follow.
+	 * a document sitting in revisión is read-only for its área, so telling
+	 * them to correct it and send it again is an instruction they cannot
+	 * follow.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return string Empty when there is nothing to show this person.
@@ -475,8 +565,8 @@ class Documentate_App_Shell {
 	/**
 	 * The return buttons, and the fallback for browsers without dialogs.
 	 *
-	 * When a document can be returned to two places (administración on a
-	 * document that went through gestión) there is a single "Devolver…"
+	 * When a document can be returned to two places (jefatura de servicio on
+	 * a document that went through revisión) there is a single "Devolver…"
 	 * button and the dialog asks where to.
 	 *
 	 * @param array<string,array<string,mixed>> $returns Return rules available.
@@ -549,7 +639,7 @@ class Documentate_App_Shell {
 	public static function open( $section, $title, $sub = '' ) {
 		self::$sections = array();
 		$sections = self::sections();
-		$role = self::role();
+		$user = wp_get_current_user();
 		$home_url = self::page_url();
 		$home_url = '' !== $home_url ? $home_url : home_url( '/' );
 
@@ -562,20 +652,28 @@ class Documentate_App_Shell {
 					<small>Consejería de Educación, Formación Profesional, Actividad Física y Deportes</small>
 				</span>
 				<a class="dcta-marca-app" href="<?php echo esc_url( $home_url ); ?>">Documentate</a>
-				<span class="dcta-top-derecha">
-					<?php if ( '' !== $role ) : ?>
-						<span class="dcta-rol"><?php echo esc_html( $role ); ?></span>
-					<?php endif; ?>
-				</span>
+				<details class="dcta-yo">
+					<summary>
+						<span class="dcta-yo-ava" aria-hidden="true"><?php echo esc_html( self::initials( $user->display_name ) ); ?></span>
+						<span class="dcta-yo-txt">
+							<span class="dcta-yo-n"><?php echo esc_html( $user->display_name ); ?> <?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG literal. ?></span>
+							<span class="dcta-rol"><?php echo esc_html( self::role() ); ?></span>
+							<span class="dcta-yo-ambito"><?php echo esc_html( self::scope() ); ?></span>
+						</span>
+					</summary>
+					<div class="dcta-yo-menu">
+						<a href="<?php echo esc_url( wp_logout_url( $home_url ) ); ?>">Salir</a>
+					</div>
+				</details>
 			</div>
 		</div>
 
 		<nav class="dcta-tabs" aria-label="Secciones">
 			<div class="dcta-tabs-fila">
 				<?php foreach ( $sections as $key => $s ) : ?>
-					<a class="dcta-tab<?php echo $key === $section ? ' dcta-tab-on' : ''; ?>"
+					<a class="dcta-tab dcta-tab-<?php echo esc_attr( $key ); ?><?php echo $key === $section ? ' dcta-tab-on' : ''; ?>"
 						<?php echo $key === $section ? ' aria-current="page"' : ''; ?>
-						href="<?php echo esc_url( $s['url'] ); ?>"><?php echo esc_html( $s['tab'] ); ?>
+						href="<?php echo esc_url( $s['url'] ); ?>"><?php echo 'nuevo' === $key ? self::icon( 'plus' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG literal. ?><?php echo esc_html( $s['tab'] ); ?>
 						<?php if ( $s['n'] > 0 ) : ?>
 							<span class="dcta-tab-n"><?php echo esc_html( (string) $s['n'] ); ?></span>
 						<?php endif; ?>
@@ -644,7 +742,7 @@ class Documentate_App_Shell {
 			<h2 class="dcta-dialogo-titulo" id="dcta-dialogo-motivo-titulo">Devolver el documento</h2>
 			<div class="dcta-dialogo-destinos" hidden>
 				<span class="dcta-dialogo-etiqueta">Devolver a:</span>
-				<label><input type="radio" name="documentate_app_transicion" value="devolver_gestion" form="<?php echo esc_attr( $form ); ?>" checked disabled /> Gestión documental</label>
+				<label><input type="radio" name="documentate_app_transicion" value="devolver_gestion" form="<?php echo esc_attr( $form ); ?>" checked disabled /> A revisión</label>
 				<label><input type="radio" name="documentate_app_transicion" value="devolver_area" form="<?php echo esc_attr( $form ); ?>" disabled /> Al área</label>
 			</div>
 			<label class="dcta-dialogo-etiqueta" for="dcta-dialogo-motivo-texto">Motivo de la devolución</label>

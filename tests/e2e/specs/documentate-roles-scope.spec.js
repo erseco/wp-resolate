@@ -139,7 +139,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 					category: 'other',
 					type: 'propio',
 				},
-				// Out of scope but already published: gestión documental reviews
+				// Out of scope but already published: revisión reviews
 				// every área, so a document that has left its own is theirs to
 				// look at.
 				adminOtherPublished: {
@@ -228,7 +228,7 @@ test.describe( 'Roles and Scope Filtering', () => {
 			);
 
 			// Out of scope but already in the pipeline: an editor carries the
-			// gestión documental capability, and reviewing means looking
+			// revisión capability, and reviewing means looking
 			// outside your own área.
 			await expect(
 				rowByTitle( page, TITLES.adminOtherPublished )

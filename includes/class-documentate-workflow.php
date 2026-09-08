@@ -57,7 +57,7 @@ class Documentate_Workflow {
 				'type' => 'warning',
 			),
 			'editor_no_publish' => array(
-				'message' => 'El documento pasa a revisión. Solo administración puede publicar documentos.',
+				'message' => 'El documento pasa al siguiente paso del circuito. Solo la jefatura de servicio aprueba y publica documentos.',
 				'type' => 'info',
 			),
 			'published_locked' => array(
@@ -65,11 +65,11 @@ class Documentate_Workflow {
 				'type' => 'error',
 			),
 			'pending_locked' => array(
-				'message' => 'Los documentos en revisión solo los puede modificar administración.',
+				'message' => 'Los documentos en aprobación solo los puede modificar la jefatura de servicio.',
 				'type' => 'error',
 			),
 			'gestion_locked' => array(
-				'message' => 'Los documentos en gestión documental solo los pueden modificar gestión y administración.',
+				'message' => 'Los documentos en revisión solo los pueden modificar revisión y jefatura de servicio.',
 				'type' => 'error',
 			),
 			'transicion_no_permitida' => array(
@@ -165,6 +165,10 @@ class Documentate_Workflow {
 		if ( ! $this->should_control_status( $data ) ) {
 			return $data;
 		}
+
+		// A reason belongs to one save: the instance lives for the whole
+		// request, and a stale one would be stored again by every later save.
+		$this->status_change_reason = null;
 
 		$context = array(
 			'post_id' => isset( $postarr['ID'] ) ? absint( $postarr['ID'] ) : 0,
@@ -292,12 +296,14 @@ class Documentate_Workflow {
 	}
 
 	/**
-	 * Rule 2: only administrators may publish.
+	 * Rule 2: nobody publishes from a draft but administración.
 	 *
 	 * A non-admin asking for publish/private/future from a draft lands on the
 	 * next step of the workflow (en_gestion when the type goes through
-	 * gestión, pending otherwise); from en_gestion or pending the document
-	 * keeps its stored status.
+	 * revisión, pending otherwise). From en_gestion or pending the request
+	 * was already judged by Rule 0 against the table — the approval of the
+	 * jefatura de servicio is the one publish the table allows — so it goes
+	 * through untouched.
 	 *
 	 * @param array $data    Post data being saved.
 	 * @param array $context Status evaluation context.
@@ -310,8 +316,10 @@ class Documentate_Workflow {
 
 		$stored = $this->get_stored_status( $context['post_id'] );
 		if ( in_array( $stored, array( 'en_gestion', 'pending' ), true ) ) {
-			$data['post_status'] = $stored;
-		} elseif ( Documentate_Document_Data::has_management_on_save( $context['post_id'], $context['postarr'] ) ) {
+			return $data;
+		}
+
+		if ( Documentate_Document_Data::has_management_on_save( $context['post_id'], $context['postarr'] ) ) {
 			$data['post_status'] = 'en_gestion';
 		} else {
 			$data['post_status'] = 'pending';
@@ -562,8 +570,10 @@ class Documentate_Workflow {
 	/**
 	 * Whether a user may modify a document that sits in a status.
 	 *
-	 * Administración edits everything; gestión documental edits drafts and
-	 * documents in gestión; everyone else edits drafts only.
+	 * Administración edits everything. Every other role edits drafts, and
+	 * then the documents standing on its own step of the workflow: revisión
+	 * those in revisión, jefatura de servicio those in revisión and in
+	 * aprobación. A document that moved on is read-only for whoever sent it.
 	 *
 	 * @param string $status  Post status.
 	 * @param int    $user_id User ID.
@@ -574,9 +584,13 @@ class Documentate_Workflow {
 			return true;
 		}
 
-		$editable = Documentate_Roles::is_management( $user_id )
-			? array( 'draft', 'auto-draft', 'en_gestion' )
-			: array( 'draft', 'auto-draft' );
+		$editable = array( 'draft', 'auto-draft' );
+		if ( Documentate_Roles::is_management( $user_id ) ) {
+			$editable[] = 'en_gestion';
+		}
+		if ( Documentate_Roles::is_head( $user_id ) ) {
+			$editable[] = 'pending';
+		}
 
 		return in_array( $status, $editable, true );
 	}

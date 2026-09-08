@@ -4,11 +4,10 @@
  *
  * The list view asks this class three things, and prints none of them: which
  * tray the request means, which filters are active inside it, and which query
- * arguments — and counts — that combination stands for. "Mis documentos" keeps
- * the scope rules of the admin list (a scoped user sees the documents of their
- * category and its descendants), while the review trays of gestión documental
- * and administración show every área, because reviewing is precisely the job of
- * looking outside your own.
+ * arguments — and counts — that combination stands for. Every tray keeps the
+ * scope rules of the admin list: a scoped user sees the documents of their
+ * category and its descendants, and the people who review and approve for
+ * several áreas do so because their category sits above them in the tree.
  *
  * @package Documentate
  * @subpackage App
@@ -63,14 +62,18 @@ class Documentate_App_Tray {
 	/**
 	 * Trays this person may open, and the one they land on.
 	 *
+	 * Whoever reviews or approves lands on every document of their scope
+	 * ("todos"), with the tray of what waits for them beside it; the área
+	 * only has its own documents.
+	 *
 	 * @return string[] First element is the default tray.
 	 */
 	public static function trays() {
-		if ( Documentate_Roles::is_administration() ) {
+		if ( Documentate_Roles::is_head() ) {
 			return array( 'todos', 'revision' );
 		}
 
-		return Documentate_Roles::is_management() ? array( 'mis', 'revisar' ) : array( 'mis' );
+		return Documentate_Roles::is_management() ? array( 'todos', 'revisar' ) : array( 'mis' );
 	}
 
 	/**
@@ -137,51 +140,18 @@ class Documentate_App_Tray {
 	}
 
 	/**
-	 * Whether the tray cannot show anything because the user has no ámbito.
+	 * Whether the trays cannot show anything because the user has no ámbito.
 	 *
-	 * Only "mis documentos" is scoped; a restricted account without a category
-	 * of its own has nothing to look at there, and the list says so instead of
-	 * drawing an empty table.
+	 * Every tray is scoped; a restricted account without a category of its
+	 * own has nothing to look at, and the list says so instead of drawing an
+	 * empty table.
 	 *
-	 * @param string $tray Tray key.
 	 * @return bool
 	 */
-	public static function without_scope( $tray ) {
-		if ( 'mis' !== $tray ) {
-			return false;
-		}
-
-		$term_ids = self::scope_term_ids();
+	public static function without_scope() {
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
 
 		return is_array( $term_ids ) && empty( $term_ids );
-	}
-
-	/**
-	 * Scope term IDs of the current user.
-	 *
-	 * Same contract as Documentate_Scope_Filter::get_scope_term_ids(), inlined
-	 * here because that class registers hooks on construction.
-	 *
-	 * @return int[]|null Null for unrestricted users; empty array when the user
-	 *                    is restricted but has no scope assigned.
-	 */
-	private static function scope_term_ids() {
-		if ( current_user_can( 'manage_options' ) ) {
-			return null;
-		}
-
-		$scope_term = absint( get_user_meta( get_current_user_id(), 'documentate_scope_term_id', true ) );
-		if ( 0 === $scope_term ) {
-			return array();
-		}
-
-		$term_ids = array( $scope_term );
-		$children = get_term_children( $scope_term, 'category' );
-		if ( ! is_wp_error( $children ) && ! empty( $children ) ) {
-			$term_ids = array_merge( $term_ids, $children );
-		}
-
-		return array_map( 'absint', $term_ids );
 	}
 
 	/**
@@ -232,7 +202,7 @@ class Documentate_App_Tray {
 			$args['post_status'] = $status;
 		}
 
-		$term_ids = 'mis' === $tray ? self::scope_term_ids() : null;
+		$term_ids = Documentate_Scope_Filter::get_scope_term_ids();
 		if ( $area > 0 ) {
 			$term_ids = array( $area );
 		}

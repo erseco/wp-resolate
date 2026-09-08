@@ -29,11 +29,18 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental user ID (editor).
+	 * Revisión user ID (editor).
 	 *
 	 * @var int
 	 */
 	private $management_id;
+
+	/**
+	 * Jefatura de servicio user ID (editor).
+	 *
+	 * @var int
+	 */
+	private $head_id;
 
 	/**
 	 * Área user ID (author).
@@ -79,12 +86,15 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
+		$this->head_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		( new WP_User( $this->head_id ) )->add_cap( Documentate_Roles::CAP_HEAD );
 		$this->area_id = self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$cat = wp_insert_term( 'Ámbito Workflow', 'category' );
 		$this->cat_id = (int) $cat['term_id'];
 		update_user_meta( $this->area_id, 'documentate_scope_term_id', $this->cat_id );
 		update_user_meta( $this->management_id, 'documentate_scope_term_id', $this->cat_id );
+		update_user_meta( $this->head_id, 'documentate_scope_term_id', $this->cat_id );
 
 		$management = wp_insert_term( 'Resolución W', 'documentate_doc_type' );
 		$this->management_type_id = (int) $management['term_id'];
@@ -294,6 +304,32 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 
 		$pending = $this->create_document( 'pending' );
 		$this->assertSame( 'pending', $this->save_as( $pending, $this->management_id, 'private' ) );
+		$this->assertSame( 'pending', $this->save_as( $pending, $this->head_id, 'private' ), 'Only publish is in the table.' );
+
+		// The head of service is not administración: its own drafts follow the circuit too.
+		$head_draft = $this->create_document( 'draft' );
+		$this->assertSame( 'en_gestion', $this->save_as( $head_draft, $this->head_id, 'publish' ) );
+	}
+
+	/**
+	 * Rule 0 and Rule 2 together: the head of service approves from pending, and only from there.
+	 */
+	public function test_head_approves_from_pending_without_being_admin() {
+		$doc = $this->create_document( 'pending' );
+
+		$this->assertSame( 'publish', $this->save_as( $doc, $this->head_id, 'publish' ) );
+		$this->assertFalse( get_transient( 'documentate_workflow_notice_' . $this->head_id ), 'No notice: nothing was corrected.' );
+
+		$en_gestion = $this->create_document( 'en_gestion' );
+		$this->assertSame( 'en_gestion', $this->save_as( $en_gestion, $this->head_id, 'publish' ) );
+		$notice = get_transient( 'documentate_workflow_notice_' . $this->head_id );
+		$this->assertSame( 'transicion_no_permitida', $notice['reason'] );
+
+		// Returns from pending are theirs as well, with a reason.
+		$returned = $this->create_document( 'pending' );
+		$this->assertSame( 'pending', $this->save_as( $returned, $this->head_id, 'en_gestion' ) );
+		$this->assertSame( 'en_gestion', $this->save_as( $returned, $this->head_id, 'en_gestion', 'Falta el expediente' ) );
+		$this->assertSame( 'administracion', Documentate_Document_Data::returned( $returned )['desde'] );
 	}
 
 	/**
@@ -354,6 +390,12 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'publish', $this->management_id ) );
 		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'archived', $this->management_id ) );
 
+		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'draft', $this->head_id ) );
+		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'en_gestion', $this->head_id ) );
+		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'pending', $this->head_id ) );
+		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'publish', $this->head_id ) );
+		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'archived', $this->head_id ) );
+
 		$this->assertTrue( Documentate_Workflow::user_can_modify_status( 'draft', $this->area_id ) );
 		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'en_gestion', $this->area_id ) );
 		$this->assertFalse( Documentate_Workflow::user_can_modify_status( 'pending', $this->area_id ) );
@@ -402,6 +444,27 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertSame( 'Título original', get_post_field( 'post_title', $pending ) );
+		$notice = get_transient( 'documentate_workflow_notice_' . $this->management_id );
+		$this->assertSame( 'pending_locked', $notice['reason'] );
+
+		wp_set_current_user( $this->head_id );
+		wp_update_post(
+			array(
+				'ID' => $pending,
+				'post_title' => 'Cambiado por la jefatura',
+			)
+		);
+		$this->assertSame( 'Cambiado por la jefatura', get_post_field( 'post_title', $pending ) );
+
+		$published = $this->create_document( 'publish' );
+		wp_set_current_user( $this->head_id );
+		wp_update_post(
+			array(
+				'ID' => $published,
+				'post_title' => 'Cambiado tras aprobar',
+			)
+		);
+		$this->assertSame( 'Título original', get_post_field( 'post_title', $published ), 'Approved documents are closed for the head of service too.' );
 	}
 
 	/**
@@ -413,7 +476,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		$management = $this->render_metabox( $doc, $this->management_id );
 		$this->assertStringContainsString( 'id="documentate-save-gestion"', $management );
 		$this->assertStringContainsString( 'id="documentate-pass-admin"', $management );
-		$this->assertStringContainsString( 'Pasar a administración', $management );
+		$this->assertStringContainsString( 'Pasar a aprobación', $management );
 		$this->assertStringContainsString( 'id="documentate-return-draft"', $management );
 		$this->assertStringContainsString( 'Devolver al área', $management );
 		$this->assertStringContainsString( 'id="documentate-return-draft-motivo"', $management );
@@ -435,35 +498,40 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 	public function test_metabox_draft_follows_the_type() {
 		$has_management = $this->create_document( 'draft' );
 		$html = $this->render_metabox( $has_management, $this->area_id );
-		$this->assertStringContainsString( 'En gestión', $html );
-		$this->assertStringContainsString( 'Enviar a gestión', $html );
+		$this->assertStringContainsString( 'En revisión', $html );
+		$this->assertStringContainsString( 'Enviar a revisión', $html );
 		$this->assertStringContainsString( 'data-estado="en_gestion"', $html );
-		$this->assertStringContainsString( 'Envía a gestión documental', $html );
+		$this->assertStringContainsString( 'Envía a revisión cuando esté listo', $html );
 
 		$direct = $this->create_document( 'draft', $this->direct_type_id );
 		$html = $this->render_metabox( $direct, $this->area_id );
-		$this->assertStringNotContainsString( 'En gestión', $html );
-		$this->assertStringContainsString( 'Enviar a revisión', $html );
+		$this->assertStringNotContainsString( 'En revisión', $html );
+		$this->assertStringContainsString( 'Enviar a aprobación', $html );
 		$this->assertStringContainsString( 'data-estado="pending"', $html );
 	}
 
 	/**
-	 * Administrators reviewing a management document can return it to gestión.
+	 * Whoever approves a document that went through revisión can return it there.
 	 */
-	public function test_metabox_pending_admin_offers_return_to_management() {
+	public function test_metabox_pending_offers_return_to_management() {
 		$doc = $this->create_document( 'pending' );
 
-		$html = $this->render_metabox( $doc, $this->admin_id );
-		$this->assertStringContainsString( 'id="documentate-return-gestion"', $html );
-		$this->assertStringContainsString( 'Devolver a gestión', $html );
-		$this->assertStringContainsString( 'id="documentate-return-draft"', $html );
-		$this->assertStringContainsString( 'id="documentate-approve-publish"', $html );
-		$this->assertStringContainsString( 'Apruébalo o devuélvelo', $html );
+		foreach ( array( $this->admin_id, $this->head_id ) as $user_id ) {
+			$html = $this->render_metabox( $doc, $user_id );
+			$this->assertStringContainsString( 'id="documentate-return-gestion"', $html );
+			$this->assertStringContainsString( 'Devolver a revisión', $html );
+			$this->assertStringContainsString( 'id="documentate-return-draft"', $html );
+			$this->assertStringContainsString( 'id="documentate-approve-publish"', $html );
+			$this->assertStringContainsString( 'Apruébalo o devuélvelo', $html );
+			$this->assertStringContainsString( 'Mover a la papelera', $html );
+		}
 
-		// Gestión is locked on pending.
+		// Revisión is locked on pending.
 		$html = $this->render_metabox( $doc, $this->management_id );
 		$this->assertStringContainsString( 'documentate-mgmt-locked-notice', $html );
+		$this->assertStringContainsString( 'La jefatura de servicio lo aprobará', $html );
 		$this->assertStringNotContainsString( 'documentate-return-gestion', $html );
+		$this->assertStringNotContainsString( 'Mover a la papelera', $html );
 	}
 
 	/**
@@ -535,6 +603,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"isEnGestion":"1"', $data );
 		$this->assertStringContainsString( '"hasManagement":"1"', $data );
 		$this->assertStringContainsString( '"isManagement":""', $data );
+		$this->assertStringContainsString( '"isHead":""', $data );
 		$this->assertStringContainsString( '"isLocked":"1"', $data );
 		$this->assertStringContainsString( 'managementMessage', $data );
 		$this->assertStringContainsString( 'reasonRequired', $data );
@@ -550,7 +619,7 @@ class DocumentateWorkflowRolesTest extends WP_UnitTestCase {
 		set_current_screen( 'documentate_document' );
 		get_current_screen()->post_type = 'documentate_document';
 
-		foreach ( array( 'gestion_locked' => 'gestión', 'transicion_no_permitida' => 'transición' ) as $reason => $text ) {
+		foreach ( array( 'gestion_locked' => 'revisión', 'pending_locked' => 'jefatura de servicio', 'transicion_no_permitida' => 'transición' ) as $reason => $text ) {
 			set_transient(
 				'documentate_workflow_notice_' . $this->admin_id,
 				array(

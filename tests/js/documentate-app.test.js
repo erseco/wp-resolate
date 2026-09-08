@@ -234,7 +234,7 @@ describe( 'confirmation dialog', () => {
 
 	it( 'asks the question of the button and carries its key', () => {
 		mountEditor(
-			'<button type="submit" name="documentate_app_transicion" value="enviar_gestion" data-confirmar="¿Enviar el documento a gestión documental?">Enviar a gestión</button>'
+			'<button type="submit" name="documentate_app_transicion" value="enviar_gestion" data-confirmar="¿Enviar el documento a revisión?">Enviar a gestión</button>'
 		);
 		fillRequiredFields();
 
@@ -244,7 +244,7 @@ describe( 'confirmation dialog', () => {
 
 		expect( document.getElementById( 'dcta-dialogo-confirmar' ).open ).toBe( true );
 		expect( document.getElementById( 'dcta-dialogo-confirmar-texto' ).textContent ).toBe(
-			'¿Enviar el documento a gestión documental?'
+			'¿Enviar el documento a revisión?'
 		);
 		expect( document.getElementById( 'dcta-dialogo-confirmar-ok' ).textContent ).toBe( 'Enviar a gestión' );
 		expect( document.getElementById( 'dcta-dialogo-confirmar-clave' ).value ).toBe( 'enviar_gestion' );
@@ -266,7 +266,7 @@ describe( 'confirmation dialog', () => {
 
 	it( 'lets the browser point at an invalid field instead of opening', () => {
 		mountEditor(
-			'<button type="submit" name="documentate_app_transicion" value="enviar_gestion" data-confirmar="¿Enviar el documento a gestión documental?">Enviar a gestión</button>'
+			'<button type="submit" name="documentate_app_transicion" value="enviar_gestion" data-confirmar="¿Enviar el documento a revisión?">Enviar a gestión</button>'
 		);
 
 		// The required internal name is empty: nothing outside a modal dialog
@@ -400,7 +400,7 @@ describe( 'new document form', () => {
 		select.value = '7';
 		select.dispatchEvent( new window.Event( 'change' ) );
 		expect( document.getElementById( 'documentate-app-tipo-nota' ).textContent ).toBe(
-			'Pasa por gestión documental.'
+			'Pasa por revisión.'
 		);
 		expect( document.getElementById( 'documentate-app-prefijo' ).textContent ).toBe( 'RES' );
 		expect( document.getElementById( 'documentate-app-prefijo' ).hidden ).toBe( false );
@@ -408,7 +408,7 @@ describe( 'new document form', () => {
 		select.value = '9';
 		select.dispatchEvent( new window.Event( 'change' ) );
 		expect( document.getElementById( 'documentate-app-tipo-nota' ).textContent ).toBe(
-			'Va directo a administración.'
+			'Va directo a la jefatura de servicio.'
 		);
 		expect( document.getElementById( 'documentate-app-prefijo' ).textContent ).toBe( 'CONV' );
 	} );

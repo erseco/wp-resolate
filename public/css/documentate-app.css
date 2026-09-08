@@ -201,29 +201,126 @@ body.documentate-app .wp-block-post-content {
 	text-decoration: none;
 }
 
-.dcta-top-derecha {
+/* --- who you are ----------------------------------------------------------- */
+
+/*
+ * Three lines — name, role, ámbito — and not a pill: the same block the
+ * Registro de Visitas application shows, so people moving between the two know
+ * where to look. The menu (Salir) is a native `details`: no script, and it
+ * closes by itself when the page changes.
+ */
+
+.dcta-yo {
 	margin-left: auto;
+	position: relative;
+	min-width: 0;
+}
+
+.dcta-yo > summary {
+	list-style: none;
 	display: flex;
-	min-width: 0;
 	align-items: center;
-	justify-content: flex-end;
-	gap: 12px;
+	gap: 10px;
+	cursor: pointer;
+	border-radius: 12px;
+	padding: 4px 6px;
 }
 
-.dcta-top-derecha > * {
-	min-width: 0;
+.dcta-yo > summary::-webkit-details-marker {
+	display: none;
 }
 
-.dcta-rol {
-	overflow: hidden;
-	padding: .34em .8em;
-	border-radius: 999px;
+.dcta-yo > summary:hover,
+.dcta-yo[open] > summary {
+	background: var(--dcta-sup-2);
+}
+
+.dcta-yo-ava {
+	flex: 0 0 auto;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	font-size: 13px;
+	font-weight: 700;
 	background: var(--dcta-pri-cont);
 	color: var(--dcta-pri);
-	font-size: 12.5px;
+}
+
+.dcta-yo-txt {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	line-height: 1.25;
+	text-align: left;
+}
+
+.dcta-yo-n {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 14px;
 	font-weight: 600;
+	color: var(--dcta-texto);
+	white-space: nowrap;
+}
+
+.dcta-yo-n .dcta-icono {
+	width: 12px;
+	height: 12px;
+	color: var(--dcta-texto-2);
+}
+
+.dcta-rol,
+.dcta-yo-ambito {
+	overflow: hidden;
+	font-size: 12.5px;
+	color: var(--dcta-texto-2);
 	white-space: nowrap;
 	text-overflow: ellipsis;
+}
+
+.dcta-yo-ambito {
+	font-weight: 600;
+}
+
+.dcta-yo-ambito::before {
+	content: "";
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	margin-right: 6px;
+	border-radius: 50%;
+	background: var(--dcta-pri);
+	vertical-align: 1px;
+}
+
+.dcta-yo-menu {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	min-width: 12rem;
+	padding: 6px;
+	background: var(--dcta-sup);
+	border: 1px solid var(--dcta-linea);
+	border-radius: var(--dcta-r);
+	box-shadow: var(--dcta-e2);
+	z-index: 30;
+	display: grid;
+}
+
+.dcta-yo-menu a {
+	padding: 10px 12px;
+	border-radius: 8px;
+	color: var(--dcta-texto);
+	text-decoration: none;
+	font-size: 14px;
+}
+
+.dcta-yo-menu a:hover {
+	background: var(--dcta-sup-2);
+	color: var(--dcta-pri);
 }
 
 /* --- tabs ---------------------------------------------------------------- */
@@ -272,6 +369,18 @@ body.documentate-app .wp-block-post-content {
 	color: var(--dcta-esp);
 	font-size: 12px;
 	font-weight: 700;
+}
+
+/* "Nuevo documento" carries a blue plus, so it reads as an action, not a list. */
+
+.dcta-tab-nuevo {
+	gap: 4px;
+}
+
+.dcta-tab-nuevo .dcta-icono {
+	width: 18px;
+	height: 18px;
+	color: var(--dcta-pri);
 }
 
 /* --- sheet --------------------------------------------------------------- */
@@ -407,6 +516,55 @@ body.documentate-app .wp-block-post-content {
 .dcta-aviso-mal {
 	background: var(--dcta-mal-cont);
 	color: var(--dcta-mal);
+}
+
+/*
+ * A document in somebody else's hands: the warm tone of the return notice,
+ * a lock, and the same block wherever it shows up (document view, editor,
+ * takeover dialog), so "you cannot edit this right now" always looks alike.
+ */
+
+.dcta-aviso-bloqueo {
+	background: var(--dcta-esp-cont);
+	color: var(--dcta-esp);
+}
+
+.dcta-aviso-bloqueo .dcta-icono {
+	flex: 0 0 auto;
+	margin-top: 1px;
+}
+
+.dcta-aviso-bloqueo a {
+	color: inherit;
+	font-weight: 600;
+}
+
+.dcta-btn-off {
+	background: var(--dcta-sup-2);
+	color: var(--dcta-texto-2);
+	cursor: not-allowed;
+	box-shadow: none;
+}
+
+.dcta-btn-off .dcta-icono {
+	width: 16px;
+	height: 16px;
+}
+
+.dcta-ayuda-bloqueo {
+	margin-top: -6px;
+	color: var(--dcta-esp);
+}
+
+.dcta-dialogo-bloqueo {
+	border-left: 4px solid var(--dcta-esp);
+}
+
+.dcta-dialogo-bloqueo .dcta-dialogo-titulo {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--dcta-esp);
 }
 
 /* --- state chips ---------------------------------------------------------- */
@@ -1703,10 +1861,17 @@ body.documentate-app .documentate-loading-modal__content {
 		display: none;
 	}
 
-	.dcta-rol {
-		max-width: 45vw;
-		overflow: hidden;
-		text-overflow: ellipsis;
+	.dcta-yo-txt {
+		display: none;
+	}
+
+	.dcta-yo > summary {
+		padding: 0;
+	}
+
+	.dcta-yo-ava {
+		width: 40px;
+		height: 40px;
 	}
 
 	.dcta-tabs-fila {

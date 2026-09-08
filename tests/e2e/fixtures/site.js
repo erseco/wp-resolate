@@ -271,6 +271,9 @@ foreach ( (array) $plan['users'] as $key => $u ) {
 	if ( $id && ! empty( $u['management'] ) && class_exists( 'Documentate_Roles' ) ) {
 		Documentate_Roles::grant_management( $id );
 	}
+	if ( $id && ! empty( $u['head'] ) && class_exists( 'Documentate_Roles' ) ) {
+		Documentate_Roles::grant_head( $id );
+	}
 }
 
 foreach ( (array) $plan['documents'] as $key => $d ) {
@@ -302,9 +305,9 @@ foreach ( (array) $plan['documents'] as $key => $d ) {
 	}
 
 	$status = isset( $d['status'] ) ? $d['status'] : 'draft';
-	// Only "en revisión" needs the intermediate stop: a type that goes
-	// through gestión documental has no draft -> pending rule, while
-	// draft -> publish is a move administración may always make.
+	// Only "en aprobación" needs the intermediate stop: a type that goes
+	// through revisión has no draft -> pending rule, while draft -> publish
+	// is a move administración may always make.
 	if ( 'pending' === $status ) {
 		wp_update_post( array( 'ID' => $id, 'post_status' => 'en_gestion' ) );
 	}
@@ -393,8 +396,8 @@ function runPhp( php, plan ) {
  * @param {Object}          plan               Fixture plan.
  * @param {Object}          [plan.categories]  Category name, or `{ name, parent }`, by key.
  * @param {Object}          [plan.types]       Type name to create, or `{ slug }` to look up, by key.
- * @param {Object}          [plan.users]    `{ login, role, scope, management }` by key (the password is PASSWORD);
- *                                             `management: true` appoints that account gestión documental.
+ * @param {Object}          [plan.users]    `{ login, role, scope, management, head }` by key (the password is PASSWORD);
+ *                                             `management: true` appoints that account revisión, `head: true` jefatura de servicio.
  * @param {Object}          [plan.documents]  `{ title, category, type, author, status, name }` by key.
  * @return {{categories: Object, types: Object, users: Object, documents: Object, statuses: Object}} Created IDs.
  */

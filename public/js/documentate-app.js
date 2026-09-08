@@ -306,7 +306,7 @@
 			if (note) {
 				note.textContent = '' === value
 					? ''
-					: (management ? 'Pasa por gestión documental.' : 'Va directo a administración.');
+					: (management ? 'Pasa por revisión.' : 'Va directo a la jefatura de servicio.');
 			}
 			if (prefix) {
 				prefix.textContent = prefixMark || '';

@@ -33,7 +33,7 @@ class DocumentateFieldRolesWriteTest extends WP_UnitTestCase {
 	private $admin_id;
 
 	/**
-	 * Gestión documental (editor).
+	 * Revisión (editor).
 	 *
 	 * @var int
 	 */
@@ -55,7 +55,7 @@ class DocumentateFieldRolesWriteTest extends WP_UnitTestCase {
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->management_id = self::factory()->user->create( array( 'role' => 'editor' ) );
-		// Gestión documental is appointed account by account: the plugin keeps
+		// Revisión is appointed account by account: the plugin keeps
 		// the capability in a role of its own and never grants it to the stock
 		// editor role, so the account is given it here the way a site would.
 		( new WP_User( $this->management_id ) )->add_cap( Documentate_Roles::CAP_MANAGEMENT );
@@ -100,7 +100,7 @@ class DocumentateFieldRolesWriteTest extends WP_UnitTestCase {
 							),
 						),
 					),
-					// Área block with one column gestión documental owns.
+					// Área block with one column revisión owns.
 					array(
 						'name' => 'anexos',
 						'slug' => 'anexos',
@@ -275,7 +275,7 @@ class DocumentateFieldRolesWriteTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A slug gestión documental owns somewhere is refused even where the
+	 * A slug revisión owns somewhere is refused even where the
 	 * current schema does not declare it.
 	 *
 	 * The unknown-field path exists to keep values written by a previous
@@ -314,7 +314,7 @@ class DocumentateFieldRolesWriteTest extends WP_UnitTestCase {
 			'Values of a previous type are still kept.'
 		);
 
-		// Gestión documental writes the same request without trouble (the nonce
+		// Revisión writes the same request without trouble (the nonce
 		// travels with the person, so it is minted again for them).
 		wp_set_current_user( $this->management_id );
 		$_POST['documentate_sections_nonce'] = wp_create_nonce( 'documentate_sections_nonce' );

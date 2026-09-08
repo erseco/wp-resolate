@@ -79,7 +79,7 @@ class Documentate_App_List {
 			$titles[1]
 		);
 
-		if ( Documentate_App_Tray::without_scope( $tray ) ) {
+		if ( Documentate_App_Tray::without_scope() ) {
 			return $html
 				. '<div class="dcta-aviso">Tu usuario no tiene un ámbito asignado. Contacta con administración.</div>'
 				. Documentate_App_Shell::close();
@@ -122,10 +122,14 @@ class Documentate_App_List {
 	private static function titles( $tray ) {
 		$titles = array(
 			'mis' => array( 'Mis documentos', 'Los documentos de tu área, con su estado.' ),
-			'revisar' => array( 'Para revisar', 'Documentos que han salido de su área y esperan a gestión documental.' ),
-			'revision' => array( 'Para revisar', 'Documentos que esperan tu aprobación.' ),
+			'revisar' => array( 'Para revisar', 'Documentos que han salido de su área y esperan revisión.' ),
+			'revision' => array( 'Para aprobar', 'Documentos que esperan tu aprobación.' ),
 			'todos' => array( 'Todos los documentos', 'Todas las áreas, todos los estados.' ),
 		);
+
+		if ( 'todos' === $tray && ! Documentate_Roles::is_administration() ) {
+			$titles['todos'] = array( 'Documentos', 'Todas las áreas de tu ámbito, todos los estados.' );
+		}
 
 		return isset( $titles[ $tray ] ) ? $titles[ $tray ] : $titles['mis'];
 	}
@@ -162,9 +166,9 @@ class Documentate_App_List {
 	/**
 	 * The counters of a tray, the one it exists for first.
 	 *
-	 * Gestión opens "Para revisar" to work on what is in gestión, and
-	 * administración to approve what is in revisión: that is the figure the
-	 * accent belongs to.
+	 * Revisión opens "Para revisar" to work on what is in revisión, and
+	 * jefatura de servicio "Para aprobar" to approve what waits for it: that
+	 * is the figure the accent belongs to.
 	 *
 	 * @param string $tray Tray key.
 	 * @return array<int,array{0:string,1:string}>
@@ -173,21 +177,21 @@ class Documentate_App_List {
 		$rows = array(
 			'mis' => array(
 				array( 'Por enviar', 'draft' ),
-				array( 'En gestión', 'en_gestion' ),
-				array( 'En revisión', 'pending' ),
+				array( 'En revisión', 'en_gestion' ),
+				array( 'En aprobación', 'pending' ),
 				array( 'Aprobados', 'publish' ),
 			),
 			'revisar' => array(
-				array( 'En gestión', 'en_gestion' ),
-				array( 'En revisión', 'pending' ),
+				array( 'En revisión', 'en_gestion' ),
+				array( 'En aprobación', 'pending' ),
 				array( 'Aprobados', 'publish' ),
 				array( 'Devueltos', 'devuelto' ),
 			),
 		);
 
 		$revision = array(
-			array( 'En revisión', 'pending' ),
-			array( 'En gestión', 'en_gestion' ),
+			array( 'En aprobación', 'pending' ),
+			array( 'En revisión', 'en_gestion' ),
 			array( 'Aprobados', 'publish' ),
 			array( 'Devueltos', 'devuelto' ),
 		);

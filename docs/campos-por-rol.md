@@ -13,23 +13,25 @@ posibles:
 
 - `rol='area'` (o sin indicarlo — es el valor por defecto): el campo lo
   rellena el área que crea el documento.
-- `rol='gestion'`: el campo lo rellena gestión documental (o administración),
-  no el área.
+- `rol='gestion'`: el campo lo rellena revisión (o la jefatura de servicio y
+  administración), no el área.
 
 ```
 [gasto_numero;type='number';title='Gasto total';rol='gestion']
 ```
 
 El alias `role` funciona igual (`role='gestion'`); usa el que prefieras, pero
-sé consistente dentro de la misma plantilla.
+sé consistente dentro de la misma plantilla. El valor sigue siendo `gestion`
+(y el meta del tipo, `documentate_type_con_gestion`) aunque el rol se llame
+ahora «Revisión»: son contratos almacenados y no se renombran.
 
 ## Efecto en la aplicación
 
 - El área **no ve** los campos `rol='gestion'` al crear o editar su
   documento — ni en el formulario ni en la ficha de detalle.
-- Gestión documental y administración ven **todos** los campos, con los de
-  gestión agrupados aparte bajo el epígrafe «Datos oficiales · los completa
-  gestión documental».
+- Revisión, jefatura de servicio y administración ven **todos** los campos,
+  con los de `gestion` agrupados aparte bajo el epígrafe «Datos oficiales ·
+  los completa revisión».
 - Esto no es solo una cuestión de qué se muestra: aunque alguien manipulase
   el formulario a mano, un valor posteado para un campo `gestion` por una
   cuenta de área se ignora al guardar (se conserva el valor que ya hubiera).
@@ -53,20 +55,20 @@ repetirlo campo a campo:
 Aquí, `proveedor`, `concepto` y `cantidad` son todos `gestion` aunque
 ninguno lo diga explícitamente.
 
-## Cuándo un tipo de documento «pasa por gestión»
+## Cuándo un tipo de documento «pasa por revisión»
 
-Un tipo de documento pasa por el paso intermedio **En gestión** del flujo
+Un tipo de documento pasa por el paso intermedio **En revisión** del flujo
 (ver `docs/flujo-documentos.md`) si se cumple cualquiera de estas dos
 condiciones:
 
-1. Tiene marcada la casilla **«Pasa por gestión documental»** en
+1. Tiene marcada la casilla **«Pasa por revisión»** en
    **Documentos → Tipos de documento**, o
 2. Su plantilla activa contiene **algún** campo `rol='gestion'` — no hace
    falta marcar la casilla a mano, basta con usar el atributo.
 
 Si no se cumple ninguna, el tipo salta directo de **Borrador** a
-**En revisión**, y `rol='gestion'` no tiene ningún efecto (no hay nadie de
-gestión documental en el circuito de ese tipo).
+**En aprobación**, y `rol='gestion'` no tiene ningún efecto (no hay nadie de
+revisión en el circuito de ese tipo).
 
 ## Ejemplos ya usados en el repositorio
 
@@ -77,7 +79,7 @@ gestión documental en el circuito de ese tipo).
 - `fixtures/resolucion.odt`: `numero_resolucion`, `fecha_resolucion`,
   `expediente`, `organo_firmante` y el cuerpo de la resolución
   (`antecedentes`, `fundamentos`, `resuelvo`) son `rol='gestion'` — son los
-  datos que asigna gestión documental al formalizar la resolución.
+  datos que asigna revisión al formalizar la resolución.
 
 ## Al tocar una plantilla
 

@@ -889,16 +889,18 @@ class DocumentateAppTest extends WP_UnitTestCase {
 
 		// An editor carries the gestión capability.
 		wp_set_current_user( $this->editor_id );
-		$this->assertSame( 'Gestión documental', Documentate_App_Shell::role() );
+		$this->assertSame( 'Revisión', Documentate_App_Shell::role() );
 
 		// An author is área: the chip names their scope.
 		$author = self::factory()->user->create( array( 'role' => 'author' ) );
 		update_user_meta( $author, 'documentate_scope_term_id', $this->cat_scope );
 		wp_set_current_user( $author );
-		$this->assertSame( 'Área · Ámbito App', Documentate_App_Shell::role() );
+		$this->assertSame( 'Área', Documentate_App_Shell::role() );
+		$this->assertSame( 'Ámbito App', Documentate_App_Shell::scope() );
 
 		delete_user_meta( $author, 'documentate_scope_term_id' );
-		$this->assertSame( 'Edición', Documentate_App_Shell::role() );
+		$this->assertSame( 'Área', Documentate_App_Shell::role() );
+		$this->assertSame( 'Sin ámbito asignado', Documentate_App_Shell::scope() );
 	}
 
 	/**
@@ -908,7 +910,8 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::status_chip( 'draft' )['class'] );
 		$this->assertSame( 'dcta-estado dcta-estado-pendiente', Documentate_App_Shell::status_chip( 'pending' )['class'] );
 		$this->assertSame( 'dcta-estado dcta-estado-gestion', Documentate_App_Shell::status_chip( 'en_gestion' )['class'] );
-		$this->assertSame( 'En gestión', Documentate_App_Shell::status_chip( 'en_gestion' )['text'] );
+		$this->assertSame( 'En revisión', Documentate_App_Shell::status_chip( 'en_gestion' )['text'] );
+		$this->assertSame( 'En aprobación', Documentate_App_Shell::status_chip( 'pending' )['text'] );
 		$this->assertSame( 'dcta-estado dcta-estado-aprobado', Documentate_App_Shell::status_chip( 'publish' )['class'] );
 		$this->assertSame( 'dcta-estado dcta-estado-archivado', Documentate_App_Shell::status_chip( 'archived' )['class'] );
 		$this->assertSame( 'dcta-estado dcta-estado-borrador', Documentate_App_Shell::status_chip( 'unknown' )['class'] );
