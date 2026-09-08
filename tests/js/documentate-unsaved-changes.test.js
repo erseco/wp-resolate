@@ -87,6 +87,18 @@ function click( selector ) {
 	return event;
 }
 
+/**
+ * Ask the page to unload, the way closing the tab, reloading or following one
+ * of the application tabs does.
+ *
+ * @return {Event} The dispatched event, for inspecting defaultPrevented.
+ */
+function unload() {
+	const event = new window.Event( 'beforeunload', { cancelable: true } );
+	window.dispatchEvent( event );
+	return event;
+}
+
 beforeAll( () => {
 	global.jQuery = require( 'jquery' );
 	global.$ = global.jQuery;
@@ -305,6 +317,65 @@ describe( 'the form of the front-end application', () => {
 		expect(
 			JSON.parse( window.sessionStorage.getItem( STORAGE_KEY ) )
 		).toMatchObject( { action: 'download', format: 'pdf' } );
+	} );
+} );
+
+describe( 'leaving the page', () => {
+	it( 'lets an untouched document go', async () => {
+		await loadGuard();
+
+		expect( unload().defaultPrevented ).toBe( false );
+	} );
+
+	it( 'warns before losing changes that were never saved', async () => {
+		await loadGuard();
+		document
+			.getElementById( 'field-a' )
+			.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+
+		expect( unload().defaultPrevented ).toBe( true );
+	} );
+
+	it( 'stops warning once the form is submitted', async () => {
+		await loadGuard();
+		window.documentateUnsavedChanges.markDirty();
+
+		document
+			.getElementById( 'post' )
+			.dispatchEvent(
+				new window.Event( 'submit', { bubbles: true, cancelable: true } )
+			);
+
+		expect( window.documentateUnsavedChanges.isDirty() ).toBe( false );
+		expect( unload().defaultPrevented ).toBe( false );
+	} );
+
+	it( 'keeps warning when a handler stopped the submission', async () => {
+		// The lock dialog cancels the submit on the capture phase when the
+		// document was taken over: nothing was saved, so nothing is clean.
+		const form = document.getElementById( 'post' );
+		form.addEventListener( 'submit', ( event ) => event.preventDefault(), true );
+
+		await loadGuard();
+		window.documentateUnsavedChanges.markDirty();
+
+		form.dispatchEvent(
+			new window.Event( 'submit', { bubbles: true, cancelable: true } )
+		);
+
+		expect( window.documentateUnsavedChanges.isDirty() ).toBe( true );
+		expect( unload().defaultPrevented ).toBe( true );
+	} );
+
+	it( 'does not warn while the save of a resumed action is in flight', async () => {
+		await loadGuard();
+		window.documentateUnsavedChanges.markDirty();
+		click( '#btn-pdf' );
+
+		document.querySelector( '.documentate-unsaved-modal__primary' ).click();
+
+		expect( submitSpy ).toHaveBeenCalled();
+		expect( unload().defaultPrevented ).toBe( false );
 	} );
 } );
 

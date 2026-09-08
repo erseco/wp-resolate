@@ -372,6 +372,18 @@ describe( 'dropped file', () => {
 		expect( row.textContent ).toBe( 'resolucion.pdf · se subirá al guardar' );
 	} );
 
+	it( 'announces the drop so the unsaved-changes guard sees it', () => {
+		// The assignment to input.files fires nothing on its own, and the guard
+		// that warns before leaving the editor listens for change on the form.
+		const seen = jest.fn();
+		document.addEventListener( 'change', seen );
+
+		dropFile( 'resolucion.pdf', true );
+		document.removeEventListener( 'change', seen );
+
+		expect( seen ).toHaveBeenCalled();
+	} );
+
 	it( 'says nothing when the browser refuses to take the file', () => {
 		dropFile( 'resolucion.pdf', false );
 
