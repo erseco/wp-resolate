@@ -149,6 +149,14 @@
 		// metabox script announces the result by triggering change on its hidden
 		// field. Nothing extra is needed here.
 
+		// Saving is what clears the state. A submit that a handler stopped —
+		// the lock dialog, a transition the user cancelled — did not save.
+		$form.on('submit.documentateUnsaved', function (event) {
+			if (!event.isDefaultPrevented()) {
+				markClean();
+			}
+		});
+
 		bindTinyMce();
 	}
 
@@ -611,6 +619,20 @@
 	// documentate-autofirma bind their own handlers, so it runs at file scope
 	// rather than on DOM ready.
 	document.addEventListener('click', onCaptureClick, true);
+
+	// Leaving the page loses the changes just as silently as generating a stale
+	// document does. Closing the tab, reloading and the tab links of the
+	// application are all plain navigations, so the browser's own dialog is the
+	// only thing that can stop them; its wording is the browser's too. Saving
+	// through saveAndResume marks the form clean before submitting, so the
+	// warning does not get in the way of the save-and-resume handshake.
+	window.addEventListener('beforeunload', function (event) {
+		if (isDirty) {
+			event.preventDefault();
+			// Browsers that predate the preventDefault() contract.
+			event.returnValue = '';
+		}
+	});
 
 	$(function () {
 		bindDirtySources();

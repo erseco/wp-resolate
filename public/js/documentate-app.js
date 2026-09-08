@@ -242,7 +242,9 @@
 			}
 			try {
 				input.files = files;
-				showChosen(zone, files[0]);
+				// The assignment fires no change event, so the unsaved-changes
+				// guard would not see the dropped file: announce it.
+				input.dispatchEvent(new Event('change', { bubbles: true }));
 			} catch (error) {
 				// Browsers that refuse the assignment keep the plain input,
 				// so nothing is queued and the line must not say otherwise.
