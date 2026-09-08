@@ -47,6 +47,12 @@ the local wp-env site; both come from the dev-only mu-plugin
 `scripts/mu-plugins/documentate-dev-tools.php`, which never ships in the
 release ZIP.
 
+The application uses the common institutional footer: © Gobierno de Canarias,
+the Área de Tecnología Educativa credit, and legal/privacy links. The front-end
+WordPress toolbar is visible only to administrators (`manage_options`) and
+sessions switched with User Switching, so they can return to the original
+account. Ordinary área and gestión users see the application without the toolbar.
+
 `make capturas` walks the whole cycle on desktop with a real
 browser and writes an illustrated report to `capturas/informe.html`, plus
 `capturas/indice.json`. It creates document 0 (the expenditure proposal) and

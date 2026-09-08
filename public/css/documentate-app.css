@@ -1094,9 +1094,15 @@ body.documentate-app .wp-block-post-content {
 /* --- footer --------------------------------------------------------------- */
 
 .dcta-pie {
-	border-top: 1px solid var(--dcta-linea);
-	background: var(--dcta-sup);
-	margin-top: 8px;
+	position: sticky;
+	top: 100vh;
+	left: auto;
+	transform: none;
+	width: auto;
+	margin-left: calc(50% - 50vw);
+	margin-right: calc(50% - 50vw);
+	background: #05395c;
+	color: #fff;
 }
 
 .dcta-pie > div {
@@ -1104,16 +1110,38 @@ body.documentate-app .wp-block-post-content {
 	margin: 0 auto;
 	padding: 18px 24px;
 	display: flex;
+	gap: 8px 24px;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	font-size: 13px;
+}
+
+.dcta-pie-quien {
+	display: flex;
+	gap: 8px 18px;
+	flex-wrap: wrap;
+	align-items: baseline;
+}
+
+.dcta-pie-ate {
+	color: rgba(255, 255, 255, .72);
+}
+
+.dcta-pie-enlaces {
+	display: flex;
 	gap: 18px;
 	flex-wrap: wrap;
-	font-size: 13px;
-	color: var(--dcta-texto-2);
-	justify-content: space-between;
 }
 
 .dcta-pie a {
-	color: var(--dcta-texto-2);
+	color: #fff;
 	text-decoration: underline;
+}
+
+.dcta-pie a:hover {
+	color: #fff;
+	text-decoration: none;
 }
 
 /* --- status chips added by the workflow ------------------------------------ */

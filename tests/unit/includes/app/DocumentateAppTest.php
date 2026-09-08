@@ -836,6 +836,47 @@ class DocumentateAppTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The toolbar follows administrative capabilities for ordinary sessions.
+	 *
+	 * @dataProvider toolbar_role_provider
+	 * @param string $role    User role, or empty for a visitor.
+	 * @param bool   $visible Whether the toolbar should be visible.
+	 */
+	public function test_toolbar_visibility_for_ordinary_sessions( $role, $visible ) {
+		$user_id = $role ? self::factory()->user->create( array( 'role' => $role ) ) : 0;
+		wp_set_current_user( $user_id );
+
+		$this->assertSame( $visible, apply_filters( 'show_admin_bar', ! $visible ) );
+	}
+
+	/**
+	 * Ordinary sessions covered by the toolbar policy.
+	 *
+	 * @return array
+	 */
+	public function toolbar_role_provider() {
+		return array(
+			'administrator' => array( 'administrator', true ),
+			'editor' => array( 'editor', false ),
+			'author' => array( 'author', false ),
+			'subscriber' => array( 'subscriber', false ),
+			'visitor' => array( '', false ),
+		);
+	}
+
+	/**
+	 * The footer credits ATE and links to the common institutional policies.
+	 */
+	public function test_footer_contains_institutional_credit_and_policy_links() {
+		$html = Documentate_App_Shell::close();
+
+		$this->assertStringContainsString( '&copy; Gobierno de Canarias', $html );
+		$this->assertStringContainsString( 'Desarrollado por el Área de Tecnología Educativa', $html );
+		$this->assertStringContainsString( 'href="https://www.gobiernodecanarias.org/principal/avisolegal.html"', $html );
+		$this->assertStringContainsString( 'href="https://www.gobiernodecanarias.org/eucd/politica_privacidad/"', $html );
+	}
+
+	/**
 	 * The role chip names the role and, for área users, their scope.
 	 */
 	public function test_role_reflects_the_user() {
