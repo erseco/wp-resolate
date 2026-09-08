@@ -760,10 +760,11 @@ class Documentate_Admin_Helper {
 	 * because documentate-unsaved-changes.js only subscribes to the dirty state
 	 * when it finds one — wrapped in the anchor lists link to.
 	 *
-	 * @param WP_Post $post Document.
+	 * @param WP_Post $post         Document.
+	 * @param bool    $with_preview Whether to offer the preview button.
 	 * @return void
 	 */
-	public function render_actions_for_post( WP_Post $post ) {
+	public function render_actions_for_post( WP_Post $post, $with_preview = true ) {
 		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 			return;
 		}
@@ -772,7 +773,7 @@ class Documentate_Admin_Helper {
 
 		echo '<div id="exportar" class="documentate-actions dcta-exportar">';
 		$this->render_unsaved_indicator();
-		$this->render_primary_actions( $state );
+		$this->render_primary_actions( $state, $with_preview );
 		$this->render_secondary_actions( $state );
 		echo '</div>';
 	}
@@ -784,17 +785,22 @@ class Documentate_Admin_Helper {
 	 * markup as strings; returns nothing when the plugin was loaded without
 	 * building the helper.
 	 *
-	 * @param WP_Post $post Document.
+	 * @param WP_Post $post         Document.
+	 * @param bool    $with_preview Whether to offer the preview button. The
+	 *                              document view draws the PDF into the page
+	 *                              where this site renders it, and a button
+	 *                              that opens what is already on screen is
+	 *                              only one more thing to read.
 	 * @return string
 	 */
-	public static function export_block( WP_Post $post ) {
+	public static function export_block( WP_Post $post, $with_preview = true ) {
 		$helper = self::instance();
 		if ( ! $helper instanceof self ) {
 			return '';
 		}
 
 		ob_start();
-		$helper->render_actions_for_post( $post );
+		$helper->render_actions_for_post( $post, $with_preview );
 
 		return (string) ob_get_clean();
 	}
@@ -956,13 +962,17 @@ class Documentate_Admin_Helper {
 	/**
 	 * Render the primary row: Preview, Download PDF and Sign.
 	 *
-	 * @param array<string,mixed> $state Resolved action state.
+	 * @param array<string,mixed> $state        Resolved action state.
+	 * @param bool                $with_preview Whether to offer the preview
+	 *                                          button at all.
 	 * @return void
 	 */
-	private function render_primary_actions( array $state ) {
+	private function render_primary_actions( array $state, $with_preview = true ) {
 		echo '<div class="documentate-actions-primary">';
 
-		$this->render_preview_button( $state );
+		if ( $with_preview ) {
+			$this->render_preview_button( $state );
+		}
 		$this->render_pdf_button( $state );
 		$this->render_sign_button( $state );
 
