@@ -97,6 +97,6 @@ class Documentate_Doc_Type_Pdf_Layout_Field {
 	private function known( $name, $fallback ) {
 		$slug = is_string( $name ) ? sanitize_key( $name ) : '';
 
-		return array_key_exists( $slug, Documentate_Pdf_Layout::available() ) ? $slug : $fallback;
+		return Documentate_Pdf_Layout::is_shipped( $slug ) ? $slug : $fallback;
 	}
 }

@@ -133,9 +133,6 @@ class Documentate_Workflow {
 		// The management metabox (replaces submitdiv) hooks itself.
 		$this->metabox = new Documentate_Workflow_Metabox();
 
-		// Prevent editors from setting publish status via quick edit.
-		add_filter( 'wp_insert_post_empty_content', array( $this, 'check_publish_capability' ), 10, 2 );
-
 		// Prevent non-admins from restoring revisions on pending/published/archived documents.
 		add_action( 'wp_restore_post_revision', array( $this, 'restrict_revision_restore' ), 1, 2 );
 	}
@@ -698,17 +695,5 @@ class Documentate_Workflow {
 			esc_html( 'Restauración bloqueada' ),
 			array( 'response' => 403 ),
 		);
-	}
-
-	/**
-	 * Additional check for publish capability.
-	 *
-	 * @param bool  $maybe_empty Whether the post should be considered empty.
-	 * @param array $postarr     Array of post data.
-	 * @return bool
-	 */
-	public function check_publish_capability( $maybe_empty, $postarr ) {
-		// This hook runs early, we just pass through but log any issues.
-		return $maybe_empty;
 	}
 }

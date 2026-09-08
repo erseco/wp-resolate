@@ -300,10 +300,13 @@ class Documentate_Document_Generator {
 	/**
 	 * Build the array of merge fields used by OpenTBS templates.
 	 *
-	 * @param int $post_id Document post ID.
+	 * @param int  $post_id           Document post ID.
+	 * @param bool $with_generic_rows Also collect, from this same walk, the
+	 *                                rows the generic PDF layout prints, under
+	 *                                the `documentate_fields` key.
 	 * @return array
 	 */
-	public static function build_merge_fields( $post_id ) {
+	public static function build_merge_fields( $post_id, $with_generic_rows = false ) {
 		self::reset_rich_field_values();
 
 		$opts = get_option( 'documentate_settings', array() );
@@ -321,10 +324,21 @@ class Documentate_Document_Generator {
 			'margen' => wp_strip_all_tags( isset( $opts['doc_margin_text'] ) ? $opts['doc_margin_text'] : '' ),
 		);
 
+		// The generic layout has no field names of its own: it prints whatever
+		// the document type declares, as one row per schema field. Those rows
+		// come out of this same walk rather than a second one of their own,
+		// which re-read the type, re-parsed the body and resolved every field
+		// all over again to reach the same answer.
+		$rows = $with_generic_rows ? array() : null;
+
 		$type_id = self::get_document_type_id( $post_id );
 		if ( null !== $type_id ) {
-			self::add_schema_fields( $fields, $type_id, $structured, $post_id );
+			self::add_schema_fields( $fields, $type_id, $structured, $post_id, $rows );
 			self::add_logo_fields( $fields, $type_id );
+		}
+
+		if ( null !== $rows ) {
+			$fields['documentate_fields'] = $rows;
 		}
 
 		// Replace [sign] placeholder with empty string so it doesn't appear in the output.
@@ -337,61 +351,15 @@ class Documentate_Document_Generator {
 	}
 
 	/**
-	 * Build the rows the generic PDF layout prints, one per schema field.
-	 *
-	 * The generic layout is what a document type that names no layout of its
-	 * own falls back to, so it carries no field names: it prints the schema as
-	 * it finds it. Each row is a label and a value, and a value is either
-	 * plain text or the HTML a rich field keeps, never both. A repeater
-	 * becomes a table of its records.
-	 *
-	 * @param int $post_id Document post ID.
-	 * @return array<int,array{label:string,text:string,html:string}>
-	 */
-	public static function build_generic_rows( $post_id ) {
-		$type_id = self::get_document_type_id( $post_id );
-		if ( null === $type_id ) {
-			return array();
-		}
-
-		$schema = class_exists( 'Documentate_Documents' )
-			? Documentate_Documents::get_term_schema( $type_id )
-			: self::get_type_schema( $type_id );
-
-		$structured = self::load_structured_content( $post_id );
-		$rows = array();
-
-		foreach ( $schema as $def ) {
-			$slug = isset( $def['slug'] ) ? sanitize_key( $def['slug'] ) : '';
-
-			// The title heads the layout, so it is not one of the rows below it.
-			if ( '' === $slug || 'post_title' === $slug ) {
-				continue;
-			}
-
-			$type = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
-
-			$rows[] = ( 'array' === $type )
-				? self::generic_repeater_row( $def, $slug, $structured, $post_id )
-				: self::generic_scalar_row( $def, $slug, $type, $structured, $post_id );
-		}
-
-		return $rows;
-	}
-
-	/**
 	 * The generic-layout row of a scalar field.
 	 *
-	 * @param array  $def        Schema field definition.
-	 * @param string $slug       Sanitized field slug.
-	 * @param string $type       Declared control type.
-	 * @param array  $structured Parsed structured content.
-	 * @param int    $post_id    Document post ID.
+	 * @param array  $def      Schema field definition.
+	 * @param string $slug     Sanitized field slug.
+	 * @param array  $resolved Value the merge walk already resolved, as
+	 *                         `resolve_scalar_field_value()` returns it.
 	 * @return array{label:string,text:string,html:string}
 	 */
-	private static function generic_scalar_row( $def, $slug, $type, array $structured, $post_id ) {
-		$resolved = self::resolve_scalar_field_value( $def, $slug, $type, $structured, $post_id );
-
+	private static function generic_scalar_row( $def, $slug, array $resolved ) {
 		return Documentate_Pdf_Generic_Rows::scalar(
 			self::generic_row_label( $def, $slug ),
 			$resolved['value'],
@@ -402,19 +370,19 @@ class Documentate_Document_Generator {
 	/**
 	 * The generic-layout row of a repeater, whose records make a table.
 	 *
-	 * @param array  $def        Schema field definition.
-	 * @param string $slug       Sanitized field slug.
-	 * @param array  $structured Parsed structured content.
-	 * @param int    $post_id    Document post ID.
+	 * @param array  $def   Schema field definition.
+	 * @param string $slug  Sanitized field slug.
+	 * @param array  $items Records the merge walk already read, before the
+	 *                      template's case rules were applied to them.
 	 * @return array{label:string,text:string,html:string}
 	 */
-	private static function generic_repeater_row( $def, $slug, array $structured, $post_id ) {
+	private static function generic_repeater_row( $def, $slug, array $items ) {
 		$item_schema = isset( $def['item_schema'] ) && is_array( $def['item_schema'] ) ? $def['item_schema'] : array();
 
 		return Documentate_Pdf_Generic_Rows::repeater(
 			self::generic_row_label( $def, $slug ),
 			$item_schema,
-			self::get_array_field_items_for_merge( $structured, $slug, $post_id ),
+			$items,
 		);
 	}
 
@@ -469,13 +437,16 @@ class Documentate_Document_Generator {
 	/**
 	 * Add one merge field per schema definition of the document type.
 	 *
-	 * @param array $fields     Merge fields to extend.
-	 * @param int   $type_id    Document type term ID.
-	 * @param array $structured Parsed structured content.
-	 * @param int   $post_id    Document post ID.
+	 * @param array      $fields     Merge fields to extend.
+	 * @param int        $type_id    Document type term ID.
+	 * @param array      $structured Parsed structured content.
+	 * @param int        $post_id    Document post ID.
+	 * @param array|null $rows       When an array, the generic-layout rows are
+	 *                               collected into it as the walk goes, so the
+	 *                               schema is read once for both consumers.
 	 * @return void
 	 */
-	private static function add_schema_fields( array &$fields, $type_id, array $structured, $post_id ) {
+	private static function add_schema_fields( array &$fields, $type_id, array $structured, $post_id, ?array &$rows = null ) {
 		$schema = class_exists( 'Documentate_Documents' )
 			? Documentate_Documents::get_term_schema( $type_id )
 			: self::get_type_schema( $type_id );
@@ -496,11 +467,17 @@ class Documentate_Document_Generator {
 			$type = isset( $def['type'] ) ? sanitize_key( $def['type'] ) : 'textarea';
 
 			if ( 'array' === $type ) {
-				self::add_array_schema_field( $fields, $def, $slug, $names, $structured, $post_id );
+				$items = self::add_array_schema_field( $fields, $def, $slug, $names, $structured, $post_id );
+				if ( null !== $rows ) {
+					$rows[] = self::generic_repeater_row( $def, $slug, $items );
+				}
 				continue;
 			}
 
-			self::add_scalar_schema_field( $fields, $def, $slug, $names, $type, $structured, $post_id );
+			$resolved = self::add_scalar_schema_field( $fields, $def, $slug, $names, $type, $structured, $post_id );
+			if ( null !== $rows ) {
+				$rows[] = self::generic_scalar_row( $def, $slug, $resolved );
+			}
 		}
 	}
 
@@ -560,18 +537,23 @@ class Documentate_Document_Generator {
 	 * @param array  $names      Merge name and alias.
 	 * @param array  $structured Parsed structured content.
 	 * @param int    $post_id    Document post ID.
-	 * @return void
+	 * @return array<int,array<string,mixed>> The stored records, before the
+	 *               template's case rules, which is what the generic rows show.
 	 */
 	private static function add_array_schema_field( array &$fields, $def, $slug, array $names, array $structured, $post_id ) {
 		$items = self::get_array_field_items_for_merge( $structured, $slug, $post_id );
 
 		// Apply case transformations to repeater items.
 		$item_schema = isset( $def['item_schema'] ) ? $def['item_schema'] : array();
-		$items = self::apply_case_to_array_items( $items, $item_schema );
+		$merged = self::apply_case_to_array_items( $items, $item_schema );
 
 		// Use block name for MergeBlock, with alias for legacy behavior.
-		self::assign_field_value( $fields, $names, $items );
-		self::remember_rich_values_from_array_items( $items );
+		self::assign_field_value( $fields, $names, $merged );
+		self::remember_rich_values_from_array_items( $merged );
+
+		// The rows of the generic layout print the stored items, untouched by
+		// the template's case rules, which is what they have always shown.
+		return $items;
 	}
 
 	/**
@@ -584,7 +566,9 @@ class Documentate_Document_Generator {
 	 * @param string $type       Declared control type.
 	 * @param array  $structured Parsed structured content.
 	 * @param int    $post_id    Document post ID.
-	 * @return void
+	 * @return array{raw:mixed,type:string,value:string,has_html:bool} What the
+	 *               field resolved to, so a second consumer need not resolve it
+	 *               all over again.
 	 */
 	private static function add_scalar_schema_field( array &$fields, $def, $slug, array $names, $type, array $structured, $post_id ) {
 		$resolved = self::resolve_scalar_field_value( $def, $slug, $type, $structured, $post_id );
@@ -598,6 +582,8 @@ class Documentate_Document_Generator {
 		}
 
 		self::log_merge_field( $slug, $type, $resolved['type'], $resolved['raw'], $resolved['value'], $resolved['has_html'] );
+
+		return $resolved;
 	}
 
 	/**

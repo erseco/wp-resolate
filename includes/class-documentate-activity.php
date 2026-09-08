@@ -28,6 +28,13 @@ class Documentate_Activity {
 	const EVENT_TYPE = 'documentate_evento';
 
 	/**
+	 * Events already read in this request, keyed by document.
+	 *
+	 * @var array<int,array<int,WP_Comment>>
+	 */
+	private static $events = array();
+
+	/**
 	 * Comment meta holding the reason attached to a return event.
 	 *
 	 * @var string
@@ -70,6 +77,9 @@ class Documentate_Activity {
 		if ( ! $comment_id ) {
 			return 0;
 		}
+
+		// A recorded event invalidates what this request has already read.
+		unset( self::$events[ (int) $post_id ] );
 
 		$reason = trim( (string) $reason );
 		if ( '' !== $reason ) {
@@ -185,17 +195,23 @@ class Documentate_Activity {
 	 * @return string Local date "Y-m-d H:i:s", or empty when no such event exists.
 	 */
 	public static function event_date( $post_id, $text_prefix ) {
-		$events = get_comments(
-			array(
-				'post_id' => (int) $post_id,
-				'type' => self::EVENT_TYPE,
-				'status' => 'approve',
-				'orderby' => 'comment_date_gmt',
-				'order' => 'DESC',
-			)
-		);
+		$post_id = (int) $post_id;
 
-		foreach ( (array) $events as $event ) {
+		// The stepper asks once per completed step and every ask is the same
+		// query, differing only in the prefix matched afterwards in PHP.
+		if ( ! isset( self::$events[ $post_id ] ) ) {
+			self::$events[ $post_id ] = (array) get_comments(
+				array(
+					'post_id' => $post_id,
+					'type' => self::EVENT_TYPE,
+					'status' => 'approve',
+					'orderby' => 'comment_date_gmt',
+					'order' => 'DESC',
+				)
+			);
+		}
+
+		foreach ( self::$events[ $post_id ] as $event ) {
 			if ( str_starts_with( (string) $event->comment_content, $text_prefix ) ) {
 				return (string) $event->comment_date;
 			}

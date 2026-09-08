@@ -353,4 +353,116 @@ class DocumentateConversionManagerTest extends WP_UnitTestCase {
 
 		unset( $_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] );
 	}
+
+	/**
+	 * The native renderer draws here, so nothing goes to the browser.
+	 */
+	public function test_capabilities_under_the_native_engine() {
+		update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+
+		$caps = Documentate_Conversion_Manager::capabilities();
+
+		$this->assertSame( Documentate_Conversion_Manager::ENGINE_FPDF, $caps['engine'] );
+		$this->assertTrue( $caps['draws_natively'] );
+		$this->assertTrue( $caps['ready'], 'There is nothing to reach, so nothing can be unreachable.' );
+		$this->assertFalse( $caps['use_popup'] );
+		$this->assertFalse( $caps['needs_popup_base'] );
+		$this->assertFalse( $caps['collabora_popup'] );
+		$this->assertFalse( $caps['wasm_popup'] );
+		$this->assertFalse( $caps['in_playground'] );
+	}
+
+	/**
+	 * A reachable Collabora converts on the server, with no popup involved.
+	 */
+	public function test_capabilities_with_collabora_reachable() {
+		update_option(
+			'documentate_settings',
+			array(
+				'conversion_engine' => 'collabora',
+				'collabora_base_url' => 'https://collabora.example.org',
+			)
+		);
+
+		$caps = Documentate_Conversion_Manager::capabilities();
+
+		$this->assertFalse( $caps['draws_natively'] );
+		$this->assertTrue( $caps['ready'] );
+		$this->assertFalse( $caps['use_popup'] );
+		$this->assertFalse( $caps['needs_popup_base'] );
+		$this->assertFalse( $caps['collabora_popup'] );
+	}
+
+	/**
+	 * In Playground, Collabora converts through a fetch the browser makes.
+	 *
+	 * The PHP side cannot post the multipart request from inside the sandbox,
+	 * so the popup carries it and needs the base document to work from.
+	 */
+	public function test_capabilities_with_collabora_inside_playground() {
+		$_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] = '1';
+
+		try {
+			update_option(
+				'documentate_settings',
+				array(
+					'conversion_engine' => 'collabora',
+					'collabora_base_url' => 'https://collabora.example.org',
+				)
+			);
+
+			$caps = Documentate_Conversion_Manager::capabilities();
+
+			$this->assertTrue( $caps['in_playground'] );
+			$this->assertTrue( $caps['collabora_popup'] );
+			$this->assertTrue( $caps['use_popup'] );
+			$this->assertTrue( $caps['needs_popup_base'] );
+			$this->assertFalse( $caps['wasm_popup'], 'The WASM page cannot run inside the sandbox.' );
+		} finally {
+			unset( $_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] );
+		}
+	}
+
+	/**
+	 * The native engine is native in Playground too, and says so.
+	 */
+	public function test_capabilities_report_playground_under_the_native_engine() {
+		$_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] = '1';
+
+		try {
+			update_option( 'documentate_settings', array( 'conversion_engine' => 'fpdf' ) );
+
+			$caps = Documentate_Conversion_Manager::capabilities();
+
+			$this->assertTrue( $caps['draws_natively'] );
+			$this->assertTrue( $caps['in_playground'], 'The preview opens in place rather than in a new tab.' );
+			$this->assertFalse( $caps['collabora_popup'] );
+		} finally {
+			unset( $_SERVER['HTTP_X_WORDPRESS_PLAYGROUND'] );
+		}
+	}
+
+	/**
+	 * An engine that cannot be reached and no popup either: nothing is ready.
+	 */
+	public function test_capabilities_with_nothing_reachable() {
+		update_option(
+			'documentate_settings',
+			array(
+				'conversion_engine' => 'wasm',
+				'collabora_base_url' => '',
+			)
+		);
+
+		$caps = Documentate_Conversion_Manager::capabilities();
+
+		$this->assertFalse( $caps['draws_natively'] );
+		$this->assertFalse( $caps['collabora_popup'], 'Outside Playground Collabora never takes the popup route.' );
+		$this->assertSame(
+			$caps['wasm_popup'],
+			$caps['use_popup'],
+			'Outside Playground the only popup route is the WASM one.'
+		);
+	}
+
 }

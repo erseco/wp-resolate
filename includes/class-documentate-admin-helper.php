@@ -827,7 +827,7 @@ class Documentate_Admin_Helper {
 		$docx_template = Documentate_Document_Generator::get_template_path( $post_id, 'docx' );
 		$odt_template = Documentate_Document_Generator::get_template_path( $post_id, 'odt' );
 
-		$conversion = $this->resolve_conversion_capabilities();
+		$conversion = $this->conversion_capabilities();
 
 		// In CDN mode or Playground with Collabora, browser can do conversions too.
 		$can_convert = $conversion['ready'] || $conversion['use_popup'];
@@ -850,58 +850,18 @@ class Documentate_Admin_Helper {
 	}
 
 	/**
-	 * Determine whether PDFs are drawn here rather than converted elsewhere.
+	 * What this site can do about producing a PDF.
 	 *
-	 * @return bool
+	 * Working that out is the conversion manager's business, not this class's:
+	 * the metabox only wants to know what it may offer, and answering with the
+	 * engine name meant every caller here had to know what each engine implies.
+	 *
+	 * @return array{engine:string,draws_natively:bool,ready:bool,use_popup:bool,needs_popup_base:bool,in_playground:bool,collabora_popup:bool,wasm_popup:bool}
 	 */
-	private function uses_native_pdf_engine() {
+	private function conversion_capabilities() {
 		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-conversion-manager.php';
 
-		return Documentate_Conversion_Manager::ENGINE_FPDF === Documentate_Conversion_Manager::get_engine();
-	}
-
-	/**
-	 * Determine how, if at all, this site can convert between formats.
-	 *
-	 * @return array{ready:bool,use_popup:bool,needs_popup_base:bool}
-	 */
-	private function resolve_conversion_capabilities() {
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-conversion-manager.php';
-		require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-collabora-converter.php';
-
-		// The native renderer draws the PDF in this process. Nothing may be
-		// routed through the browser converter, which would convert the office
-		// template instead of drawing the layout.
-		if ( $this->uses_native_pdf_engine() ) {
-			return array(
-				'ready' => true,
-				'use_popup' => false,
-				'needs_popup_base' => false,
-			);
-		}
-
-		$ready = Documentate_Conversion_Manager::is_available();
-		$in_playground = Documentate_Collabora_Converter::is_playground();
-
-		// In-browser LibreOffice WASM conversion is not available in WordPress
-		// Playground: the site runs in a sandboxed, non-cross-origin-isolated iframe,
-		// so SharedArrayBuffer is unavailable and the isolated converter page is blocked.
-		$wasm_browser = false;
-		if ( ! $ready && ! $in_playground ) {
-			require_once plugin_dir_path( __DIR__ ) . 'includes/class-documentate-libreoffice-wasm-converter.php';
-			$wasm_browser = Documentate_Libreoffice_Wasm_Converter::is_browser_mode()
-				&& Documentate_Libreoffice_Wasm_Converter::assets_available();
-		}
-
-		// Collabora in Playground converts via a JavaScript fetch (bypassing PHP
-		// wp_remote_post multipart issues).
-		$collabora_in_playground = $in_playground && Documentate_Collabora_Converter::is_available();
-
-		return array(
-			'ready' => $ready,
-			'use_popup' => $wasm_browser || $collabora_in_playground,
-			'needs_popup_base' => ( $wasm_browser && ! $ready ) || $collabora_in_playground,
-		);
+		return Documentate_Conversion_Manager::capabilities();
 	}
 
 	/**
@@ -940,17 +900,16 @@ class Documentate_Admin_Helper {
 	 *
 	 * @param string $docx_template DOCX template path, or an empty string.
 	 * @param string $odt_template  ODT template path, or an empty string.
-	 * @param bool   $can_convert   Whether any conversion route is available.
+	 * @param bool   $can_produce   Whether a PDF can be produced at all, drawn
+	 *                              here or converted elsewhere.
 	 * @return string Empty string when PDF generation is available.
 	 */
-	private function build_pdf_message( $docx_template, $odt_template, $can_convert ) {
+	private function build_pdf_message( $docx_template, $odt_template, $can_produce ) {
 		if ( '' === $docx_template && '' === $odt_template ) {
 			return 'Configura una plantilla DOCX u ODT en el tipo de documento antes de generar PDF.';
 		}
 
-		// The native renderer needs nothing beyond the document type, so there
-		// is never anything to explain once a template is there.
-		if ( $this->uses_native_pdf_engine() || $can_convert ) {
+		if ( $can_produce ) {
 			return '';
 		}
 
@@ -969,9 +928,12 @@ class Documentate_Admin_Helper {
 	 * template in it. A type with one template therefore yields one entry, and
 	 * a type with none yields no entry at all.
 	 *
+	 * An entry exists only for a format that can be handed over, so it carries
+	 * nothing but its label: there is no unavailable state left to describe.
+	 *
 	 * @param string $docx_template DOCX template path, or an empty string.
 	 * @param string $odt_template  ODT template path, or an empty string.
-	 * @return array<string,array{available:bool,message:string,label:string}>
+	 * @return array<string,string> Format key => button label.
 	 */
 	private function own_format_state( $docx_template, $odt_template ) {
 		$templates = array(
@@ -985,11 +947,7 @@ class Documentate_Admin_Helper {
 				continue;
 			}
 
-			$formats[ $format ] = array(
-				'available' => true,
-				'message' => '',
-				'label' => strtoupper( $format ),
-			);
+			$formats[ $format ] = strtoupper( $format );
 		}
 
 		return $formats;
@@ -1121,8 +1079,8 @@ class Documentate_Admin_Helper {
 				. '</span>';
 		echo '<span class="documentate-actions-secondary__buttons">';
 
-		foreach ( $state['formats'] as $format => $data ) {
-			$this->render_secondary_button( $format, $data );
+		foreach ( $state['formats'] as $format => $label ) {
+			$this->render_secondary_button( $format, (string) $label );
 		}
 
 		echo '</span>';
@@ -1136,11 +1094,11 @@ class Documentate_Admin_Helper {
 	 * file is rendered and handed over as it is. Nothing here is ever routed
 	 * through the browser converter, whichever engine draws the PDF.
 	 *
-	 * @param string              $format Format key.
-	 * @param array<string,mixed> $data   Availability, tooltip and label.
+	 * @param string $format Format key.
+	 * @param string $label  Button label.
 	 * @return void
 	 */
-	private function render_secondary_button( $format, array $data ) {
+	private function render_secondary_button( $format, $label ) {
 		$attrs = array(
 			'class' => 'button button-small documentate-action-btn',
 			'href' => '#',
@@ -1149,7 +1107,7 @@ class Documentate_Admin_Helper {
 		);
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Attributes sanitized in build_action_attributes().
-		echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $data['label'] ) . '</a> ';
+		echo '<a ' . $this->build_action_attributes( $attrs ) . '>' . esc_html( $label ) . '</a> ';
 	}
 
 	/**
@@ -1447,40 +1405,33 @@ class Documentate_Admin_Helper {
 	 * @return array Configuration with conversion mode settings.
 	 */
 	private function add_conversion_mode_config( $config ) {
-		// The native renderer produces the PDF here, so the script must not be
-		// told to convert anything in the browser. It does need to know it is in
-		// Playground: opening a preview in a new tab does not work inside that
-		// sandboxed iframe, so the script shows the PDF in its embedded viewer
-		// instead, exactly as the Collabora path already does there.
-		if ( $this->uses_native_pdf_engine() ) {
-			if ( Documentate_Collabora_Converter::is_playground() ) {
+		$conversion = $this->conversion_capabilities();
+
+		// Drawn here, so the script must not be told to convert anything in the
+		// browser: that would convert the office template instead of drawing
+		// the layout. It does need to know it is in Playground, where opening a
+		// preview in a new tab does not work inside the sandboxed iframe and
+		// the script falls back to its embedded viewer — which is what the
+		// Collabora path below arranges for itself.
+		if ( $conversion['draws_natively'] ) {
+			if ( $conversion['in_playground'] ) {
 				$config['inPlayground'] = true;
 			}
 
 			return $config;
 		}
 
-		$conversion_ready = Documentate_Conversion_Manager::is_available();
-		$in_playground = Documentate_Collabora_Converter::is_playground();
-		$collabora_in_playground = $in_playground && Documentate_Collabora_Converter::is_available();
-
-		if ( $collabora_in_playground ) {
+		if ( $conversion['collabora_popup'] ) {
 			$options = get_option( 'documentate_settings', array() );
 			$config['collaboraPlayground'] = true;
 			$config['collaboraUrl'] = isset( $options['collabora_base_url'] ) ? esc_url( $options['collabora_base_url'] ) : '';
 			return $config;
 		}
 
-		// The `cdnMode`/`converterUrl` keys are kept for backwards compatibility with
-		// the actions script and E2E tests; they drive the self-hosted browser
-		// LibreOffice WASM popup. This popup cannot run in WordPress Playground (the
-		// site runs in a sandboxed iframe that blocks cross-origin isolated pages), so
-		// the WASM browser path is not offered there.
-		$wasm_browser_available = ! $conversion_ready
-			&& ! $in_playground
-			&& Documentate_Libreoffice_Wasm_Converter::is_browser_mode()
-			&& Documentate_Libreoffice_Wasm_Converter::assets_available();
-		if ( $wasm_browser_available ) {
+		// The `cdnMode`/`converterUrl` keys are kept for backwards compatibility
+		// with the actions script and E2E tests; they drive the self-hosted
+		// browser LibreOffice WASM popup.
+		if ( $conversion['wasm_popup'] ) {
 			$config['cdnMode'] = true;
 			$config['converterUrl'] = admin_url( 'admin-post.php?action=documentate_converter' );
 		}

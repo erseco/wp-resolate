@@ -37,6 +37,20 @@ defined( 'ABSPATH' ) || exit();
 class Documentate_Pdf_Table_Writer {
 
 	/**
+	 * Reusable XPath index over the document being walked.
+	 *
+	 * @var DOMXPath|null
+	 */
+	private $xpath = null;
+
+	/**
+	 * Document `$xpath` was built for, so a new fragment gets a new index.
+	 *
+	 * @var DOMDocument|null
+	 */
+	private $xpath_document = null;
+
+	/**
 	 * Space between the border of a cell and its content, in mm.
 	 *
 	 * The `fo:padding` the ODT templates declare on their table cells. A
@@ -239,7 +253,18 @@ class Documentate_Pdf_Table_Writer {
 	 * @return array<int,DOMElement>
 	 */
 	private function query( DOMElement $node, $path ) {
-		$found = ( new DOMXPath( $node->ownerDocument ) )->query( $path, $node );
+		$document = $node->ownerDocument;
+
+		// One DOMXPath per document rather than per call: a table is walked
+		// once to measure it and once to draw it, several queries per row and
+		// per cell each time, and building the index again for every one of
+		// them is the bulk of the work on a long table.
+		if ( null === $this->xpath || $this->xpath_document !== $document ) {
+			$this->xpath          = new DOMXPath( $document );
+			$this->xpath_document = $document;
+		}
+
+		$found = $this->xpath->query( $path, $node );
 
 		return false === $found ? array() : iterator_to_array( $found, false );
 	}

@@ -63,21 +63,6 @@ test.describe( 'Document Preview and Download', () => {
 		};
 	}
 
-	/**
-	 * Open a document ready for the actions metabox to be asserted on.
-	 *
-	 * The workflow approves a published document and locks it, and the
-	 * metabox only renders for a user who can edit the post, so a test about
-	 * its buttons has to send the document back to review first.
-	 *
-	 * @param {Object} documentEditor - Document editor page object
-	 * @param {number} postId         - Post ID of the document
-	 */
-	async function openUnlockedDocument( documentEditor, postId ) {
-		await documentEditor.navigateToEdit( postId );
-		await documentEditor.returnToReview();
-	}
-
 	test.describe( 'PDF Preview', () => {
 		test( 'preview button opens PDF directly in browser', async ( {
 			documentEditor,
@@ -85,7 +70,7 @@ test.describe( 'Document Preview and Download', () => {
 			request,
 		} ) => {
 			const postId = await createDocumentWithType( documentEditor );
-			await openUnlockedDocument( documentEditor, postId );
+			await documentEditor.navigateToEdit( postId );
 
 			const page = documentEditor.page;
 			const buttons = getActionButtons( page );
@@ -134,7 +119,7 @@ test.describe( 'Document Preview and Download', () => {
 			request,
 		} ) => {
 			const postId = await createDocumentWithType( documentEditor );
-			await openUnlockedDocument( documentEditor, postId );
+			await documentEditor.navigateToEdit( postId );
 
 			const page = documentEditor.page;
 			const buttons = getActionButtons( page );
@@ -348,7 +333,7 @@ test.describe( 'Document Preview and Download', () => {
 			documentEditor,
 		} ) => {
 			const postId = await createDocumentWithType( documentEditor );
-			await openUnlockedDocument( documentEditor, postId );
+			await documentEditor.navigateToEdit( postId );
 
 			const buttons = getActionButtons( documentEditor.page );
 			const previewButton = buttons.preview.first();
@@ -367,7 +352,7 @@ test.describe( 'Document Preview and Download', () => {
 			documentEditor,
 		} ) => {
 			const postId = await createDocumentWithType( documentEditor );
-			await openUnlockedDocument( documentEditor, postId );
+			await documentEditor.navigateToEdit( postId );
 
 			const page = documentEditor.page;
 			const buttons = getActionButtons( page );

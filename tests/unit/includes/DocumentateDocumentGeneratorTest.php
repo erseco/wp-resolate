@@ -952,6 +952,82 @@ class DocumentateDocumentGeneratorTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The generic-layout rows come out of the merge walk, not a second one.
+	 *
+	 * They used to be built by their own pass, which re-read the document type,
+	 * re-parsed the whole body and resolved every field a second time to reach
+	 * the very same answer. The rows must still be the schema in order, one per
+	 * field, with the title left out because it heads the layout.
+	 */
+	public function test_generic_rows_come_from_the_same_walk_as_the_merge_fields() {
+		$term    = wp_insert_term( 'Tipo Filas ' . wp_rand(), 'documentate_doc_type' );
+		$term_id = intval( $term['term_id'] );
+
+		$storage = new Documentate\DocType\SchemaStorage();
+		$storage->save_schema(
+			$term_id,
+			array(
+				'version'   => 2,
+				'fields'    => array(
+					array(
+						'name'  => 'post_title',
+						'slug'  => 'post_title',
+						'type'  => 'text',
+						'title' => 'Título',
+					),
+					array(
+						'name'  => 'motivo',
+						'slug'  => 'motivo',
+						'type'  => 'text',
+						'title' => 'Motivo',
+					),
+					array(
+						'name'  => 'cuerpo',
+						'slug'  => 'cuerpo',
+						'type'  => 'html',
+						'title' => 'Cuerpo',
+					),
+				),
+				'repeaters' => array(),
+			)
+		);
+
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'documentate_document',
+				'post_title'  => 'Documento filas',
+				'post_status' => 'draft',
+			)
+		);
+		wp_set_post_terms( $post_id, array( $term_id ), 'documentate_doc_type' );
+		update_post_meta( $post_id, 'documentate_field_motivo', 'Falta de crédito' );
+		update_post_meta( $post_id, 'documentate_field_cuerpo', '<p>Cuerpo del documento</p>' );
+
+		$ref    = new ReflectionClass( Documentate_Document_Generator::class );
+		$method = $ref->getMethod( 'build_merge_fields' );
+		$method->setAccessible( true );
+
+		$without = $method->invoke( null, $post_id );
+		$this->assertArrayNotHasKey(
+			'documentate_fields',
+			$without,
+			'A layout with field names of its own is not charged for the rows.'
+		);
+
+		$with = $method->invoke( null, $post_id, true );
+
+		$this->assertArrayHasKey( 'documentate_fields', $with );
+		$this->assertCount( 2, $with['documentate_fields'], 'The title heads the layout, so it is not a row.' );
+		$this->assertSame( 'Motivo', $with['documentate_fields'][0]['label'] );
+		$this->assertSame( 'Falta de crédito', $with['documentate_fields'][0]['text'] );
+		$this->assertStringContainsString( 'Cuerpo del documento', $with['documentate_fields'][1]['html'] );
+
+		// The merge fields themselves are untouched by asking for the rows.
+		unset( $with['documentate_fields'] );
+		$this->assertSame( $without, $with );
+	}
+
+	/**
 	 * Test build_merge_fields with document containing field values.
 	 */
 	public function test_build_merge_fields_with_values() {
