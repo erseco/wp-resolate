@@ -18,11 +18,23 @@ class Documentate_Demo_Field_Values {
 	/**
 	 * Every matcher, in the order they are tried.
 	 *
-	 * Each entry is [ needles[], callable($index): string ].
+	 * Each entry is [ needles[], callable($index): string ]. The table is
+	 * held in two halves to stay inside the method length the ruleset allows,
+	 * and reads as one: no slug matches a needle of both, so the order across
+	 * the join changes nothing.
 	 *
 	 * @return array<int, array{0: string[], 1: callable}>
 	 */
 	public static function all() {
+		return array_merge( self::identity_and_body(), self::paperwork() );
+	}
+
+	/**
+	 * Contact details, the names of people, and the prose of a resolución.
+	 *
+	 * @return array<int, array{0: string[], 1: callable}>
+	 */
+	private static function identity_and_body() {
 		return array(
 			array(
 				array( 'email' ),
@@ -96,6 +108,17 @@ class Documentate_Demo_Field_Values {
 					);
 				},
 			),
+		);
+	}
+
+	/**
+	 * The paperwork around the body: what is bought, from whom, for how much
+	 * and where, and the appeal a resolución closes with.
+	 *
+	 * @return array<int, array{0: string[], 1: callable}>
+	 */
+	private static function paperwork() {
+		return array(
 			array(
 				array( 'observaciones' ),
 				static function () {
