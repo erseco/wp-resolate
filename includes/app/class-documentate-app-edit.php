@@ -417,6 +417,7 @@ class Documentate_App_Edit {
 				<?php
 				echo Documentate_App_Shell::transition_buttons( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				echo Documentate_Admin_Helper::export_block( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
+				echo Documentate_App_History::button( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				echo Documentate_App_Shell::back_link(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				?>
 			</div>

@@ -3,12 +3,11 @@
  * Revision history view of the front-end application.
  *
  * Compares two saved versions of a document the way wp-admin's revisions
- * screen does — the same fields, the same side-by-side diff — but drawn
- * inside the application, without the slider or the admin chrome. The data
- * comes straight from WordPress: wp_get_post_revisions() for the list and
- * wp_get_revision_ui_diff() for the comparison, so every revision filter the
- * plugin registers (the meta fields copied to each revision, the HTML
- * normalisation) applies here as in wp-admin.
+ * screen does — side by side, red and green — but drawn inside the
+ * application, without the slider or the admin chrome, and field by field:
+ * the title and each field stored in the content of a version are read as
+ * plain text (no field markers, no HTML) and compared with wp_text_diff(),
+ * under the labels of the document's type.
  *
  * Restoring a version stays in wp-admin: it interacts with the workflow
  * statuses and administración already has a way there.
@@ -16,6 +15,9 @@
  * @package Documentate
  * @subpackage App
  */
+
+use Documentate\Documents\Documents_Meta_Handler;
+use Documentate\Documents\Documents_Revision_Handler;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit();
@@ -57,15 +59,26 @@ class Documentate_App_History {
 	}
 
 	/**
-	 * Whether the request asks for the history view.
+	 * The button that opens the history, counting the saved versions.
 	 *
-	 * @return bool
+	 * The detail view prints it at the foot of the document, the editor at
+	 * the foot of its rail.
+	 *
+	 * @param WP_Post $post Document.
+	 * @return string
 	 */
-	public static function is_requested() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view routing.
-		$view = isset( $_GET['vista'] ) ? sanitize_key( wp_unslash( $_GET['vista'] ) ) : '';
+	public static function button( $post ) {
+		$count = count( self::revisions( $post ) );
 
-		return self::VIEW === $view;
+		$text = 'Ver historial de cambios';
+		if ( $count > 0 ) {
+			$text .= ' (' . $count . ( 1 === $count ? ' versión' : ' versiones' ) . ')';
+		}
+
+		return '<a class="dcta-btn dcta-btn-ton dcta-historial-btn" href="' . esc_url( self::url( $post->ID ) ) . '">'
+			. Documentate_App_Shell::icon( 'clock' )
+			. esc_html( $text )
+			. '</a>';
 	}
 
 	/**
@@ -107,7 +120,7 @@ class Documentate_App_History {
 				. '</div>';
 		} else {
 			$html .= self::render_compare_form( $post, $revisions, $from, $to );
-			$html .= self::render_diff( $post, $from, $to );
+			$html .= self::render_diff( $post, $revisions, $from, $to );
 		}
 
 		$html .= '</div>';
@@ -282,39 +295,76 @@ class Documentate_App_History {
 	/**
 	 * The comparison itself: one block per field that changed.
 	 *
-	 * The function that builds it, wp_get_revision_ui_diff(), lives in
-	 * wp-admin, so it is loaded on demand. It returns only the fields whose
-	 * text differs, each with the table that wp_text_diff() draws: the left
-	 * column is the "from" version, the right one the "to" version.
+	 * The title and every field stored in the content of each version are
+	 * compared as readable text — no field markers, no HTML — with
+	 * wp_text_diff(), the table wp-admin's revisions screen draws: the left
+	 * column is the "from" version, the right one the "to" version. Fields
+	 * that read the same are left out.
 	 *
-	 * @param WP_Post $post Document.
-	 * @param int     $from Revision to compare from (0 for none).
-	 * @param int     $to   Revision to compare to.
+	 * @param WP_Post   $post      Document.
+	 * @param WP_Post[] $revisions Revisions keyed by ID.
+	 * @param int       $from      Revision to compare from (0 for none).
+	 * @param int       $to        Revision to compare to.
 	 * @return string
 	 */
-	private static function render_diff( $post, $from, $to ) {
-		if ( ! function_exists( 'wp_get_revision_ui_diff' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/revision.php';
-		}
+	private static function render_diff( $post, array $revisions, $from, $to ) {
+		$before = self::readable_fields( isset( $revisions[ $from ] ) ? $revisions[ $from ] : null );
+		$after = self::readable_fields( $revisions[ $to ] );
+		$labels = Documentate_Admin::revision_field_labels( $post->ID );
 
-		$fields = wp_get_revision_ui_diff( $post, $from > 0 ? $from : false, $to );
+		$sections = '';
+		foreach ( array_keys( $after + $before ) as $slug ) {
+			$diff = wp_text_diff(
+				isset( $before[ $slug ] ) ? $before[ $slug ] : '',
+				isset( $after[ $slug ] ) ? $after[ $slug ] : '',
+				array( 'show_split_view' => true )
+			);
+			if ( '' === $diff ) {
+				continue;
+			}
 
-		$html = '<div class="dcta-card dcta-historial-card dcta-historial-diff">';
-
-		if ( ! is_array( $fields ) || empty( $fields ) ) {
-			return $html
-				. '<p class="dcta-ayuda dcta-historial-igual">No hay diferencias entre estas dos versiones.</p>'
-				. '</div>';
-		}
-
-		foreach ( $fields as $field ) {
-			$html .= '<section class="dcta-historial-campo-diff">'
-				. '<h3 class="dcta-historial-h3">' . esc_html( $field['name'] ) . '</h3>'
-				. $field['diff'] // Built by wp_text_diff() from escaped text; the markup wp-admin prints.
+			$label = isset( $labels[ $slug ] ) ? $labels[ $slug ] : Documents_Meta_Handler::humanize_unknown_field_label( $slug );
+			$sections .= '<section class="dcta-historial-campo-diff">'
+				. '<h3 class="dcta-historial-h3">' . esc_html( $label ) . '</h3>'
+				. $diff // Built by wp_text_diff() from escaped text; the markup wp-admin prints.
 				. '</section>';
 		}
 
-		return $html . '</div>';
+		if ( '' === $sections ) {
+			$sections = '<p class="dcta-ayuda dcta-historial-igual">No hay diferencias entre estas dos versiones.</p>';
+		}
+
+		return '<div class="dcta-card dcta-historial-card dcta-historial-diff">' . $sections . '</div>';
+	}
+
+	/**
+	 * What a version says in each field, as readable text keyed by slug.
+	 *
+	 * The title comes first, then the fields in the order the content stores
+	 * them. A repeater lists one row per line, its cells separated by dots.
+	 *
+	 * @param WP_Post|null $revision Revision; null for the empty document.
+	 * @return array<string,string>
+	 */
+	public static function readable_fields( $revision ) {
+		if ( ! $revision instanceof WP_Post ) {
+			return array();
+		}
+
+		$fields = array( 'post_title' => $revision->post_title );
+
+		foreach ( Documents_Meta_Handler::parse_structured_content( $revision->post_content ) as $slug => $entry ) {
+			if ( 'array' === $entry['type'] ) {
+				$rows = array();
+				foreach ( Documents_Meta_Handler::get_array_field_items_from_structured( $entry ) as $row ) {
+					$rows[] = implode( ' · ', array_filter( array_filter( (array) $row, 'is_scalar' ), 'strlen' ) );
+				}
+				$entry['value'] = implode( "\n", $rows );
+			}
+			$fields[ $slug ] = $entry['value'];
+		}
+
+		return array_map( array( Documents_Revision_Handler::class, 'readable_text' ), $fields );
 	}
 
 	/**

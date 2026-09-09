@@ -513,19 +513,7 @@ class Documentate_App_Detail {
 	 * @return string
 	 */
 	private static function render_history_link( $post ) {
-		$count = count( Documentate_App_History::revisions( $post ) );
-		$url = Documentate_App_History::url( $post->ID );
-
-		$text = 'Ver historial de cambios';
-		if ( $count > 0 ) {
-			$text .= ' (' . $count . ( 1 === $count ? ' versión' : ' versiones' ) . ')';
-		}
-
-		return '<div class="dcta-historial-pie">'
-			. '<a class="dcta-btn dcta-btn-ton dcta-historial-btn" href="' . esc_url( $url ) . '">'
-			. Documentate_App_Shell::icon( 'clock' )
-			. esc_html( $text )
-			. '</a></div>';
+		return '<div class="dcta-historial-pie">' . Documentate_App_History::button( $post ) . '</div>';
 	}
 
 	/**

@@ -2,9 +2,9 @@
 /**
  * Tests for the revision history view of the front-end application.
  *
- * The button at the foot of the document, the comparison of two versions,
- * the defaults and fallbacks of the range, the list of versions and the
- * assets the view loads.
+ * The button at the foot of the document and of the editor's rail, the
+ * comparison of two versions field by field, the defaults and fallbacks of
+ * the range, the list of versions and the assets the view does not need.
  *
  * @package Documentate
  */
@@ -106,6 +106,28 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 						'type' => 'text',
 					),
 				),
+				'repeaters' => array(
+					array(
+						'name' => 'partidas',
+						'slug' => 'partidas',
+						'title' => 'Partidas del gasto',
+						'type' => 'array',
+						'fields' => array(
+							array(
+								'name' => 'concepto',
+								'slug' => 'concepto',
+								'title' => 'Concepto',
+								'type' => 'text',
+							),
+							array(
+								'name' => 'importe',
+								'slug' => 'importe',
+								'title' => 'Importe',
+								'type' => 'text',
+							),
+						),
+					),
+				),
 				'meta' => array(
 					'template_type' => 'odt',
 					'template_name' => 'historial.odt',
@@ -161,10 +183,12 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 	 * back as the field's value.
 	 *
 	 * @param string $text Field value.
+	 * @param string $type Field type; rich keeps its HTML, array holds JSON rows.
+	 * @param string $slug Field slug.
 	 * @return string
 	 */
-	private static function content( $text ) {
-		return Documents_Meta_Handler::build_structured_field_fragment( 'objeto', 'textarea', $text );
+	private static function content( $text, $type = 'textarea', $slug = 'objeto' ) {
+		return Documents_Meta_Handler::build_structured_field_fragment( $slug, $type, $text );
 	}
 
 	/**
@@ -176,13 +200,15 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 	 * @param int    $doc_id  Document ID.
 	 * @param string $content New post content.
 	 * @param string $title   New title; empty keeps the current one.
+	 * @param string $type    Field type of the content.
+	 * @param string $slug    Field slug of the content.
 	 * @return int Revision ID.
 	 */
-	private function save_version( $doc_id, $content, $title = '' ) {
+	private function save_version( $doc_id, $content, $title = '', $type = 'textarea', $slug = 'objeto' ) {
 		wp_set_current_user( $this->admin_id );
 		$args = array(
 			'ID' => $doc_id,
-			'post_content' => self::content( $content ),
+			'post_content' => self::content( $content, $type, $slug ),
 		);
 		if ( '' !== $title ) {
 			$args['post_title'] = $title;
@@ -249,6 +275,32 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 		$button = strpos( $html, 'dcta-historial-btn' );
 		$this->assertNotFalse( $body_end );
 		$this->assertLessThan( $body_end, $button, 'The button closes the body of the document, before the rail.' );
+	}
+
+	/**
+	 * The editor's rail ends with the same button, right above the way back.
+	 */
+	public function test_the_editor_rail_offers_the_history_too() {
+		$doc_id = $this->create_document();
+		$this->save_version( $doc_id, 'Segunda versión.' );
+
+		$html = $this->view(
+			$this->area_id,
+			array(
+				'doc' => $doc_id,
+				'vista' => 'editar',
+			)
+		);
+
+		$rail = strpos( $html, 'dcta-editor-lado' );
+		$button = strpos( $html, 'dcta-historial-btn' );
+		$back = strpos( $html, 'dcta-editor-volver' );
+		$this->assertNotFalse( $rail );
+		$this->assertNotFalse( $button );
+		$this->assertNotFalse( $back );
+		$this->assertGreaterThan( $rail, $button, 'The button is in the rail.' );
+		$this->assertLessThan( $back, $button, 'The button comes right before the way back.' );
+		$this->assertStringContainsString( 'Ver historial de cambios (1 versión)', $html );
 	}
 
 	/**
@@ -319,6 +371,85 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 		$this->assertContains( 'Deleted: Resolución de material', $deleted );
 		$this->assertContains( 'Added: Resolución de mobiliario', $added );
 		$this->assertStringContainsString( 'Adela Administración', $html, 'Each version names who saved it.' );
+	}
+
+	/**
+	 * The comparison names each field and reads it as text: no markers, no HTML.
+	 */
+	public function test_the_comparison_names_the_fields_and_reads_them_as_text() {
+		$doc_id = $this->create_document();
+		$this->save_version( $doc_id, '<p>Compra de <b>mesas</b> para las aulas.</p>', '', 'rich' );
+		$latest = $this->save_version( $doc_id, '<p>Compra de <b>sillas</b> para las aulas.</p><ul><li>Con respaldo</li></ul>', '', 'rich' );
+		$this->assertStringContainsString( '<b>sillas</b>', get_post( $latest )->post_content, 'The version keeps its HTML; the view is what reads it as text.' );
+
+		$html = $this->view(
+			$this->area_id,
+			array(
+				'doc' => $doc_id,
+				'vista' => 'historial',
+			)
+		);
+
+		$this->assertStringContainsString( '<h3 class="dcta-historial-h3">Objeto de la resolución</h3>', $html, 'The heading is the label of the type, not the slug.' );
+		$this->assertStringNotContainsString( 'Contenido</h3>', $html, 'The content is not one block.' );
+		$this->assertStringNotContainsString( 'documentate-field', $html, 'The stored field markers never reach the screen.' );
+		$this->assertStringNotContainsString( '&lt;b&gt;', $html );
+		$this->assertStringNotContainsString( '&lt;p&gt;', $html );
+
+		$added = self::diff_cells( $html, 'diff-addedline' );
+		$this->assertContains( 'Deleted: Compra de mesas para las aulas.', self::diff_cells( $html, 'diff-deletedline' ) );
+		$this->assertContains( 'Added: Compra de sillas para las aulas.', $added );
+		$this->assertContains( 'Added: Con respaldo', $added, 'Each list item is a line of its own.' );
+	}
+
+	/**
+	 * A repeater is compared row by row, never as the JSON that stores it.
+	 */
+	public function test_a_repeater_is_compared_row_by_row() {
+		$doc_id = $this->create_document();
+		$sillas = array(
+			'concepto' => 'Sillas',
+			'importe' => '120',
+		);
+		$mesas = array(
+			'concepto' => 'Mesas',
+			'importe' => '300',
+		);
+		$this->save_version( $doc_id, wp_json_encode( array( $sillas ) ), '', 'array', 'partidas' );
+		$this->save_version( $doc_id, wp_json_encode( array( $sillas, $mesas ) ), '', 'array', 'partidas' );
+
+		$html = $this->view(
+			$this->area_id,
+			array(
+				'doc' => $doc_id,
+				'vista' => 'historial',
+			)
+		);
+
+		$this->assertStringContainsString( '<h3 class="dcta-historial-h3">Partidas del gasto</h3>', $html );
+		$this->assertContains( 'Unchanged: Sillas · 120', self::diff_cells( $html, 'diff-context' ) );
+		$this->assertContains( 'Added: Mesas · 300', self::diff_cells( $html, 'diff-addedline' ) );
+		$this->assertStringNotContainsString( 'concepto', $html, 'The stored JSON never reaches the screen.' );
+	}
+
+	/**
+	 * Two versions that read the same say so instead of drawing an empty table.
+	 */
+	public function test_identical_versions_show_no_differences() {
+		$doc_id = $this->create_document();
+		$this->save_version( $doc_id, 'El mismo texto.' );
+		$this->save_version( $doc_id, 'El mismo texto.' );
+
+		$html = $this->view(
+			$this->area_id,
+			array(
+				'doc' => $doc_id,
+				'vista' => 'historial',
+			)
+		);
+
+		$this->assertStringContainsString( 'No hay diferencias entre estas dos versiones.', $html );
+		$this->assertStringNotContainsString( "<table class='diff", $html );
 	}
 
 	/**
@@ -464,24 +595,18 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The history view loads the revision diff assets with the type's labels.
+	 * The comparison is drawn on the server: the view needs no diff script.
 	 */
-	public function test_the_history_view_loads_the_revision_assets() {
+	public function test_the_history_view_needs_no_revision_script() {
 		$doc_id = $this->create_document();
 		wp_set_current_user( $this->area_id );
 
-		$this->go_to( Documentate_App_Shell::page_url( array( 'doc' => $doc_id ) ) );
-		$this->app->enqueue_assets();
-		$this->assertFalse( wp_script_is( 'documentate-revisions', 'enqueued' ), 'The document view does not need the diff script.' );
-
 		$this->go_to( Documentate_App_History::url( $doc_id ) );
 		$this->app->enqueue_assets();
-		$this->assertTrue( wp_style_is( 'documentate-revisions', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'documentate-revisions', 'enqueued' ) );
 
-		$data = wp_scripts()->get_data( 'documentate-revisions', 'data' );
-		$this->assertStringContainsString( 'Objeto de la resoluci', $data, 'The field labels of the type travel to the script.' );
-		$this->assertStringContainsString( 'post_title', $data );
+		$this->assertTrue( wp_style_is( 'documentate-app', 'enqueued' ) );
+		$this->assertFalse( wp_style_is( 'documentate-revisions', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'documentate-revisions', 'enqueued' ) );
 	}
 
 	/**

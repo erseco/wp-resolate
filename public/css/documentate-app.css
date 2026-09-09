@@ -920,6 +920,10 @@ body.documentate-app .wp-block-post-content {
 	margin-top: 10px;
 }
 
+.dcta-lado .dcta-historial-btn {
+	margin-top: 10px;
+}
+
 .dcta-editor-volver {
 	display: block;
 	margin-top: 14px;
@@ -1845,8 +1849,7 @@ body.documentate-app .documentate-loading-modal__content {
  * diff-addedline, del, ins) and are coloured here the way wp-admin's
  * revisions screen colours them — red for what the older version had, green
  * for what the newer one adds — because the admin stylesheet is not loaded
- * on the front end. admin/css/documentate-revisions.css, which is, adds the
- * field headers on top.
+ * on the front end.
  */
 
 .dcta-historial-pie {
@@ -1943,16 +1946,6 @@ body.documentate-app .documentate-loading-modal__content {
 	line-height: 1.55;
 	word-wrap: break-word;
 	overflow-wrap: anywhere;
-}
-
-.dcta-historial-diff table.diff th {
-	padding: 0 10px 6px;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: .06em;
-	text-align: left;
-	text-transform: uppercase;
-	color: var(--dcta-texto-2);
 }
 
 .dcta-historial-diff table.diff col.diffsplit.middle {

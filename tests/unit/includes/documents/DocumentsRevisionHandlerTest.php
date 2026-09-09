@@ -273,70 +273,29 @@ class DocumentsRevisionHandlerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test normalize_html_for_diff via reflection.
+	 * readable_text() keeps the words and drops the markup.
 	 */
-	public function test_normalize_html_for_diff() {
-		$method = new ReflectionMethod( $this->handler, 'normalize_html_for_diff' );
-		$method->setAccessible( true );
-
-		// Test basic HTML stripping.
-		$result = $method->invoke( $this->handler, '<p>Hello World</p>' );
-		$this->assertStringContainsString( 'Hello World', $result );
-		$this->assertStringNotContainsString( '<p>', $result );
+	public function test_readable_text_drops_the_markup() {
+		$this->assertSame( '', Documents_Revision_Handler::readable_text( '' ) );
+		$this->assertSame( 'Hello World', Documents_Revision_Handler::readable_text( '<p>Hello <b>World</b></p>' ) );
 	}
 
 	/**
-	 * Test normalize_html_for_diff handles empty string.
+	 * Block elements become line breaks, never more than one blank line.
 	 */
-	public function test_normalize_html_for_diff_empty() {
-		$method = new ReflectionMethod( $this->handler, 'normalize_html_for_diff' );
-		$method->setAccessible( true );
-
-		$result = $method->invoke( $this->handler, '' );
-		$this->assertSame( '', $result );
+	public function test_readable_text_breaks_lines_at_block_elements() {
+		$this->assertSame( "Line 1\nLine 2", Documents_Revision_Handler::readable_text( '<p>Line 1</p><p>Line 2</p>' ) );
+		$this->assertSame( "Uno\nDos", Documents_Revision_Handler::readable_text( '<ul><li>Uno</li><li>Dos</li></ul>' ) );
+		$this->assertSame( "a · b\nc · d", Documents_Revision_Handler::readable_text( '<table><tr><td>a · b</td></tr><tr><td>c · d</td></tr></table>' ) );
+		$this->assertDoesNotMatchRegularExpression( '/\n{3,}/', Documents_Revision_Handler::readable_text( "<p>Line 1</p>\n\n\n\n<p>Line 2</p>" ) );
 	}
 
 	/**
-	 * Test normalize_html_for_diff adds newlines for block elements.
+	 * Entities read as the characters they stand for; a non-breaking space is a space.
 	 */
-	public function test_normalize_html_for_diff_block_elements() {
-		$method = new ReflectionMethod( $this->handler, 'normalize_html_for_diff' );
-		$method->setAccessible( true );
-
-		$html = '<p>Line 1</p><p>Line 2</p>';
-		$result = $method->invoke( $this->handler, $html );
-
-		$this->assertStringContainsString( 'Line 1', $result );
-		$this->assertStringContainsString( 'Line 2', $result );
-	}
-
-	/**
-	 * Test normalize_html_for_diff limits consecutive newlines.
-	 */
-	public function test_normalize_html_for_diff_limits_newlines() {
-		$method = new ReflectionMethod( $this->handler, 'normalize_html_for_diff' );
-		$method->setAccessible( true );
-
-		$html = "<p>Line 1</p>\n\n\n\n<p>Line 2</p>";
-		$result = $method->invoke( $this->handler, $html );
-
-		// Should not have more than 2 consecutive newlines.
-		$this->assertDoesNotMatchRegularExpression( '/\n{3,}/', $result );
-	}
-
-	/**
-	 * Test normalize_html_for_diff handles special characters.
-	 */
-	public function test_normalize_html_for_diff_special_chars() {
-		$method = new ReflectionMethod( $this->handler, 'normalize_html_for_diff' );
-		$method->setAccessible( true );
-
-		$html = '<p>&amp; &lt; &gt;</p>';
-		$result = $method->invoke( $this->handler, $html );
-
-		$this->assertStringContainsString( '&', $result );
-		$this->assertStringContainsString( '<', $result );
-		$this->assertStringContainsString( '>', $result );
+	public function test_readable_text_decodes_entities() {
+		$this->assertSame( '& < > "a"', Documents_Revision_Handler::readable_text( '<p>&amp; &lt; &gt; &quot;a&quot;</p>' ) );
+		$this->assertSame( 'Uno Dos', Documents_Revision_Handler::readable_text( 'Uno&nbsp;Dos' ) );
 	}
 
 	/**

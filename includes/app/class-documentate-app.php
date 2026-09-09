@@ -196,9 +196,8 @@ class Documentate_App {
 	 *
 	 * Every view gets the stylesheet, the dashicons the chips and cards use
 	 * and the small progressive-enhancement script. A document view also gets
-	 * the export controls of wp-admin, the history view the revision diff
-	 * assets, and the edit view the classic editor (rich fields), the repeater
-	 * script and the automatic totals.
+	 * the export controls of wp-admin, and the edit view the classic editor
+	 * (rich fields), the repeater script and the automatic totals.
 	 *
 	 * @return void
 	 */
@@ -241,11 +240,6 @@ class Documentate_App {
 			$helper->enqueue_actions_assets_for_post( $doc, 'form.dcta-editor' );
 		}
 
-		if ( Documentate_App_History::is_requested() ) {
-			self::enqueue_history_assets( $doc );
-			return;
-		}
-
 		if ( ! self::is_edit_view_request() ) {
 			return;
 		}
@@ -282,43 +276,6 @@ class Documentate_App {
 			array( 'documentate-annexes' ),
 			DOCUMENTATE_VERSION,
 			true,
-		);
-	}
-
-	/**
-	 * Enqueue what the history view needs on top of the shell assets.
-	 *
-	 * The same stylesheet and script wp-admin's revisions screen gets: the
-	 * script turns the `<!-- documentate-field -->` markers of the stored
-	 * content into readable field headers, and needs the field labels of the
-	 * document's type to do so.
-	 *
-	 * @param int $doc Document post ID.
-	 * @return void
-	 */
-	private static function enqueue_history_assets( $doc ) {
-		wp_enqueue_style(
-			'documentate-revisions',
-			plugins_url( 'admin/css/documentate-revisions.css', DOCUMENTATE_PLUGIN_FILE ),
-			array( 'dashicons', 'documentate-app' ),
-			DOCUMENTATE_VERSION,
-		);
-		wp_enqueue_script(
-			'documentate-revisions',
-			plugins_url( 'admin/js/documentate-revisions.js', DOCUMENTATE_PLUGIN_FILE ),
-			array(),
-			DOCUMENTATE_VERSION,
-			true,
-		);
-		wp_localize_script(
-			'documentate-revisions',
-			'documentateRevisions',
-			array(
-				'fieldLabels' => Documentate_Admin::revision_field_labels( $doc ),
-				'strings' => array(
-					'fieldContent' => 'Contenido del campo ↓',
-				),
-			)
 		);
 	}
 

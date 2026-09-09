@@ -257,15 +257,16 @@ distinguished by query args (`vista`, `doc`, `estado`, `area`):
   respectively.
 - `class-documentate-app-history.php` (`Documentate_App_History`) — the
   revision history of a document (`vista=historial`), reached from the button
-  at the foot of the detail view. It lists the saved versions
-  (`wp_get_post_revisions()`, autosaves left out) and compares two of them
-  (`desde`/`hasta`, defaulting to the latest and the one before it) with
-  `wp_get_revision_ui_diff()`, the function behind wp-admin's revisions
-  screen, so the plugin's revision filters apply identically. The view loads
-  `admin/css|js/documentate-revisions.*` — the script that turns the
-  `<!-- documentate-field -->` markers into field headers — with the labels
-  from `Documentate_Admin::revision_field_labels()`. Restoring a version stays
-  in wp-admin.
+  at the foot of the detail view and of the editor's rail. It lists the saved
+  versions (`wp_get_post_revisions()`, autosaves left out) and compares two of
+  them (`desde`/`hasta`, defaulting to the latest and the one before it) field
+  by field: the title and each field parsed from the stored content, as
+  readable text (`Documents_Revision_Handler::readable_text()` — no field
+  markers, no HTML), through `wp_text_diff()`, the table behind wp-admin's
+  revisions screen, under the labels of
+  `Documentate_Admin::revision_field_labels()`. It needs no script;
+  `admin/css|js/documentate-revisions.*` stay a wp-admin matter. Restoring a
+  version stays in wp-admin.
 - `class-documentate-app-tray.php` (`Documentate_App_Tray`) — the active
   status/área filters, the status chip a role's list opens on
   (`default_status()`), and the `WP_Query` arguments and counts behind them.

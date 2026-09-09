@@ -171,22 +171,28 @@ class Documents_Revision_Handler {
 			return '';
 		}
 		$raw = get_metadata( 'post', $rev_id, $field, true );
-		return $this->normalize_html_for_diff( $raw );
+		return self::readable_text( $raw );
 	}
 
 	/**
-	 * Normalize HTML to plain text to improve wp_text_diff visibility.
+	 * The text a person reads in a field value, for wp_text_diff().
+	 *
+	 * Block tags become line breaks, the rest of the markup goes and the
+	 * entities are decoded, so a comparison shows the words that changed and
+	 * never a `<b>`.
 	 *
 	 * @param string $html HTML input.
 	 * @return string
 	 */
-	private function normalize_html_for_diff( $html ) {
+	public static function readable_text( $html ) {
+		$html = (string) $html;
 		if ( '' === $html ) {
 			return '';
 		}
-		$text = wp_specialchars_decode( (string) $html );
-		$text = preg_replace( '/<(?:p|div|br|li|h[1-6])[^>]*>/i', "\n", $text );
-		$text = wp_strip_all_tags( $text );
+		// ponytail: text-only diff, a change of formatting alone is invisible; diff the HTML per line if it must show.
+		$text = preg_replace( '/<(?:p|div|br|li|tr|h[1-6])[^>]*>/i', "\n", $html );
+		$text = html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = str_replace( "\xC2\xA0", ' ', $text );
 		$text = preg_replace( "/\r\n|\r/", "\n", $text );
 		$text = preg_replace( "/\n{3,}/", "\n\n", $text );
 		return trim( $text );
