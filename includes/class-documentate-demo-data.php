@@ -466,7 +466,6 @@ class Documentate_Demo_Data {
 				'color' => '#37517e',
 				'pdf_layout' => 'resolucion',
 				'prefix' => 'RES',
-				'has_management' => true,
 			),
 			'demo-wp-documentate.odt' => array(
 				'slug' => 'documentate-demo-wp-documentate-odt',

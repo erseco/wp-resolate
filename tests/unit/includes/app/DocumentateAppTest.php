@@ -107,6 +107,12 @@ class DocumentateAppTest extends WP_UnitTestCase {
 						'type' => 'html',
 						'title' => 'Cuerpo',
 					),
+					array(
+						'name' => 'Con logotipos',
+						'slug' => 'logotipos',
+						'type' => 'boolean',
+						'title' => 'Con logotipos',
+					),
 				),
 				'repeaters' => array(
 					array(
@@ -434,6 +440,16 @@ class DocumentateAppTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Material para las aulas', $html );
 		$this->assertStringContainsString( '…', $html );
 		$this->assertStringContainsString( '3 elementos', $html );
+		// A checkbox reads as Sí/No on the card, not as the "1"/"0" stored.
+		$this->assertMatchesRegularExpression( '/Con logotipos<\/dt><dd>No<\/dd>/', $html );
+
+		$this->prepare_save( $doc, 'Propuesta detalle' );
+		$_POST['documentate_field_logotipos'] = '1';
+		$this->capture_redirect( array( $this->app, 'handle_save_document' ) );
+		$_POST = array();
+		$_GET['doc'] = (string) $doc;
+
+		$this->assertMatchesRegularExpression( '/Con logotipos<\/dt><dd>Sí<\/dd>/', $this->app->render() );
 	}
 
 	/**

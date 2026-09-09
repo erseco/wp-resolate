@@ -168,6 +168,14 @@ class Documentate_Demo_Field_Values {
 					return 'palabras clave, etiquetas, demo';
 				},
 			),
+			array(
+				array( 'recurso' ),
+				static function () {
+					return 'Contra la presente Resolución, que no pone fin a la vía administrativa, '
+						. 'cabe interponer recurso de alzada ante la Viceconsejería de Educación en el '
+						. 'plazo de un mes contado a partir del día siguiente al de su publicación.';
+				},
+			),
 		);
 	}
 }

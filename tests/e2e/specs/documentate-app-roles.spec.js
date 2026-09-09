@@ -77,10 +77,10 @@ test.describe( 'Documentate app · roles', () => {
 				otra: { name: `Otra área ${ RUN }`, parent: 'management' },
 				ajena: `Área ajena ${ RUN }`,
 			},
-			// The seeded Resolución declares gestión fields in its schema, so
-			// it goes through revisión by itself: the spec reads that property
-			// instead of writing the shared term.
-			types: { res: { slug: 'resolucion-administrativa' } },
+			// The seeded Documento 0 declares gestión fields in its schema,
+			// so it goes through revisión by itself: the spec reads that
+			// property instead of writing the shared term.
+			types: { res: { slug: 'propuesta-gasto' } },
 			users: {
 				area: { login: AREA_LOGIN, role: 'author', scope: 'area' },
 				management: {
@@ -199,7 +199,7 @@ test.describe( 'Documentate app · roles', () => {
 				page.locator( 'tr.documentate-campo-gestion' )
 			).toHaveCount( 0 );
 			await expect(
-				page.locator( '#documentate_field_numero_resolucion' )
+				page.locator( '#documentate_field_partida' )
 			).toHaveCount( 0 );
 			await expect(
 				page.locator( 'h3.documentate-seccion-rol' )
@@ -383,7 +383,7 @@ test.describe( 'Documentate app · roles', () => {
 			const managementFields = page.locator( 'tr.documentate-campo-gestion' );
 			expect( await managementFields.count() ).toBeGreaterThan( 0 );
 			await expect(
-				page.locator( '#documentate_field_numero_resolucion' )
+				page.locator( '#documentate_field_partida' )
 			).toBeVisible();
 			await expect(
 				page.locator( '#documentate-app-anotaciones' )

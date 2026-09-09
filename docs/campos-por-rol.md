@@ -76,11 +76,35 @@ revisión en el circuito de ese tipo).
   (`gasto_letra`, `gasto_numero`, `partida`, los bloques `servicios`,
   `suministros`, `expertos`…) son `rol='gestion'`; los datos que redacta el
   área (título, curso, objeto, destinatarios…) se quedan sin marcar.
-- `fixtures/resolucion.odt`: `numero_resolucion`, `fecha_resolucion`,
-  `expediente` y `organo_firmante` son `rol='gestion'` — son los datos que
-  asigna revisión al formalizar la resolución. El cuerpo (`antecedentes`,
-  `fundamentos`, `resuelvo`) se queda sin marcar: lo que se resuelve lo
-  redacta el área, y revisión solo pone la numeración y el órgano que firma.
+- `fixtures/resolucion.odt`: **ningún** campo lleva `rol='gestion'`. La
+  resolución la escribe el área de principio a fin —incluidos el número, la
+  fecha, el expediente y el órgano firmante—, así que el tipo no se detiene en
+  revisión: pasa de borrador a la jefatura de servicio.
+
+## Casillas que enseñan u ocultan una parte del documento
+
+Un bloque de visibilidad puede **declarar el campo que lo enciende**:
+
+```
+[onshow;block=begin;bloc=fondos_europeos;type='boolean';title='Cofinanciado con fondos europeos';description='Añade la banda de logotipos']
+   … lo que solo sale si la casilla está marcada …
+[onshow;block=end]
+```
+
+El área ve una casilla en el formulario y el contenido del bloque solo se
+imprime cuando está marcada. La declaración va en la propia etiqueta de
+apertura, no en el cuerpo del documento: un marcador escrito en el texto
+imprimiría su propio «1» donde estuviera puesto, y una casilla no tiene nada
+que imprimir.
+
+Un bloque sin `type` sigue significando lo de siempre: se enciende con un
+campo que la plantilla declara en otro sitio (`bloc=servicios` sigue el
+bloque `servicios`).
+
+Funciona igual en la plantilla ODT y en la maqueta de
+`templates/pdf/<slug>.html`, y el atributo `rol` también se admite si la
+casilla la debe marcar revisión. Ejemplo real: `fixtures/resolucion.odt`
+añade con `fondos_europeos` la banda de logotipos de cofinanciación europea.
 
 ## Al tocar una plantilla
 

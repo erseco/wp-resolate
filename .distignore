@@ -95,7 +95,6 @@ admin/vendor/tinybutstrong/tinybutstrong/tbs_us_manual.htm
 # the leftovers no runtime code references are kept out.
 fixtures/*copia*
 fixtures/*_OLD.odt
-fixtures/resolucion_logos_europeos.odt
 fixtures/test-sign-placeholder.odt
 
 # Font sources. Only the makefont output (.json descriptor and .z stream) is

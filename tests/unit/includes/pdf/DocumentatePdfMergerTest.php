@@ -323,6 +323,36 @@ class DocumentatePdfMergerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The band of European co-financing logos is drawn on the resolución only
+	 * when the checkbox that switches it on is ticked. The layout and the
+	 * image it names travel together, so the test reads both.
+	 */
+	public function test_the_resolucion_layout_draws_the_european_logos_when_ticked() {
+		$plugin_dir = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE );
+		$layout     = $plugin_dir . 'templates/pdf/resolucion.html';
+		$fields     = array(
+			'post_title' => 'Resolución de prueba',
+			'objeto' => 'Objeto de la resolución',
+			'antecedentes' => '<p>Antecedente.</p>',
+			'fundamentos' => '<p>Fundamento.</p>',
+			'resuelvo' => '<p>Resuelvo aprobar.</p>',
+			'pie_recursos' => 'Cabe recurso de alzada.',
+			'anexos' => array(),
+		);
+
+		$this->assertFileExists( $plugin_dir . 'templates/pdf/img/fondos-europeos.png' );
+
+		$off = Documentate_Pdf_Merger::merge( $layout, array_merge( $fields, array( 'fondos_europeos' => '0' ) ) );
+		$on  = Documentate_Pdf_Merger::merge( $layout, array_merge( $fields, array( 'fondos_europeos' => '1' ) ) );
+
+		$this->assertIsString( $off );
+		$this->assertIsString( $on );
+		$this->assertStringNotContainsString( 'fondos-europeos.png', $off );
+		$this->assertStringContainsString( 'fondos-europeos.png', $on );
+		$this->assertStringContainsString( 'Cabe recurso de alzada.', $off );
+	}
+
+	/**
 	 * The schema extractor reads parameters TBS knows nothing about. TBS must
 	 * store and ignore them rather than treat them as merge instructions.
 	 */
