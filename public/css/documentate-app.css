@@ -370,16 +370,22 @@ body.documentate-app .wp-block-post-content {
 	border-bottom-color: var(--dcta-pri);
 }
 
-/* "Nuevo documento" carries a blue plus, so it reads as an action, not a list. */
+/* "Nuevo documento" leads with a white plus on a blue square, so it reads as
+   an action, not a list. The icon comes first: it announces what the label
+   does, the way a trailing icon would say where it leads. */
 
 .dcta-tab-nuevo {
-	gap: 4px;
+	gap: 7px;
 }
 
 .dcta-tab-nuevo .dcta-icono {
+	box-sizing: border-box;
 	width: 18px;
 	height: 18px;
-	color: var(--dcta-pri);
+	padding: 0;
+	border-radius: 4px;
+	background: var(--dcta-pri);
+	color: #fff;
 }
 
 /* --- sheet --------------------------------------------------------------- */
