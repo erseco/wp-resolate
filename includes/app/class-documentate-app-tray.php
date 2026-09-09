@@ -72,8 +72,10 @@ class Documentate_App_Tray {
 	 * Status filter asked for by the request.
 	 *
 	 * "todos" is the explicit way of clearing the chip the list pre-selects.
+	 * "mios" is only offered to whoever looks after several áreas, so it is
+	 * only accepted from them: for an área the whole list is already theirs.
 	 *
-	 * @return string Status key, "devuelto", or empty for every status.
+	 * @return string Status key, "devuelto", "mios", or empty for every status.
 	 */
 	public static function current_status() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter.
@@ -84,6 +86,9 @@ class Documentate_App_Tray {
 		}
 
 		$valid_values = array_merge( self::statuses(), array( 'devuelto' ) );
+		if ( Documentate_Roles::is_management() ) {
+			$valid_values[] = 'mios';
+		}
 
 		return in_array( $status, $valid_values, true ) ? $status : self::default_status();
 	}
@@ -189,7 +194,7 @@ class Documentate_App_Tray {
 	/**
 	 * Query arguments of the list.
 	 *
-	 * @param string $status Status chip, "devuelto", or empty for every status.
+	 * @param string $status Status chip, "devuelto", "mios", or empty for every status.
 	 * @param int    $area   Category term ID to narrow by, 0 for every área.
 	 * @return array<string,mixed>
 	 */
@@ -212,6 +217,10 @@ class Documentate_App_Tray {
 			// Narrowing by status would hide exactly those, so the chip would
 			// promise a set the list cannot show.
 			$args['post_status'] = array_keys( Documentate_Statuses::labels() );
+		} elseif ( 'mios' === $status ) {
+			// The documents this person wrote, whatever became of them: the
+			// status chips already say what waits for their rol.
+			$args['author'] = get_current_user_id();
 		} elseif ( '' !== $status ) {
 			$args['post_status'] = $status;
 		}

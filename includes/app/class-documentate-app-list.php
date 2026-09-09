@@ -25,7 +25,7 @@ class Documentate_App_List {
 	/**
 	 * Query arguments of the list.
 	 *
-	 * @param string $status Status chip, "devuelto", or empty for every status.
+	 * @param string $status Status chip, "devuelto", "mios", or empty for every status.
 	 * @param int    $area   Category term ID to narrow by, 0 for every área.
 	 * @return array<string,mixed>
 	 */
@@ -53,7 +53,7 @@ class Documentate_App_List {
 		$area = Documentate_App_Tray::current_area();
 		$titles = self::titles();
 
-		$html = Documentate_App_Shell::open( 'lista', $titles[0], $titles[1] );
+		$html = Documentate_App_Shell::open( 'lista', $titles[0], $titles[1], array(), self::render_area_select( $status, $area ) );
 
 		if ( Documentate_App_Tray::without_scope() ) {
 			return $html
@@ -98,9 +98,12 @@ class Documentate_App_List {
 			return array( 'Mis documentos', 'Los documentos de tu área, con su estado.' );
 		}
 
-		return Documentate_Roles::is_administration()
-			? array( 'Todos los documentos', 'Todas las áreas, todos los estados.' )
-			: array( 'Documentos', 'Todas las áreas de tu ámbito, todos los estados.' );
+		return array(
+			'Todos los documentos',
+			Documentate_Roles::is_administration()
+				? 'Todas las áreas, todos los estados.'
+				: 'Todas las áreas de tu ámbito, todos los estados.',
+		);
 	}
 
 	/**
@@ -111,12 +114,20 @@ class Documentate_App_List {
 	 * the chip of their own rol. A chip is drawn only when it would find
 	 * something; "Todos" always is.
 	 *
+	 * "Mis documentos" is the one chip that does not narrow by status: it
+	 * holds what this person wrote, in whatever state it ended up. An área
+	 * gets no such chip — its whole list is already its own documents.
+	 *
 	 * @param string $status Active status filter.
 	 * @param int    $area   Área filter.
 	 * @return string
 	 */
 	private static function render_filters( $status, $area ) {
-		$chips = array( 'devuelto' => 'Devuelto' );
+		$chips = array();
+		if ( Documentate_Roles::is_management() ) {
+			$chips['mios'] = 'Mis documentos';
+		}
+		$chips['devuelto'] = 'Devuelto';
 		foreach ( Documentate_Statuses::labels() as $status_key => $label ) {
 			$chips[ $status_key ] = 'draft' === $status_key ? 'Por enviar' : $label;
 		}
@@ -138,7 +149,6 @@ class Documentate_App_List {
 			$html .= self::filter_chip( $key, $label, $key === $status, $area, $total );
 		}
 
-		$html .= self::render_area_select( $status, $area );
 		$html .= self::render_search();
 
 		return $html . '</div>';
@@ -193,7 +203,8 @@ class Documentate_App_List {
 	/**
 	 * The área select whoever looks after several áreas narrows the list with.
 	 *
-	 * It rides at the end of the chip row, and choosing an área is the whole
+	 * It rides at the top right of the heading, beside "Todos los documentos":
+	 * an ámbito is not one more status chip. Choosing an área is the whole
 	 * interaction: the script submits the form on change, and hides the button
 	 * that is only there for a reader without JavaScript. Revisión and
 	 * jefatura de servicio get the categories of their ámbito, administración

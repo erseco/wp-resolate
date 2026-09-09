@@ -422,7 +422,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 
 		// A return lands on the list, not on the document: the reviewer moves on.
 		await expect( management.locator( '.dcta-h1' ) ).toHaveText(
-			'Documentos'
+			'Todos los documentos'
 		);
 		await expect( management.locator( '.dcta-aviso-ok' ) ).toHaveText(
 			'Documento devuelto con el motivo indicado.'

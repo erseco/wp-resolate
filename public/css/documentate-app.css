@@ -396,6 +396,24 @@ body.documentate-app .wp-block-post-content {
 	padding: 28px max(24px, calc(50% - var(--dcta-ancho) / 2)) 44px;
 }
 
+/*
+ * The heading and the área select share the top line: an ámbito is not one
+ * more status chip, and the chip row is long enough already. On a narrow
+ * screen the select wraps under the sub-heading.
+ */
+
+.dcta-cabecera {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	align-items: flex-start;
+	justify-content: space-between;
+}
+
+.dcta-cabecera-txt {
+	min-width: 0;
+}
+
 .dcta-h1 {
 	font-size: 27px;
 	font-weight: 700;
@@ -1402,13 +1420,13 @@ body.documentate-app .wp-block-post-content {
 	color: var(--dcta-texto-2);
 }
 
-/* One more control of the chip row, not a line of its own. */
+/* Top right of the heading, not one more control of the chip row. */
 
 .dcta-areas {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	margin: 0;
+	margin: 0 0 22px;
 	font-size: 13.5px;
 	color: var(--dcta-texto-2);
 }
