@@ -59,10 +59,26 @@ class Documentate_App_History {
 	}
 
 	/**
-	 * The button that opens the history, counting the saved versions.
+	 * The row of the editor's "Estado" card: how many versions there are and
+	 * the way to compare them — text and a link, the way wp-admin's publish
+	 * box counts revisions.
 	 *
-	 * The detail view prints it at the foot of the document, the editor at
-	 * the foot of its rail.
+	 * @param WP_Post $post Document.
+	 * @return string
+	 */
+	public static function meta_row( $post ) {
+		$count = count( self::revisions( $post ) );
+		$text = esc_html( ucfirst( self::count_text( $count ) ) );
+
+		if ( $count > 0 ) {
+			$text .= ' · <a href="' . esc_url( self::url( $post->ID ) ) . '">Ver cambios</a>';
+		}
+
+		return '<dt>Historial</dt><dd>' . $text . '</dd>';
+	}
+
+	/**
+	 * The button at the foot of the document view, counting the saved versions.
 	 *
 	 * @param WP_Post $post Document.
 	 * @return string

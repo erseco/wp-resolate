@@ -257,7 +257,9 @@ distinguished by query args (`vista`, `doc`, `estado`, `area`):
   respectively.
 - `class-documentate-app-history.php` (`Documentate_App_History`) — the
   revision history of a document (`vista=historial`), reached from the button
-  at the foot of the detail view and of the editor's rail. It lists the saved
+  at the foot of the detail view and from the "Historial" row of the editor's
+  "Estado" card (`meta_row()`: the count of versions and a link, the way
+  wp-admin's publish box counts revisions). It lists the saved
   versions (`wp_get_post_revisions()`, autosaves left out) and compares two of
   them (`desde`/`hasta`, defaulting to the latest and the one before it) field
   by field: the title and each field parsed from the stored content, as

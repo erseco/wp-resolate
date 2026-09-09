@@ -2,7 +2,7 @@
 /**
  * Tests for the revision history view of the front-end application.
  *
- * The button at the foot of the document and of the editor's rail, the
+ * The button at the foot of the document, the row of the editor's card, the
  * comparison of two versions field by field, the defaults and fallbacks of
  * the range, the list of versions and the assets the view does not need.
  *
@@ -278,29 +278,26 @@ class DocumentateAppHistoryTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The editor's rail ends with the same button, right above the way back.
+	 * The editor's "Estado" card counts the versions and links the history, as text.
 	 */
-	public function test_the_editor_rail_offers_the_history_too() {
+	public function test_the_editor_card_counts_the_versions_and_links_the_history() {
 		$doc_id = $this->create_document();
-		$this->save_version( $doc_id, 'Segunda versión.' );
-
-		$html = $this->view(
-			$this->area_id,
-			array(
-				'doc' => $doc_id,
-				'vista' => 'editar',
-			)
+		$args = array(
+			'doc' => $doc_id,
+			'vista' => 'editar',
 		);
 
-		$rail = strpos( $html, 'dcta-editor-lado' );
-		$button = strpos( $html, 'dcta-historial-btn' );
-		$back = strpos( $html, 'dcta-editor-volver' );
-		$this->assertNotFalse( $rail );
-		$this->assertNotFalse( $button );
-		$this->assertNotFalse( $back );
-		$this->assertGreaterThan( $rail, $button, 'The button is in the rail.' );
-		$this->assertLessThan( $back, $button, 'The button comes right before the way back.' );
-		$this->assertStringContainsString( 'Ver historial de cambios (1 versión)', $html );
+		$html = $this->view( $this->area_id, $args );
+		$this->assertStringContainsString( '<dt>Historial</dt><dd>Sin versiones guardadas</dd>', $html );
+		$this->assertStringNotContainsString( 'vista=historial', $html, 'Nothing to compare yet, so no link.' );
+
+		$this->save_version( $doc_id, 'Segunda versión.' );
+		$html = $this->view( $this->area_id, $args );
+		$this->assertMatchesRegularExpression( '#<dt>Actualizado</dt>.*<dt>Historial</dt><dd>1 versión guardada · <a href="[^"]*vista=historial[^"]*">Ver cambios</a></dd>#s', $html );
+		$this->assertStringNotContainsString( 'dcta-historial-btn', $html, 'Text and a link, not a button.' );
+
+		$this->save_version( $doc_id, 'Tercera versión.' );
+		$this->assertStringContainsString( '<dd>2 versiones guardadas · <a', $this->view( $this->area_id, $args ) );
 	}
 
 	/**

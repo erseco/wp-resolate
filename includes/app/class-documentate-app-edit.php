@@ -409,6 +409,7 @@ class Documentate_App_Edit {
 					<dd><?php echo esc_html( $type_name ); ?></dd>
 					<dt>Actualizado</dt>
 					<dd><?php echo esc_html( get_the_modified_date( Documentate_App_Shell::DATE_FORMAT, $post ) . ' · ' . get_the_modified_time( Documentate_App_Shell::TIME_FORMAT, $post ) ); ?></dd>
+					<?php echo Documentate_App_History::meta_row( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer. ?>
 				</dl>
 			</div>
 			<div class="dcta-card dcta-editor-acciones">
@@ -417,7 +418,6 @@ class Documentate_App_Edit {
 				<?php
 				echo Documentate_App_Shell::transition_buttons( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				echo Documentate_Admin_Helper::export_block( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
-				echo Documentate_App_History::button( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				echo Documentate_App_Shell::back_link(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				?>
 			</div>
