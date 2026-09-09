@@ -59,7 +59,11 @@ class Documentate_Document_Save_Context {
 	 *
 	 * "request" is what the save carries (core copies $_POST['content'] into
 	 * post_content, and kses preserves the HTML comments the fields live in),
-	 * so it is only trustworthy for fields the current user may write.
+	 * so it is only trustworthy for fields the current user may write. It
+	 * arrives slashed, as wp_insert_post() is documented to expect and as
+	 * wp_filter_post_kses() leaves it, so it is unslashed before parsing:
+	 * `slug=\"objeto\"` matches no attribute and would silently turn every
+	 * save into "the request carries nothing", keeping the stored values.
 	 * "stored" is what the database holds and is used for every other field.
 	 *
 	 * @param array<string,mixed> $postarr Raw post data.
@@ -71,7 +75,7 @@ class Documentate_Document_Save_Context {
 
 		$request = array();
 		if ( isset( $postarr['post_content'] ) && '' !== $postarr['post_content'] ) {
-			$request = Documents_Meta_Handler::parse_structured_content( (string) $postarr['post_content'] );
+			$request = Documents_Meta_Handler::parse_structured_content( wp_unslash( (string) $postarr['post_content'] ) );
 		}
 
 		return array(
@@ -90,7 +94,10 @@ class Documentate_Document_Save_Context {
 			return array();
 		}
 
-		$current_content = get_post_field( 'post_content', $post_id, 'edit' );
+		// Raw, never "edit": that context runs the content through
+		// format_to_edit(), which escapes it for a user whose profile turns
+		// the visual editor off, and the markers stop being markers.
+		$current_content = get_post_field( 'post_content', $post_id, 'raw' );
 		if ( is_string( $current_content ) && '' !== $current_content ) {
 			$stored = Documents_Meta_Handler::parse_structured_content( $current_content );
 			if ( ! empty( $stored ) ) {
