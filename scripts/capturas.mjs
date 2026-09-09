@@ -51,7 +51,7 @@ const RESOLUTION = 'Ayudas al transporte escolar';
 const PROVIDERS = 'Renovación licencias aulas virtuales';
 
 /** Demo document still in revisión by the time wp-admin is reached. */
-const IN_MANAGEMENT = 'Listado definitivo piloto innovación';
+const IN_MANAGEMENT = 'Dotación biblioteca escolar';
 
 /** Reason revisión gives when returning the cycle document. */
 const REASON = 'Falta el desglose por proveedores y la partida presupuestaria.';
@@ -394,37 +394,27 @@ const SCENES = [
 	},
 	{
 		chapter: 'Segundo documento: resolución administrativa',
-		title: 'La resolución entra en revisión',
-		text: 'El área envía la resolución y comprueba que su estado pasa a «En revisión».',
+		title: 'El área completa el número, el pie de recursos y los fondos europeos',
+		text: 'La resolución no pasa por revisión: el área rellena también los datos oficiales. Asigna el número del libro de resoluciones, elige el recurso que procede y marca la casilla de cofinanciación, que añade la banda de logotipos europeos al documento.',
 		as: 'area',
 		run: async ( p ) => {
 			await goToEdit( p, RESOLUTION );
-			return await transition( p, 'enviar_gestion', 'En revisión' );
-		},
-	},
-	{
-		chapter: 'Segundo documento: resolución administrativa',
-		title: 'Completar y guardar los datos oficiales de la resolución',
-		text: 'Revisión asigna el número de resolución y deja una anotación interna. Tras guardar se comprueba que el número permanece en el formulario.',
-		as: 'gestion',
-		run: async ( p ) => {
-			await goToEdit( p, RESOLUTION );
-			await fixtures.fillRequiredAppFields( p, 'Examinada la propuesta y comprobados los requisitos de la convocatoria.' );
 			await p.fill( '#documentate_field_numero_resolucion', '118/2026' );
-			await p.fill( '#documentate-app-anotaciones', 'Datos oficiales revisados para la convocatoria de transporte escolar.' );
+			await p.selectOption( '#documentate_field_pie_recursos', { index: 1 } );
+			await p.check( '#documentate_field_fondos_europeos' );
 			if ( ! ( await save( p ) ) ) return false;
 			await expect( p.locator( '#documentate_field_numero_resolucion' ) ).toHaveValue( '118/2026' );
-			await focusManagement( p );
+			await expect( p.locator( '#documentate_field_fondos_europeos' ) ).toBeChecked();
 		},
 	},
 	{
 		chapter: 'Segundo documento: resolución administrativa',
 		title: 'La resolución pasa a aprobación',
-		text: 'Revisión entrega la resolución a la jefatura de servicio. El estado «En aprobación» confirma el cambio.',
-		as: 'gestion',
+		text: 'El área entrega la resolución a la jefatura de servicio. El estado «En aprobación» confirma el cambio.',
+		as: 'area',
 		run: async ( p ) => {
 			await goToEdit( p, RESOLUTION );
-			return await transition( p, 'pasar_admin', 'En aprobación' );
+			return await transition( p, 'enviar_revision', 'En aprobación' );
 		},
 	},
 	{

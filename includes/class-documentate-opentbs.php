@@ -409,8 +409,9 @@ class Documentate_OpenTBS {
 	 */
 	public static function process_visibility_blocks( $content, $fields ) {
 		// Pattern to match [onshow;block=begin;bloc=FIELD_NAME]...[onshow;block=end]
-		// The bloc= value may be quoted or unquoted.
-		$pattern = '/\[onshow;block=begin;bloc=[\'"]?([^\];\'"]+)[\'"]?\](.*?)\[onshow;block=end\]/s';
+		// The bloc= value may be quoted or unquoted, and the marker may carry
+		// the declaration of the field it switches on after it.
+		$pattern = '/\[onshow;block=begin;bloc=[\'"]?([^\];\'"]+)[\'"]?[^\]]*\](.*?)\[onshow;block=end\]/s';
 
 		return preg_replace_callback(
 			$pattern,
@@ -418,14 +419,17 @@ class Documentate_OpenTBS {
 				$field_name = trim( $matches[1] );
 				$block_content = $matches[2];
 
-				// Check if the referenced field has data.
+				// Check if the referenced field has data. A cleared checkbox
+				// posts "0" rather than an empty string, so a block switched on
+				// by one would otherwise show whether it was ticked or not.
 				$has_data = false;
 				if ( isset( $fields[ $field_name ] ) ) {
 					$value = $fields[ $field_name ];
 					if ( is_array( $value ) ) {
 						$has_data = ! empty( $value );
 					} else {
-						$has_data = '' !== trim( (string) $value );
+						$value = trim( (string) $value );
+						$has_data = '' !== $value && '0' !== $value;
 					}
 				}
 

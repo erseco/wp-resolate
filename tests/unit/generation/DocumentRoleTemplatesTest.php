@@ -54,9 +54,11 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
-	 * The resolución merges its four new gestión fields and the rol'd bodies.
+	 * The resolución merges its official data, its bodies and the appeal
+	 * clause, all of them the área's, and drops the logo band the document is
+	 * not cofinanced with.
 	 */
-	public function test_resolucion_merges_the_management_fields() {
+	public function test_resolucion_merges_every_area_field() {
 		$term_id = $this->create_type_from_plugin_fixture( 'resolucion.odt' );
 		$post_id = $this->create_document_with_data(
 			$term_id,
@@ -66,6 +68,8 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 				'fecha_resolucion' => '2026-09-01',
 				'expediente' => 'EXP-2026-0042',
 				'organo_firmante' => 'Viceconsejería de Educación',
+				'pie_recursos' => 'Contra la presente Resolución cabe recurso de alzada.',
+				'fondos_europeos' => '0',
 				'antecedentes' => '<p>Primer antecedente.</p>',
 				'fundamentos' => '<p>Primer fundamento.</p>',
 				'resuelvo' => '<p>Resuelvo aprobar.</p>',
@@ -88,11 +92,39 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 		$this->assertDocumentContains( $doc_path, 'Resolución n.º 118/2026' );
 		$this->assertDocumentContains( $doc_path, 'EXP-2026-0042' );
 		$this->assertDocumentContains( $doc_path, 'Viceconsejería de Educación' );
+		$this->assertDocumentContains( $doc_path, 'cabe recurso de alzada' );
+		$this->assertDocumentNotContains( $doc_path, 'Pictures/fondos-europeos.png' );
 		$this->assertDocumentContains( $doc_path, 'Primer antecedente.' );
 		$this->assertDocumentContains( $doc_path, 'Resuelvo aprobar.' );
 		$this->assertDocumentNotContains( $doc_path, '[numero_resolucion' );
 		$this->assertDocumentNotContains( $doc_path, '[organo_firmante' );
 		$this->assertDocumentNotContains( $doc_path, "rol='gestion'" );
+		$this->assertNoPlaceholderArtifacts( $doc_path );
+	}
+
+	/**
+	 * Ticking the co-financing checkbox keeps the band of European logos in the
+	 * generated ODT, and the checkbox itself prints nothing: it is declared on
+	 * the visibility block rather than in the body of the document.
+	 */
+	public function test_resolucion_keeps_the_european_logos_when_cofinanced() {
+		$term_id = $this->create_type_from_plugin_fixture( 'resolucion.odt' );
+		$post_id = $this->create_document_with_data(
+			$term_id,
+			array(
+				'objeto' => 'Objeto de prueba',
+				'fondos_europeos' => '1',
+				'antecedentes' => '<p>Primer antecedente.</p>',
+				'fundamentos' => '<p>Primer fundamento.</p>',
+				'resuelvo' => '<p>Resuelvo aprobar.</p>',
+			)
+		);
+
+		$doc_path = $this->generate_document( $post_id, 'odt' );
+		$this->assertNotWPError( $doc_path );
+
+		$this->assertDocumentContains( $doc_path, 'Pictures/fondos-europeos.png' );
+		$this->assertDocumentNotContains( $doc_path, '[onshow' );
 		$this->assertNoPlaceholderArtifacts( $doc_path );
 	}
 

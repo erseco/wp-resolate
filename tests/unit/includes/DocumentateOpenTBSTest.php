@@ -838,6 +838,38 @@ class DocumentateOpenTBSTest extends PHPUnit\Framework\TestCase {
 	}
 
 	/**
+	 * A cleared checkbox posts "0", not an empty string: the block it switches
+	 * on has to go with it.
+	 */
+	public function test_process_visibility_blocks_removes_content_with_unticked_checkbox() {
+		$content = 'Before [onshow;block=begin;bloc=logos]Logotipos[onshow;block=end] After';
+
+		$this->assertStringNotContainsString(
+			'Logotipos',
+			$this->call_process_visibility_blocks( $content, array( 'logos' => '0' ) )
+		);
+		$this->assertStringContainsString(
+			'Logotipos',
+			$this->call_process_visibility_blocks( $content, array( 'logos' => '1' ) )
+		);
+	}
+
+	/**
+	 * The marker may carry the declaration of the field it is switched on by,
+	 * which the schema extractor reads and the merge ignores.
+	 */
+	public function test_process_visibility_blocks_reads_a_marker_that_declares_its_field() {
+		$content = "Before [onshow;block=begin;bloc=logos;type='boolean';title='Con logotipos']"
+			. 'Logotipos[onshow;block=end] After';
+
+		$result = $this->call_process_visibility_blocks( $content, array( 'logos' => '1' ) );
+
+		$this->assertStringContainsString( 'Logotipos', $result );
+		$this->assertStringNotContainsString( '[onshow;block=begin', $result );
+		$this->assertStringNotContainsString( 'boolean', $result );
+	}
+
+	/**
 	 * It should remove visibility block when referenced field does not exist.
 	 */
 	public function test_process_visibility_blocks_removes_content_with_missing_field() {

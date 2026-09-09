@@ -537,6 +537,7 @@ class SchemaExtractor {
 		if ( in_array( $token_name, self::VISIBILITY_DIRECTIVES, true ) ) {
 			// Track visibility block for proper end matching, but don't create repeater.
 			$state['visibility_stack'][] = $token_name;
+			$this->add_visibility_toggle( $token, $state );
 			return;
 		}
 
@@ -558,6 +559,48 @@ class SchemaExtractor {
 				);
 			}
 			++$i;
+		}
+	}
+
+	/**
+	 * Register the field a visibility block is switched on by.
+	 *
+	 * `[onshow;block=begin;bloc=fondos_europeos;type='boolean';title='…']`
+	 * declares the field that decides the block as well as opening it. The
+	 * declaration belongs here rather than in the body of the document: a
+	 * placeholder written into the text would print its own "1" wherever it
+	 * was put, and a toggle has nothing to print.
+	 *
+	 * A block whose marker declares no type keeps its old meaning — it follows
+	 * a field the template declares elsewhere, such as a repeater.
+	 *
+	 * @param array<string,mixed> $token Placeholder token.
+	 * @param array<string,mixed> $state Schema accumulator.
+	 * @return void
+	 */
+	private function add_visibility_toggle( $token, array &$state ) {
+		$parameters = isset( $token['parameters'] ) && is_array( $token['parameters'] ) ? $token['parameters'] : array();
+		if ( empty( $parameters['bloc'] ) || empty( $parameters['type'] ) || ! empty( $state['stack'] ) ) {
+			return;
+		}
+
+		$name = trim( (string) $parameters['bloc'] );
+
+		// The block markers are the extractor's own; a field carrying them
+		// reads as a block to everything downstream.
+		unset( $parameters['block'], $parameters['bloc'] );
+
+		$field = $this->build_field_entry(
+			array(
+				'name' => $name,
+				'parameters' => $parameters,
+				'raw' => isset( $token['raw'] ) ? (string) $token['raw'] : '',
+				'source' => isset( $token['source'] ) ? (string) $token['source'] : '',
+			)
+		);
+
+		if ( ! empty( $field ) ) {
+			$this->add_top_level_field( $field, $state );
 		}
 	}
 

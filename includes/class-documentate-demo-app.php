@@ -896,8 +896,8 @@ class Documentate_Demo_App {
 	}
 
 	/**
-	 * RES "Listado definitivo piloto innovación" — en_gestion, ODT attachment,
-	 * área fields filled and gestión fields still empty, with one comment.
+	 * RES "Listado definitivo piloto innovación" — pending, ODT attachment,
+	 * with one comment.
 	 *
 	 * @return array<string,mixed>
 	 */
@@ -916,7 +916,7 @@ class Documentate_Demo_App {
 			'steps' => array(
 				array(
 					'actor' => 'author1',
-					'key' => 'enviar_gestion',
+					'key' => 'enviar_revision',
 					'from' => 'draft',
 				),
 			),
@@ -997,13 +997,8 @@ class Documentate_Demo_App {
 			'steps' => array(
 				array(
 					'actor' => 'author1',
-					'key' => 'enviar_gestion',
+					'key' => 'enviar_revision',
 					'from' => 'draft',
-				),
-				array(
-					'actor' => 'editor1',
-					'key' => 'pasar_admin',
-					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
@@ -1015,8 +1010,8 @@ class Documentate_Demo_App {
 	}
 
 	/**
-	 * RES "Calendario de admisión 2027" — en_gestion, devuelto by admin,
-	 * missing the "expediente" gestión field the motivo names.
+	 * RES "Calendario de admisión 2027" — draft, devuelto by admin,
+	 * missing the "expediente" field the motivo names.
 	 *
 	 * @return array<string,mixed>
 	 */
@@ -1032,17 +1027,12 @@ class Documentate_Demo_App {
 			'steps' => array(
 				array(
 					'actor' => 'editor1',
-					'key' => 'enviar_gestion',
+					'key' => 'enviar_revision',
 					'from' => 'draft',
 				),
 				array(
-					'actor' => 'editor1',
-					'key' => 'pasar_admin',
-					'from' => 'en_gestion',
-				),
-				array(
 					'actor' => 'admin',
-					'key' => 'devolver_gestion',
+					'key' => 'devolver_area',
 					'from' => 'pending',
 					'reason' => 'Falta el número de expediente',
 				),
@@ -1089,13 +1079,8 @@ class Documentate_Demo_App {
 			'steps' => array(
 				array(
 					'actor' => 'editor1',
-					'key' => 'enviar_gestion',
+					'key' => 'enviar_revision',
 					'from' => 'draft',
-				),
-				array(
-					'actor' => 'editor1',
-					'key' => 'pasar_admin',
-					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',
@@ -1159,13 +1144,8 @@ class Documentate_Demo_App {
 			'steps' => array(
 				array(
 					'actor' => 'admin',
-					'key' => 'enviar_gestion',
+					'key' => 'enviar_revision',
 					'from' => 'draft',
-				),
-				array(
-					'actor' => 'admin',
-					'key' => 'pasar_admin',
-					'from' => 'en_gestion',
 				),
 				array(
 					'actor' => 'admin',

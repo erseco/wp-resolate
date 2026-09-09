@@ -29,7 +29,7 @@ const APP_PATH = '/documentate/';
 const NAME = `Piloto ${ RUN }`;
 const TITLE = `Resolución por la que se aprueba el piloto ${ RUN }`;
 const REASON = `Falta el número de expediente ${ RUN }`;
-const RESOLUTION_NUMBER = `118/${ RUN.slice( -4 ) }`;
+const OFFICIAL_AMOUNT = `Ciento dieciocho euros ${ RUN.slice( -4 ) }`;
 const FILE_NAME = `acta-${ RUN }.pdf`;
 
 /**
@@ -143,10 +143,10 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 				management: `Servicio ${ RUN }`,
 				area: { name: `Área ${ RUN }`, parent: 'management' },
 			},
-			// The seeded Resolución declares rol='gestion' fields in its
+			// The seeded Documento 0 declares rol='gestion' fields in its
 			// schema, so it goes through revisión by itself: the spec reads
 			// that property instead of writing the shared term.
-			types: { res: { slug: 'resolucion-administrativa' } },
+			types: { res: { slug: 'propuesta-gasto' } },
 			users: {
 				area: { login: AREA_LOGIN, role: 'author', scope: 'area' },
 				management: {
@@ -348,7 +348,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		const managementFields = management.locator( 'tr.documentate-campo-gestion' );
 		expect( await managementFields.count() ).toBeGreaterThan( 0 );
 		await expect(
-			management.locator( '#documentate_field_numero_resolucion' )
+			management.locator( '#documentate_field_gasto_letra' )
 		).toBeVisible();
 		await expect(
 			management.locator( '#documentate-app-anotaciones' )
@@ -400,8 +400,8 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			`${ APP_PATH }?doc=${ docId }&vista=editar`
 		);
 		await management
-			.locator( '#documentate_field_numero_resolucion' )
-			.fill( RESOLUTION_NUMBER );
+			.locator( '#documentate_field_gasto_letra' )
+			.fill( OFFICIAL_AMOUNT );
 		await management
 			.locator( '#documentate-app-anotaciones' )
 			.fill( `Anotación ${ RUN }` );
@@ -465,7 +465,7 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			area.locator( 'tr.documentate-campo-gestion' )
 		).toHaveCount( 0 );
 		await expect(
-			area.locator( '#documentate_field_numero_resolucion' )
+			area.locator( '#documentate_field_gasto_letra' )
 		).toHaveCount( 0 );
 
 		await area
@@ -504,6 +504,10 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await expect(
 			management.locator( '#documentate_field_objeto' )
 		).toHaveValue( `Área corregida ${ RUN }` );
+
+		// The official data is revisión's to complete, and the form will not
+		// let it go on to the jefatura de servicio half filled.
+		await fillRequiredAppFields( management, `Oficial ${ RUN }` );
 
 		await management
 			.getByRole( 'button', { name: 'Pasar a aprobación' } )
@@ -570,11 +574,11 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 			'Aprobado'
 		);
 
-		// The number gestión typed survived the correction round trip: the
+		// The amount gestión typed survived the correction round trip: the
 		// área cannot write the fields it never sees.
 		await expect(
 			page.locator( '.dcta-card', { hasText: 'Datos oficiales' } )
-		).toContainText( RESOLUTION_NUMBER );
+		).toContainText( OFFICIAL_AMOUNT );
 
 		const area = await areaPage( browser, baseURL );
 		// The área's list opens on what it has still to send, so an approved

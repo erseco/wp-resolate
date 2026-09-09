@@ -48,10 +48,10 @@ test.describe( 'Documentate app', () => {
 				scope: `App Scope ${ RUN }`,
 				other: `App Other ${ RUN }`,
 			},
-			// The seeded Resolución declares gestión fields in its schema, so
-			// it goes through revisión by itself. The shared term is
+			// The seeded Documento 0 declares gestión fields in its schema,
+			// so it goes through revisión by itself. The shared term is
 			// never written here: parallel workers read the same type.
-			types: { res: { slug: 'resolucion-administrativa' } },
+			types: { res: { slug: 'propuesta-gasto' } },
 			users: {
 				editor: {
 					login: EDITOR_LOGIN,
@@ -189,7 +189,9 @@ test.describe( 'Documentate app', () => {
 		// Values survive the round trip through the content writer: a plain
 		// field and a rich one (the textarea behind TinyMCE keeps the HTML).
 		const form = page.locator( 'form.dcta-editor' );
-		const scalar = form.locator( 'input[type="text"][name^="documentate_field_"], textarea[name^="documentate_field_"]:not(.wp-editor-area)' ).first();
+		// Not a field with a pattern: those are filled with the example the
+		// template gives, not with the value under test.
+		const scalar = form.locator( 'input[type="text"][name^="documentate_field_"]:not([pattern]), textarea[name^="documentate_field_"]:not(.wp-editor-area)' ).first();
 		if ( await scalar.count() ) {
 			await expect( scalar ).toHaveValue( value );
 		}

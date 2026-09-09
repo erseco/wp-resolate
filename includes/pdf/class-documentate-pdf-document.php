@@ -89,6 +89,13 @@ class Documentate_Pdf_Document extends FPDF {
 	const LETTERHEAD_LARGE = array( 22.4, 35.3, 63.4, 14.7 );
 
 	/**
+	 * Band of European co-financing logos, as the published resolutions carry
+	 * it: the full text width, at the very top of the first page, in the place
+	 * the institutional letterhead would otherwise take.
+	 */
+	const LETTERHEAD_EUROPE = array( 20.0, 20.0, 170.9, 20.4 );
+
+	/**
 	 * Crest frame «Imagen 6» of resolucion.odt, flush with the right margin.
 	 */
 	const CREST = array( 182.1, 20.0, 7.9, 15.0 );
@@ -97,6 +104,12 @@ class Documentate_Pdf_Document extends FPDF {
 	 * Folio frame «Marco2» of resolucion.odt: x, y, width, height.
 	 */
 	const FOLIO_BOX = array( 139.7, 25.8, 25.7, 9.8 );
+
+	/**
+	 * Where the folio goes when the European band is drawn: the band runs the
+	 * whole width of the page, so the box cannot sit beside it.
+	 */
+	const FOLIO_BOX_BELOW_BAND = array( 139.7, 42.6, 25.7, 9.8 );
 
 	/**
 	 * Padding between the folio frame and its label, border included.
@@ -506,6 +519,9 @@ class Documentate_Pdf_Document extends FPDF {
 			case 'large':
 				$this->place_image( 'membrete-grande.png', self::LETTERHEAD_LARGE );
 				break;
+			case 'europe':
+				$this->place_image( 'fondos-europeos.png', self::LETTERHEAD_EUROPE );
+				break;
 		}
 	}
 
@@ -608,7 +624,10 @@ class Documentate_Pdf_Document extends FPDF {
 	 * Draw the framed «Folio N/M» label in the top right of the header.
 	 */
 	private function draw_folio_box() {
-		list( $x, $y, $width, $height ) = self::FOLIO_BOX;
+		$box = 'europe' === $this->options['letterhead'] && 1 === $this->PageNo()
+			? self::FOLIO_BOX_BELOW_BAND
+			: self::FOLIO_BOX;
+		list( $x, $y, $width, $height ) = $box;
 
 		$this->SetFont( $this->options['font'], '', self::FOLIO_FONT_SIZE );
 		$this->SetXY( $x, $y );

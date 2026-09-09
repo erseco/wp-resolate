@@ -36,10 +36,11 @@ Borrador ──► [En revisión] ──► En aprobación ──► Aprobado �
 
 - **Borrador**: el área lo está redactando. Solo ella puede modificarlo
   (revisión y jefatura también pueden, si hace falta).
-- **En revisión** (solo en los tipos que pasan por revisión): revisión
-  completa los datos oficiales — los que no le corresponden al área (número
-  de expediente, número de resolución, órgano firmante…). El área ya no puede
-  tocarlo en este punto; la ficha indica «Lo tiene revisión».
+- **En revisión** (solo en los tipos que pasan por revisión, hoy el
+  documento 0): revisión completa los datos oficiales — los que no le
+  corresponden al área (partida presupuestaria, importes, proveedores…). El
+  área ya no puede tocarlo en este punto; la ficha indica «Lo tiene
+  revisión».
 - **En aprobación**: la jefatura de servicio decide. El documento está
   bloqueado para área y revisión («Lo tiene la jefatura de servicio»).
 - **Aprobado**: publicado. Ya no se puede editar; solo se consulta y se

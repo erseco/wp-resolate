@@ -37,12 +37,15 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
         $this->assertSame( 2, $resolution_schema['version'], 'Resolution schema must be version 2.' );
         $this->assertSchemaHasFields(
             $resolution_schema,
-            array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante' )
+            array( 'antecedentes', 'resuelvo', 'fundamentos', 'objeto', 'post_title', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante', 'pie_recursos', 'fondos_europeos' )
         );
-        // The official data is filled in later; the body of the resolution is
-        // what the área writes, so it is the área's.
-        $this->assertSchemaFieldMatches( $resolution_schema, 'numero_resolucion', array( 'type' => 'text', 'rol' => 'gestion' ) );
-        $this->assertSchemaFieldMatches( $resolution_schema, 'expediente', array( 'rol' => 'gestion' ) );
+        // A resolución is the área's from end to end, official data included.
+        $this->assertSchemaFieldMatches( $resolution_schema, 'numero_resolucion', array( 'type' => 'text', 'rol' => '' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'expediente', array( 'rol' => '' ) );
+        $this->assertSchemaFieldMatches( $resolution_schema, 'pie_recursos', array( 'type' => 'select', 'rol' => '' ) );
+        // Declared on the visibility block it switches on, so the checkbox
+        // itself prints nothing into the document.
+        $this->assertSchemaFieldMatches( $resolution_schema, 'fondos_europeos', array( 'type' => 'boolean', 'rol' => '' ) );
         $this->assertSchemaFieldMatches( $resolution_schema, 'antecedentes', array( 'type' => 'html', 'rol' => '' ) );
         $this->assertSchemaFieldMatches( $resolution_schema, 'fundamentos', array( 'type' => 'html', 'rol' => '' ) );
         $this->assertSchemaFieldMatches( $resolution_schema, 'resuelvo', array( 'type' => 'html', 'rol' => '' ) );
@@ -65,7 +68,9 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
             $term = get_term_by( 'slug', $slug, 'documentate_doc_type' );
             $this->assertInstanceOf( WP_Term::class, $term, $slug );
             $this->assertSame( $prefix, get_term_meta( $term->term_id, 'documentate_type_prefijo', true ), $slug );
-            $has_management = in_array( $slug, array( 'resolucion-administrativa', 'propuesta-gasto' ), true );
+            // Only the documento 0 goes through revisión: every field of a
+            // resolución belongs to the área that drafts it.
+            $has_management = 'propuesta-gasto' === $slug;
             $this->assertSame( $has_management ? '1' : '', get_term_meta( $term->term_id, 'documentate_type_con_gestion', true ), $slug );
             $this->assertSame( $has_management, Documentate_Document_Data::type_has_management( $term->term_id ), $slug );
         }

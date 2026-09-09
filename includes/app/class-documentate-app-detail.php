@@ -428,6 +428,11 @@ class Documentate_App_Detail {
 		$value = null !== $info && isset( $info['value'] ) ? (string) $info['value'] : '';
 		$value = trim( wp_strip_all_tags( $value ) );
 
+		// A checkbox is stored as "1" or "0", which says nothing on a card.
+		if ( isset( $field['data_type'] ) && 'boolean' === $field['data_type'] ) {
+			return '1' === $value ? 'Sí' : 'No';
+		}
+
 		if ( '' === $value ) {
 			return '—';
 		}

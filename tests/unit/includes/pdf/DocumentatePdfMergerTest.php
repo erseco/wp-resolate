@@ -323,6 +323,30 @@ class DocumentatePdfMergerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The appeal clause the área picks is merged into the resolución layout,
+	 * and the block it sits in goes when no clause applies.
+	 */
+	public function test_the_resolucion_layout_merges_the_appeal_clause() {
+		$layout = plugin_dir_path( DOCUMENTATE_PLUGIN_FILE ) . 'templates/pdf/resolucion.html';
+		$fields = array(
+			'post_title' => 'Resolución de prueba',
+			'objeto' => 'Objeto de la resolución',
+			'antecedentes' => '<p>Antecedente.</p>',
+			'fundamentos' => '<p>Fundamento.</p>',
+			'resuelvo' => '<p>Resuelvo aprobar.</p>',
+			'anexos' => array(),
+		);
+
+		$with = Documentate_Pdf_Merger::merge( $layout, array_merge( $fields, array( 'pie_recursos' => 'Cabe recurso de alzada.' ) ) );
+		$without = Documentate_Pdf_Merger::merge( $layout, array_merge( $fields, array( 'pie_recursos' => '' ) ) );
+
+		$this->assertIsString( $with );
+		$this->assertIsString( $without );
+		$this->assertStringContainsString( 'Cabe recurso de alzada.', $with );
+		$this->assertStringNotContainsString( 'pie_recursos', $without );
+	}
+
+	/**
 	 * The schema extractor reads parameters TBS knows nothing about. TBS must
 	 * store and ignore them rather than treat them as merge instructions.
 	 */

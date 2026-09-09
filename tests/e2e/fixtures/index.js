@@ -90,6 +90,17 @@ async function fillRequiredAppFields( page, value ) {
 
 	for ( const control of await form.locator( editable ).all() ) {
 		const type = await control.getAttribute( 'type' );
+		// What somebody already wrote is left alone: this fills the gaps the
+		// form would refuse to send, it does not rewrite the document.
+		if ( 'checkbox' !== type && ( await control.inputValue() ) ) {
+			continue;
+		}
+		// A field that declares a pattern also declares an example of it: the
+		// placeholder the template writes is what the área is told to copy, so
+		// it is the one value guaranteed to satisfy the pattern.
+		const example = ( await control.getAttribute( 'pattern' ) )
+			? await control.getAttribute( 'placeholder' )
+			: null;
 		if ( 'checkbox' === type ) {
 			await control.check();
 		} else if ( 'number' === type ) {
@@ -97,19 +108,24 @@ async function fillRequiredAppFields( page, value ) {
 		} else if ( 'date' === type ) {
 			await control.fill( '2026-09-01' );
 		} else {
-			await control.fill( value );
+			await control.fill( example || value );
 		}
 	}
 
 	for ( const select of await form.locator( 'select[required]' ).all() ) {
-		await select.selectOption( { index: 1 } );
+		if ( ! ( await select.inputValue() ) ) {
+			await select.selectOption( { index: 1 } );
+		}
 	}
 
 	for ( const wrap of await form
 		.locator( '.documentate-rich-editor-wrap[data-required="true"]' )
 		.all() ) {
 		await wrap.locator( '.switch-html' ).click();
-		await wrap.locator( 'textarea.wp-editor-area' ).fill( `<p>${ value }</p>` );
+		const area = wrap.locator( 'textarea.wp-editor-area' );
+		if ( ! ( await area.inputValue() ) ) {
+			await area.fill( `<p>${ value }</p>` );
+		}
 	}
 }
 

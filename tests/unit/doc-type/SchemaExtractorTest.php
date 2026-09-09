@@ -400,35 +400,34 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The resolución declares its official data as gestión fields, and its
-	 * body as the área's.
-	 *
-	 * Antecedentes, fundamentos and resuelvo are what the área is resolving;
-	 * revisión completes the numbering and the signing body around them.
+	 * Every field of the resolución belongs to the área that drafts it, the
+	 * official data included, so the type never stops at revisión.
 	 */
-	public function test_resolucion_official_fields_are_management() {
+	public function test_resolucion_fields_all_belong_to_the_area() {
 		$extractor = new SchemaExtractor();
 		$schema    = $extractor->extract( dirname( __FILE__, 4 ) . '/fixtures/resolucion.odt' );
 
 		$this->assertNotWPError( $schema );
 		$this->assertSame(
-			array( 'post_title', 'objeto', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante', 'antecedentes', 'fundamentos', 'resuelvo' ),
+			array( 'fondos_europeos', 'post_title', 'objeto', 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante', 'antecedentes', 'fundamentos', 'resuelvo', 'pie_recursos' ),
 			array_column( $schema['fields'], 'slug' ),
-			'The gestión line sits between the objeto and the antecedentes.'
+			'The logo switch opens the document and the appeal clause closes it.'
 		);
 
 		$fields = $this->index_fields( $schema['fields'] );
-		foreach ( array( 'numero_resolucion', 'fecha_resolucion', 'expediente', 'organo_firmante' ) as $slug ) {
-			$this->assertSame( 'gestion', $fields[ $slug ]['rol'], $slug );
-		}
-		foreach ( array( 'post_title', 'objeto', 'antecedentes', 'fundamentos', 'resuelvo' ) as $slug ) {
+		foreach ( array_keys( $fields ) as $slug ) {
 			$this->assertSame( '', $fields[ $slug ]['rol'], $slug );
 		}
+
+		$this->assertSame( 'boolean', $fields['fondos_europeos']['type'] );
+		$this->assertSame( 'Cofinanciado con fondos europeos', $fields['fondos_europeos']['title'] );
+		$this->assertSame( 'select', $fields['pie_recursos']['type'] );
+		$this->assertStringContainsString( 'recurso de alzada', $fields['pie_recursos']['parameters']['values'] );
 
 		$this->assertSame( 'text', $fields['numero_resolucion']['type'] );
 		$this->assertSame( 'Nº de resolución', $fields['numero_resolucion']['title'] );
 		$this->assertSame( '118/2026', $fields['numero_resolucion']['placeholder'] );
-		$this->assertSame( 'Se asigna del libro de resoluciones al pasar a administración.', $fields['numero_resolucion']['description'] );
+		$this->assertSame( 'Número que le corresponde en el libro de resoluciones. Ejemplo: 118/2026', $fields['numero_resolucion']['description'] );
 		$this->assertSame( 'date', $fields['fecha_resolucion']['type'] );
 		$this->assertSame( 'Fecha de la resolución', $fields['fecha_resolucion']['title'] );
 		$this->assertSame( 'text', $fields['expediente']['type'] );
@@ -445,6 +444,39 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		foreach ( $schema['repeaters'][0]['fields'] as $field ) {
 			$this->assertSame( '', $field['rol'], 'anexos.' . $field['name'] );
 		}
+	}
+
+	/**
+	 * A visibility block that declares a type also declares the field that
+	 * switches it on, so a toggle needs no placeholder of its own in the body
+	 * of the document — one written there would print its own "1".
+	 *
+	 * A block declaring no type keeps its old meaning: it follows a field the
+	 * template declares somewhere else, and adds nothing to the schema.
+	 */
+	public function test_a_visibility_block_declares_the_field_it_is_switched_on_by() {
+		$path = $this->build_odt(
+			"[onshow;block=begin;bloc=logos;type='boolean';title='Con logotipos';description='Los añade']"
+			. ' [texto] '
+			. '[onshow;block=end]'
+			. "[onshow;block=begin;bloc=servicios] [otro] [onshow;block=end]"
+		);
+		$schema = ( new SchemaExtractor() )->extract( $path );
+		unlink( $path );
+
+		$this->assertNotWPError( $schema );
+
+		$fields = $this->index_fields( $schema['fields'] );
+		$this->assertArrayHasKey( 'logos', $fields );
+		$this->assertSame( 'boolean', $fields['logos']['type'] );
+		$this->assertSame( 'Con logotipos', $fields['logos']['title'] );
+		$this->assertSame( 'Los añade', $fields['logos']['description'] );
+		$this->assertSame( '', $fields['logos']['rol'] );
+		$this->assertArrayNotHasKey( 'block', $fields['logos']['parameters'], 'A field carrying block markers reads as a block downstream.' );
+		$this->assertArrayNotHasKey( 'servicios', $fields, 'A block with no type of its own declares nothing.' );
+		$this->assertSame( array(), $schema['repeaters'], 'A visibility block is not a repeater.' );
+		$this->assertArrayHasKey( 'texto', $fields );
+		$this->assertArrayHasKey( 'otro', $fields );
 	}
 
 	/**

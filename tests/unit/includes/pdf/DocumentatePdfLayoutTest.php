@@ -78,6 +78,41 @@ class DocumentatePdfLayoutTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A meta inside a visibility block is furniture the document decides on:
+	 * the resolución swaps its letterhead for the band of European
+	 * co-financing logos when the checkbox that switches it on is ticked, and
+	 * reads as an ordinary resolución until then.
+	 */
+	public function test_a_conditional_meta_is_applied_from_the_merged_layout() {
+		$path   = DOCUMENTATE_PLUGIN_DIR . 'templates/pdf/resolucion.html';
+		$fields = array(
+			'post_title' => 'Resolución de prueba',
+			'objeto' => 'Objeto de la resolución',
+			'antecedentes' => '<p>Antecedente.</p>',
+			'fundamentos' => '<p>Fundamento.</p>',
+			'resuelvo' => '<p>Resuelvo aprobar.</p>',
+			'anexos' => array(),
+		);
+
+		$this->assertFileExists( DOCUMENTATE_PLUGIN_DIR . 'templates/pdf/img/fondos-europeos.png' );
+
+		// Read from disk, the conditional meta counts for nothing.
+		$plain = Documentate_Pdf_Layout::for_file( $path );
+		$this->assertSame( 'resolution', $plain->options()['letterhead'] );
+		$this->assertNull( $plain->options()['first_page_margins'] );
+
+		$off = Documentate_Pdf_Layout::for_file( $path );
+		$off->apply_merged( Documentate_Pdf_Merger::merge( $path, array_merge( $fields, array( 'fondos_europeos' => '0' ) ) ) );
+		$this->assertSame( 'resolution', $off->options()['letterhead'] );
+
+		$on = Documentate_Pdf_Layout::for_file( $path );
+		$on->apply_merged( Documentate_Pdf_Merger::merge( $path, array_merge( $fields, array( 'fondos_europeos' => '1' ) ) ) );
+		$this->assertSame( 'europe', $on->options()['letterhead'] );
+		$this->assertSame( array( 58.0, 20.0, 43.0, 20.0 ), $on->options()['first_page_margins'] );
+		$this->assertSame( 'Resolución', $on->title(), 'The title survives the second read.' );
+	}
+
+	/**
 	 * Every documentate-* meta is read, and a value outside its closed list is
 	 * dropped rather than passed on to the document.
 	 */

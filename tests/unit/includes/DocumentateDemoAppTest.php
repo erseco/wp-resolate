@@ -158,7 +158,7 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 		$this->assertSame( 'gestion', $returned_hc['desde'] );
 		$this->assertSame( (int) $editor1->ID, $returned_hc['por'] );
 
-		$this->assertSame( 'en_gestion', $map['Listado definitivo piloto innovación']->post_status );
+		$this->assertSame( 'pending', $map['Listado definitivo piloto innovación']->post_status );
 		$this->assertNull( Documentate_Document_Data::returned( $map['Listado definitivo piloto innovación'] ) );
 
 		$this->assertSame( 'en_gestion', $map['Dotación biblioteca escolar']->post_status );
@@ -170,11 +170,12 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 		$this->assertSame( 'publish', $map['Bases programa piloto innovación']->post_status );
 
 		// editor1 / Subdirección de Administración (inside its «Organización» scope).
-		$this->assertSame( 'en_gestion', $map['Calendario de admisión 2027']->post_status );
+		$this->assertSame( 'draft', $map['Calendario de admisión 2027']->post_status );
 		$returned_res = Documentate_Document_Data::returned( $map['Calendario de admisión 2027'] );
 		$this->assertNotNull( $returned_res );
 		$this->assertSame( 'Falta el número de expediente', $returned_res['motivo'] );
 		$this->assertSame( 'administracion', $returned_res['desde'] );
+		$this->assertSame( 'area', $returned_res['a'] );
 		$this->assertEmpty( get_post_meta( $map['Calendario de admisión 2027']->ID, 'documentate_field_expediente', true ) );
 
 		$this->assertSame( 'pending', $map['Comisión formación septiembre']->post_status );
@@ -223,18 +224,22 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 			'adjuntó el fichero «' . Documentate_App_Attachments::name( $odt->ID ) . '»',
 			$events_final_list
 		);
-		$this->assertContains( 'envió el documento a revisión', $events_final_list );
+		$this->assertContains( 'envió el documento a aprobación', $events_final_list );
 
 		$events_rules = $texts( $map['Bases programa piloto innovación'] );
-		$this->assertContains( 'envió el documento a revisión', $events_rules );
-		$this->assertContains( 'pasó el documento a aprobación', $events_rules );
+		$this->assertContains( 'envió el documento a aprobación', $events_rules );
 		$this->assertContains( 'aprobó el documento', $events_rules );
+
+		// The documento 0 is the type that stops at revisión.
+		$events_training = $texts( $map['Formación profesorado metodologías'] );
+		$this->assertContains( 'envió el documento a revisión', $events_training );
+		$this->assertContains( 'pasó el documento a aprobación', $events_training );
 
 		$events_hc = $texts( $map['Certificación tribunal materiales'] );
 		$this->assertContains( 'devolvió el documento al área: «Falta el anexo firmado por la dirección»', $events_hc );
 
 		$events_calendar = $texts( $map['Calendario de admisión 2027'] );
-		$this->assertContains( 'devolvió el documento a revisión: «Falta el número de expediente»', $events_calendar );
+		$this->assertContains( 'devolvió el documento al área: «Falta el número de expediente»', $events_calendar );
 
 		$events_licences = $texts( $map['Renovación licencias aulas virtuales'] );
 		$this->assertContains( 'devolvió el documento al área: «Revisar la partida presupuestaria»', $events_licences );
@@ -262,9 +267,9 @@ class DocumentateDemoAppTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The en_gestion resolución carries one área comment.
+	 * The resolución waiting for approval carries one área comment.
 	 */
-	public function test_one_comment_on_the_en_gestion_resolucion_document() {
+	public function test_one_comment_on_the_pending_resolucion_document() {
 		$map = $this->by_name( Documentate_Demo_App::seed() );
 
 		// See the comment on test_events_are_consistent_with_each_state():
