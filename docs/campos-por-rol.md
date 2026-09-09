@@ -103,8 +103,18 @@ bloque `servicios`).
 
 Funciona igual en la plantilla ODT y en la maqueta de
 `templates/pdf/<slug>.html`, y el atributo `rol` también se admite si la
-casilla la debe marcar revisión. Ejemplo real: `fixtures/resolucion.odt`
-añade con `fondos_europeos` la banda de logotipos de cofinanciación europea.
+casilla la debe marcar revisión.
+
+En la maqueta del PDF el bloque puede envolver también las etiquetas `<meta>`
+de la cabecera, y entonces decide el aspecto de la página —el membrete, los
+márgenes de la primera página— documento a documento. Ejemplo real:
+`fondos_europeos` cambia en `templates/pdf/resolucion.html` el membrete del
+Gobierno de Canarias por la banda de logotipos de cofinanciación europea, tal
+y como salen publicadas las resoluciones cofinanciadas.
+
+En el ODT la banda va al principio del cuerpo, debajo del membrete: la
+cabecera de página vive en `styles.xml`, que OpenTBS no fusiona, así que ahí
+no se puede sustituir.
 
 ## Al tocar una plantilla
 

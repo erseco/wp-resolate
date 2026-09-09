@@ -74,7 +74,7 @@ class Documentate_Pdf_Layout {
 	/**
 	 * Letterheads the document knows how to draw.
 	 */
-	const LETTERHEADS = array( 'none', 'standard', 'large', 'resolution' );
+	const LETTERHEADS = array( 'none', 'standard', 'large', 'resolution', 'europe' );
 
 	/**
 	 * Places the document knows how to print the addresses in.
@@ -437,10 +437,38 @@ class Documentate_Pdf_Layout {
 	}
 
 	/**
-	 * Read the title and the `documentate-*` metas out of the file.
+	 * Settle the furniture from the layout as the merge left it.
+	 *
+	 * A meta may sit inside a visibility block — the letterhead a document
+	 * only carries when a checkbox of its own is ticked — and what the block
+	 * decides is only known once the fields are merged. Reading the head again
+	 * from the merged copy is what turns such a meta into page furniture; a
+	 * layout with no conditional meta reads exactly as it did from disk.
+	 *
+	 * @param string $html Merged layout.
+	 * @return void
 	 */
-	private function read_head() {
-		$html = is_readable( $this->path ) ? (string) file_get_contents( $this->path ) : '';
+	public function apply_merged( $html ) {
+		$html = (string) $html;
+		if ( '' === $html ) {
+			return;
+		}
+
+		$this->meta = array();
+		$this->read_head( $html );
+	}
+
+	/**
+	 * Read the title and the `documentate-*` metas out of the file.
+	 *
+	 * Read from disk, the conditional metas are dropped rather than obeyed:
+	 * what a layout says on its own is what a document with nothing ticked
+	 * gets, and the blocks that survive a merge are applied by apply_merged().
+	 *
+	 * @param string|null $source Markup to read, or null for the layout file.
+	 */
+	private function read_head( $source = null ) {
+		$html = null === $source ? $this->file_without_visibility_blocks() : $source;
 		if ( '' === $html ) {
 			return;
 		}
@@ -462,6 +490,22 @@ class Documentate_Pdf_Layout {
 				$this->meta[ substr( $name, strlen( self::META_PREFIX ) ) ] = trim( $meta->getAttribute( 'content' ) );
 			}
 		}
+	}
+
+	/**
+	 * The layout file with every visibility block taken out of it.
+	 *
+	 * @return string
+	 */
+	private function file_without_visibility_blocks() {
+		$html = is_readable( $this->path ) ? (string) file_get_contents( $this->path ) : '';
+		if ( '' === $html || ! class_exists( 'Documentate_OpenTBS' ) ) {
+			return $html;
+		}
+
+		$stripped = Documentate_OpenTBS::process_visibility_blocks( $html, array() );
+
+		return null === $stripped ? $html : (string) $stripped;
 	}
 
 	/**

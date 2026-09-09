@@ -81,6 +81,11 @@ class Documentate_Pdf_Generator {
 			return $html;
 		}
 
+		// The furniture is settled from the merged copy: a layout may put a
+		// meta inside a visibility block, and only the merge knows whether the
+		// block stayed.
+		$layout->apply_merged( $html );
+
 		return self::write( $post_id, $layout, $html );
 	}
 
