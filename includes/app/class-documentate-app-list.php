@@ -53,7 +53,7 @@ class Documentate_App_List {
 		$area = Documentate_App_Tray::current_area();
 		$titles = self::titles();
 
-		$html = Documentate_App_Shell::open( 'lista', $titles[0], $titles[1], array(), self::render_area_select( $status, $area ) );
+		$html = Documentate_App_Shell::open( 'lista', $titles[0], $titles[1], array(), self::render_tools( $status, $area ) );
 
 		if ( Documentate_App_Tray::without_scope() ) {
 			return $html
@@ -111,23 +111,22 @@ class Documentate_App_List {
 	 *
 	 * The number is the point of the chip: it is what tells this person that
 	 * two documents wait for their approval, and it is why the list opens on
-	 * the chip of their own rol. A chip is drawn only when it would find
-	 * something; "Todos" always is.
+	 * the chip of their own rol. A status chip is drawn only when it would
+	 * find something.
 	 *
-	 * "Mis documentos" is the one chip that does not narrow by status: it
-	 * holds what this person wrote, in whatever state it ended up. An área
-	 * gets no such chip — its whole list is already its own documents.
+	 * "Todos" and "Mis documentos" are not statuses but scopes — the whole
+	 * ámbito, and what this person wrote in it — so both open the row and both
+	 * are drawn whether or not they hold anything: a chip that comes and goes
+	 * with the count would never tell this person that the list can be
+	 * narrowed to their own work at all. An área gets no "Mis documentos" —
+	 * its whole list is its own documents already.
 	 *
 	 * @param string $status Active status filter.
 	 * @param int    $area   Área filter.
 	 * @return string
 	 */
 	private static function render_filters( $status, $area ) {
-		$chips = array();
-		if ( Documentate_Roles::is_management() ) {
-			$chips['mios'] = 'Mis documentos';
-		}
-		$chips['devuelto'] = 'Devuelto';
+		$chips = array( 'devuelto' => 'Devuelto' );
 		foreach ( Documentate_Statuses::labels() as $status_key => $label ) {
 			$chips[ $status_key ] = 'draft' === $status_key ? 'Por enviar' : $label;
 		}
@@ -141,6 +140,16 @@ class Documentate_App_List {
 			Documentate_App_Tray::count_documents( Documentate_App_Tray::query_args( '', $area ) )
 		);
 
+		if ( Documentate_Roles::is_management() ) {
+			$html .= self::filter_chip(
+				'mios',
+				'Mis documentos',
+				'mios' === $status,
+				$area,
+				Documentate_App_Tray::count_documents( Documentate_App_Tray::query_args( 'mios', $area ) )
+			);
+		}
+
 		foreach ( $chips as $key => $label ) {
 			$total = Documentate_App_Tray::count_documents( Documentate_App_Tray::query_args( $key, $area ) );
 			if ( 0 === $total ) {
@@ -149,13 +158,28 @@ class Documentate_App_List {
 			$html .= self::filter_chip( $key, $label, $key === $status, $area, $total );
 		}
 
-		$html .= self::render_search();
-
 		return $html . '</div>';
 	}
 
 	/**
-	 * The quick filter box, to the right of the chips.
+	 * The controls at the top right of the heading: área, then quick filter.
+	 *
+	 * Neither narrows by status, so neither belongs in the chip row: one
+	 * picks an ámbito and the other sifts what is already on screen.
+	 *
+	 * @param string $status Active status filter.
+	 * @param int    $area   Active área filter.
+	 * @return string
+	 */
+	private static function render_tools( $status, $area ) {
+		return '<div class="dcta-cabecera-acciones">'
+			. self::render_area_select( $status, $area )
+			. self::render_search()
+			. '</div>';
+	}
+
+	/**
+	 * The quick filter box, at the top right of the heading.
 	 *
 	 * It narrows the rows already on screen as you type (documentate-app.js);
 	 * without JavaScript it stays hidden, because there is nothing behind it.
@@ -203,8 +227,8 @@ class Documentate_App_List {
 	/**
 	 * The área select whoever looks after several áreas narrows the list with.
 	 *
-	 * It rides at the top right of the heading, beside "Todos los documentos":
-	 * an ámbito is not one more status chip. Choosing an área is the whole
+	 * It rides at the top right of the heading, beside the quick filter: an
+	 * ámbito is not one more status chip. Choosing an área is the whole
 	 * interaction: the script submits the form on change, and hides the button
 	 * that is only there for a reader without JavaScript. Revisión and
 	 * jefatura de servicio get the categories of their ámbito, administración

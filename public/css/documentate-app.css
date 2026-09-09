@@ -414,6 +414,16 @@ body.documentate-app .wp-block-post-content {
 	min-width: 0;
 }
 
+/* The área select and the quick filter, side by side in the corner. */
+
+.dcta-cabecera-acciones {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 22px;
+}
+
 .dcta-h1 {
 	font-size: 27px;
 	font-weight: 700;
@@ -622,12 +632,11 @@ body.documentate-app .wp-block-post-content {
 	margin: 0 0 16px;
 }
 
-/* The quick filter sits at the end of the chip row and pushes to the right
-   while there is room; on a phone it drops to its own line, full width. */
+/* The quick filter sits in the corner of the heading, after the área select;
+   on a phone both drop to their own line, full width. */
 .dcta-busqueda {
 	display: inline-flex;
 	align-items: center;
-	margin-inline-start: auto;
 }
 
 .dcta-busqueda-campo {
@@ -1426,7 +1435,7 @@ body.documentate-app .wp-block-post-content {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	margin: 0 0 22px;
+	margin: 0;
 	font-size: 13.5px;
 	color: var(--dcta-texto-2);
 }
@@ -2124,9 +2133,11 @@ body.documentate-app .documentate-loading-modal__content {
 /* --- small screens --------------------------------------------------------- */
 
 @media (max-width: 782px) {
+	.dcta-cabecera-acciones,
+	.dcta-areas,
+	.dcta-areas select,
 	.dcta-busqueda {
 		width: 100%;
-		margin-inline-start: 0;
 	}
 
 	.dcta-busqueda-campo {

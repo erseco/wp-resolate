@@ -527,9 +527,12 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertLessThan( strpos( $html, 'estado=mios' ), strpos( $html, 'estado=todos' ) );
 		$this->assertLessThan( strpos( $html, 'estado=devuelto' ), strpos( $html, 'estado=mios' ) );
 
-		// A chip is only drawn when it would find something: revisión has
-		// written none of these.
-		$this->assertStringNotContainsString( 'estado=mios', $this->render( $this->management_id ) );
+		// Unlike the status chips, it is drawn even at zero: revisión has
+		// written none of these, and still has to be able to find the filter.
+		$this->assertMatchesRegularExpression(
+			'/>Mis documentos<span class="dcta-fchip-n">0<\/span>/',
+			$this->render( $this->management_id )
+		);
 
 		// The área is offered no such chip, and asking for it by hand lands
 		// on the chip its rol opens on.
