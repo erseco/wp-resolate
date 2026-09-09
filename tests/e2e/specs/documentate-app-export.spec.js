@@ -197,8 +197,15 @@ test.describe( 'Documentate app · export', () => {
 	} ) => {
 		await page.goto( `${ APP_PATH }?doc=${ docId }&vista=editar` );
 
-		const notice = page.locator( '#exportar .documentate-unsaved-indicator' );
+		// The indicator sits under the save button of the rail, not in the
+		// export block, and there is exactly one on the page.
+		const notice = page.locator( '.documentate-unsaved-indicator' );
 		await expect( notice ).toHaveCount( 1 );
+		await expect(
+			page.locator(
+				'.dcta-editor-acciones [value="guardar"] + .documentate-unsaved-indicator'
+			)
+		).toHaveCount( 1 );
 		await expect( notice ).toBeHidden();
 
 		// The guard only subscribes when the indicator is on the page, so this
