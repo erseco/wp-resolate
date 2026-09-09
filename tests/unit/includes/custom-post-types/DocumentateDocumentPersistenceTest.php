@@ -4,6 +4,7 @@
  */
 
 use Documentate\DocType\SchemaStorage;
+use Documentate\Documents\Documents_Meta_Handler;
 
 class DocumentateDocumentPersistenceTest extends WP_UnitTestCase {
 
@@ -145,6 +146,40 @@ class DocumentateDocumentPersistenceTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<h3>Bloque actualizado</h3>', $structured['cuerpo']['value'], 'HTML must reflect the updated content.' );
 		$this->assertStringNotContainsString( 'Bloque original', $structured['cuerpo']['value'], 'Previous content must not persist after update.' );
 		$this->assertSame( get_post_meta( $post_id, 'documentate_field_cuerpo', true ), $structured['cuerpo']['value'] );
+	}
+
+	/**
+	 * An área user must be able to change values through post_content alone.
+	 *
+	 * wp_insert_post() takes slashed data, and wp_filter_post_kses() hands it
+	 * back slashed for a user without unfiltered_html even when the caller
+	 * passed it unslashed. Reading it without unslashing left the composer
+	 * with no request at all, so every field kept the value already stored.
+	 */
+	public function test_area_user_updates_fields_through_post_content() {
+		$term_id = $this->create_scalar_document_type();
+		$post_id = $this->create_document_for_term( $term_id, 'Documento del área' );
+
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => wp_slash( Documents_Meta_Handler::build_structured_field_fragment( 'nombre', 'single', 'Nombre inicial' ) ),
+			)
+		);
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+		$this->assertFalse( current_user_can( 'unfiltered_html' ), 'An área user goes through kses.' );
+
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => wp_slash( Documents_Meta_Handler::build_structured_field_fragment( 'nombre', 'single', 'Nombre del área' ) ),
+			)
+		);
+
+		$structured = Documentate_Documents::parse_structured_content( get_post_field( 'post_content', $post_id, 'raw' ) );
+
+		$this->assertSame( 'Nombre del área', $structured['nombre']['value'] );
 	}
 
 	/**
