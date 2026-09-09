@@ -83,10 +83,24 @@ class Documentate_Transitions {
 	 * de servicio or administración; "admin" = site administrators only. The
 	 * "has_management" column: true/false = only for types that do / do not
 	 * go through revisión; null = any type.
+	 * - help: one line under the button, for the moves that hand the
+	 *   document to somebody else; empty when there is nothing to explain.
+	 * - icon: the icon of the button: "forward" (drawn after the label,
+	 *   the document moves on), "return" or "check" (drawn before it), or
+	 *   empty.
 	 *
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function rules() {
+		return array_merge( self::rules_of_area_and_management(), self::rules_of_jefatura_and_admin() );
+	}
+
+	/**
+	 * The moves of the área and of revisión: sending, passing on, returning.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function rules_of_area_and_management() {
 		return array(
 			array(
 				'key' => 'enviar_gestion',
@@ -97,6 +111,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Enviar a revisión',
 				'confirm' => '¿Enviar el documento a revisión? Ya no podrás modificarlo hasta que te lo devuelvan.',
+				'help' => 'Revisión completará los datos oficiales. No podrás editarlo hasta que te lo devuelvan.',
+				'icon' => 'forward',
 				'event' => 'envió el documento a revisión',
 				'redirect' => 'detalle',
 				'flag' => 'enviado',
@@ -110,6 +126,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Enviar a aprobación',
 				'confirm' => '¿Enviar el documento a la jefatura de servicio para su aprobación? Ya no podrás modificarlo hasta que te lo devuelvan.',
+				'help' => 'La jefatura de servicio lo aprobará. No podrás editarlo hasta que te lo devuelvan.',
+				'icon' => 'forward',
 				'event' => 'envió el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => 'enviado',
@@ -123,6 +141,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Pasar a aprobación',
 				'confirm' => '¿Pasar el documento a la jefatura de servicio para su aprobación? Revisión ya no podrá modificarlo hasta que lo devuelvan.',
+				'help' => 'La jefatura de servicio lo aprobará. Revisión no podrá modificarlo hasta que lo devuelvan.',
+				'icon' => 'forward',
 				'event' => 'pasó el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => 'enviado',
@@ -136,10 +156,23 @@ class Documentate_Transitions {
 				'reason' => true,
 				'label' => 'Devolver al área',
 				'confirm' => '',
+				'help' => '',
+				'icon' => 'return',
 				'event' => 'devolvió el documento al área',
 				'redirect' => 'lista',
 				'flag' => 'devuelto',
 			),
+		);
+	}
+
+	/**
+	 * The moves of the jefatura de servicio and of the administrators:
+	 * approving, returning, archiving.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function rules_of_jefatura_and_admin() {
+		return array(
 			array(
 				'key' => 'aprobar',
 				'from' => 'pending',
@@ -149,6 +182,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Aprobar',
 				'confirm' => '¿Aprobar el documento? Quedará bloqueado; solo se podrá consultar y descargar.',
+				'help' => 'Quedará bloqueado: solo se podrá consultar y descargar.',
+				'icon' => 'check',
 				'event' => 'aprobó el documento',
 				'redirect' => 'detalle',
 				'flag' => 'aprobado',
@@ -162,6 +197,8 @@ class Documentate_Transitions {
 				'reason' => true,
 				'label' => 'Devolver a revisión',
 				'confirm' => '',
+				'help' => '',
+				'icon' => 'return',
 				'event' => 'devolvió el documento a revisión',
 				'redirect' => 'lista',
 				'flag' => 'devuelto',
@@ -175,6 +212,8 @@ class Documentate_Transitions {
 				'reason' => true,
 				'label' => 'Devolver al área',
 				'confirm' => '',
+				'help' => '',
+				'icon' => 'return',
 				'event' => 'devolvió el documento al área',
 				'redirect' => 'lista',
 				'flag' => 'devuelto',
@@ -188,6 +227,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Devolver a aprobación',
 				'confirm' => '¿Devolver el documento a aprobación? Dejará de estar aprobado y volverá a la lista de la jefatura de servicio.',
+				'help' => '',
+				'icon' => 'return',
 				'event' => 'devolvió el documento a aprobación',
 				'redirect' => 'detalle',
 				'flag' => '',
@@ -201,6 +242,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Archivar',
 				'confirm' => '',
+				'help' => '',
+				'icon' => '',
 				'event' => 'archivó el documento',
 				'redirect' => 'detalle',
 				'flag' => '',
@@ -214,6 +257,8 @@ class Documentate_Transitions {
 				'reason' => false,
 				'label' => 'Desarchivar',
 				'confirm' => '',
+				'help' => '',
+				'icon' => '',
 				'event' => 'desarchivó el documento',
 				'redirect' => 'detalle',
 				'flag' => '',

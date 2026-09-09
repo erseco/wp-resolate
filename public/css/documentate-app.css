@@ -21,6 +21,8 @@
 	--dcta-esp-cont: #f9efe0;
 	--dcta-mal: #a8342c;
 	--dcta-mal-cont: #fae9e7;
+	--dcta-jef: #563d8a;
+	--dcta-jef-cont: #ebe7f5;
 	--dcta-e1: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .07);
 	--dcta-e2: 0 2px 4px rgba(16, 24, 40, .05), 0 4px 12px rgba(16, 24, 40, .09);
 	--dcta-r: 12px;
@@ -438,6 +440,12 @@ body.documentate-app .wp-block-post-content {
 	text-decoration: none;
 }
 
+.dcta-btn .dcta-icono {
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+}
+
 .dcta-btn-pri {
 	background: var(--dcta-pri);
 	color: #fff;
@@ -549,7 +557,12 @@ body.documentate-app .wp-block-post-content {
 	color: var(--dcta-esp);
 }
 
-/* --- state chips ---------------------------------------------------------- */
+/* --- state chips ----------------------------------------------------------
+ *
+ * The colour says who has the document: grey the área, blue revisión, violet
+ * jefatura de servicio, green closed. Amber is kept for "Devuelto", which is
+ * a warning, so "Archivado" is drawn as an outline instead.
+ */
 
 .dcta-estado {
 	display: inline-block;
@@ -566,8 +579,8 @@ body.documentate-app .wp-block-post-content {
 }
 
 .dcta-estado-pendiente {
-	background: var(--dcta-pri-cont);
-	color: var(--dcta-pri);
+	background: var(--dcta-jef-cont);
+	color: var(--dcta-jef);
 }
 
 .dcta-estado-aprobado {
@@ -576,8 +589,9 @@ body.documentate-app .wp-block-post-content {
 }
 
 .dcta-estado-archivado {
-	background: var(--dcta-esp-cont);
-	color: var(--dcta-esp);
+	background: var(--dcta-sup);
+	color: var(--dcta-texto-2);
+	box-shadow: inset 0 0 0 1px var(--dcta-linea);
 }
 
 /* --- filter chips --------------------------------------------------------- */
@@ -913,8 +927,19 @@ body.documentate-app .wp-block-post-content {
 	box-sizing: border-box;
 }
 
-.dcta-lado .dcta-btn + .dcta-btn {
+.dcta-lado .dcta-btn ~ .dcta-btn {
 	margin-top: 10px;
+}
+
+/* One line under the button that hands the document over: what happens next. */
+
+.dcta-ayuda-transicion {
+	text-align: center;
+	line-height: 1.45;
+}
+
+.dcta-acciones .dcta-ayuda-transicion {
+	margin-top: 0;
 }
 
 /* The transitions live in their own form, so they are not siblings of "Editar". */
@@ -1835,6 +1860,65 @@ body.documentate-app .documentate-unsaved-modal .button-link {
 .dcta-exportar .documentate-unsaved-indicator {
 	border-radius: 8px;
 	font-size: 12.5px;
+}
+
+/*
+ * The editor draws the indicator under its own save button: a quiet centred
+ * line in the warning tone, not the boxed notice of the wp-admin meta box.
+ */
+
+.dcta-editor-acciones .documentate-unsaved-indicator {
+	justify-content: center;
+	margin: 8px 0 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	font-size: 12.5px;
+	color: var(--dcta-esp);
+}
+
+.dcta-editor-acciones .documentate-unsaved-indicator__dot {
+	background: var(--dcta-esp);
+}
+
+/*
+ * In the editor the transition button is the one filled button: the PDF
+ * buttons are outlined, all of the same weight, and the editable download
+ * is a plain link after its label.
+ */
+
+.dcta-editor-acciones .dcta-exportar .button-primary {
+	border-color: var(--dcta-linea);
+	background: var(--dcta-sup);
+	color: var(--dcta-pri);
+}
+
+.dcta-editor-acciones .dcta-exportar .button-primary:hover {
+	border-color: var(--dcta-pri);
+}
+
+.dcta-editor-acciones .dcta-exportar .button-primary .dashicons {
+	color: inherit;
+}
+
+.dcta-editor-acciones .documentate-actions-secondary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: baseline;
+}
+
+.dcta-editor-acciones .documentate-actions-secondary__buttons {
+	margin-top: 0;
+}
+
+.dcta-editor-acciones .dcta-exportar .button-small {
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	font-size: 12.5px;
+	text-decoration: underline;
 }
 
 body.documentate-app .documentate-loading-modal__content {

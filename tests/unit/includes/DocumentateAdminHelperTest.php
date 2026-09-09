@@ -2257,6 +2257,21 @@ class DocumentateAdminHelperTest extends Documentate_Test_Base {
 	}
 
 	/**
+	 * The editor of the application draws the indicator under its own save
+	 * button, so the export block can be asked to leave it out.
+	 */
+	public function test_render_actions_for_post_can_leave_the_unsaved_indicator_out() {
+		$post = $this->factory->post->create_and_get( array( 'post_type' => 'documentate_document' ) );
+
+		ob_start();
+		$this->helper->render_actions_for_post( $post, true, false );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'id="exportar"', $output );
+		$this->assertStringNotContainsString( 'documentate-unsaved-indicator', $output );
+	}
+
+	/**
 	 * The export block is not drawn for whoever cannot edit the document.
 	 */
 	public function test_render_actions_for_post_refuses_a_stranger() {
