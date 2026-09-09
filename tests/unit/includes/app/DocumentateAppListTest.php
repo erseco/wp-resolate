@@ -190,16 +190,17 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	 * @param string $name Internal name.
 	 * @param int    $cat_id Category term ID.
 	 * @param string $status Post status.
+	 * @param int    $author Author, the área by default.
 	 * @return int
 	 */
-	private function create_document( $title, $name, $cat_id, $status ) {
+	private function create_document( $title, $name, $cat_id, $status, $author = 0 ) {
 		wp_set_current_user( $this->admin_id );
 		$post_id = wp_insert_post(
 			array(
 				'post_type' => 'documentate_document',
 				'post_title' => $title,
 				'post_status' => $status,
-				'post_author' => $this->area_id,
+				'post_author' => $author > 0 ? $author : $this->area_id,
 				'tax_input' => array( 'documentate_doc_type' => array( $this->type_id ) ),
 			)
 		);
@@ -296,7 +297,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$sections = Documentate_App_Shell::sections();
 		// What waits for a rol is a chip of the list, not a tab of its own.
 		$this->assertSame( array( 'lista', 'nuevo' ), array_keys( $sections ) );
-		$this->assertSame( 'Documentos', $sections['lista']['tab'] );
+		$this->assertSame( 'Todos los documentos', $sections['lista']['tab'] );
 
 		wp_set_current_user( $this->head_id );
 		$this->assertSame( array( 'lista', 'nuevo' ), array_keys( Documentate_App_Shell::sections() ) );
@@ -389,7 +390,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Listado piloto', $html, 'What is still in revisión is not theirs yet.' );
 
 		$html = $this->render( $this->head_id, array( 'estado' => 'todos' ) );
-		$this->assertStringContainsString( '<h1 class="dcta-h1">Documentos</h1>', $html );
+		$this->assertStringContainsString( '<h1 class="dcta-h1">Todos los documentos</h1>', $html );
 		$this->assertSame( 'Ver', $this->row_action( $html, 'RES · Listado piloto' ), 'Revisión has not finished with it.' );
 	}
 
@@ -488,14 +489,58 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 			$this->assertStringContainsString( 'RES · Bases piloto', $html, 'Área B is in their ámbito.' );
 			$this->assertStringNotContainsString( 'RES · Jornadas digitales', $html, 'Área A is filtered out.' );
 			$this->assertStringContainsString( 'id="dcta-area"', $html );
-			// The select rides in the chip row and is the whole interaction:
-			// the script submits on change and hides the button behind it.
+			// The select rides at the top right of the heading, out of the
+			// chip row, and is the whole interaction: the script submits on
+			// change and hides the button behind it.
 			$this->assertStringContainsString( 'data-dcta-areas="1"', $html );
+			$this->assertMatchesRegularExpression(
+				'/<div class="dcta-cabecera">.*?<form class="dcta-areas".*?<\/div>\s*<div class="dcta-filtros">/s',
+				$html,
+				'The select closes the heading, before the chip row.'
+			);
 			$this->assertStringContainsString( 'class="screen-reader-text" for="dcta-area"', $html, 'No visible label: the options say what it filters.' );
 		}
 
 		// The área has a single category: there is nothing to narrow.
 		$this->assertStringNotContainsString( 'id="dcta-area"', $this->render( $this->area_id ) );
+	}
+
+	/**
+	 * "Mis documentos" holds what this person wrote, whatever became of it.
+	 *
+	 * It is the one chip that does not narrow by status, and the one an área
+	 * never gets: its whole list is its own documents already, and the
+	 * heading says so.
+	 */
+	public function test_the_reviewing_roles_filter_their_own_documents() {
+		$mine = $this->create_document( 'Instrucciones de la jefatura', 'Instrucciones jefatura', $this->cat_b, 'pending', $this->head_id );
+
+		$html = $this->render( $this->head_id, array( 'estado' => 'mios' ) );
+		$this->assertMatchesRegularExpression( '/class="dcta-fchip dcta-fchip-on"[^>]*>Mis documentos<span class="dcta-fchip-n">1<\/span>/', $html );
+		$this->assertStringContainsString( 'RES · Instrucciones jefatura', $html );
+		$this->assertStringNotContainsString( 'RES · Jornadas digitales', $html, 'Written by the área, not by them.' );
+
+		// It reaches across statuses, and rides right after "Todos".
+		$args = Documentate_App_List::query_args( 'mios', 0 );
+		$this->assertSame( $this->head_id, $args['author'] );
+		$this->assertContains( 'draft', $args['post_status'] );
+		$this->assertLessThan( strpos( $html, 'estado=mios' ), strpos( $html, 'estado=todos' ) );
+		$this->assertLessThan( strpos( $html, 'estado=devuelto' ), strpos( $html, 'estado=mios' ) );
+
+		// Unlike the status chips, it is drawn even at zero: revisión has
+		// written none of these, and still has to be able to find the filter.
+		$this->assertMatchesRegularExpression(
+			'/>Mis documentos<span class="dcta-fchip-n">0<\/span>/',
+			$this->render( $this->management_id )
+		);
+
+		// The área is offered no such chip, and asking for it by hand lands
+		// on the chip its rol opens on.
+		$area_list = $this->render( $this->area_id, array( 'estado' => 'mios' ) );
+		$this->assertStringNotContainsString( 'estado=mios', $area_list );
+		$this->assertSame( 'draft', Documentate_App_Tray::current_status() );
+
+		wp_delete_post( $mine, true );
 	}
 
 	/**
@@ -678,7 +723,7 @@ class DocumentateAppListTest extends WP_UnitTestCase {
 	 */
 	public function test_the_back_link_names_the_list() {
 		wp_set_current_user( $this->management_id );
-		$this->assertStringContainsString( '← Documentos', Documentate_App_Shell::back_link() );
+		$this->assertStringContainsString( '← Todos los documentos', Documentate_App_Shell::back_link() );
 
 		wp_set_current_user( $this->area_id );
 		$this->assertStringContainsString( '← Mis documentos', Documentate_App_Shell::back_link() );

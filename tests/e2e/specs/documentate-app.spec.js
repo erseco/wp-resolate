@@ -232,7 +232,9 @@ test.describe( 'Documentate app', () => {
 			// status is asked for at once.
 			await page.goto( `${ APP_PATH }?user_switched=true&estado=todos` );
 			await expect( page.locator( '#wpadminbar' ) ).toHaveCount( 0 );
-			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Documentos' );
+			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
+				'Todos los documentos'
+			);
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.inScope } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.pending } ) ).toBeVisible();
 			await expect( page.locator( '.dcta-doc-nombre', { hasText: TITLES.outOfScope } ) ).toHaveCount( 0 );

@@ -28,6 +28,7 @@ const NAMES = {
 	otherDraft: `Otro borrador ${ RUN }`,
 	otherInManagement: `Otro en gestión ${ RUN }`,
 	otherPending: `Otro pendiente ${ RUN }`,
+	headOwn: `De la jefatura ${ RUN }`,
 	foreign: `Ajeno ${ RUN }`,
 };
 
@@ -122,6 +123,13 @@ test.describe( 'Documentate app · roles', () => {
 					type: 'res',
 					status: 'pending',
 					name: NAMES.otherPending,
+				},
+				headOwn: {
+					title: `Instrucciones de la jefatura ${ RUN }`,
+					category: 'otra',
+					type: 'res',
+					author: 'head',
+					name: NAMES.headOwn,
 				},
 				foreign: {
 					title: `En revisión de otro servicio ${ RUN }`,
@@ -352,7 +360,7 @@ test.describe( 'Documentate app · roles', () => {
 		try {
 			await page.goto( APP_PATH );
 			const tabs = await tabLabels( page );
-			expect( tabs ).toEqual( [ 'Documentos', 'Nuevo documento' ] );
+			expect( tabs ).toEqual( [ 'Todos los documentos', 'Nuevo documento' ] );
 			await expect( page.locator( '.dcta-rol' ) ).toHaveText( 'Revisión' );
 			await expect( page.locator( '.dcta-yo-ambito' ) ).toHaveText(
 				`Servicio ${ RUN }`
@@ -401,7 +409,9 @@ test.describe( 'Documentate app · roles', () => {
 		try {
 			// The chip of the rol holds what waits for review, and nothing else.
 			await page.goto( APP_PATH );
-			await expect( page.locator( '.dcta-h1' ) ).toHaveText( 'Documentos' );
+			await expect( page.locator( '.dcta-h1' ) ).toHaveText(
+				'Todos los documentos'
+			);
 			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 0 );
 			await expect( row( page, NAMES.otherDraft ) ).toHaveCount( 0 );
@@ -444,7 +454,7 @@ test.describe( 'Documentate app · roles', () => {
 		try {
 			await page.goto( APP_PATH );
 			expect( await tabLabels( page ) ).toEqual( [
-				'Documentos',
+				'Todos los documentos',
 				'Nuevo documento',
 			] );
 			await expect( page.locator( '.dcta-rol' ) ).toHaveText(
@@ -459,6 +469,18 @@ test.describe( 'Documentate app · roles', () => {
 			);
 			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 1 );
 			await expect( row( page, NAMES.otherInManagement ) ).toHaveCount( 0 );
+
+			// "Mis documentos" is the other side of the same row: what they
+			// wrote themselves, whatever status it ended up in.
+			await Promise.all( [
+				page.waitForURL( /estado=mios/ ),
+				page.locator( 'a.dcta-fchip[href*="estado=mios"]' ).click(),
+			] );
+			await expect( page.locator( '.dcta-fchip-on' ) ).toContainText(
+				'Mis documentos'
+			);
+			await expect( row( page, NAMES.headOwn ) ).toHaveCount( 1 );
+			await expect( row( page, NAMES.otherPending ) ).toHaveCount( 0 );
 
 			// What is still in revisión is not theirs yet.
 			await page.goto( `${ APP_PATH }?doc=${ docs.otherInManagement }` );

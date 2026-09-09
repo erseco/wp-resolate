@@ -325,29 +325,15 @@ class Documentate_App_Shell {
 	 * @return array<string,array{tab:string,url:string}>
 	 */
 	private static function build_sections() {
-		if ( Documentate_Roles::is_management() ) {
-			return self::management_sections();
-		}
+		// What waits for each rol is not a tab: it is the status chip the list
+		// opens on, and the chips carry their own numbers. Whoever looks after
+		// several áreas gets the whole ámbito, an área only its own documents,
+		// and the tab is named after what the list holds. Document types and
+		// their templates are not here: that is wp-admin work.
+		$list = Documentate_Roles::is_management() ? 'Todos los documentos' : 'Mis documentos';
 
 		return array(
-			'lista' => self::section( 'Mis documentos', self::page_url() ),
-			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
-		);
-	}
-
-	/**
-	 * Tabs of whoever looks after several áreas: the list and the new document.
-	 *
-	 * What waits for each rol is not a tab: it is the status chip the list
-	 * opens on, and the chips carry their own numbers. Administración sees
-	 * every área of the site, the rest their ámbito. Document types and their
-	 * templates are not here: that is wp-admin work.
-	 *
-	 * @return array<string,array{tab:string,url:string}>
-	 */
-	private static function management_sections() {
-		return array(
-			'lista' => self::section( Documentate_Roles::is_administration() ? 'Todos los documentos' : 'Documentos', self::page_url() ),
+			'lista' => self::section( $list, self::page_url() ),
 			'nuevo' => self::section( 'Nuevo documento', self::page_url( array( 'vista' => 'nuevo' ) ) ),
 		);
 	}
@@ -646,9 +632,11 @@ class Documentate_App_Shell {
 	 * @param string                       $sub      One line under the heading.
 	 * @param array{tab:string,url:string} $document Tab of the document on
 	 *                                     screen, from document_tab().
+	 * @param string                       $aside    Markup for the top right
+	 *                                     of the heading, escaped by the caller.
 	 * @return string
 	 */
-	public static function open( $section, $title, $sub = '', array $document = array() ) {
+	public static function open( $section, $title, $sub = '', array $document = array(), $aside = '' ) {
 		self::$sections = array();
 		$sections = self::sections();
 
@@ -696,11 +684,18 @@ class Documentate_App_Shell {
 		</nav>
 
 		<div class="dcta-hoja">
-			<?php if ( '' !== $title ) : ?>
-				<h1 class="dcta-h1"><?php echo esc_html( $title ); ?></h1>
-			<?php endif; ?>
-			<?php if ( '' !== $sub ) : ?>
-				<p class="dcta-sub"><?php echo esc_html( $sub ); ?></p>
+			<?php if ( '' !== $title || '' !== $aside ) : ?>
+				<div class="dcta-cabecera">
+					<div class="dcta-cabecera-txt">
+						<?php if ( '' !== $title ) : ?>
+							<h1 class="dcta-h1"><?php echo esc_html( $title ); ?></h1>
+						<?php endif; ?>
+						<?php if ( '' !== $sub ) : ?>
+							<p class="dcta-sub"><?php echo esc_html( $sub ); ?></p>
+						<?php endif; ?>
+					</div>
+					<?php echo $aside; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markup built and escaped by the caller. ?>
+				</div>
 			<?php endif; ?>
 		<?php
 		return (string) ob_get_clean();

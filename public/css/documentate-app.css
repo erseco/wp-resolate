@@ -396,6 +396,34 @@ body.documentate-app .wp-block-post-content {
 	padding: 28px max(24px, calc(50% - var(--dcta-ancho) / 2)) 44px;
 }
 
+/*
+ * The heading and the área select share the top line: an ámbito is not one
+ * more status chip, and the chip row is long enough already. On a narrow
+ * screen the select wraps under the sub-heading.
+ */
+
+.dcta-cabecera {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	align-items: flex-start;
+	justify-content: space-between;
+}
+
+.dcta-cabecera-txt {
+	min-width: 0;
+}
+
+/* The área select and the quick filter, side by side in the corner. */
+
+.dcta-cabecera-acciones {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 22px;
+}
+
 .dcta-h1 {
 	font-size: 27px;
 	font-weight: 700;
@@ -604,12 +632,11 @@ body.documentate-app .wp-block-post-content {
 	margin: 0 0 16px;
 }
 
-/* The quick filter sits at the end of the chip row and pushes to the right
-   while there is room; on a phone it drops to its own line, full width. */
+/* The quick filter sits in the corner of the heading, after the área select;
+   on a phone both drop to their own line, full width. */
 .dcta-busqueda {
 	display: inline-flex;
 	align-items: center;
-	margin-inline-start: auto;
 }
 
 .dcta-busqueda-campo {
@@ -1402,7 +1429,7 @@ body.documentate-app .wp-block-post-content {
 	color: var(--dcta-texto-2);
 }
 
-/* One more control of the chip row, not a line of its own. */
+/* Top right of the heading, not one more control of the chip row. */
 
 .dcta-areas {
 	display: inline-flex;
@@ -2106,9 +2133,11 @@ body.documentate-app .documentate-loading-modal__content {
 /* --- small screens --------------------------------------------------------- */
 
 @media (max-width: 782px) {
+	.dcta-cabecera-acciones,
+	.dcta-areas,
+	.dcta-areas select,
 	.dcta-busqueda {
 		width: 100%;
-		margin-inline-start: 0;
 	}
 
 	.dcta-busqueda-campo {
