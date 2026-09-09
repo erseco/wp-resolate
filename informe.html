@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Documentate — el ciclo completo de un documento</title>
+<style>
+:root { --tinta:#12202a; --suave:#5a6b75; --linea:#d5dde2; --fondo:#f3f5f6; --ko:#a93a2c; }
+* { box-sizing:border-box }
+body { margin:0; background:var(--fondo); color:var(--tinta);
+  font:16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width:1100px; margin:0 auto; padding:48px 24px 96px; }
+h1 { font-size:34px; letter-spacing:-.02em; margin:0 0 6px; }
+.sub { color:var(--suave); margin:0 0 8px; }
+.meta { color:var(--suave); font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+.indice { margin:26px 0 0; padding:16px 20px; background:#fff; border:1px solid var(--linea); }
+.indice ol { margin:0; padding-left:20px; }
+.indice a { color:var(--tinta); }
+h2 { font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--suave);
+  margin:56px 0 0; padding-bottom:10px; border-bottom:1px solid var(--linea); }
+article { margin-top:34px; }
+h3 { font-size:21px; margin:0 0 4px; letter-spacing:-.01em; }
+.ancla { color:var(--linea); text-decoration:none; }
+.quien { margin:0 0 10px; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--suave); font-family:ui-monospace,Menlo,monospace; }
+article p { margin:0 0 18px; color:var(--suave); max-width:62ch; }
+/* The two screens stack one under the other: in two columns, the
+   ordenador se dibujaba al 44 % y su texto de 16 px quedaba ilegible. */
+figure { margin:0 0 22px; background:#fff; border:1px solid var(--linea); }
+figure img { display:block; width:100%; height:auto;
+  max-height:1500px; object-fit:cover; object-position:top; }
+figcaption { font-size:12px; color:var(--suave); padding:8px 12px; border-top:1px solid var(--linea);
+  font-family:ui-monospace,Menlo,monospace; word-break:break-all; }
+figcaption a { color:var(--suave); }
+figcaption code { font-family:inherit; }
+.ko { color:var(--ko); font-weight:600; }
+@media print { body { background:#fff } figure { break-inside:avoid } }
+</style></head><body><div class="wrap">
+<h1>Documentate</h1>
+<p class="sub">El ciclo completo de un documento: el área lo prepara, revisión completa los datos oficiales y la jefatura de servicio lo aprueba.</p>
+<p class="meta">9/9/2026, 22:41:21 · http://localhost:8989 · 35 capturas</p>
+<nav class="indice"><ol><li><a href="#entrada">Entrada</a></li><li><a href="#el-area-prepara-el-documento">El área prepara el documento</a></li><li><a href="#revision-completa-los-datos-oficiales">Revisión completa los datos oficiales</a></li><li><a href="#el-area-corrige">El área corrige</a></li><li><a href="#de-revision-a-la-jefatura-de-servicio">De revisión a la jefatura de servicio</a></li><li><a href="#el-documento-terminado">El documento terminado</a></li><li><a href="#segundo-documento-resolucion-administrativa">Segundo documento: resolución administrativa</a></li><li><a href="#la-otra-cara-wp-admin">La otra cara: wp-admin</a></li><li><a href="#bloqueo-de-edicion">Bloqueo de edición</a></li><li><a href="#herramientas-de-desarrollo">Herramientas de desarrollo</a></li></ol></nav>
+<section id="entrada"><h2>Entrada</h2><article id="una-sola-direccion-para-todo-el-mundo">
+	<h3><a class="ancla" href="#una-sola-direccion-para-todo-el-mundo">§</a> Una sola dirección para todo el mundo</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>Todo el mundo entra por /documentate/. El área aparece directamente en sus documentos, con su nombre, el rol y el ámbito escritos en la cabecera; no hay que acordarse de qué pantalla tocaba.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/01-escritorio-una-sola-direccion-para-todo-el-mundo.png" alt="Una sola dirección para todo el mundo en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/</code> · <a href="img/01-escritorio-una-sola-direccion-para-todo-el-mundo.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-misma-puerta-para-revision">
+	<h3><a class="ancla" href="#la-misma-puerta-para-revision">§</a> La misma puerta, para revisión</h3>
+	<p class="who">Revisión</p>
+	<p>Revisión entra por la misma URL y su lista abre por «En revisión», el chip que reúne los documentos de su ámbito que esperan a que complete los datos oficiales. Cada chip lleva su número, y el del propio rol va marcado.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/02-escritorio-la-misma-puerta-para-revision.png" alt="La misma puerta, para revisión en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/</code> · <a href="img/02-escritorio-la-misma-puerta-para-revision.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-misma-puerta-para-administracion">
+	<h3><a class="ancla" href="#la-misma-puerta-para-administracion">§</a> La misma puerta, para administración</h3>
+	<p class="who">Administración</p>
+	<p>Administración aterriza en todos los documentos de todas las áreas del sitio, con el mismo selector de área que revisión y jefatura —aquí acotado al Departamento de Proyectos—. El chip «En aprobación» cuenta lo que espera firma; los demás números obedecen también al área elegida.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/03-escritorio-la-misma-puerta-para-administracion.png" alt="La misma puerta, para administración en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?estado=pending&amp;area=21</code> · <a href="img/03-escritorio-la-misma-puerta-para-administracion.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="el-area-prepara-el-documento"><h2>El área prepara el documento</h2><article id="mis-documentos-los-chips-y-sus-numeros">
+	<h3><a class="ancla" href="#mis-documentos-los-chips-y-sus-numeros">§</a> Mis documentos: los chips y sus números</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>Cada chip dice cuántos documentos hay en ese estado y filtra la lista sin salir de la página; el área abre por «Por enviar», que es lo que le toca. Cada fila lleva el nombre corto con su prefijo, el título oficial y el estado.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/04-escritorio-mis-documentos-los-chips-y-sus-numeros.png" alt="Mis documentos: los chips y sus números en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?estado=draft</code> · <a href="img/04-escritorio-mis-documentos-los-chips-y-sus-numeros.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="documento-0-crear-una-propuesta-de-gasto">
+	<h3><a class="ancla" href="#documento-0-crear-una-propuesta-de-gasto">§</a> Documento 0: crear una propuesta de gasto</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>Crear un documento son tres decisiones: el tipo (que ya no se cambia), un nombre corto para las listas y el título oficial que saldrá en el papel. Al elegir el tipo, la ayuda dice si pasa por revisión y aparece el prefijo delante del nombre.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/05-escritorio-documento-0-crear-una-propuesta-de-gasto.png" alt="Documento 0: crear una propuesta de gasto en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?vista=nuevo</code> · <a href="img/05-escritorio-documento-0-crear-una-propuesta-de-gasto.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="completar-el-borrador-y-adjuntar-el-fichero">
+	<h3><a class="ancla" href="#completar-el-borrador-y-adjuntar-el-fichero">§</a> Completar el borrador y adjuntar el fichero</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>El editor del área tiene los datos básicos, los campos de la plantilla y el fichero del documento: se arrastra al recuadro o se elige a mano, y se sube al guardar. Los campos que solo rellena revisión no están aquí.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/06-escritorio-completar-el-borrador-y-adjuntar-el-fichero.png" alt="Completar el borrador y adjuntar el fichero en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;vista=editar&amp;guardado=1</code> · <a href="img/06-escritorio-completar-el-borrador-y-adjuntar-el-fichero.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="enviar-a-revision-con-confirmacion">
+	<h3><a class="ancla" href="#enviar-a-revision-con-confirmacion">§</a> Enviar a revisión, con confirmación</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>Enviar es la decisión que cierra el documento para el área, así que se pregunta antes. La ventana dice exactamente qué va a pasar: pasa a revisión y ya no se podrá modificar hasta que lo devuelvan.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/07-escritorio-enviar-a-revision-con-confirmacion.png" alt="Enviar a revisión, con confirmación en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;vista=editar</code> · <a href="img/07-escritorio-enviar-a-revision-con-confirmacion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="el-documento-queda-en-revision">
+	<h3><a class="ancla" href="#el-documento-queda-en-revision">§</a> El documento queda en revisión</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>Confirmado, el documento sale del área. La ficha avisa arriba de que lo tiene revisión, «Editar» queda apagado y el indicador de estado marca en qué punto del recorrido está: borrador, en revisión, en aprobación, aprobado.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/08-escritorio-el-documento-queda-en-revision.png" alt="El documento queda en revisión en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;enviado=1&amp;transicion=enviar_gestion</code> · <a href="img/08-escritorio-el-documento-queda-en-revision.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="revision-completa-los-datos-oficiales"><h2>Revisión completa los datos oficiales</h2><article id="la-lista-de-revision">
+	<h3><a class="ancla" href="#la-lista-de-revision">§</a> La lista de revisión</h3>
+	<p class="who">Revisión</p>
+	<p>El chip «En revisión» reúne los documentos de su ámbito —aquí, toda la organización— que ya salieron de su borrador y esperan los datos oficiales. Bajo el nombre corto van el título oficial y el área y la persona que lo firma, y el clip marca los que traen fichero.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/09-escritorio-la-lista-de-revision.png" alt="La lista de revisión en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/</code> · <a href="img/09-escritorio-la-lista-de-revision.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="los-datos-oficiales-que-solo-ve-revision">
+	<h3><a class="ancla" href="#los-datos-oficiales-que-solo-ve-revision">§</a> Los datos oficiales, que solo ve revisión</h3>
+	<p class="who">Revisión</p>
+	<p>Revisión abre el mismo editor con una sección más: los campos marcados como de revisión en la plantilla —el gasto en letra y en cifra, la partida presupuestaria— y unas anotaciones internas que no salen en el documento. Los datos del área quedan plegados, a la vista pero fuera del camino.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/10-escritorio-los-datos-oficiales-que-solo-ve-revision.png" alt="Los datos oficiales, que solo ve revisión en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;vista=editar&amp;guardado=1</code> · <a href="img/10-escritorio-los-datos-oficiales-que-solo-ve-revision.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="proveedores-y-totales-que-se-calculan-solos">
+	<h3><a class="ancla" href="#proveedores-y-totales-que-se-calculan-solos">§</a> Proveedores y totales que se calculan solos</h3>
+	<p class="who">Revisión</p>
+	<p>En otra propuesta con proveedores anidados, se cambia la cantidad del primer servicio de uno a dos y se comprueba que el total de la línea pasa a 3.600 euros. El resumen de la propuesta se recalcula en pantalla.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/11-escritorio-proveedores-y-totales-que-se-calculan-solos.png" alt="Proveedores y totales que se calculan solos en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=134&amp;vista=editar</code> · <a href="img/11-escritorio-proveedores-y-totales-que-se-calculan-solos.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="devolver-al-area-diciendo-por-que">
+	<h3><a class="ancla" href="#devolver-al-area-diciendo-por-que">§</a> Devolver al área, diciendo por qué</h3>
+	<p class="who">Revisión</p>
+	<p>Si falta algo, el documento vuelve al área. El motivo es obligatorio: se manda por correo, queda en la actividad y es lo primero que ve quien lo escribió.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/12-escritorio-devolver-al-area-diciendo-por-que.png" alt="Devolver al área, diciendo por qué en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;vista=editar</code> · <a href="img/12-escritorio-devolver-al-area-diciendo-por-que.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="devuelto">
+	<h3><a class="ancla" href="#devuelto">§</a> Devuelto</h3>
+	<p class="who">Revisión</p>
+	<p>Tras devolverlo, revisión vuelve a su lista con el aviso de que salió: el documento ya no le corresponde hasta que el área lo reenvíe.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/13-escritorio-devuelto.png" alt="Devuelto en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?devuelto=1</code> · <a href="img/13-escritorio-devuelto.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="el-area-corrige"><h2>El área corrige</h2><article id="el-documento-vuelve-con-su-motivo">
+	<h3><a class="ancla" href="#el-documento-vuelve-con-su-motivo">§</a> El documento vuelve, con su motivo</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>En la lista del área la fila devuelta se tiñe y lleva debajo quién lo devolvió, cuándo y por qué. La acción de la fila deja de ser «Continuar» y pasa a ser «Corregir».</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/14-escritorio-el-documento-vuelve-con-su-motivo.png" alt="El documento vuelve, con su motivo en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/</code> · <a href="img/14-escritorio-el-documento-vuelve-con-su-motivo.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="corregir-lo-que-falta">
+	<h3><a class="ancla" href="#corregir-lo-que-falta">§</a> Corregir lo que falta</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>El editor vuelve a abrirse con el motivo arriba del todo y los campos otra vez editables. Los datos oficiales que rellenó revisión siguen ahí, pero el área no los ve ni los puede tocar.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/15-escritorio-corregir-lo-que-falta.png" alt="Corregir lo que falta en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;vista=editar&amp;guardado=1</code> · <a href="img/15-escritorio-corregir-lo-que-falta.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="reenviado-a-revision">
+	<h3><a class="ancla" href="#reenviado-a-revision">§</a> Reenviado a revisión</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>Corregido, se vuelve a enviar por el mismo camino y con la misma confirmación. La marca de devuelto desaparece: el documento está otra vez en revisión.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/16-escritorio-reenviado-a-revision.png" alt="Reenviado a revisión en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;enviado=1&amp;transicion=enviar_gestion</code> · <a href="img/16-escritorio-reenviado-a-revision.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="de-revision-a-la-jefatura-de-servicio"><h2>De revisión a la jefatura de servicio</h2><article id="pasar-a-aprobacion">
+	<h3><a class="ancla" href="#pasar-a-aprobacion">§</a> Pasar a aprobación</h3>
+	<p class="who">Revisión</p>
+	<p>Cuando los datos oficiales están completos, revisión lo pasa a la jefatura de servicio —también con su confirmación, como al enviarlo—. Hecho eso, revisión tampoco puede modificarlo: la ficha avisa de que lo tiene la jefatura y el estado ya dice «En aprobación».</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/17-escritorio-pasar-a-aprobacion.png" alt="Pasar a aprobación en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;enviado=1&amp;transicion=pasar_admin</code> · <a href="img/17-escritorio-pasar-a-aprobacion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-lista-de-aprobacion">
+	<h3><a class="ancla" href="#la-lista-de-aprobacion">§</a> La lista de aprobación</h3>
+	<p class="who">Jefatura de servicio</p>
+	<p>La jefatura de servicio abre por «En aprobación», con lo que espera su firma —de cualquier área de su ámbito—, los mismos chips de estado con sus números y un selector para acotar a un área cuando hay muchas: aquí, el Departamento de Proyectos.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/18-escritorio-la-lista-de-aprobacion.png" alt="La lista de aprobación en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?estado=todos&amp;area=21</code> · <a href="img/18-escritorio-la-lista-de-aprobacion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="devolver-eligiendo-a-quien">
+	<h3><a class="ancla" href="#devolver-eligiendo-a-quien">§</a> Devolver, eligiendo a quién</h3>
+	<p class="who">Jefatura de servicio</p>
+	<p>La jefatura de servicio es la única que puede devolver a dos sitios: a revisión, para que rehaga los datos oficiales, o directamente al área. Una sola ventana pregunta a quién y por qué; el motivo sigue siendo obligatorio.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/19-escritorio-devolver-eligiendo-a-quien.png" alt="Devolver, eligiendo a quién en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=115&amp;vista=editar</code> · <a href="img/19-escritorio-devolver-eligiendo-a-quien.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="aprobar">
+	<h3><a class="ancla" href="#aprobar">§</a> Aprobar</h3>
+	<p class="who">Jefatura de servicio</p>
+	<p>La jefatura de servicio aprueba, y eso publica el documento y lo cierra: a partir de ahí solo se consulta y se descarga. La ficha lo dice arriba y el indicador de estado llega al final del recorrido.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/20-escritorio-aprobar.png" alt="Aprobar en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;aprobado=1</code> · <a href="img/20-escritorio-aprobar.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="el-documento-terminado"><h2>El documento terminado</h2><article id="previsualizar-y-descargar">
+	<h3><a class="ancla" href="#previsualizar-y-descargar">§</a> Previsualizar y descargar</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>El documento 0 aprobado muestra el PDF dentro de la ficha. Se comprueba que el visor recibe un PDF válido y que la descarga editable corresponde a la plantilla ODT.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/21-escritorio-previsualizar-y-descargar.png" alt="Previsualizar y descargar en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148</code> · <a href="img/21-escritorio-previsualizar-y-descargar.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-actividad-del-documento">
+	<h3><a class="ancla" href="#la-actividad-del-documento">§</a> La actividad del documento</h3>
+	<p class="who">Revisión</p>
+	<p>Todo lo que le pasó al documento queda escrito: quién creó el borrador, quién adjuntó el fichero, quién lo envió, quién lo devolvió y con qué motivo, quién lo aprobó. Debajo, cualquiera de los roles puede dejar un comentario.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/22-escritorio-la-actividad-del-documento.png" alt="La actividad del documento en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=148&amp;comentado=1</code> · <a href="img/22-escritorio-la-actividad-del-documento.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="segundo-documento-resolucion-administrativa"><h2>Segundo documento: resolución administrativa</h2><article id="crear-y-guardar-una-resolucion">
+	<h3><a class="ancla" href="#crear-y-guardar-una-resolucion">§</a> Crear y guardar una resolución</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>El área crea otro documento, esta vez una resolución administrativa, y guarda el objeto de la convocatoria. Se utiliza la plantilla real de resolución.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/23-escritorio-crear-y-guardar-una-resolucion.png" alt="Crear y guardar una resolución en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=163&amp;vista=editar&amp;guardado=1</code> · <a href="img/23-escritorio-crear-y-guardar-una-resolucion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="el-area-completa-el-numero-el-pie-de-recursos-y-los-fondos-europeos">
+	<h3><a class="ancla" href="#el-area-completa-el-numero-el-pie-de-recursos-y-los-fondos-europeos">§</a> El área completa el número, el pie de recursos y los fondos europeos</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>La resolución no pasa por revisión: el área rellena también los datos oficiales. Asigna el número del libro de resoluciones, elige el recurso que procede y marca la casilla de cofinanciación, que añade la banda de logotipos europeos al documento.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/24-escritorio-el-area-completa-el-numero-el-pie-de-recursos-y-los-fondos-europeos.png" alt="El área completa el número, el pie de recursos y los fondos europeos en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=163&amp;vista=editar&amp;guardado=1</code> · <a href="img/24-escritorio-el-area-completa-el-numero-el-pie-de-recursos-y-los-fondos-europeos.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-resolucion-pasa-a-aprobacion">
+	<h3><a class="ancla" href="#la-resolucion-pasa-a-aprobacion">§</a> La resolución pasa a aprobación</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>El área entrega la resolución a la jefatura de servicio. El estado «En aprobación» confirma el cambio.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/25-escritorio-la-resolucion-pasa-a-aprobacion.png" alt="La resolución pasa a aprobación en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=163&amp;enviado=1&amp;transicion=enviar_revision</code> · <a href="img/25-escritorio-la-resolucion-pasa-a-aprobacion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-jefatura-de-servicio-aprueba-la-resolucion">
+	<h3><a class="ancla" href="#la-jefatura-de-servicio-aprueba-la-resolucion">§</a> La jefatura de servicio aprueba la resolución</h3>
+	<p class="who">Jefatura de servicio</p>
+	<p>La jefatura de servicio aprueba y publica la resolución, que queda disponible para consulta y descarga.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/26-escritorio-la-jefatura-de-servicio-aprueba-la-resolucion.png" alt="La jefatura de servicio aprueba la resolución en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=163&amp;aprobado=1</code> · <a href="img/26-escritorio-la-jefatura-de-servicio-aprueba-la-resolucion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="consultar-el-pdf-y-descargar-la-resolucion">
+	<h3><a class="ancla" href="#consultar-el-pdf-y-descargar-la-resolucion">§</a> Consultar el PDF y descargar la resolución</h3>
+	<p class="who">Área · Departamento de Proyectos</p>
+	<p>El área consulta la resolución aprobada. Se comprueban el PDF y la descarga ODT de esta segunda plantilla.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/27-escritorio-consultar-el-pdf-y-descargar-la-resolucion.png" alt="Consultar el PDF y descargar la resolución en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=163</code> · <a href="img/27-escritorio-consultar-el-pdf-y-descargar-la-resolucion.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="la-otra-cara-wp-admin"><h2>La otra cara: wp-admin</h2><article id="la-lista-de-documentos">
+	<h3><a class="ancla" href="#la-lista-de-documentos">§</a> La lista de documentos</h3>
+	<p class="who">Administración</p>
+	<p>La aplicación no sustituye a wp-admin: es la misma base de datos. Administración conserva la lista de siempre con el nombre interno, el estado, el área y los filtros por estado.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/28-escritorio-la-lista-de-documentos.png" alt="La lista de documentos en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/wp-admin/edit.php?post_type=documentate_document</code> · <a href="img/28-escritorio-la-lista-de-documentos.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="el-tipo-de-documento-prefijo-y-revision">
+	<h3><a class="ancla" href="#el-tipo-de-documento-prefijo-y-revision">§</a> El tipo de documento: prefijo y revisión</h3>
+	<p class="who">Administración</p>
+	<p>Cada tipo lleva su plantilla, un prefijo de hasta seis letras para las listas y la marca «Pasa por revisión». Debajo, los campos que la plantilla declara, con la etiqueta «revisión» en los que solo completa revisión.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/29-escritorio-el-tipo-de-documento-prefijo-y-revision.png" alt="El tipo de documento: prefijo y revisión en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/wp-admin/term.php?taxonomy=documentate_doc_type&amp;tag_ID=2&amp;post_type=documentate_document&amp;wp_http_referer=%2Fwp-admin%2Fedit-tags.php%3Ftaxonomy%3Ddocumentate_doc_type%26post_type%3Ddocumentate_document</code> · <a href="img/29-escritorio-el-tipo-de-documento-prefijo-y-revision.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="el-metabox-de-gestion-del-documento">
+	<h3><a class="ancla" href="#el-metabox-de-gestion-del-documento">§</a> El metabox de gestión del documento</h3>
+	<p class="who">Administración</p>
+	<p>En la pantalla clásica del documento, «Gestión del documento» resume el recorrido y ofrece las mismas acciones que la aplicación. Las secciones de contenido se pliegan para verlo entero.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/30-escritorio-el-metabox-de-gestion-del-documento.png" alt="El metabox de gestión del documento en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/wp-admin/post.php?post=112&amp;action=edit</code> · <a href="img/30-escritorio-el-metabox-de-gestion-del-documento.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="bloqueo-de-edicion"><h2>Bloqueo de edición</h2><article id="la-primera-persona-obtiene-el-bloqueo-de-edicion">
+	<h3><a class="ancla" href="#la-primera-persona-obtiene-el-bloqueo-de-edicion">§</a> La primera persona obtiene el bloqueo de edición</h3>
+	<p class="who">Revisión</p>
+	<p>Revisión abre el documento 0 y obtiene el bloqueo de WordPress. Mientras lo edita, otra persona tendrá que esperar o tomar posesión explícitamente.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/31-escritorio-la-primera-persona-obtiene-el-bloqueo-de-edicion.png" alt="La primera persona obtiene el bloqueo de edición en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=134&amp;vista=editar</code> · <a href="img/31-escritorio-la-primera-persona-obtiene-el-bloqueo-de-edicion.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="la-segunda-persona-encuentra-el-documento-bloqueado">
+	<h3><a class="ancla" href="#la-segunda-persona-encuentra-el-documento-bloqueado">§</a> La segunda persona encuentra el documento bloqueado</h3>
+	<p class="who">Administración</p>
+	<p>Administración intenta editar el mismo documento y se encuentra el aviso «Lo está editando otra persona», con quién lo tiene abierto. El formulario de edición no se muestra y la opción «Tomar posesión» explica sus consecuencias.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/32-escritorio-la-segunda-persona-encuentra-el-documento-bloqueado.png" alt="La segunda persona encuentra el documento bloqueado en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=134&amp;vista=editar</code> · <a href="img/32-escritorio-la-segunda-persona-encuentra-el-documento-bloqueado.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="tomar-posesion-permite-editar-a-la-nueva-persona">
+	<h3><a class="ancla" href="#tomar-posesion-permite-editar-a-la-nueva-persona">§</a> Tomar posesión permite editar a la nueva persona</h3>
+	<p class="who">Administración</p>
+	<p>Administración toma posesión mediante una petición protegida. El editor carga los últimos datos guardados del documento, sin sobrescribirlos con los cambios pendientes de revisión.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/33-escritorio-tomar-posesion-permite-editar-a-la-nueva-persona.png" alt="Tomar posesión permite editar a la nueva persona en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=134&amp;vista=editar</code> · <a href="img/33-escritorio-tomar-posesion-permite-editar-a-la-nueva-persona.png">captura completa</a></figcaption>
+	</figure>
+</article><article id="heartbeat-avisa-a-la-primera-persona-de-que-perdio-el-bloqueo">
+	<h3><a class="ancla" href="#heartbeat-avisa-a-la-primera-persona-de-que-perdio-el-bloqueo">§</a> Heartbeat avisa a la primera persona de que perdió el bloqueo</h3>
+	<p class="who">Revisión</p>
+	<p>Sin recargar la página, Heartbeat detecta que administración tomó posesión. La edición queda bloqueada y los cambios sin guardar permanecen detrás del aviso; el servidor también impide guardarlos.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/34-escritorio-heartbeat-avisa-a-la-primera-persona-de-que-perdio-el-bloqueo.png" alt="Heartbeat avisa a la primera persona de que perdió el bloqueo en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/documentate/?doc=134&amp;vista=editar</code> · <a href="img/34-escritorio-heartbeat-avisa-a-la-primera-persona-de-que-perdio-el-bloqueo.png">captura completa</a></figcaption>
+	</figure>
+</article></section><section id="herramientas-de-desarrollo"><h2>Herramientas de desarrollo</h2><article id="el-selector-de-perfiles">
+	<h3><a class="ancla" href="#el-selector-de-perfiles">§</a> El selector de perfiles</h3>
+	<p class="who">Sin sesión</p>
+	<p>Solo en wp-env y en Playground: la pantalla de acceso lista las cuentas de prueba y las rellena con un clic. Su pareja es el menú «Probar como…» de la barra de administración —a la vista en las capturas de wp-admin—, que cambia de cuenta sin cerrar sesión y devuelve a la aplicación. Nada de esto se despliega: /scripts no entra en el ZIP.</p>
+	<figure class="escritorio" style="max-width:1440px">
+		<img src="img/35-escritorio-el-selector-de-perfiles.png" alt="El selector de perfiles en Ordenador" loading="lazy" />
+		<figcaption>Ordenador · <code>/wp-login.php</code> · <a href="img/35-escritorio-el-selector-de-perfiles.png">captura completa</a></figcaption>
+	</figure>
+</article></section>
+</div></body></html>
