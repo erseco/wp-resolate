@@ -243,12 +243,22 @@ class Documentate_App_Shell {
 			'clock' => 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 3a1 1 0 0 1 1 1v3.6l2.7 1.6a1 1 0 1 1-1 1.7l-3.2-1.9a1 1 0 0 1-.5-.9V8a1 1 0 0 1 1-1Z',
 		);
 
-		if ( ! isset( $paths[ $name ] ) ) {
+		// Line icons: the arrows and the check of the transition buttons.
+		$strokes = array(
+			'forward' => 'M5 12h13M12.5 6.5 18 12l-5.5 5.5',
+			'return' => 'M9.5 15 4.5 10l5-5M4.5 10h9.5a5 5 0 0 1 0 10h-1.5',
+			'check' => 'm5 12.5 4.5 4.5L19 7',
+		);
+
+		if ( isset( $strokes[ $name ] ) ) {
+			$path = '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="' . esc_attr( $strokes[ $name ] ) . '"/>';
+		} elseif ( isset( $paths[ $name ] ) ) {
+			$path = '<path fill="currentColor" d="' . esc_attr( $paths[ $name ] ) . '"/>';
+		} else {
 			return '';
 		}
 
-		return '<svg class="dcta-icono dcta-icono-' . esc_attr( $name ) . '" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
-			. '<path fill="currentColor" d="' . esc_attr( $paths[ $name ] ) . '"/></svg>';
+		return '<svg class="dcta-icono dcta-icono-' . esc_attr( $name ) . '" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">' . $path . '</svg>';
 	}
 
 	/**
@@ -546,8 +556,12 @@ class Documentate_App_Shell {
 				$key,
 				(string) $rule['label'],
 				'dcta-btn-pri',
-				' data-confirmar="' . esc_attr( (string) $rule['confirm'] ) . '"'
+				' data-confirmar="' . esc_attr( (string) $rule['confirm'] ) . '"',
+				(string) $rule['icon']
 			);
+			if ( '' !== $rule['help'] ) {
+				$html .= '<p class="dcta-ayuda dcta-ayuda-transicion">' . esc_html( (string) $rule['help'] ) . '</p>';
+			}
 		}
 
 		return $html . self::return_buttons( $returns );
@@ -569,13 +583,13 @@ class Documentate_App_Shell {
 		}
 
 		if ( count( $returns ) > 1 ) {
-			return self::transition_button( 'devolver_area', 'Devolver…', 'dcta-btn-ton', ' data-motivo="1" data-destinos="1"' )
+			return self::transition_button( 'devolver_area', 'Devolver…', 'dcta-btn-ton', ' data-motivo="1" data-destinos="1"', 'return' )
 				. self::reason_fallback( $returns );
 		}
 
 		$html = '';
 		foreach ( $returns as $key => $rule ) {
-			$html .= self::transition_button( $key, (string) $rule['label'], 'dcta-btn-ton', ' data-motivo="1"' );
+			$html .= self::transition_button( $key, (string) $rule['label'], 'dcta-btn-ton', ' data-motivo="1"', (string) $rule['icon'] );
 		}
 
 		return $html . self::reason_fallback( array() );
@@ -598,7 +612,7 @@ class Documentate_App_Shell {
 			. '<p class="dcta-ayuda">El motivo se envía por correo y queda en la actividad.</p>';
 
 		foreach ( $extra as $key => $rule ) {
-			$html .= self::transition_button( $key, (string) $rule['label'], 'dcta-btn-ton', '' );
+			$html .= self::transition_button( $key, (string) $rule['label'], 'dcta-btn-ton', '', (string) $rule['icon'] );
 		}
 
 		return $html . '</details>';
@@ -611,12 +625,17 @@ class Documentate_App_Shell {
 	 * @param string $label     Button label.
 	 * @param string $css_class Button modifier class.
 	 * @param string $extra     Extra attributes, already escaped.
+	 * @param string $icon      Icon name, see icon(); "forward" goes after
+	 *                          the label, the rest before it.
 	 * @return string
 	 */
-	private static function transition_button( $key, $label, $css_class, $extra ) {
+	private static function transition_button( $key, $label, $css_class, $extra, $icon = '' ) {
+		$svg = self::icon( $icon );
+		$text = 'forward' === $icon ? esc_html( $label ) . $svg : $svg . esc_html( $label );
+
 		return '<button type="submit" class="dcta-btn ' . esc_attr( $css_class ) . '"'
 			. ' name="documentate_app_transicion" value="' . esc_attr( $key ) . '"' . $extra . '>'
-			. esc_html( $label ) . '</button>';
+			. $text . '</button>';
 	}
 
 	/**

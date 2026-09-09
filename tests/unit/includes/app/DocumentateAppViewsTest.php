@@ -723,6 +723,44 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The rail reports unsaved changes under "Guardar" and explains what sending does.
+	 */
+	public function test_the_rail_reports_unsaved_changes_under_save_and_explains_the_send() {
+		$html = $this->edit_view( $this->area_id, $this->create_document( 'draft' ) );
+
+		$this->assertSame( 1, substr_count( $html, 'class="documentate-unsaved-indicator"' ) );
+		$save = strpos( $html, 'value="guardar"' );
+		$indicator = strpos( $html, 'class="documentate-unsaved-indicator"' );
+		$send = strpos( $html, 'value="enviar_gestion"' );
+		$this->assertLessThan( $indicator, $save );
+		$this->assertLessThan( $send, $indicator );
+		$this->assertStringContainsString( 'Enviar a revisión<svg class="dcta-icono dcta-icono-forward"', $html );
+		$this->assertStringContainsString(
+			'</svg></button><p class="dcta-ayuda dcta-ayuda-transicion">Revisión completará los datos oficiales. No podrás editarlo hasta que te lo devuelvan.</p>',
+			$html
+		);
+	}
+
+	/**
+	 * Jefatura de servicio is told what approving does; a return has nothing to explain.
+	 */
+	public function test_approving_is_explained_and_returning_is_not() {
+		$html = $this->edit_view( $this->admin_id, $this->create_document( 'pending' ) );
+
+		$this->assertStringContainsString( 'value="aprobar" data-confirmar="', $html );
+		$this->assertStringContainsString(
+			'<svg class="dcta-icono dcta-icono-check" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">',
+			$html
+		);
+		$this->assertStringContainsString(
+			'</svg>Aprobar</button><p class="dcta-ayuda dcta-ayuda-transicion">Quedará bloqueado: solo se podrá consultar y descargar.</p>',
+			$html
+		);
+		$this->assertStringContainsString( 'data-motivo="1" data-destinos="1"><svg class="dcta-icono dcta-icono-return"', $html );
+		$this->assertSame( 1, substr_count( $html, 'dcta-ayuda-transicion' ) );
+	}
+
+	/**
 	 * Administración returns a document with a single button and the dialog asks where to.
 	 */
 	public function test_administration_returns_with_one_button_and_a_choice() {

@@ -416,8 +416,9 @@ class Documentate_App_Edit {
 				<h2 class="dcta-h2">Acciones</h2>
 				<button type="submit" class="dcta-btn dcta-btn-ton" name="documentate_app_estado" value="guardar" formnovalidate><?php echo esc_html( $save_label ); ?></button>
 				<?php
+				echo Documentate_Admin_Helper::unsaved_indicator(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static markup.
 				echo Documentate_App_Shell::transition_buttons( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
-				echo Documentate_Admin_Helper::export_block( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
+				echo Documentate_Admin_Helper::export_block( $post, true, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				echo Documentate_App_Shell::back_link(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the renderer.
 				?>
 			</div>

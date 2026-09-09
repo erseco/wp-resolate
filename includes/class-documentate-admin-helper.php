@@ -739,7 +739,7 @@ class Documentate_Admin_Helper {
 
 		$state = $this->build_actions_state( $post->ID );
 
-		$this->render_unsaved_indicator();
+		echo self::unsaved_indicator(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static markup.
 		$this->render_primary_actions( $state );
 		$this->render_secondary_actions( $state );
 	}
@@ -760,11 +760,15 @@ class Documentate_Admin_Helper {
 	 * because documentate-unsaved-changes.js only subscribes to the dirty state
 	 * when it finds one — wrapped in the anchor lists link to.
 	 *
-	 * @param WP_Post $post         Document.
-	 * @param bool    $with_preview Whether to offer the preview button.
+	 * @param WP_Post $post           Document.
+	 * @param bool    $with_preview   Whether to offer the preview button.
+	 * @param bool    $with_indicator Whether to draw the unsaved-changes
+	 *                                indicator here. The editor of the
+	 *                                application draws it under its own
+	 *                                save button instead.
 	 * @return void
 	 */
-	public function render_actions_for_post( WP_Post $post, $with_preview = true ) {
+	public function render_actions_for_post( WP_Post $post, $with_preview = true, $with_indicator = true ) {
 		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 			return;
 		}
@@ -772,7 +776,9 @@ class Documentate_Admin_Helper {
 		$state = $this->build_actions_state( $post->ID );
 
 		echo '<div id="exportar" class="documentate-actions dcta-exportar">';
-		$this->render_unsaved_indicator();
+		if ( $with_indicator ) {
+			echo self::unsaved_indicator(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static markup.
+		}
 		$this->render_primary_actions( $state, $with_preview );
 		$this->render_secondary_actions( $state );
 		echo '</div>';
@@ -791,31 +797,33 @@ class Documentate_Admin_Helper {
 	 *                              where this site renders it, and a button
 	 *                              that opens what is already on screen is
 	 *                              only one more thing to read.
+	 * @param bool    $with_indicator Whether to draw the unsaved-changes
+	 *                              indicator, see render_actions_for_post().
 	 * @return string
 	 */
-	public static function export_block( WP_Post $post, $with_preview = true ) {
+	public static function export_block( WP_Post $post, $with_preview = true, $with_indicator = true ) {
 		$helper = self::instance();
 		if ( ! $helper instanceof self ) {
 			return '';
 		}
 
 		ob_start();
-		$helper->render_actions_for_post( $post, $with_preview );
+		$helper->render_actions_for_post( $post, $with_preview, $with_indicator );
 
 		return (string) ob_get_clean();
 	}
 
 	/**
-	 * Render the passive "unsaved changes" indicator.
+	 * The passive "unsaved changes" indicator.
 	 *
 	 * Always present but hidden; documentate-unsaved-changes.js toggles it as the
 	 * form becomes dirty. The status role makes assistive technology announce the
 	 * transition without stealing focus.
 	 *
-	 * @return void
+	 * @return string
 	 */
-	private function render_unsaved_indicator() {
-		echo '<p class="documentate-unsaved-indicator" role="status" hidden>'
+	public static function unsaved_indicator() {
+		return '<p class="documentate-unsaved-indicator" role="status" hidden>'
 				. '<span class="documentate-unsaved-indicator__dot" aria-hidden="true"></span>'
 				. esc_html( 'Cambios sin guardar' )
 				. '</p>';
