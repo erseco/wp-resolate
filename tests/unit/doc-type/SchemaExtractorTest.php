@@ -299,6 +299,32 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Every provider of the documento 0 validates its tax number, and the
+	 * three forms it can take: the CIF of an entity, and the NIF or NIE of a
+	 * person, which an expert always is. Only servicios validated at all, and
+	 * with a pattern that took a company CIF alone.
+	 */
+	public function test_every_provider_validates_a_cif_a_nif_or_a_nie() {
+		$schema = ( new SchemaExtractor() )->extract( dirname( __FILE__, 4 ) . '/fixtures/propuestagasto.odt' );
+
+		$this->assertNotWPError( $schema );
+
+		$repeaters = $this->index_repeaters( $schema['repeaters'] );
+		foreach ( array( 'servicios', 'suministros', 'expertos' ) as $kind ) {
+			$pattern = $repeaters[ $kind ]['cif']['pattern'];
+			$this->assertNotSame( '', $pattern, $kind );
+			$this->assertNotSame( '', $repeaters[ $kind ]['cif']['patternmsg'], $kind );
+
+			foreach ( array( 'B12345678', '12345678A', 'X1234567A', 'Q2826004J' ) as $valid ) {
+				$this->assertSame( 1, preg_match( '/' . $pattern . '/', $valid ), $kind . ' must accept ' . $valid );
+			}
+			foreach ( array( '1234567A', 'B1234567', 'I12345678', '12.345.678A' ) as $invalid ) {
+				$this->assertSame( 0, preg_match( '/' . $pattern . '/', $invalid ), $kind . ' must reject ' . $invalid );
+			}
+		}
+	}
+
+	/**
 	 * The propuesta de gasto providers are explicit blocks with a nested
 	 * conceptos sub-repeater (TBS automatic sub-blocks, sub1=conceptos).
 	 */
@@ -362,7 +388,7 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		foreach ( array( 'gasto_letra', 'gasto_numero', 'partida', 'servicios_igic_exento', 'suministros_igic_exento' ) as $slug ) {
 			$this->assertSame( 'gestion', $fields[ $slug ]['rol'], sprintf( '%s is completed by gestión.', $slug ) );
 		}
-		$area = array( 'post_title', 'curso', 'letra_decreto', 'para', 'objeto', 'lineadeactuacion', 'destinatarios', 'alcance_centros', 'alcance_profesorado', 'alcance_alumnado', 'alcance_familias' );
+		$area = array( 'post_title', 'curso', 'numero_decreto', 'letra_decreto', 'para', 'objeto', 'lineadeactuacion', 'destinatarios', 'alcance_centros', 'alcance_profesorado', 'alcance_alumnado', 'alcance_familias' );
 		foreach ( $area as $slug ) {
 			$this->assertSame( '', $fields[ $slug ]['rol'], sprintf( '%s is an área field.', $slug ) );
 		}
@@ -385,12 +411,12 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		$repeaters = $this->index_repeaters( $schema['repeaters'] );
 		foreach ( array( 'servicios', 'suministros' ) as $kind ) {
 			$this->assertSame( 'Proveedor', $repeaters[ $kind ]['proveedor']['title'], $kind );
-			$this->assertSame( 'CIF/NIF', $repeaters[ $kind ]['cif']['title'], $kind );
+			$this->assertSame( 'CIF/NIF/NIE', $repeaters[ $kind ]['cif']['title'], $kind );
 			$this->assertSame( 'Correo', $repeaters[ $kind ]['email']['title'], $kind );
 			$this->assertSame( 'Teléfono', $repeaters[ $kind ]['telefono']['title'], $kind );
 		}
 		$this->assertSame( 'Proveedor/Experto', $repeaters['expertos']['proveedor']['title'] );
-		$this->assertSame( 'CIF/NIF', $repeaters['expertos']['cif']['title'] );
+		$this->assertSame( 'CIF/NIF/NIE', $repeaters['expertos']['cif']['title'] );
 		$this->assertSame( 'Correo', $repeaters['expertos']['email']['title'] );
 		$this->assertSame( 'Teléfono', $repeaters['expertos']['telefono']['title'] );
 		foreach ( array( 'servicios', 'suministros', 'expertos' ) as $kind ) {

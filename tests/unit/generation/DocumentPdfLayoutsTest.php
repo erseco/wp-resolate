@@ -226,6 +226,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			'Programa de formación en metodologías activas',
 			array(
 				'curso'               => '2024/2025',
+				'numero_decreto'      => '2',
 				'letra_decreto'       => 'a',
 				'para'                => 'la formación del profesorado en metodologías activas y competencias digitales',
 				'objeto'              => 'Desarrollo de un programa de formación continua para el profesorado de centros públicos de Canarias.',
@@ -248,7 +249,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			)
 		);
 
-		$this->assertDrawn( $pdf, 'INFORME-PROPUESTA DEL RESPONSABLE DEL SERVICIO', 'The fixed opening of the report should be printed.' );
+		$this->assertDrawn( $pdf, 'INFORME-PROPUESTA DEL RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The fixed opening of the report should be printed.' );
 		$this->assertDrawn( $pdf, 'PROGRAMA DE FORMACIÓN EN METODOLOGÍAS ACTIVAS', 'The heading prints the title in upper case.' );
 		$this->assertDrawn( $pdf, 'A DESARROLLAR EN EL CURSO ESCOLAR 2024/2025', 'The school year should be merged into the heading.' );
 		$this->assertDrawn( $pdf, 'BLOQUE I: PROPUESTA EDUCATIVA', 'The first block heading should be printed.' );
@@ -305,6 +306,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			'Equipamiento de aulas del futuro',
 			array(
 				'curso'        => '2025/2026',
+				'numero_decreto' => '2',
 				'letra_decreto' => 'b',
 				'para'         => 'la dotación de equipamiento tecnológico',
 				'objeto'       => 'Dotación de equipamiento para las aulas del futuro.',
@@ -558,6 +560,301 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 				),
 			),
 		);
+	}
+
+	/**
+	 * The travel request prints the form the agency needs: who travels and the
+	 * identity data of the ticket, the two flights, the car and the hotel.
+	 */
+	public function test_solicitud_desplazamiento_dg_layout_prints_the_whole_form() {
+		$pdf = $this->render(
+			'solicitud_desplazamiento_dg.odt',
+			'solicitud_desplazamiento_dg',
+			'Solicitud de desplazamiento a Gran Canaria',
+			array(
+				'solicitante' => 'Expósito Morales, Luz',
+				'nif' => '12345678A',
+				'telefono' => '600112233',
+				'unidad' => 'Área de Tecnología Educativa',
+				'cargo' => 'Asesoría técnica docente',
+				'correo_localizador' => 'luz.exposito@gobiernodecanarias.org',
+				'empadronamiento' => 'Santa Cruz de Tenerife',
+				'fecha_nacimiento' => '1980-05-14',
+				'ida_dia' => '2026-10-01',
+				'ida_hora' => '07:15',
+				'ida_desde' => 'Tenerife Norte',
+				'ida_hasta' => 'Gran Canaria',
+				'vuelta_dia' => '2026-10-02',
+				'vuelta_hora' => '19:45',
+				'vuelta_desde' => 'Gran Canaria',
+				'vuelta_hasta' => 'Tenerife Norte',
+				'coche' => 'No',
+				'hotel' => 'Sí',
+				'hotel_nombre' => 'El más cercano a la sede de la reunión',
+				'motivo' => '<p>Reunión de coordinación del proyecto convocada por la Dirección General.</p>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'SOLICITUD DE MEDIOS DE DESPLAZAMIENTO Y ALOJAMIENTO', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, 'Expósito Morales, Luz', 'The traveller should be merged.' );
+		$this->assertDrawn( $pdf, '12345678A', 'The identity number should be merged.' );
+		$this->assertDrawn( $pdf, 'Ordenación de las Enseñanzas, Inclusión e Innovación', 'The fixed Dirección General should be printed.' );
+		$this->assertDrawn( $pdf, 'luz.exposito@gobiernodecanarias.org', 'The address for the locator should be merged.' );
+		$this->assertDrawn( $pdf, '01/10/2026', 'The outbound day should be printed the way it is written here.' );
+		$this->assertDrawn( $pdf, '07:15', 'The outbound time should be merged.' );
+		$this->assertDrawn( $pdf, '19:45', 'The return time should be merged.' );
+		$this->assertDrawn( $pdf, 'Tenerife Norte', 'The airports should be merged.' );
+		$this->assertDrawn( $pdf, 'El más cercano a la sede de la reunión', 'The hotel note should be merged.' );
+		$this->assertDrawn( $pdf, 'Reunión de coordinación del proyecto', 'The rich reason should be merged.' );
+		$this->assertDrawn( $pdf, 'Parque Móvil', 'The fixed reminder about the shared car should be printed.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The travel request of external staff repeats a whole block of tables per
+	 * person, so a request for two people prints both.
+	 */
+	public function test_solicitud_desplazamiento_externo_layout_repeats_a_block_per_person() {
+		$pdf = $this->render(
+			'solicitud_desplazamiento_externo.odt',
+			'solicitud_desplazamiento_externo',
+			'Solicitud de desplazamiento para las jornadas del Plan Evalúa',
+			array(
+				'servicio' => 'Servicio de Ordenación de las Enseñanzas',
+				'area' => 'Área de Tecnología Educativa',
+				'coordinador' => 'Ivonne Expósito Piñero',
+				'coordinador_correo' => 'ivonne.exposito@gobiernodecanarias.org',
+				'coordinador_telefono' => '600445566',
+				'accion' => 'Jornadas de presentación del Plan Evalúa',
+				'horario' => 'de 09:00 a 14:00',
+			),
+			array(
+				'personas' => array(
+					array(
+						'nombre' => 'Oliver Taño, Beatriz',
+						'nif' => '12345678A',
+						'telefono' => '600111222',
+						'municipio' => 'La Orotava',
+						'correo' => 'beatriz.oliver@correo.es',
+						'ida_dia' => '2026-10-01',
+						'ida_hora' => '07:15',
+						'ida_desde' => 'Tenerife Norte',
+						'ida_hasta' => 'Gran Canaria',
+						'vuelta_dia' => '2026-10-01',
+						'vuelta_hora' => '19:45',
+						'vuelta_desde' => 'Gran Canaria',
+						'vuelta_hasta' => 'Tenerife Norte',
+						'hotel' => 'No',
+						'hotel_nombre' => '',
+						'observaciones' => 'Viaja con material voluminoso.',
+					),
+					array(
+						'nombre' => 'Rodríguez Martínez, Juan',
+						'nif' => 'X1234567A',
+						'telefono' => '600333444',
+						'municipio' => 'Las Palmas de Gran Canaria',
+						'correo' => 'juan.rodriguez@correo.es',
+						'ida_dia' => '2026-10-01',
+						'ida_hora' => '08:00',
+						'ida_desde' => 'Gran Canaria',
+						'ida_hasta' => 'Tenerife Norte',
+						'vuelta_dia' => '2026-10-02',
+						'vuelta_hora' => '20:30',
+						'vuelta_desde' => 'Tenerife Norte',
+						'vuelta_hasta' => 'Gran Canaria',
+						'hotel' => 'Sí',
+						'hotel_nombre' => 'El más cercano a la sede',
+						'observaciones' => '',
+					),
+				),
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'SOLICITUD DE DESPLAZAMIENTO (personal externo)', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, 'Jornadas de presentación del Plan Evalúa', 'The action should be merged.' );
+		$this->assertDrawn( $pdf, 'Ivonne Expósito Piñero', 'The coordinator should be merged.' );
+		$this->assertDrawn( $pdf, 'Oliver Taño, Beatriz', 'The first person should be merged.' );
+		$this->assertDrawn( $pdf, 'Rodríguez Martínez, Juan', 'The second person should be merged, so the block repeats.' );
+		$this->assertDrawn( $pdf, 'Nº 1', 'Each block should carry its own number.' );
+		$this->assertDrawn( $pdf, 'Nº 2', 'Each block should carry its own number.' );
+		$this->assertDrawn( $pdf, 'El más cercano a la sede', 'The hotel of the second person should be merged.' );
+		$this->assertDrawn( $pdf, '01/10/2026', 'The days should print in the Spanish order.' );
+		$this->assertDrawn( $pdf, 'Viaja con material voluminoso.', 'The remarks should be merged.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The parliamentary answer prints the question it answers and the answer
+	 * itself, both of them rich text.
+	 */
+	public function test_respuesta_parlamentaria_layout_prints_the_question_and_the_answer() {
+		$pdf = $this->render(
+			'respuesta_parlamentaria.odt',
+			'respuesta_parlamentaria',
+			'Respuesta a la pregunta sobre la competencia digital',
+			array(
+				'area' => 'Área de Tecnología Educativa',
+				'fecha' => '2026-09-30',
+				'numero_poc' => '10L/PO/C-1234',
+				'pregunta' => '<p>¿Qué medidas ha adoptado la Consejería para la mejora de la competencia digital?</p>',
+				'respuesta' => '<p>Se han desarrollado las siguientes actuaciones:</p>'
+					. '<ul><li>Formación del profesorado en centros.</li><li>Dotación de equipamiento.</li></ul>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'RESPUESTA A PREGUNTAS PARLAMENTARIAS', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, '10L/PO/C-1234', 'The POC number should be merged.' );
+		$this->assertDrawn( $pdf, '30/09/2026', 'The date should print in the Spanish order.' );
+		$this->assertDrawn( $pdf, '¿Qué medidas ha adoptado la Consejería', 'The question should be merged.' );
+		$this->assertDrawn( $pdf, 'Formación del profesorado en centros.', 'The rich answer should be merged.' );
+		$this->assertDrawn( $pdf, '•', 'The rich answer should keep its bulleted list.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The mass mail request prints who it goes to, the category it goes with
+	 * and the text the centres will read.
+	 */
+	public function test_correo_masivo_layout_prints_the_request_and_the_message() {
+		$pdf = $this->render(
+			'correo_masivo.odt',
+			'correo_masivo',
+			'Solicitud de correo masivo del Plan Evalúa',
+			array(
+				'enviar_antes' => '2026-10-15',
+				'autorizado' => 'Sí',
+				'adjunto' => 'Sí',
+				'provincia' => 'Ambas provincias',
+				'etapas' => 'Infantil, Primaria y Secundaria',
+				'naturaleza' => 'Públicos',
+				'ensenanzas' => 'Régimen general',
+				'observaciones_centros' => 'Solo los centros del Proyecto Viera',
+				'categoria' => 'Urgente',
+				'correo_respuesta' => 'planevalua.educacion@gobiernodecanarias.org',
+				'centro_directivo' => 'Dirección General de Ordenación de las Enseñanzas, Inclusión e Innovación',
+				'servicio_area' => 'Área de Tecnología Educativa',
+				'dirigido_a' => 'Equipos directivos y coordinaciones TIC',
+				'asunto' => 'Convocatoria de la reunión de directivas del Plan Evalúa',
+				'mensaje' => '<p>Estimadas directivas,</p><p>Les convocamos a la reunión de presentación.</p>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'SOLICITUD DE ENVÍO DE CORREO MASIVO', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, '15/10/2026', 'The deadline should print in the Spanish order.' );
+		$this->assertDrawn( $pdf, 'Ambas provincias', 'The chosen provinces should be merged.' );
+		$this->assertDrawn( $pdf, 'Urgente', 'The category should be merged.' );
+		$this->assertDrawn( $pdf, 'planevalua.educacion@gobiernodecanarias.org', 'The address for replies should be merged.' );
+		$this->assertDrawn( $pdf, 'ASUNTO: Convocatoria de la reunión', 'The subject should be merged after its label.' );
+		$this->assertDrawn( $pdf, 'Les convocamos a la reunión de presentación.', 'The message the centres read should be merged.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The memoria previa prints the fixed sentence that proposes the draft
+	 * resolution, the title of that resolution and the grounds for it.
+	 */
+	public function test_memoria_previa_resolucion_layout_proposes_the_draft() {
+		$pdf = $this->render(
+			'memoria_previa_resolucion.odt',
+			'memoria_previa_resolucion',
+			'por la que se convoca la prueba libre de Graduado en ESO en 2026',
+			array(
+				'memoria' => '<p>La Ley Orgánica 2/2006, de 3 de mayo, de Educación regula la educación de personas adultas.</p>'
+					. '<p>Por ello resulta necesario proceder a la convocatoria.</p>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'MEMORIA PROPUESTA DEL SERVICIO DE ORDENACIÓN', 'The fixed opening should be printed.' );
+		$this->assertDrawn( $pdf, 'POR LA QUE SE CONVOCA LA PRUEBA LIBRE', 'The title of the draft resolution should be merged in upper case.' );
+		$this->assertDrawn( $pdf, 'La Ley Orgánica 2/2006', 'The grounds should be merged.' );
+		$this->assertDrawn( $pdf, 'se informa y propone al Director General', 'The fixed proposal should be printed.' );
+		$this->assertDrawn( $pdf, 'EL RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The signing office should close the memoria.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The libramiento to the CEP prints its three written sections, the fixed
+	 * appeal clause and the two annexes, one row per centre.
+	 */
+	public function test_libramiento_ceps_layout_prints_its_sections_and_both_annexes() {
+		$pdf = $this->render(
+			'libramiento_ceps.odt',
+			'libramiento_ceps',
+			'por la que se asignan dotaciones económicas extraordinarias del Proyecto Viera',
+			array(
+				'area' => 'Área de Fomento de la Competencia en Comunicación Lingüística',
+				'antecedentes' => '<p>Primero. Publicada la Resolución n.º 414/2025, de 22 de mayo.</p>',
+				'fundamentos' => '<p>Primero. La Ley 6/2014, Canaria de Educación no universitaria.</p>',
+				'propuesta' => '<p>Primero. Asignar dotaciones económicas extraordinarias.</p>',
+				'total_lp' => '1600',
+				'total_sc' => '2300',
+			),
+			array(
+				'centros_lp' => array(
+					array( 'nombre' => 'CEP Las Palmas de Gran Canaria', 'codigo' => '35009000', 'importe' => '1000' ),
+					array( 'nombre' => 'CEP Puerto del Rosario', 'codigo' => '35009001', 'importe' => '600' ),
+				),
+				'centros_sc' => array(
+					array( 'nombre' => 'CEP La Laguna', 'codigo' => '38700050', 'importe' => '1500' ),
+					array( 'nombre' => 'CEP La Palma', 'codigo' => '38700406', 'importe' => '800' ),
+				),
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'PROPUESTA- RESOLUCIÓN DE LA DIRECCIÓN GENERAL', 'The fixed opening should be printed.' );
+		$this->assertDrawn( $pdf, 'Área de Fomento de la Competencia', 'The proposing área should be merged.' );
+		$this->assertDrawn( $pdf, 'Publicada la Resolución n.º 414/2025', 'The antecedentes should be merged.' );
+		$this->assertDrawn( $pdf, 'La Ley 6/2014, Canaria de Educación', 'The fundamentos should be merged.' );
+		$this->assertDrawn( $pdf, 'Asignar dotaciones económicas extraordinarias.', 'The propuesta should be merged.' );
+		$this->assertDrawn( $pdf, 'recurso de alzada ante la Viceconsejería', 'The fixed appeal clause should be printed.' );
+		$this->assertDrawn( $pdf, 'CEP Las Palmas de Gran Canaria', 'The first annex should list its centres.' );
+		$this->assertDrawn( $pdf, 'CEP La Palma', 'The second annex should list its centres.' );
+		$this->assertDrawn( $pdf, '1.000,00 €', 'The amounts should be printed as euros.' );
+		$this->assertDrawn( $pdf, '2.300,00 €', 'The total of the annex should be printed as euros.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The libramiento to the centres is signed by the Director General, and
+	 * the note that the Servicio proposed it closes the document.
+	 */
+	public function test_libramiento_centros_layout_is_signed_by_the_director_general() {
+		$pdf = $this->render(
+			'libramiento_centros.odt',
+			'libramiento_centros',
+			'por la que se asigna una dotación económica extraordinaria a los centros participantes',
+			array(
+				'antecedentes' => '<p>Primero. Existe crédito adecuado y suficiente.</p>',
+				'fundamentos' => '<p>Primero. La Ley 6/2014, Canaria de Educación no universitaria.</p>',
+				'resuelvo' => '<p>Primero. Asignar la dotación económica extraordinaria.</p>',
+				'total_lp' => '11300',
+				'total_sc' => '1400',
+			),
+			array(
+				'centros_lp' => array(
+					array( 'nombre' => 'CEIP Los Caserones', 'codigo' => '35006941', 'importe' => '400' ),
+				),
+				'centros_sc' => array(
+					array( 'nombre' => 'CEIP María Rosa Alonso', 'codigo' => '38006964', 'importe' => '600' ),
+				),
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'ANTECEDENTES DE HECHO', 'The heading the model carries should be printed.' );
+		$this->assertDrawn( $pdf, 'Vista la propuesta formulada por el Servicio', 'The fixed opening should be printed.' );
+		$this->assertDrawn( $pdf, 'Asignar la dotación económica extraordinaria.', 'The resuelvo should be merged.' );
+		$this->assertDrawn( $pdf, 'CEIP Los Caserones', 'The first annex should list its centres.' );
+		$this->assertDrawn( $pdf, 'CEIP María Rosa Alonso', 'The second annex should list its centres.' );
+		$this->assertDrawn( $pdf, 'EL DIRECTOR GENERAL DE ORDENACIÓN', 'The Director General signs the resolución.' );
+		$this->assertDrawn( $pdf, 'ha sido PROPUESTO de conformidad', 'The proposal note should close the document.' );
+
+		$this->assertNothingUnmerged( $pdf );
 	}
 
 	/**

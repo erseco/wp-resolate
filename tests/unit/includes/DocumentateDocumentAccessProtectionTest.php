@@ -402,7 +402,14 @@ class DocumentateDocumentAccessProtectionTest extends WP_UnitTestCase {
 
 		$comments = get_comments( array( 'post_id' => $this->document_id ) );
 		$this->assertNotEmpty( $comments, 'Revisión reads the activity of the documents of its scope.' );
-		$this->assertEquals( $comment_id, $comments[0]->comment_ID );
+		// The move to pending writes an event of its own, and the two land in
+		// whichever order the second they were written in decides, so the
+		// assertion is that the comment is handed over, not that it comes first.
+		$this->assertContains(
+			(int) $comment_id,
+			array_map( 'intval', wp_list_pluck( $comments, 'comment_ID' ) ),
+			'The comment on the document should be among the activity handed over.'
+		);
 	}
 
 	/**
