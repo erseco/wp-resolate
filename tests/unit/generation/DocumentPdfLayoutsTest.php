@@ -715,6 +715,45 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The mass mail request prints who it goes to, the category it goes with
+	 * and the text the centres will read.
+	 */
+	public function test_correo_masivo_layout_prints_the_request_and_the_message() {
+		$pdf = $this->render(
+			'correo_masivo.odt',
+			'correo_masivo',
+			'Solicitud de correo masivo del Plan Evalúa',
+			array(
+				'enviar_antes' => '2026-10-15',
+				'autorizado' => 'Sí',
+				'adjunto' => 'Sí',
+				'provincia' => 'Ambas provincias',
+				'etapas' => 'Infantil, Primaria y Secundaria',
+				'naturaleza' => 'Públicos',
+				'ensenanzas' => 'Régimen general',
+				'observaciones_centros' => 'Solo los centros del Proyecto Viera',
+				'categoria' => 'Urgente',
+				'correo_respuesta' => 'planevalua.educacion@gobiernodecanarias.org',
+				'centro_directivo' => 'Dirección General de Ordenación de las Enseñanzas, Inclusión e Innovación',
+				'servicio_area' => 'Área de Tecnología Educativa',
+				'dirigido_a' => 'Equipos directivos y coordinaciones TIC',
+				'asunto' => 'Convocatoria de la reunión de directivas del Plan Evalúa',
+				'mensaje' => '<p>Estimadas directivas,</p><p>Les convocamos a la reunión de presentación.</p>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'SOLICITUD DE ENVÍO DE CORREO MASIVO', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, '15/10/2026', 'The deadline should print in the Spanish order.' );
+		$this->assertDrawn( $pdf, 'Ambas provincias', 'The chosen provinces should be merged.' );
+		$this->assertDrawn( $pdf, 'Urgente', 'The category should be merged.' );
+		$this->assertDrawn( $pdf, 'planevalua.educacion@gobiernodecanarias.org', 'The address for replies should be merged.' );
+		$this->assertDrawn( $pdf, 'ASUNTO: Convocatoria de la reunión', 'The subject should be merged after its label.' );
+		$this->assertDrawn( $pdf, 'Les convocamos a la reunión de presentación.', 'The message the centres read should be merged.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
 	 * The certificate prints who certifies, the fixed HACE CONSTAR wording and
 	 * the list of what the person took part in.
 	 */

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Solicitud de envío de correo masivo</title>
+<meta name="documentate-letterhead" content="standard">
+<meta name="documentate-addresses" content="none">
+<meta name="documentate-folio" content="none">
+<meta name="documentate-crest" content="0">
+<meta name="documentate-margins" content="25 25 25 25">
+<meta name="documentate-first-page-margins" content="47 25 25 25">
+<meta name="documentate-font-size" content="11">
+</head>
+<body>
+<div style="line-height:14.5pt">
+<p style="text-align:center"><strong>SOLICITUD DE ENVÍO DE CORREO MASIVO</strong></p>
+<p></p>
+<table>
+<col width="45%"><col width="55%">
+<tr>
+<td><strong>Enviar masivo antes del día:</strong></td>
+<td>[enviar_antes;frm='dd/mm/yyyy']</td>
+</tr>
+<tr>
+<td><strong>Autorizado por la jefatura</strong></td>
+<td>[autorizado]</td>
+</tr>
+<tr>
+<td><strong>Lleva documento adjunto</strong></td>
+<td>[adjunto]</td>
+</tr>
+</table>
+<p></p>
+<table>
+<col width="27%"><col width="23%"><col width="27%"><col width="23%">
+<tr>
+<td colspan="4"><strong>Centros a los que se debe enviar</strong></td>
+</tr>
+<tr>
+<td><strong>Provincia/Isla</strong></td>
+<td>[provincia]</td>
+<td><strong>Etapas</strong></td>
+<td>[etapas]</td>
+</tr>
+<tr>
+<td><strong>Naturaleza (privado o público)</strong></td>
+<td>[naturaleza]</td>
+<td><strong>Enseñanzas impartidas</strong></td>
+<td>[ensenanzas]</td>
+</tr>
+<tr>
+<td><strong>Otras observaciones</strong></td>
+<td colspan="3">[observaciones_centros]</td>
+</tr>
+</table>
+<p></p>
+<table>
+<col width="27%"><col width="73%">
+<tr>
+<td><strong>Categoría</strong></td>
+<td>[categoria]</td>
+</tr>
+<tr>
+<td><strong>Responder al correo:</strong></td>
+<td>[correo_respuesta]</td>
+</tr>
+</table>
+<p></p>
+<p><strong>RELLENAR TODOS LOS CAMPOS:</strong></p>
+<p>Centro directivo: [centro_directivo]</p>
+<p>Servicio ó Área: [servicio_area]</p>
+<p>Dirigido a: [dirigido_a]</p>
+<p>ASUNTO: [asunto]</p>
+<p></p>
+<div style="text-align:justify">[mensaje;strconv=no]</div>
+</div>
+</body>
+</html>

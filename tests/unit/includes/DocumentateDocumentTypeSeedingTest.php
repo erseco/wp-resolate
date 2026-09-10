@@ -60,6 +60,7 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
             'solicitud-desplazamiento-dg' => 'SD',
             'solicitud-desplazamiento-externo' => 'SDE',
             'respuesta-parlamentaria' => 'RPP',
+            'correo-masivo' => 'CM',
             'autorizacion-viaje' => 'AV',
             'gastos-suplidos' => 'GS',
             'memoria-pago' => 'MP',

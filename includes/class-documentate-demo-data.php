@@ -523,6 +523,14 @@ class Documentate_Demo_Data {
 				'pdf_layout' => 'respuesta_parlamentaria',
 				'prefix' => 'RPP',
 			),
+			'correo_masivo.odt' => array(
+				'slug' => 'correo-masivo',
+				'name' => 'Solicitud de envío de correo masivo',
+				'description' => 'Solicitud para que salga un correo a los centros: a quién se envía, con qué categoría, antes de qué día y con qué texto.',
+				'color' => '#c2185b',
+				'pdf_layout' => 'correo_masivo',
+				'prefix' => 'CM',
+			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',
