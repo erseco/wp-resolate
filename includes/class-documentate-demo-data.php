@@ -1922,7 +1922,7 @@ class Documentate_Demo_Data {
 					),
 					'cargo' => array(
 						'type' => 'single',
-						'value' => 'RESPONSABLE DEL SERVICIO DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
+						'value' => 'RESPONSABLE DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
 					),
 					'tratamiento' => array(
 						'type' => 'single',
