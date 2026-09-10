@@ -249,7 +249,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			)
 		);
 
-		$this->assertDrawn( $pdf, 'INFORME-PROPUESTA DEL RESPONSABLE DE ORDENACIÓN', 'The fixed opening of the report should be printed.' );
+		$this->assertDrawn( $pdf, 'INFORME-PROPUESTA DEL RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The fixed opening of the report should be printed.' );
 		$this->assertDrawn( $pdf, 'PROGRAMA DE FORMACIÓN EN METODOLOGÍAS ACTIVAS', 'The heading prints the title in upper case.' );
 		$this->assertDrawn( $pdf, 'A DESARROLLAR EN EL CURSO ESCOLAR 2024/2025', 'The school year should be merged into the heading.' );
 		$this->assertDrawn( $pdf, 'BLOQUE I: PROPUESTA EDUCATIVA', 'The first block heading should be printed.' );
@@ -386,7 +386,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 				'asunto'             => 'Remisión de informe solicitado con referencia de expediente 2025/00123',
 				'numero_solicitud'   => '2025/00123',
 				'respuesta'          => 'se hace constar que esta Dirección General no dispone de antecedentes, datos ni información en relación con el caso referido.',
-				'firma_cargo'        => 'EL RESPONSABLE DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
+				'firma_cargo'        => 'EL RESPONSABLE DEL SERVICIO DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
 			)
 		);
 
@@ -399,7 +399,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 		$this->assertDrawn( $pdf, 'Asunto: Remisión de informe solicitado', 'The subject line should be merged.' );
 		$this->assertDrawn( $pdf, 'En relación a su solicitud con número de registro de entrada 2025/00123', 'The registry number should be merged into the fixed lead-in.' );
 		$this->assertDrawn( $pdf, 'no dispone de antecedentes, datos ni información', 'The answer should be merged.' );
-		$this->assertDrawn( $pdf, 'EL RESPONSABLE DE ORDENACIÓN', 'The signing office should be merged.' );
+		$this->assertDrawn( $pdf, 'EL RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The signing office should be merged.' );
 
 		$this->assertNothingUnmerged( $pdf );
 	}
@@ -573,7 +573,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			'Certificado de participación',
 			array(
 				'firmante'        => 'Ivonne Piñero Montesdeoca',
-				'cargo'           => 'RESPONSABLE DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
+				'cargo'           => 'RESPONSABLE DEL SERVICIO DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
 				'tratamiento'     => 'Doña',
 				'nombre_completo' => 'Beatriz Oliver Taño',
 				'dni'             => '12345678A',
@@ -584,7 +584,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 		);
 
 		$this->assertDrawn( $pdf, 'IVONNE PIÑERO MONTESDEOCA', 'The signer should be printed in upper case, as ope=utf8,upper asks.' );
-		$this->assertDrawn( $pdf, 'RESPONSABLE DE ORDENACIÓN', 'The office of the signer should be merged.' );
+		$this->assertDrawn( $pdf, 'RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The office of the signer should be merged.' );
 		$this->assertDrawn( $pdf, 'HACE CONSTAR que según los datos que obran', 'The fixed certification wording should be printed.' );
 		$this->assertDrawn( $pdf, 'Doña BEATRIZ OLIVER TAÑO', 'The courtesy title and the name should be merged, the name in upper case.' );
 		$this->assertDrawn( $pdf, 'con DNI n.º 12345678A', 'The identity number should be merged.' );
@@ -629,7 +629,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 		$this->assertDrawn( $pdf, 'Con el siguiente orden del día', 'The fixed lead-in of the agenda should be printed.' );
 		$this->assertDrawn( $pdf, 'Bienvenida y presentación de los asistentes', 'The rich agenda should be merged.' );
 		$this->assertDrawn( $pdf, 'Se ruega trasladar esta información', 'The fixed closing should be printed.' );
-		$this->assertDrawn( $pdf, 'EL RESPONSABLE DE ORDENACIÓN', 'The signing office should close the letter.' );
+		$this->assertDrawn( $pdf, 'EL RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The signing office should close the letter.' );
 
 		$this->assertNothingUnmerged( $pdf );
 	}
