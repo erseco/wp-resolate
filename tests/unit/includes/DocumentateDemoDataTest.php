@@ -248,6 +248,7 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 			'resolucion-administrativa'            => 'resolucion',
 			'propuesta-gasto'                      => 'propuestagasto',
 			'hace-constar'                         => 'haceconstar',
+			'solicitud-desplazamiento-dg'          => 'solicitud_desplazamiento_dg',
 			'convocatoria-reunion'                 => 'convocatoriareunion',
 			'autorizacion-viaje'                   => 'autorizacionviaje',
 			'gastos-suplidos'                      => 'gastossuplidos',

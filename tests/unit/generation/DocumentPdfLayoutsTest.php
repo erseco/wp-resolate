@@ -563,6 +563,55 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The travel request prints the form the agency needs: who travels and the
+	 * identity data of the ticket, the two flights, the car and the hotel.
+	 */
+	public function test_solicitud_desplazamiento_dg_layout_prints_the_whole_form() {
+		$pdf = $this->render(
+			'solicitud_desplazamiento_dg.odt',
+			'solicitud_desplazamiento_dg',
+			'Solicitud de desplazamiento a Gran Canaria',
+			array(
+				'solicitante' => 'Expósito Morales, Luz',
+				'nif' => '12345678A',
+				'telefono' => '600112233',
+				'unidad' => 'Área de Tecnología Educativa',
+				'cargo' => 'Asesoría técnica docente',
+				'correo_localizador' => 'luz.exposito@gobiernodecanarias.org',
+				'empadronamiento' => 'Santa Cruz de Tenerife',
+				'fecha_nacimiento' => '1980-05-14',
+				'ida_dia' => '2026-10-01',
+				'ida_hora' => '07:15',
+				'ida_desde' => 'Tenerife Norte',
+				'ida_hasta' => 'Gran Canaria',
+				'vuelta_dia' => '2026-10-02',
+				'vuelta_hora' => '19:45',
+				'vuelta_desde' => 'Gran Canaria',
+				'vuelta_hasta' => 'Tenerife Norte',
+				'coche' => 'No',
+				'hotel' => 'Sí',
+				'hotel_nombre' => 'El más cercano a la sede de la reunión',
+				'motivo' => '<p>Reunión de coordinación del proyecto convocada por la Dirección General.</p>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'SOLICITUD DE MEDIOS DE DESPLAZAMIENTO Y ALOJAMIENTO', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, 'Expósito Morales, Luz', 'The traveller should be merged.' );
+		$this->assertDrawn( $pdf, '12345678A', 'The identity number should be merged.' );
+		$this->assertDrawn( $pdf, 'Ordenación de las Enseñanzas, Inclusión e Innovación', 'The fixed Dirección General should be printed.' );
+		$this->assertDrawn( $pdf, 'luz.exposito@gobiernodecanarias.org', 'The address for the locator should be merged.' );
+		$this->assertDrawn( $pdf, '01/10/2026', 'The outbound day should be printed the way it is written here.' );
+		$this->assertDrawn( $pdf, '07:15', 'The outbound time should be merged.' );
+		$this->assertDrawn( $pdf, '19:45', 'The return time should be merged.' );
+		$this->assertDrawn( $pdf, 'Tenerife Norte', 'The airports should be merged.' );
+		$this->assertDrawn( $pdf, 'El más cercano a la sede de la reunión', 'The hotel note should be merged.' );
+		$this->assertDrawn( $pdf, 'Reunión de coordinación del proyecto', 'The rich reason should be merged.' );
+		$this->assertDrawn( $pdf, 'Parque Móvil', 'The fixed reminder about the shared car should be printed.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
 	 * The certificate prints who certifies, the fixed HACE CONSTAR wording and
 	 * the list of what the person took part in.
 	 */

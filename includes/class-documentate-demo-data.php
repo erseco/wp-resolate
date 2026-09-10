@@ -499,6 +499,14 @@ class Documentate_Demo_Data {
 				'prefix' => 'PG',
 				'has_management' => true,
 			),
+			'solicitud_desplazamiento_dg.odt' => array(
+				'slug' => 'solicitud-desplazamiento-dg',
+				'name' => 'Solicitud de desplazamiento (personal de la DG)',
+				'description' => 'Solicitud de medios de desplazamiento y alojamiento para el personal de la Dirección General: billetes de ida y vuelta, coche de alquiler y hotel.',
+				'color' => '#00838f',
+				'pdf_layout' => 'solicitud_desplazamiento_dg',
+				'prefix' => 'SD',
+			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',

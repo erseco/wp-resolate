@@ -129,6 +129,54 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The travel request of the DG merges the form the agency is sent: the
+	 * person, the two flights with their days in the Spanish order, and the
+	 * yes-or-no of the car and the hotel.
+	 */
+	public function test_solicitud_desplazamiento_dg_merges_the_form() {
+		$term_id = $this->create_type_from_plugin_fixture( 'solicitud_desplazamiento_dg.odt' );
+		$post_id = $this->create_document_with_data(
+			$term_id,
+			array(
+				'solicitante' => 'Expósito Morales, Luz',
+				'nif' => 'X1234567A',
+				'telefono' => '600112233',
+				'unidad' => 'Área de Tecnología Educativa',
+				'cargo' => 'Asesoría técnica docente',
+				'correo_localizador' => 'luz.exposito@gobiernodecanarias.org',
+				'empadronamiento' => 'Santa Cruz de Tenerife',
+				'fecha_nacimiento' => '1980-05-14',
+				'ida_dia' => '2026-10-01',
+				'ida_hora' => '07:15',
+				'ida_desde' => 'Tenerife Norte',
+				'ida_hasta' => 'Gran Canaria',
+				'vuelta_dia' => '2026-10-02',
+				'vuelta_hora' => '19:45',
+				'vuelta_desde' => 'Gran Canaria',
+				'vuelta_hasta' => 'Tenerife Norte',
+				'coche' => 'No',
+				'hotel' => 'Sí',
+				'hotel_nombre' => 'El más cercano a la sede de la reunión',
+				'motivo' => '<p>Reunión de coordinación del proyecto.</p>',
+			)
+		);
+
+		$doc_path = $this->generate_document( $post_id, 'odt' );
+		$this->assertNotWPError( $doc_path );
+
+		$this->assertDocumentContains( $doc_path, 'Expósito Morales, Luz' );
+		$this->assertDocumentContains( $doc_path, 'X1234567A' );
+		$this->assertDocumentContains( $doc_path, 'luz.exposito@gobiernodecanarias.org' );
+		$this->assertDocumentContains( $doc_path, '01/10/2026' );
+		$this->assertDocumentContains( $doc_path, '02/10/2026' );
+		$this->assertDocumentContains( $doc_path, '14/05/1980' );
+		$this->assertDocumentContains( $doc_path, '07:15' );
+		$this->assertDocumentContains( $doc_path, 'Reunión de coordinación del proyecto.' );
+		$this->assertDocumentNotContains( $doc_path, '2026-10-01' );
+		$this->assertNoPlaceholderArtifacts( $doc_path );
+	}
+
+	/**
 	 * The propuesta de gasto merges the gestión blocks and scalars.
 	 */
 	public function test_propuesta_gasto_merges_the_management_blocks() {
