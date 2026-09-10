@@ -253,6 +253,8 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 			'respuesta-parlamentaria'              => 'respuesta_parlamentaria',
 			'correo-masivo'                        => 'correo_masivo',
 			'memoria-previa-resolucion'            => 'memoria_previa_resolucion',
+			'libramiento-ceps'                     => 'libramiento_ceps',
+			'libramiento-centros'                  => 'libramiento_centros',
 			'convocatoria-reunion'                 => 'convocatoriareunion',
 			'autorizacion-viaje'                   => 'autorizacionviaje',
 			'gastos-suplidos'                      => 'gastossuplidos',

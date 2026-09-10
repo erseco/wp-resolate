@@ -539,6 +539,22 @@ class Documentate_Demo_Data {
 				'pdf_layout' => 'memoria_previa_resolucion',
 				'prefix' => 'MPR',
 			),
+			'libramiento_ceps.odt' => array(
+				'slug' => 'libramiento-ceps',
+				'name' => 'Libramiento extraordinario a CEP',
+				'description' => 'Propuesta de resolución que asigna dotaciones económicas extraordinarias a los Centros del Profesorado, con un anexo por provincia.',
+				'color' => '#5d4037',
+				'pdf_layout' => 'libramiento_ceps',
+				'prefix' => 'LCEP',
+			),
+			'libramiento_centros.odt' => array(
+				'slug' => 'libramiento-centros',
+				'name' => 'Libramiento extraordinario a centros',
+				'description' => 'Resolución que asigna dotaciones económicas extraordinarias a los centros educativos, con un anexo por provincia.',
+				'color' => '#455a64',
+				'pdf_layout' => 'libramiento_centros',
+				'prefix' => 'LCEN',
+			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',

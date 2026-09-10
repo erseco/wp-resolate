@@ -62,6 +62,8 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
             'respuesta-parlamentaria' => 'RPP',
             'correo-masivo' => 'CM',
             'memoria-previa-resolucion' => 'MPR',
+            'libramiento-ceps' => 'LCEP',
+            'libramiento-centros' => 'LCEN',
             'autorizacion-viaje' => 'AV',
             'gastos-suplidos' => 'GS',
             'memoria-pago' => 'MP',

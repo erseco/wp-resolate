@@ -778,6 +778,86 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The libramiento to the CEP prints its three written sections, the fixed
+	 * appeal clause and the two annexes, one row per centre.
+	 */
+	public function test_libramiento_ceps_layout_prints_its_sections_and_both_annexes() {
+		$pdf = $this->render(
+			'libramiento_ceps.odt',
+			'libramiento_ceps',
+			'por la que se asignan dotaciones económicas extraordinarias del Proyecto Viera',
+			array(
+				'area' => 'Área de Fomento de la Competencia en Comunicación Lingüística',
+				'antecedentes' => '<p>Primero. Publicada la Resolución n.º 414/2025, de 22 de mayo.</p>',
+				'fundamentos' => '<p>Primero. La Ley 6/2014, Canaria de Educación no universitaria.</p>',
+				'propuesta' => '<p>Primero. Asignar dotaciones económicas extraordinarias.</p>',
+				'total_lp' => '1600',
+				'total_sc' => '2300',
+			),
+			array(
+				'centros_lp' => array(
+					array( 'nombre' => 'CEP Las Palmas de Gran Canaria', 'codigo' => '35009000', 'importe' => '1000' ),
+					array( 'nombre' => 'CEP Puerto del Rosario', 'codigo' => '35009001', 'importe' => '600' ),
+				),
+				'centros_sc' => array(
+					array( 'nombre' => 'CEP La Laguna', 'codigo' => '38700050', 'importe' => '1500' ),
+					array( 'nombre' => 'CEP La Palma', 'codigo' => '38700406', 'importe' => '800' ),
+				),
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'PROPUESTA- RESOLUCIÓN DE LA DIRECCIÓN GENERAL', 'The fixed opening should be printed.' );
+		$this->assertDrawn( $pdf, 'Área de Fomento de la Competencia', 'The proposing área should be merged.' );
+		$this->assertDrawn( $pdf, 'Publicada la Resolución n.º 414/2025', 'The antecedentes should be merged.' );
+		$this->assertDrawn( $pdf, 'La Ley 6/2014, Canaria de Educación', 'The fundamentos should be merged.' );
+		$this->assertDrawn( $pdf, 'Asignar dotaciones económicas extraordinarias.', 'The propuesta should be merged.' );
+		$this->assertDrawn( $pdf, 'recurso de alzada ante la Viceconsejería', 'The fixed appeal clause should be printed.' );
+		$this->assertDrawn( $pdf, 'CEP Las Palmas de Gran Canaria', 'The first annex should list its centres.' );
+		$this->assertDrawn( $pdf, 'CEP La Palma', 'The second annex should list its centres.' );
+		$this->assertDrawn( $pdf, '1.000,00 €', 'The amounts should be printed as euros.' );
+		$this->assertDrawn( $pdf, '2.300,00 €', 'The total of the annex should be printed as euros.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
+	 * The libramiento to the centres is signed by the Director General, and
+	 * the note that the Servicio proposed it closes the document.
+	 */
+	public function test_libramiento_centros_layout_is_signed_by_the_director_general() {
+		$pdf = $this->render(
+			'libramiento_centros.odt',
+			'libramiento_centros',
+			'por la que se asigna una dotación económica extraordinaria a los centros participantes',
+			array(
+				'antecedentes' => '<p>Primero. Existe crédito adecuado y suficiente.</p>',
+				'fundamentos' => '<p>Primero. La Ley 6/2014, Canaria de Educación no universitaria.</p>',
+				'resuelvo' => '<p>Primero. Asignar la dotación económica extraordinaria.</p>',
+				'total_lp' => '11300',
+				'total_sc' => '1400',
+			),
+			array(
+				'centros_lp' => array(
+					array( 'nombre' => 'CEIP Los Caserones', 'codigo' => '35006941', 'importe' => '400' ),
+				),
+				'centros_sc' => array(
+					array( 'nombre' => 'CEIP María Rosa Alonso', 'codigo' => '38006964', 'importe' => '600' ),
+				),
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'ANTECEDENTES DE HECHO', 'The heading the model carries should be printed.' );
+		$this->assertDrawn( $pdf, 'Vista la propuesta formulada por el Servicio', 'The fixed opening should be printed.' );
+		$this->assertDrawn( $pdf, 'Asignar la dotación económica extraordinaria.', 'The resuelvo should be merged.' );
+		$this->assertDrawn( $pdf, 'CEIP Los Caserones', 'The first annex should list its centres.' );
+		$this->assertDrawn( $pdf, 'CEIP María Rosa Alonso', 'The second annex should list its centres.' );
+		$this->assertDrawn( $pdf, 'EL DIRECTOR GENERAL DE ORDENACIÓN', 'The Director General signs the resolución.' );
+		$this->assertDrawn( $pdf, 'ha sido PROPUESTO de conformidad', 'The proposal note should close the document.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
 	 * The certificate prints who certifies, the fixed HACE CONSTAR wording and
 	 * the list of what the person took part in.
 	 */
