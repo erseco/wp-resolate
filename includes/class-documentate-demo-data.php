@@ -531,6 +531,14 @@ class Documentate_Demo_Data {
 				'pdf_layout' => 'correo_masivo',
 				'prefix' => 'CM',
 			),
+			'memoria_previa_resolucion.odt' => array(
+				'slug' => 'memoria-previa-resolucion',
+				'name' => 'Memoria previa de resolución',
+				'description' => 'Memoria con la que el Servicio propone a la Dirección General la tramitación y aprobación de un proyecto de resolución.',
+				'color' => '#00695c',
+				'pdf_layout' => 'memoria_previa_resolucion',
+				'prefix' => 'MPR',
+			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',

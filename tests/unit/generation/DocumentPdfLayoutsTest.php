@@ -754,6 +754,30 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The memoria previa prints the fixed sentence that proposes the draft
+	 * resolution, the title of that resolution and the grounds for it.
+	 */
+	public function test_memoria_previa_resolucion_layout_proposes_the_draft() {
+		$pdf = $this->render(
+			'memoria_previa_resolucion.odt',
+			'memoria_previa_resolucion',
+			'por la que se convoca la prueba libre de Graduado en ESO en 2026',
+			array(
+				'memoria' => '<p>La Ley Orgánica 2/2006, de 3 de mayo, de Educación regula la educación de personas adultas.</p>'
+					. '<p>Por ello resulta necesario proceder a la convocatoria.</p>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'MEMORIA PROPUESTA DEL SERVICIO DE ORDENACIÓN', 'The fixed opening should be printed.' );
+		$this->assertDrawn( $pdf, 'POR LA QUE SE CONVOCA LA PRUEBA LIBRE', 'The title of the draft resolution should be merged in upper case.' );
+		$this->assertDrawn( $pdf, 'La Ley Orgánica 2/2006', 'The grounds should be merged.' );
+		$this->assertDrawn( $pdf, 'se informa y propone al Director General', 'The fixed proposal should be printed.' );
+		$this->assertDrawn( $pdf, 'EL RESPONSABLE DEL SERVICIO DE ORDENACIÓN', 'The signing office should close the memoria.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
 	 * The certificate prints who certifies, the fixed HACE CONSTAR wording and
 	 * the list of what the person took part in.
 	 */

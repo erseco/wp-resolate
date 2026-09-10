@@ -252,6 +252,7 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 			'solicitud-desplazamiento-externo'     => 'solicitud_desplazamiento_externo',
 			'respuesta-parlamentaria'              => 'respuesta_parlamentaria',
 			'correo-masivo'                        => 'correo_masivo',
+			'memoria-previa-resolucion'            => 'memoria_previa_resolucion',
 			'convocatoria-reunion'                 => 'convocatoriareunion',
 			'autorizacion-viaje'                   => 'autorizacionviaje',
 			'gastos-suplidos'                      => 'gastossuplidos',
