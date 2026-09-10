@@ -177,6 +177,56 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The travel request of external staff repeats its block of tables once
+	 * per person in the ODT as well, numbering each one.
+	 */
+	public function test_solicitud_desplazamiento_externo_repeats_its_block() {
+		$term_id = $this->create_type_from_plugin_fixture( 'solicitud_desplazamiento_externo.odt' );
+		$post_id = $this->create_document_with_data(
+			$term_id,
+			array(
+				'servicio' => 'Servicio de Ordenación de las Enseñanzas',
+				'area' => 'Área de Tecnología Educativa',
+				'coordinador' => 'Ivonne Expósito Piñero',
+				'coordinador_correo' => 'ivonne.exposito@gobiernodecanarias.org',
+				'coordinador_telefono' => '600445566',
+				'accion' => 'Jornadas de presentación del Plan Evalúa',
+				'horario' => 'de 09:00 a 14:00',
+			),
+			array(
+				'personas' => array(
+					array(
+						'nombre' => 'Oliver Taño, Beatriz',
+						'nif' => '12345678A',
+						'municipio' => 'La Orotava',
+						'ida_dia' => '2026-10-01',
+						'ida_hora' => '07:15',
+						'hotel' => 'No',
+					),
+					array(
+						'nombre' => 'Rodríguez Martínez, Juan',
+						'nif' => 'X1234567A',
+						'municipio' => 'Las Palmas de Gran Canaria',
+						'ida_dia' => '2026-10-01',
+						'ida_hora' => '08:00',
+						'hotel' => 'Sí',
+					),
+				),
+			)
+		);
+
+		$doc_path = $this->generate_document( $post_id, 'odt' );
+		$this->assertNotWPError( $doc_path );
+
+		$this->assertDocumentContains( $doc_path, 'Jornadas de presentación del Plan Evalúa' );
+		$this->assertDocumentContains( $doc_path, 'Oliver Taño, Beatriz' );
+		$this->assertDocumentContains( $doc_path, 'Rodríguez Martínez, Juan' );
+		$this->assertDocumentContains( $doc_path, '01/10/2026' );
+		$this->assertDocumentNotContains( $doc_path, '[personas' );
+		$this->assertNoPlaceholderArtifacts( $doc_path );
+	}
+
+	/**
 	 * The propuesta de gasto merges the gestión blocks and scalars.
 	 */
 	public function test_propuesta_gasto_merges_the_management_blocks() {

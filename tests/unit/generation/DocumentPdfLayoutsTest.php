@@ -612,6 +612,80 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The travel request of external staff repeats a whole block of tables per
+	 * person, so a request for two people prints both.
+	 */
+	public function test_solicitud_desplazamiento_externo_layout_repeats_a_block_per_person() {
+		$pdf = $this->render(
+			'solicitud_desplazamiento_externo.odt',
+			'solicitud_desplazamiento_externo',
+			'Solicitud de desplazamiento para las jornadas del Plan Evalúa',
+			array(
+				'servicio' => 'Servicio de Ordenación de las Enseñanzas',
+				'area' => 'Área de Tecnología Educativa',
+				'coordinador' => 'Ivonne Expósito Piñero',
+				'coordinador_correo' => 'ivonne.exposito@gobiernodecanarias.org',
+				'coordinador_telefono' => '600445566',
+				'accion' => 'Jornadas de presentación del Plan Evalúa',
+				'horario' => 'de 09:00 a 14:00',
+			),
+			array(
+				'personas' => array(
+					array(
+						'nombre' => 'Oliver Taño, Beatriz',
+						'nif' => '12345678A',
+						'telefono' => '600111222',
+						'municipio' => 'La Orotava',
+						'correo' => 'beatriz.oliver@correo.es',
+						'ida_dia' => '2026-10-01',
+						'ida_hora' => '07:15',
+						'ida_desde' => 'Tenerife Norte',
+						'ida_hasta' => 'Gran Canaria',
+						'vuelta_dia' => '2026-10-01',
+						'vuelta_hora' => '19:45',
+						'vuelta_desde' => 'Gran Canaria',
+						'vuelta_hasta' => 'Tenerife Norte',
+						'hotel' => 'No',
+						'hotel_nombre' => '',
+						'observaciones' => 'Viaja con material voluminoso.',
+					),
+					array(
+						'nombre' => 'Rodríguez Martínez, Juan',
+						'nif' => 'X1234567A',
+						'telefono' => '600333444',
+						'municipio' => 'Las Palmas de Gran Canaria',
+						'correo' => 'juan.rodriguez@correo.es',
+						'ida_dia' => '2026-10-01',
+						'ida_hora' => '08:00',
+						'ida_desde' => 'Gran Canaria',
+						'ida_hasta' => 'Tenerife Norte',
+						'vuelta_dia' => '2026-10-02',
+						'vuelta_hora' => '20:30',
+						'vuelta_desde' => 'Tenerife Norte',
+						'vuelta_hasta' => 'Gran Canaria',
+						'hotel' => 'Sí',
+						'hotel_nombre' => 'El más cercano a la sede',
+						'observaciones' => '',
+					),
+				),
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'SOLICITUD DE DESPLAZAMIENTO (personal externo)', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, 'Jornadas de presentación del Plan Evalúa', 'The action should be merged.' );
+		$this->assertDrawn( $pdf, 'Ivonne Expósito Piñero', 'The coordinator should be merged.' );
+		$this->assertDrawn( $pdf, 'Oliver Taño, Beatriz', 'The first person should be merged.' );
+		$this->assertDrawn( $pdf, 'Rodríguez Martínez, Juan', 'The second person should be merged, so the block repeats.' );
+		$this->assertDrawn( $pdf, 'Nº 1', 'Each block should carry its own number.' );
+		$this->assertDrawn( $pdf, 'Nº 2', 'Each block should carry its own number.' );
+		$this->assertDrawn( $pdf, 'El más cercano a la sede', 'The hotel of the second person should be merged.' );
+		$this->assertDrawn( $pdf, '01/10/2026', 'The days should print in the Spanish order.' );
+		$this->assertDrawn( $pdf, 'Viaja con material voluminoso.', 'The remarks should be merged.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
 	 * The certificate prints who certifies, the fixed HACE CONSTAR wording and
 	 * the list of what the person took part in.
 	 */

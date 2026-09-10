@@ -507,6 +507,14 @@ class Documentate_Demo_Data {
 				'pdf_layout' => 'solicitud_desplazamiento_dg',
 				'prefix' => 'SD',
 			),
+			'solicitud_desplazamiento_externo.odt' => array(
+				'slug' => 'solicitud-desplazamiento-externo',
+				'name' => 'Solicitud de desplazamiento (personal externo)',
+				'description' => 'Solicitud de desplazamiento y alojamiento para el personal externo que participa en una acción, con un bloque por persona.',
+				'color' => '#0277bd',
+				'pdf_layout' => 'solicitud_desplazamiento_externo',
+				'prefix' => 'SDE',
+			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',

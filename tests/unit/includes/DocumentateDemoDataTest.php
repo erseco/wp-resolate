@@ -249,6 +249,7 @@ class DocumentateDemoDataTest extends WP_UnitTestCase {
 			'propuesta-gasto'                      => 'propuestagasto',
 			'hace-constar'                         => 'haceconstar',
 			'solicitud-desplazamiento-dg'          => 'solicitud_desplazamiento_dg',
+			'solicitud-desplazamiento-externo'     => 'solicitud_desplazamiento_externo',
 			'convocatoria-reunion'                 => 'convocatoriareunion',
 			'autorizacion-viaje'                   => 'autorizacionviaje',
 			'gastos-suplidos'                      => 'gastossuplidos',

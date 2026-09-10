@@ -58,6 +58,7 @@ class DocumentateDocumentTypeSeedingTest extends WP_UnitTestCase {
             'convocatoria-reunion' => 'CONV',
             'hace-constar' => 'HC',
             'solicitud-desplazamiento-dg' => 'SD',
+            'solicitud-desplazamiento-externo' => 'SDE',
             'autorizacion-viaje' => 'AV',
             'gastos-suplidos' => 'GS',
             'memoria-pago' => 'MP',
