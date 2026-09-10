@@ -515,6 +515,14 @@ class Documentate_Demo_Data {
 				'pdf_layout' => 'solicitud_desplazamiento_externo',
 				'prefix' => 'SDE',
 			),
+			'respuesta_parlamentaria.odt' => array(
+				'slug' => 'respuesta-parlamentaria',
+				'name' => 'Respuesta a pregunta parlamentaria',
+				'description' => 'Respuesta a una pregunta oral en comisión del Parlamento de Canarias, con su número POC y el texto de la pregunta.',
+				'color' => '#8e44ad',
+				'pdf_layout' => 'respuesta_parlamentaria',
+				'prefix' => 'RPP',
+			),
 			'convocatoriareunion.odt' => array(
 				'slug' => 'convocatoria-reunion',
 				'name' => 'Convocatoria de reunión',

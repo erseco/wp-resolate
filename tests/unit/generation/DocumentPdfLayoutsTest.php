@@ -686,6 +686,35 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 	}
 
 	/**
+	 * The parliamentary answer prints the question it answers and the answer
+	 * itself, both of them rich text.
+	 */
+	public function test_respuesta_parlamentaria_layout_prints_the_question_and_the_answer() {
+		$pdf = $this->render(
+			'respuesta_parlamentaria.odt',
+			'respuesta_parlamentaria',
+			'Respuesta a la pregunta sobre la competencia digital',
+			array(
+				'area' => 'Área de Tecnología Educativa',
+				'fecha' => '2026-09-30',
+				'numero_poc' => '10L/PO/C-1234',
+				'pregunta' => '<p>¿Qué medidas ha adoptado la Consejería para la mejora de la competencia digital?</p>',
+				'respuesta' => '<p>Se han desarrollado las siguientes actuaciones:</p>'
+					. '<ul><li>Formación del profesorado en centros.</li><li>Dotación de equipamiento.</li></ul>',
+			)
+		);
+
+		$this->assertDrawn( $pdf, 'RESPUESTA A PREGUNTAS PARLAMENTARIAS', 'The fixed title should be printed.' );
+		$this->assertDrawn( $pdf, '10L/PO/C-1234', 'The POC number should be merged.' );
+		$this->assertDrawn( $pdf, '30/09/2026', 'The date should print in the Spanish order.' );
+		$this->assertDrawn( $pdf, '¿Qué medidas ha adoptado la Consejería', 'The question should be merged.' );
+		$this->assertDrawn( $pdf, 'Formación del profesorado en centros.', 'The rich answer should be merged.' );
+		$this->assertDrawn( $pdf, '•', 'The rich answer should keep its bulleted list.' );
+
+		$this->assertNothingUnmerged( $pdf );
+	}
+
+	/**
 	 * The certificate prints who certifies, the fixed HACE CONSTAR wording and
 	 * the list of what the person took part in.
 	 */
