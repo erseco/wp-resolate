@@ -388,7 +388,7 @@ class SchemaExtractorTest extends WP_UnitTestCase {
 		foreach ( array( 'gasto_letra', 'gasto_numero', 'partida', 'servicios_igic_exento', 'suministros_igic_exento' ) as $slug ) {
 			$this->assertSame( 'gestion', $fields[ $slug ]['rol'], sprintf( '%s is completed by gestión.', $slug ) );
 		}
-		$area = array( 'post_title', 'curso', 'letra_decreto', 'para', 'objeto', 'lineadeactuacion', 'destinatarios', 'alcance_centros', 'alcance_profesorado', 'alcance_alumnado', 'alcance_familias' );
+		$area = array( 'post_title', 'curso', 'numero_decreto', 'letra_decreto', 'para', 'objeto', 'lineadeactuacion', 'destinatarios', 'alcance_centros', 'alcance_profesorado', 'alcance_alumnado', 'alcance_familias' );
 		foreach ( $area as $slug ) {
 			$this->assertSame( '', $fields[ $slug ]['rol'], sprintf( '%s is an área field.', $slug ) );
 		}

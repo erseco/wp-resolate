@@ -137,6 +137,7 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 			$term_id,
 			array(
 				'curso' => '2026/2027',
+				'numero_decreto' => '2',
 				'letra_decreto' => 'a',
 				'para' => 'formar al profesorado',
 				'objeto' => 'Objeto del proyecto',
@@ -181,6 +182,8 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 		$this->assertNotWPError( $doc_path );
 		$this->assertFileExists( $doc_path );
 
+		// The número and the letra of article 17 are both the área's to fill in.
+		$this->assertDocumentContains( $doc_path, 'artículo 17 número 2, letra a' );
 		$this->assertDocumentContains( $doc_path, 'Mil veintiocho euros' );
 		$this->assertDocumentContains( $doc_path, '18.03.321B.229.0100' );
 		$this->assertDocumentContains( $doc_path, 'Formación Docente Canarias S.L.' );

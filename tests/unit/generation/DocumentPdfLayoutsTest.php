@@ -226,6 +226,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			'Programa de formación en metodologías activas',
 			array(
 				'curso'               => '2024/2025',
+				'numero_decreto'      => '2',
 				'letra_decreto'       => 'a',
 				'para'                => 'la formación del profesorado en metodologías activas y competencias digitales',
 				'objeto'              => 'Desarrollo de un programa de formación continua para el profesorado de centros públicos de Canarias.',
@@ -305,6 +306,7 @@ class DocumentPdfLayoutsTest extends Documentate_Generation_Test_Base {
 			'Equipamiento de aulas del futuro',
 			array(
 				'curso'        => '2025/2026',
+				'numero_decreto' => '2',
 				'letra_decreto' => 'b',
 				'para'         => 'la dotación de equipamiento tecnológico',
 				'objeto'       => 'Dotación de equipamiento para las aulas del futuro.',
