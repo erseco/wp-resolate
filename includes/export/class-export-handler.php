@@ -56,7 +56,7 @@ abstract class Export_Handler {
 			return;
 		}
 
-		$stream = $this->stream_file_download( $result );
+		$stream = $this->stream_file_download( $result, $post_id );
 		if ( is_wp_error( $stream ) ) {
 			wp_die( esc_html( $stream->get_error_message() ), '', array( 'back_link' => true ) );
 		}
@@ -115,9 +115,10 @@ abstract class Export_Handler {
 	 * Stream file for download.
 	 *
 	 * @param string $file_path Path to file.
+	 * @param int    $post_id   Document post ID, for the name the browser saves.
 	 * @return bool|\WP_Error
 	 */
-	protected function stream_file_download( $file_path ) {
+	protected function stream_file_download( $file_path, $post_id = 0 ) {
 		global $wp_filesystem;
 
 		if ( ! function_exists( 'WP_Filesystem' ) ) {
@@ -136,7 +137,14 @@ abstract class Export_Handler {
 		}
 
 		$filesize = (int) $wp_filesystem->size( $file_path );
-		$download_name = wp_basename( $file_path );
+
+		// The copy on disk is named after the document ID; what the browser
+		// saves follows the naming protocol instead.
+		$download_name = \Documentate_Files::download_name( $post_id, $this->get_format() );
+		if ( '' === $download_name ) {
+			$download_name = wp_basename( $file_path );
+		}
+
 		$encoded_name = rawurlencode( $download_name );
 		$disposition = 'attachment; filename="' . $download_name . '"; filename*=UTF-8\'\'' . $encoded_name;
 

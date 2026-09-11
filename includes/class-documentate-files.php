@@ -22,6 +22,13 @@ defined( 'ABSPATH' ) || exit();
 class Documentate_Files {
 
 	/**
+	 * Characters a download name is cut to, extension aside.
+	 *
+	 * @var int
+	 */
+	const NAME_LIMIT = 120;
+
+	/**
 	 * Path of an attachment, when it is a real file inside the uploads folder.
 	 *
 	 * @param int $attachment_id Attachment ID.
@@ -74,5 +81,40 @@ class Documentate_Files {
 	 */
 	public static function header_file_name( $name ) {
 		return sanitize_file_name( (string) $name );
+	}
+
+	/**
+	 * The name a generated document is saved under when it is downloaded.
+	 *
+	 * The protocol asks that documents be named so they can be told apart at a
+	 * glance, and that a document of an área carry the name of the área too.
+	 * That is what this builds: prefix of the type, título and área. The copy
+	 * on disk keeps its own name — one per document ID, so two documents that
+	 * share a título cannot overwrite each other — and only the name the
+	 * browser saves changes here.
+	 *
+	 * @param int    $post_id   Document post ID.
+	 * @param string $extension File extension, without the dot.
+	 * @return string Empty string when there is no usable name.
+	 */
+	public static function download_name( $post_id, $extension ) {
+		$post_id = (int) $post_id;
+		$extension = sanitize_key( $extension );
+		if ( $post_id <= 0 || '' === $extension ) {
+			return '';
+		}
+
+		$parts = array( Documentate_Document_Data::type_prefix( $post_id ) );
+		foreach ( array( get_the_title( $post_id ), Documentate_Document_Data::area( $post_id ) ) as $piece ) {
+			$parts[] = sanitize_title( (string) $piece );
+		}
+
+		$name = implode( '-', array_filter( $parts ) );
+		if ( '' === $name ) {
+			return '';
+		}
+
+		// Long títulos are common and a file name is not the place for them.
+		return self::header_file_name( mb_substr( $name, 0, self::NAME_LIMIT ) . '.' . $extension );
 	}
 }

@@ -306,9 +306,13 @@
 			var prefixMark = option ? option.getAttribute('data-prefijo') : '';
 
 			if (note) {
-				note.textContent = '' === value
-					? ''
-					: (management ? 'Pasa por revisión.' : 'Va directo a la jefatura de servicio.');
+				// The type's own description is where the trámite is explained
+				// — how far ahead it has to go in, who authorises it — so it
+				// leads, and the step of the circuit closes the line.
+				var description = option ? (option.getAttribute('data-descripcion') || '') : '';
+				var step = management ? 'Pasa por revisión.' : 'Va directo al Responsable del Servicio.';
+
+				note.textContent = '' === value ? '' : (description ? description + ' ' + step : step);
 			}
 			if (prefix) {
 				prefix.textContent = prefixMark || '';

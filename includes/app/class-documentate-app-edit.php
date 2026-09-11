@@ -224,6 +224,7 @@ class Documentate_App_Edit {
 				<label for="documentate-app-titulo">Título oficial</label>
 				<textarea id="documentate-app-titulo" name="documentate_app_titulo" rows="2" required maxlength="500"><?php echo esc_textarea( $post->post_title ); ?></textarea>
 				<p class="dcta-ayuda">El título completo tal y como saldrá en el documento.</p>
+				<p class="dcta-ayuda">El formato —logotipos, márgenes y tipografía— lo pone Documentate: no hay que ajustarlo a mano.</p>
 			</div>
 			<?php self::render_type_field( $without_type, $type_name ); ?>
 		</div>
@@ -270,6 +271,7 @@ class Documentate_App_Edit {
 				<?php foreach ( $types as $type ) : ?>
 					<option value="<?php echo esc_attr( (string) $type->term_id ); ?>"
 						data-prefijo="<?php echo esc_attr( Documentate_Document_Data::prefix_for_type( $type->term_id ) ); ?>"
+						data-descripcion="<?php echo esc_attr( (string) $type->description ); ?>"
 						data-gestion="<?php echo esc_attr( Documentate_Document_Data::type_has_management( $type->term_id ) ? '1' : '' ); ?>"><?php echo esc_html( $type->name ); ?></option>
 				<?php endforeach; ?>
 			</select>

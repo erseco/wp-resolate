@@ -156,6 +156,24 @@ class Documentate_Demo_Field_Values {
 				},
 			),
 			array(
+				array( 'invitado' ),
+				static function ( $i ) {
+					return 1 === $i ? 'Luz Expósito Morales, asesoría técnica docente' : 'Dirección del IES de demostración';
+				},
+			),
+			array(
+				array( 'horario' ),
+				static function () {
+					return 'de 09:00 a 14:00';
+				},
+			),
+			array(
+				array( 'evento' ),
+				static function () {
+					return 'II Jornadas de demostración';
+				},
+			),
+			array(
 				array( 'temas' ),
 				static function () {
 					return 'Discusión de programas de innovación educativa y coordinación interterritorial.';
