@@ -119,7 +119,11 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 	 * @return int Term ID.
 	 */
 	private function create_type( $name, $prefix, $has_management ) {
-		$term = wp_insert_term( $name . ' ' . uniqid(), 'documentate_doc_type' );
+		$term = wp_insert_term(
+			$name . ' ' . uniqid(),
+			'documentate_doc_type',
+			array( 'description' => 'Cómo se tramita ' . $name . '.' )
+		);
 		$term_id = (int) $term['term_id'];
 		update_term_meta( $term_id, Documentate_Document_Data::TERM_META_PREFIX, $prefix );
 
@@ -811,10 +815,15 @@ class DocumentateAppViewsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-prefijo="RES"', $html );
 		$this->assertStringContainsString( 'data-gestion="1"', $html );
 		$this->assertStringContainsString( 'data-prefijo="CONV"', $html );
+
+		// What the trámite asks for lives in the description of the type, so
+		// it travels to the hint the form paints under the selector.
+		$this->assertStringContainsString( 'data-descripcion="Cómo se tramita', $html );
 		$this->assertStringContainsString( 'id="documentate-app-tipo-nota"', $html );
 		$this->assertStringContainsString( 'id="documentate-app-prefijo"', $html );
 		$this->assertStringContainsString( 'name="documentate_app_nombre"', $html );
 		$this->assertStringContainsString( 'name="documentate_app_titulo"', $html );
+		$this->assertStringContainsString( 'lo pone Documentate', $html );
 		$this->assertStringContainsString( 'Crear borrador', $html );
 	}
 }

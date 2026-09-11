@@ -291,4 +291,105 @@ class DocumentRoleTemplatesTest extends Documentate_Generation_Test_Base {
 		$this->assertDocumentNotContains( $doc_path, "rol='gestion'" );
 		$this->assertNoPlaceholderArtifacts( $doc_path );
 	}
+
+	/**
+	 * The memoria de pago is drafted before the resolución that authorises it
+	 * has a number: the área sends it without one, and it still merges.
+	 */
+	public function test_memoria_pago_cep_merges_before_the_resolucion_has_a_number() {
+		$term_id = $this->create_type_from_plugin_fixture( 'memoria_pago_cep.odt' );
+		$post_id = $this->create_document_with_data(
+			$term_id,
+			array(
+				'cep' => 'CEP de Santa Cruz de Tenerife',
+				'concepto' => 'de varias facturas',
+				'parrafo_jornadas' => 'Jornadas de coordinación del programa.',
+				'resolucion_num' => '',
+				'resolucion_fecha' => '',
+				'year' => '2025',
+				'persona' => 'COORDINADOR/A',
+			),
+			array(
+				'items' => array(
+					array(
+						'nombre' => 'Luz Expósito Morales',
+						'concepto' => 'Inscripción en jornadas',
+						'num_factura' => 'F-234/2025',
+						'importe' => '120',
+					),
+				),
+			)
+		);
+
+		$doc_path = $this->generate_document( $post_id, 'odt' );
+		$this->assertNotWPError( $doc_path );
+
+		$this->assertDocumentContains( $doc_path, 'Inscripción en jornadas' );
+		$this->assertDocumentNotContains( $doc_path, '[resolucion_num' );
+		$this->assertDocumentNotContains( $doc_path, '[resolucion_fecha' );
+		$this->assertNoPlaceholderArtifacts( $doc_path );
+	}
+
+	/**
+	 * The oficio remits something by registry: no entry number anywhere, and
+	 * the body says what travels with it.
+	 */
+	public function test_oficio_remits_what_it_carries_without_a_registry_number() {
+		$term_id = $this->create_type_from_plugin_fixture( 'oficio.odt' );
+		$post_id = $this->create_document_with_data(
+			$term_id,
+			array(
+				'destinatario' => 'Dirección del IES Demo',
+				'destinatario_email' => 'demo@ejemplo.es',
+				'asunto' => 'Remisión del informe de seguimiento',
+				'adjunto_descripcion' => 'el informe de seguimiento del programa',
+				'firma_cargo' => 'EL RESPONSABLE DEL SERVICIO DE ORDENACIÓN DE LAS ENSEÑANZAS Y EDUCACIÓN DE PERSONAS ADULTAS',
+			)
+		);
+
+		$doc_path = $this->generate_document( $post_id, 'odt' );
+		$this->assertNotWPError( $doc_path );
+
+		$this->assertDocumentContains( $doc_path, 'Se adjunta el informe de seguimiento del programa' );
+		$this->assertDocumentContains( $doc_path, 'EL RESPONSABLE DEL SERVICIO' );
+		$this->assertDocumentNotContains( $doc_path, 'número de registro de entrada' );
+		$this->assertNoPlaceholderArtifacts( $doc_path );
+	}
+
+	/**
+	 * The invitation merges its body and the schematic summary the official
+	 * model puts beside it, and keeps none of the sample event it was built
+	 * from.
+	 */
+	public function test_invitacion_merges_the_body_and_its_summary() {
+		$term_id = $this->create_type_from_plugin_fixture( 'invitacion.odt' );
+		$post_id = $this->create_document_with_data(
+			$term_id,
+			array(
+				'destinatario' => 'Dirección del CEIP Demo',
+				'evento' => 'III Jornadas de Tecnología Educativa',
+				'invitado' => 'Luz Expósito Morales, asesoría técnica docente',
+				'fecha_lugar' => 'los días 4 y 5 de mayo de 2026 en el CEP de La Laguna',
+				'presentacion' => 'El encuentro reúne al profesorado de los centros participantes.',
+				'lugar' => 'CEP de La Laguna',
+				'fecha' => '4 y 5 de mayo de 2026',
+				'horario' => 'de 09:00 a 14:00',
+				'programa' => 'https://ejemplo.es/programa',
+				'informacion' => 'tecnologia.educativa@ejemplo.es',
+			)
+		);
+
+		$doc_path = $this->generate_document( $post_id, 'odt' );
+		$this->assertNotWPError( $doc_path );
+
+		$this->assertDocumentContains( $doc_path, 'Por la presente se invita a' );
+		$this->assertDocumentContains( $doc_path, 'que organiza la Dirección General' );
+		$this->assertDocumentContains( $doc_path, 'CEP de La Laguna' );
+		$this->assertDocumentContains( $doc_path, '4 y 5 de mayo de 2026' );
+
+		// Nothing of the sample invitation the official model carried.
+		$this->assertDocumentNotContains( $doc_path, 'Canarias Plurilingüe' );
+		$this->assertDocumentNotContains( $doc_path, 'RESUMEN ESQUEMÁTICO' );
+		$this->assertNoPlaceholderArtifacts( $doc_path );
+	}
 }

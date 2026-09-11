@@ -149,4 +149,92 @@ class DocumentateFilesTest extends WP_UnitTestCase {
 		$this->assertSame( 'acta-de-la-reunion.pdf', Documentate_Files::header_file_name( 'acta-de-la-reunión.pdf' ) );
 		$this->assertSame( 'propuesta_2026.odt', Documentate_Files::header_file_name( 'propuesta_2026.odt' ) );
 	}
+
+	/**
+	 * Create a document, optionally typed and filed under an área.
+	 *
+	 * @param string $title  Título of the document.
+	 * @param string $prefix Prefix of its type, or an empty string for no type.
+	 * @param string $area   Name of its área, or an empty string for none.
+	 * @return int Document post ID.
+	 */
+	private function create_document( $title, $prefix = '', $area = '' ) {
+		$post_id = wp_insert_post(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => $title,
+				'post_status' => 'draft',
+			)
+		);
+
+		if ( '' !== $prefix ) {
+			$type = wp_insert_term( 'Tipo ' . $prefix . ' ' . uniqid(), 'documentate_doc_type' );
+			update_term_meta( (int) $type['term_id'], Documentate_Document_Data::TERM_META_PREFIX, $prefix );
+			wp_set_object_terms( $post_id, array( (int) $type['term_id'] ), 'documentate_doc_type' );
+		}
+
+		if ( '' !== $area ) {
+			$term = wp_insert_term( $area, 'category' );
+			wp_set_object_terms( $post_id, array( (int) $term['term_id'] ), 'category' );
+		}
+
+		return (int) $post_id;
+	}
+
+	/**
+	 * A download is named after the type, the título and the área, which is
+	 * what the protocol the área follows asks documents to be called.
+	 */
+	public function test_a_download_is_named_after_its_type_titulo_and_area() {
+		$post_id = $this->create_document(
+			'Convocatoria de la reunión de coordinación',
+			'conv',
+			'Área de Tecnología Educativa'
+		);
+
+		$this->assertSame(
+			'CONV-convocatoria-de-la-reunion-de-coordinacion-area-de-tecnologia-educativa.pdf',
+			Documentate_Files::download_name( $post_id, 'pdf' )
+		);
+	}
+
+	/**
+	 * Only the pieces a document actually has make it into the name.
+	 */
+	public function test_a_download_name_keeps_only_the_pieces_that_exist() {
+		$this->assertSame(
+			'informe-sin-tipo-ni-area.odt',
+			Documentate_Files::download_name( $this->create_document( 'Informe sin tipo ni área' ), 'odt' )
+		);
+
+		$this->assertSame(
+			'INF-informe-del-area.docx',
+			Documentate_Files::download_name( $this->create_document( 'Informe del área', 'inf' ), 'docx' )
+		);
+	}
+
+	/**
+	 * A long título is cut, and the extension survives the cut.
+	 */
+	public function test_a_long_titulo_is_cut_and_keeps_its_extension() {
+		$post_id = $this->create_document( str_repeat( 'palabra ', 40 ), 'res' );
+		$name = Documentate_Files::download_name( $post_id, 'pdf' );
+
+		$this->assertStringStartsWith( 'RES-palabra', $name );
+		$this->assertStringEndsWith( '.pdf', $name );
+		$this->assertLessThanOrEqual( Documentate_Files::NAME_LIMIT + 4, mb_strlen( $name ) );
+	}
+
+	/**
+	 * Without a document, an extension or anything nameable there is no name,
+	 * and the caller falls back to the name of the file on disk.
+	 */
+	public function test_nothing_nameable_has_no_download_name() {
+		$post_id = $this->create_document( 'Informe' );
+
+		$this->assertSame( '', Documentate_Files::download_name( 0, 'pdf' ) );
+		$this->assertSame( '', Documentate_Files::download_name( -5, 'pdf' ) );
+		$this->assertSame( '', Documentate_Files::download_name( $post_id, '' ) );
+		$this->assertSame( '', Documentate_Files::download_name( $this->create_document( '###' ), 'pdf' ) );
+	}
 }

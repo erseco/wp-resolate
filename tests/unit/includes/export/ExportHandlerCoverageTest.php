@@ -166,6 +166,42 @@ class ExportHandlerCoverageTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A download of a real document is streamed under the name the protocol
+	 * asks for, not under the name the file has on disk.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_stream_file_download_names_the_file_after_the_document() {
+		$file_path = $this->temp_dir . '/resolucion-de-prueba-42.docx';
+		file_put_contents( $file_path, 'contenido' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture.
+
+		$post_id = wp_insert_post(
+			array(
+				'post_type' => 'documentate_document',
+				'post_title' => 'Resolución de prueba',
+				'post_status' => 'draft',
+			)
+		);
+
+		$this->assertSame(
+			'resolucion-de-prueba.docx',
+			Documentate_Files::download_name( $post_id, 'docx' )
+		);
+
+		$handler = new Export_DOCX_Handler();
+		$method = new ReflectionMethod( $handler, 'stream_file_download' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$result = $method->invoke( $handler, $file_path, $post_id );
+		$output = ob_get_clean();
+
+		$this->assertTrue( $result );
+		$this->assertSame( 'contenido', $output );
+	}
+
+	/**
 	 * Test stream_file_download returns error when filesystem unavailable.
 	 *
 	 * This tests the WP_Filesystem initialization error path.

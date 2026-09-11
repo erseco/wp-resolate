@@ -70,7 +70,7 @@ const NEW_DOCUMENT = `
 	<form class="dcta-form" method="post">
 		<select id="documentate-app-tipo" name="documentate_app_tipo">
 			<option value="">Elige un tipo…</option>
-			<option value="7" data-prefijo="RES" data-gestion="1">Resolución</option>
+			<option value="7" data-prefijo="RES" data-gestion="1" data-descripcion="Se presenta con 40 días de antelación.">Resolución</option>
 			<option value="9" data-prefijo="CONV" data-gestion="">Convocatoria</option>
 		</select>
 		<p class="dcta-ayuda" id="documentate-app-tipo-nota"></p>
@@ -412,7 +412,7 @@ describe( 'new document form', () => {
 		select.value = '7';
 		select.dispatchEvent( new window.Event( 'change' ) );
 		expect( document.getElementById( 'documentate-app-tipo-nota' ).textContent ).toBe(
-			'Pasa por revisión.'
+			'Se presenta con 40 días de antelación. Pasa por revisión.'
 		);
 		expect( document.getElementById( 'documentate-app-prefijo' ).textContent ).toBe( 'RES' );
 		expect( document.getElementById( 'documentate-app-prefijo' ).hidden ).toBe( false );
@@ -420,7 +420,7 @@ describe( 'new document form', () => {
 		select.value = '9';
 		select.dispatchEvent( new window.Event( 'change' ) );
 		expect( document.getElementById( 'documentate-app-tipo-nota' ).textContent ).toBe(
-			'Va directo a la jefatura de servicio.'
+			'Va directo al Responsable del Servicio.'
 		);
 		expect( document.getElementById( 'documentate-app-prefijo' ).textContent ).toBe( 'CONV' );
 	} );
