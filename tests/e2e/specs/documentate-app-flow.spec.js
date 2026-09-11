@@ -229,8 +229,13 @@ test.describe.serial( 'Documentate app · full workflow', () => {
 		await expect( area.locator( '.dcta-rol' ) ).toContainText( 'Área' );
 
 		await area.selectOption( '#documentate-app-tipo', String( docTypeId ) );
-		// The hint under the select is written by documentate-app.js.
-		await expect( area.locator( '#documentate-app-tipo-nota' ) ).toHaveText(
+		// The hint under the select is written by documentate-app.js: what the
+		// trámite asks of this type, from its description, and then the step of
+		// the circuit it goes to.
+		await expect( area.locator( '#documentate-app-tipo-nota' ) ).toContainText(
+			'40 días de antelación'
+		);
+		await expect( area.locator( '#documentate-app-tipo-nota' ) ).toContainText(
 			'Pasa por revisión.'
 		);
 		await area.fill( '#documentate-app-nombre', NAME );
