@@ -69,3 +69,7 @@ test-results/
 
 # Capturas generadas por «make capturas» (se regeneran, no se versionan)
 /capturas/
+
+# Project-owned agent skills are not generated plugin archives.
+!/.agents/skills/documentate-generation/
+!/.agents/skills/documentate-autofirma/
